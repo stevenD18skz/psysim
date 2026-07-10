@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+dist
+build
+*.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+public/models
+public/scenes
+*.glb
+*.gltf
