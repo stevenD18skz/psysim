@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+/blob-report
+/playwright/.cache
+/e2e/.auth
 
 # next.js
 /.next/
@@ -22,6 +27,7 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
 
 # debug
@@ -30,12 +36,20 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files: only the template is committed
 .env*
+!.env.example
 
 # vercel
 .vercel
 
+# supabase (local CLI state)
+/supabase/.temp
+/supabase/.branches
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# project management export (not source code)
+taiga.json

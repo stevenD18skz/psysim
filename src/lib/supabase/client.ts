@@ -1,49 +1,16 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { User } from '@/types';
+
+import { publicEnv } from '@/lib/env/public';
+import { type Database } from '@/types/database.types';
 
 /**
- * Cliente de Supabase para el navegador
- * Usa la ANON_KEY para operaciones de autenticación desde el cliente
+ * Cliente de Supabase para Client Components.
+ * Usa la clave publicable: todas sus consultas están sujetas a las políticas RLS.
+ * `createBrowserClient` reutiliza una única instancia en el navegador.
  */
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  return createBrowserClient<Database>(
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   );
-}
-
-/**
- * Helper para obtener el usuario actual desde el cliente
- */
-export async function getCurrentUser(): Promise<User | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) return null;
-
-  return {
-    id: user.id,
-    email: user.email!,
-    role: user.user_metadata?.role || 'teacher',
-    created_at: user.created_at,
-  };
-}
-
-/**
- * Helper para iniciar sesión con email y contraseña
- */
-export async function signInWithPassword(email: string, password: string) {
-  const supabase = createClient();
-  return await supabase.auth.signInWithPassword({ email, password });
-}
-
-/**
- * Helper para cerrar sesión
- */
-export async function signOut() {
-  const supabase = createClient();
-  return await supabase.auth.signOut();
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const NPCChatRequestSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.uuid(),
   message: z.string().min(1).max(2000),
   scenarioId: z.string(),
   npcConfig: z.object({
@@ -22,8 +22,8 @@ export const NPCChatRequestSchema = z.object({
 export const NPCChatResponseSchema = z.object({
   message: z.string(),
   emotion: z.string().optional(),
-  sessionId: z.string().uuid(),
-  timestamp: z.string().datetime(),
+  sessionId: z.uuid(),
+  timestamp: z.iso.datetime(),
 });
 
 export type NPCChatRequest = z.infer<typeof NPCChatRequestSchema>;

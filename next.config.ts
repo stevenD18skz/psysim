@@ -1,54 +1,31 @@
 import type { NextConfig } from 'next';
 
+/**
+ * Encabezados de seguridad aplicados a todas las respuestas.
+ * HSTS lo añade Vercel automáticamente en los dominios HTTPS.
+ */
+const securityHeaders = [
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  },
+];
+
 const nextConfig: NextConfig = {
-  // Configuración de Turbopack para manejo de archivos estáticos 3D
+  poweredByHeader: false,
+  typedRoutes: true,
   turbopack: {
     rules: {
-      '*.glsl': {
-        loaders: ['raw-loader'],
-      },
-      '*.vs': {
-        loaders: ['raw-loader'],
-      },
-      '*.fs': {
-        loaders: ['raw-loader'],
-      },
+      // Shaders GLSL importados como texto plano (p. ej. `import frag from './x.frag'`).
+      // Los modelos .glb/.gltf NO pasan por el bundler: se sirven desde /public/models.
+      '*.{glsl,vert,frag,vs,fs}': { loaders: ['raw-loader'], as: '*.js' },
     },
   },
-  // Deshabilitar la verificación de tipos en build (para evitar problemas con tipos internos)
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Configuración de imágenes
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'localhost',
-      },
-    ],
-  },
-  // Configuración de encabezados de seguridad
   async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
-          },
-        ],
-      },
-    ];
+    return [{ source: '/:path*', headers: securityHeaders }];
   },
 };
 

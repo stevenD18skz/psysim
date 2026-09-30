@@ -1,263 +1,245 @@
-# PsySim - Simulador de Entrevistas Psicológicas
+# PsySim — Simulador de Escenarios Psicológicos
 
-Sistema de simulación inmersiva para entrenamiento de entrevistas psicológicas mediante interacción conversacional con NPCs (Personajes No Jugadores) en entornos 3D.
+Plataforma web 3D para la simulación de escenarios de práctica clínica orientada a estudiantes de
+psicología, con pacientes virtuales (NPC) conducidos por inteligencia artificial.
 
----
+Trabajo de grado — Brayan Steven Narváez Valdés, Universidad del Valle.
 
-## 📋 Stack Tecnológico
+| Entorno                 | URL                                                                           | Rama      |
+| ----------------------- | ----------------------------------------------------------------------------- | --------- |
+| Producción              | https://psysim.vercel.app                                                     | `main`    |
+| Staging (preview)       | https://psysim-git-develop-brayan-steven-narvaez-valdezs-projects.vercel.app  | `develop` |
+| Previews de otras ramas | `https://psysim-git-<rama>-brayan-steven-narvaez-valdezs-projects.vercel.app` | cualquier |
 
-### Frontend
-
-| Capa       | Tecnología        | Versión     |
-| ---------- | ----------------- | ----------- |
-| Framework  | Next.js           | 16.2.10     |
-| UI Library | React             | 19.2.4      |
-| Motor 3D   | React Three Fiber | _Pendiente_ |
-| Estilos    | Tailwind CSS      | 4.x         |
-| Iconos     | Lucide React      | 1.24.0      |
-
-### Backend
-
-| Capa          | Tecnología          |
-| ------------- | ------------------- |
-| API Routes    | Next.js API Routes  |
-| Validación    | Zod 3               |
-| Autenticación | Supabase Auth       |
-| Base de Datos | Supabase PostgreSQL |
-| Storage       | Supabase Storage    |
-| Tiempo Real   | Supabase Realtime   |
-
-### DevOps & Calidad
-
-| Aspecto   | Herramientas                            |
-| --------- | --------------------------------------- |
-| Linting   | ESLint + eslint-config-next             |
-| Formato   | Prettier                                |
-| Git Hooks | Husky + lint-staged                     |
-| Testing   | _Vitest + Playwright (pendiente)_       |
-| Monitoreo | _Sentry + Vercel Analytics (pendiente)_ |
+> Los despliegues de preview (incluido staging) están protegidos por **Vercel Authentication**:
+> solo los miembros del equipo de Vercel pueden abrirlos. Ver [Tests E2E contra staging](#tests-e2e-contra-staging).
 
 ---
 
-## 🌿 Estrategia de Ramas (Git Workflow)
+## Stack
 
-Este proyecto sigue el modelo **Git Flow** simplificado:
+| Capa           | Tecnología                                                             |
+| -------------- | ---------------------------------------------------------------------- |
+| Framework      | Next.js 16 (App Router, Turbopack, `proxy.ts`) · React 19 · TypeScript |
+| UI             | Tailwind CSS 4 · shadcn/ui (Radix) · lucide-react                      |
+| Estado         | Zustand 5 (store por árbol de React, slices)                           |
+| Validación     | Zod 4 · React Hook Form                                                |
+| Backend / BaaS | Supabase: Auth, PostgreSQL con RLS                                     |
+| IA             | Google Gemini vía Vercel AI SDK (`ai` + `@ai-sdk/google`)              |
+| Calidad        | ESLint 9 · Prettier · Husky + lint-staged + commitlint                 |
+| Pruebas        | Vitest + Testing Library (unitarias) · Playwright (E2E)                |
+| Despliegue     | Vercel (Node.js 24)                                                    |
 
-### Ramas Principales
+---
 
-| Rama      | Propósito                                                 | Protección            |
-| --------- | --------------------------------------------------------- | --------------------- |
-| `main`    | Código en producción                                      | ⛔ Solo PRs aprobados |
-| `develop` | Integración continua, código estable para próximo release | ⛔ Solo PRs aprobados |
+## Puesta en marcha
 
-### Ramas de Trabajo
-
-| Prefijo      | Propósito                           | Ejemplo                 |
-| ------------ | ----------------------------------- | ----------------------- |
-| `feature/*`  | Nuevas funcionalidades              | `feature/login-page`    |
-| `fix/*`      | Corrección de bugs                  | `fix/auth-redirect`     |
-| `hotfix/*`   | Correcciones urgentes en producción | `hotfix/critical-bug`   |
-| `docs/*`     | Documentación                       | `docs/api-examples`     |
-| `refactor/*` | Refactorización de código           | `refactor/auth-service` |
-
-### Convenciones de Commits
-
-Seguimos el formato **Conventional Commits**:
-
-```
-<tipo>(<alcance>): <descripción>
-
-[cuerpo opcional]
-
-[pie opcional]
-```
-
-**Tipos comunes:**
-
-- `feat`: Nueva funcionalidad
-- `fix`: Corrección de bug
-- `docs`: Cambios en documentación
-- `style`: Cambios de formato (espacios, comas, etc.)
-- `refactor`: Refactorización de código
-- `test`: Añadir o modificar tests
-- `chore`: Tareas de mantenimiento
-
-**Ejemplos:**
+Requisitos: **Node.js 24** (ver `.nvmrc`) y **pnpm 11** (`corepack enable`).
 
 ```bash
-feat(auth): implementar login con Supabase
-fix(api): corregir error en validación de sesión
-docs(readme): actualizar instrucciones de instalación
+git clone https://github.com/stevenD18skz/psysim.git
+cd psysim
+pnpm install                # instala dependencias y activa los git hooks
+cp .env.example .env.local  # o: vercel link && vercel env pull .env.local
+pnpm dev                    # http://localhost:3000
 ```
 
-### Flujo de Trabajo Recomendado
+### Variables de entorno
 
-1. **Crear rama de feature:**
+Plantilla completa en [`.env.example`](.env.example). `.env.local` nunca se versiona.
 
-   ```bash
-   git checkout develop
-   git pull origin develop
-   git checkout -b feature/nueva-funcionalidad
-   ```
+| Variable                               | Dónde             | Descripción                                                       |
+| -------------------------------------- | ----------------- | ----------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | cliente/servidor  | URL del proyecto de Supabase                                      |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente/servidor  | Clave publicable `sb_publishable_…` (antes `ANON_KEY`)            |
+| `SUPABASE_SECRET_KEY`                  | **solo servidor** | Clave secreta `sb_secret_…` (antes `SERVICE_ROLE_KEY`). Omite RLS |
+| `AI_API_KEY`                           | **solo servidor** | API key de Google Gemini                                          |
+| `AI_MODEL`                             | solo servidor     | Modelo de Gemini (por defecto `gemini-3.5-flash`)                 |
 
-2. **Desarrollar y commitear:**
+Las variables se validan con Zod al arrancar (`src/lib/env`): si falta alguna, el error indica cuál.
 
-   ```bash
-   git add .
-   git commit -m "feat: descripción de la funcionalidad"
-   ```
+### Base de datos (Supabase)
 
-3. **Subir cambios:**
+El esquema se versiona como migraciones SQL en [`supabase/migrations`](supabase/migrations).
 
-   ```bash
-   git push origin feature/nueva-funcionalidad
-   ```
+```bash
+export SUPABASE_ACCESS_TOKEN=sbp_...                          # token personal de Supabase
+pnpm exec supabase link --project-ref afqofsneoblsjjdvktsu
+pnpm exec supabase db push                                    # aplica migraciones pendientes
+pnpm db:types                                                 # regenera src/types/database.types.ts
+pnpm db:seed                                                  # crea las cuentas de prueba (idempotente)
+```
 
-4. **Crear Pull Request:**
-   - Desde `feature/nueva-funcionalidad` hacia `develop`
-   - Asignar reviewers
-   - Asegurar que pasen los checks de CI
+`pnpm db:seed` crea tres docentes de prueba (`docente{1,2,3}@psysim.test`) y una cuenta sin rol
+(`sin-rol@psysim.test`) para probar el acceso denegado. Las contraseñas se generan aleatoriamente y
+se muestran una sola vez (`pnpm db:seed --reset` las regenera).
 
-5. **Merge:**
-   - Usar "Squash and merge" para features
-   - Usar "Merge commit" para releases
+Configuración de Auth aplicada al proyecto (también reflejada en `supabase/config.toml`):
+
+- Registro público **desactivado**: las cuentas solo las crea un administrador.
+- Longitud mínima de contraseña: 8.
+- **Custom Access Token Hook** `public.custom_access_token_hook` activado (añade el rol al JWT).
+
+### Inteligencia artificial
+
+| Parámetro | Valor                                              |
+| --------- | -------------------------------------------------- |
+| Proveedor | Google Gemini (Generative Language API)            |
+| URL base  | `https://generativelanguage.googleapis.com/v1beta` |
+| Modelo    | `gemini-3.5-flash` con razonamiento `minimal`      |
+
+Se eligió `gemini-3.5-flash` por latencia (≈1 s por respuesta corta frente a ≈3–7 s de
+`gemini-3.8-flash`), clave para un diálogo fluido con el paciente virtual. Verificar la conexión:
+
+```bash
+pnpm ai:test
+```
 
 ---
 
-## 🗂️ Estructura de Carpetas
+## Scripts
+
+| Script                         | Descripción                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `pnpm dev`                     | Servidor de desarrollo (Turbopack)                       |
+| `pnpm build` / `start`         | Build de producción / servidor de producción             |
+| `pnpm lint` / `lint:fix`       | ESLint (cero advertencias permitidas)                    |
+| `pnpm typecheck`               | Verificación de tipos con `tsc`                          |
+| `pnpm format` / `format:check` | Prettier                                                 |
+| `pnpm test`                    | Tests unitarios (Vitest)                                 |
+| `pnpm test:coverage`           | Tests unitarios con cobertura                            |
+| `pnpm test:e2e`                | Tests E2E (Playwright). Levanta `pnpm dev` si hace falta |
+| `pnpm check`                   | lint + typecheck + formato + tests unitarios             |
+| `pnpm db:types`                | Regenera los tipos de la base de datos                   |
+| `pnpm db:seed`                 | Crea las cuentas semilla                                 |
+| `pnpm supabase:test`           | Verifica conexión, RLS y claims del JWT con Supabase     |
+| `pnpm ai:test`                 | Verifica la conexión con la API de IA                    |
+
+---
+
+## Arquitectura
 
 ```
-psysim/
-├── app/                          ← Rutas y layouts de Next.js (App Router)
-│   ├── (auth)/
-│   │   └── login/                ← P1: Pantalla de acceso del docente
-│   ├── (protected)/              ← Grupo de rutas verificadas por middleware
-│   │   ├── inicio/               ← Pantalla de inicio post-login
-│   │   ├── configuracion/        ← P2: Configuración del escenario
-│   │   ├── simulacion/           ← P5: Simulación activa (canvas 3D)
-│   │   ├── resultados/           ← P7: Resumen de métricas
-│   │   └── perfil/               ← Perfil del docente
-│   ├── api/
-│   │   ├── npc/chat/             ← Route Handler: Comunicación con API de IA
-│   │   └── metrics/save/         ← Route Handler: Persistencia de métricas
-│   └── layout.tsx                ← Layout raíz con fuentes y providers
-│
+src/
+├── app/
+│   ├── (auth)/login/          ← Login del docente (formulario + Server Action)
+│   ├── (protected)/           ← Rutas que exigen sesión de docente
+│   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
+│   │   ├── configuracion/     ← Configuración del escenario (Sprint 2)
+│   │   └── simulacion/        ← Simulación 3D (Sprint 2–4)
+│   ├── acceso-denegado/       ← Página para cuentas sin rol docente
+│   └── page.tsx               ← Página pública de presentación
 ├── components/
-│   ├── 3d/                       ← Componentes exclusivos del entorno 3D
-│   │   ├── SceneCanvas.tsx       ← Wrapper del Canvas de R3F
-│   │   ├── SceneLoader.tsx       ← Cargador de modelos GLB del escenario
-│   │   └── NPCModel.tsx          ← Modelo y animaciones del NPC
-│   ├── ui/                       ← Componentes de interfaz 2D
-│   │   ├── SimulationHUD.tsx     ← Barra de estado durante la simulación
-│   │   ├── ConversationPanel.tsx ← Historial y campo de texto
-│   │   └── MainNav.tsx           ← Barra de navegación principal
-│   └── forms/                    ← Formularios reutilizables
-│
-├── lib/                          ← Utilidades y clientes de servicios
-│   ├── supabase/
-│   │   ├── client.ts             ← Cliente Supabase para el navegador
-│   │   ├── server.ts             ← Cliente Supabase para Route Handlers
-│   │   └── middleware.ts         ← Middleware de sesión
-│   ├── prompt-builder.ts         ← Función de ensamblado del prompt del NPC
-│   ├── metrics.ts                ← Función de cálculo de indicadores agregados
-│   └── session.ts                ← Lógica de cierre de sesión de simulación
-│
-├── store/
-│   └── index.ts                  ← Store Zustand con slices (auth, conversación, NPC, etc.)
-│
-├── schemas/                      ← Esquemas Zod compartidos
-│   ├── npc-chat.schema.ts
-│   └── metrics.schema.ts
-│
-├── types/                        ← Tipos TypeScript globales
-│   └── index.ts
-│
-├── public/
-│   ├── models/
-│   │   ├── environments/         ← Modelos GLB de los entornos 3D
-│   │   └── npcs/                 ← Modelos GLB de los NPC base
-│   └── scenes/                   ← Archivos JSON de configuración por escenario
-│
-├── docs/
-│   └── performance.md            ← Registro de mediciones de FPS
-│
-├── middleware.ts                 ← Verificación de sesión y rol en rutas protegidas
-├── .env.example                  ← Plantilla de variables de entorno
-├── .env.local                    ← Variables de entorno locales (no commitear)
-├── .gitignore                    ← Archivos ignorados por Git
-├── .prettierrc                   ← Configuración de Prettier
-├── .prettierignore               ← Archivos ignorados por Prettier
-├── .eslintrc.json                ← Configuración de ESLint
-├── .lintstagedrc.json            ← Configuración de lint-staged
-├── .husky/                       ← Git hooks
-│   └── pre-commit                ← Hook pre-commit
-├── next.config.ts                ← Configuración de Next.js
-├── tsconfig.json                 ← Configuración de TypeScript
-├── tailwind.config.ts            ← Configuración de Tailwind CSS
-├── package.json                  ← Dependencias y scripts
-└── README.md                     ← Este archivo
+│   ├── 3d/                    ← Componentes de React Three Fiber
+│   ├── layout/                ← Navegación principal, botón de logout
+│   └── ui/                    ← Componentes de shadcn/ui
+├── lib/
+│   ├── auth/                  ← Rutas, DAL (verificación de sesión/rol), Server Actions
+│   ├── env/                   ← Validación de variables de entorno
+│   └── supabase/              ← Clientes: browser, server, admin (clave secreta), proxy
+├── schemas/                   ← Esquemas Zod compartidos cliente/servidor
+├── store/                     ← Store de Zustand (slices)
+├── types/                     ← Tipos globales y tipos generados de la BD
+└── proxy.ts                   ← Proxy de Next.js (antes middleware)
+public/models/                 ← Modelos 3D (.glb/.gltf) servidos como estáticos
+supabase/                      ← config.toml y migraciones SQL
+scripts/                       ← Scripts de verificación y seed
+e2e/                           ← Tests de Playwright
+docs/                          ← Documentación y registros de pruebas
+```
+
+### Autenticación y autorización (defensa en profundidad)
+
+1. **Proxy** (`src/proxy.ts`): en cada petición refresca la sesión y verifica la firma del JWT
+   con `getClaims()` (claves asimétricas, sin llamada de red). En `/configuracion` y
+   `/simulacion` redirige a `/login` sin sesión, o a `/acceso-denegado` si el claim
+   `rol_usuario` del JWT no es `docente`.
+2. **Data Access Layer** (`src/lib/auth/dal.ts`): el layout y cada página protegida validan la
+   sesión con el servidor de Auth (`getUser()`, detecta sesiones revocadas) y leen el rol de la
+   tabla `usuario`. Es la verificación autoritativa.
+3. **RLS en PostgreSQL**: aunque el cliente use la clave publicable, cada usuario solo puede leer
+   su propio perfil. Las escrituras solo son posibles con la clave secreta desde el servidor.
+
+El rol llega al JWT mediante un **Custom Access Token Hook** de Supabase, lo que evita consultar
+la base de datos en cada petición del proxy.
+
+---
+
+## Flujo de trabajo con Git
+
+| Rama         | Propósito                                | Despliegue          |
+| ------------ | ---------------------------------------- | ------------------- |
+| `main`       | Código estable en producción             | Producción (Vercel) |
+| `develop`    | Integración continua de funcionalidades  | Staging (preview)   |
+| `feature/*`  | Nuevas funcionalidades (desde `develop`) | Preview             |
+| `fix/*`      | Corrección de errores                    | Preview             |
+| `hotfix/*`   | Correcciones urgentes sobre `main`       | Preview             |
+| `docs/*`     | Documentación                            | Preview             |
+| `refactor/*` | Refactorización sin cambios funcionales  | Preview             |
+
+Flujo: `feature/*` → PR a `develop` (staging) → PR de `develop` a `main` (producción).
+
+### Commits
+
+Se usa [Conventional Commits](https://www.conventionalcommits.org/es/), validado por
+**commitlint** en el hook `commit-msg`:
+
+```
+feat(auth): implementar login con Supabase
+fix(proxy): conservar cookies al redirigir
+docs(readme): documentar variables de entorno
+```
+
+Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+
+### Git hooks
+
+- **pre-commit**: `lint-staged` (ESLint `--fix` + Prettier sobre los archivos preparados) y
+  `pnpm typecheck`. El commit se rechaza si algo falla.
+- **commit-msg**: `commitlint`.
+
+---
+
+## Pruebas
+
+```bash
+pnpm test                 # unitarias
+pnpm test:e2e:install     # (una vez) instala Chromium para Playwright
+pnpm test:e2e             # E2E contra http://localhost:3000
+```
+
+Los tests E2E autenticados usan las credenciales de `.env.test.local`
+(`E2E_DOCENTE_CORREO`, `E2E_DOCENTE_CONTRASENA`, `E2E_SIN_ROL_CORREO`, `E2E_SIN_ROL_CONTRASENA`);
+si no existen, esos tests se omiten. Registro de pruebas del Sprint 1:
+[`docs/pruebas/sprint-1.md`](docs/pruebas/sprint-1.md).
+
+### Tests E2E contra staging
+
+1. En Vercel: _Settings → Deployment Protection → Protection Bypass for Automation_, genera un
+   secreto.
+2. Ejecuta:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://psysim-git-develop-brayan-steven-narvaez-valdezs-projects.vercel.app \
+VERCEL_AUTOMATION_BYPASS_SECRET=<secreto> \
+pnpm test:e2e e2e/smoke.spec.ts
 ```
 
 ---
 
-## 🚀 Scripts Disponibles
+## Seguridad
 
-| Script                 | Descripción                                      |
-| ---------------------- | ------------------------------------------------ |
-| `npm run dev`          | Inicia el servidor de desarrollo con Turbopack   |
-| `npm run build`        | Compila la aplicación para producción            |
-| `npm run start`        | Inicia el servidor de producción                 |
-| `npm run lint`         | Ejecuta ESLint para verificar código             |
-| `npm run lint:fix`     | Ejecuta ESLint y corrige errores automáticamente |
-| `npm run format`       | Formatea todo el código con Prettier             |
-| `npm run format:check` | Verifica el formato sin modificar archivos       |
+- `.env*` está ignorado por Git (excepto `.env.example`).
+- `SUPABASE_SECRET_KEY` y `AI_API_KEY` solo se usan en el servidor (`import 'server-only'`).
+- Encabezados de seguridad globales en `next.config.ts` (`X-Frame-Options`, `nosniff`,
+  `Referrer-Policy`, `Permissions-Policy`); HSTS lo añade Vercel.
+- Las respuestas que renuevan la sesión se marcan como `no-store` para que ninguna CDN las
+  almacene.
+- Redirección post-login protegida contra _open redirects_ (solo rutas internas protegidas).
+- Extensión `pg_graphql` desactivada: la aplicación solo usa la API REST.
+- Pendiente (requiere plan Pro de Supabase): protección contra contraseñas filtradas
+  (HaveIBeenPwned).
 
----
+## Licencia
 
-## 📝 Configuración de Variables de Entorno
-
-1. Copia el archivo de ejemplo:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-2. Completa las variables en `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`: URL de tu proyecto Supabase
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Clave anónima de Supabase
-   - `SUPABASE_SERVICE_ROLE_KEY`: Clave de servicio de Supabase
-
----
-
-## 🔒 Seguridad
-
-- **Nunca** comitees el archivo `.env.local`
-- La clave `SUPABASE_SERVICE_ROLE_KEY` solo debe usarse en el servidor
-- Todas las rutas protegidas están verificadas por el middleware
-- Encabezados de seguridad configurados en `next.config.ts`
-
----
-
-## 👥 Contribución
-
-1. Crea un fork del repositorio
-2. Crea una rama feature: `git checkout -b feature/nueva-funcionalidad`
-3. Commitea tus cambios siguiendo las convenciones
-4. Push a la rama: `git push origin feature/nueva-funcionalidad`
-5. Abre un Pull Request
-
----
-
-## 📄 Licencia
-
-Este proyecto es privado y confidencial. Todos los derechos reservados.
-
----
-
-## 📞 Contacto
-
-Para soporte técnico o consultas, contacta al equipo de desarrollo.
-
----
-
-**Nota**: Este proyecto está en desarrollo activo. Algunas funcionalidades pueden no estar completamente implementadas.
+[Apache 2.0](LICENSE)
