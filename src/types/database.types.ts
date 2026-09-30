@@ -89,6 +89,47 @@ export type Database = {
         };
         Relationships: [];
       };
+      mensaje: {
+        Row: {
+          contenido: string;
+          creado_en: string;
+          id: string;
+          latencia_ms: number | null;
+          remitente: Database['public']['Enums']['remitente_mensaje'];
+          sesion_id: string;
+          tokens_entrada: number | null;
+          tokens_salida: number | null;
+        };
+        Insert: {
+          contenido: string;
+          creado_en?: string;
+          id?: string;
+          latencia_ms?: number | null;
+          remitente: Database['public']['Enums']['remitente_mensaje'];
+          sesion_id: string;
+          tokens_entrada?: number | null;
+          tokens_salida?: number | null;
+        };
+        Update: {
+          contenido?: string;
+          creado_en?: string;
+          id?: string;
+          latencia_ms?: number | null;
+          remitente?: Database['public']['Enums']['remitente_mensaje'];
+          sesion_id?: string;
+          tokens_entrada?: number | null;
+          tokens_salida?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'mensaje_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       npc: {
         Row: {
           creado_en: string;
@@ -217,6 +258,7 @@ export type Database = {
       categoria_escenario: 'clinico' | 'cotidiano';
       dificultad_escenario: 'basico' | 'intermedio' | 'avanzado';
       estado_sesion: 'en_curso' | 'finalizada' | 'interrumpida';
+      remitente_mensaje: 'estudiante' | 'npc';
       rol_usuario: 'docente';
     };
     CompositeTypes: {
@@ -342,6 +384,7 @@ export const Constants = {
       categoria_escenario: ['clinico', 'cotidiano'],
       dificultad_escenario: ['basico', 'intermedio', 'avanzado'],
       estado_sesion: ['en_curso', 'finalizada', 'interrumpida'],
+      remitente_mensaje: ['estudiante', 'npc'],
       rol_usuario: ['docente'],
     },
   },

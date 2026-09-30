@@ -82,18 +82,30 @@ Configuración de Auth aplicada al proyecto (también reflejada en `supabase/con
 
 ### Inteligencia artificial
 
-| Parámetro | Valor                                              |
-| --------- | -------------------------------------------------- |
-| Proveedor | Google Gemini (Generative Language API)            |
-| URL base  | `https://generativelanguage.googleapis.com/v1beta` |
-| Modelo    | `gemini-3.5-flash` con razonamiento `minimal`      |
+| Parámetro        | Valor                                                        |
+| ---------------- | ------------------------------------------------------------ |
+| Proveedor        | Google Gemini (Generative Language API) vía Vercel AI SDK 7  |
+| URL base         | `https://generativelanguage.googleapis.com/v1beta`           |
+| Modelo principal | `gemini-3.5-flash` (`AI_MODEL`), razonamiento `minimal`      |
+| Modelo respaldo  | `gemini-3.5-flash-lite` (`AI_MODEL_RESPALDO`)                |
+| Límites          | 12 s para el principal, 25 s en total, `maxDuration` de 30 s |
 
 Se eligió `gemini-3.5-flash` por latencia (≈1 s por respuesta corta frente a ≈3–7 s de
-`gemini-3.8-flash`), clave para un diálogo fluido con el paciente virtual. Verificar la conexión:
+`gemini-3.8-flash`), clave para un diálogo fluido con el paciente virtual. Como la latencia del
+proveedor varía (el 29/09/2026 `gemini-3.5-flash` llegó a 11–16 s y a devolver 503), el Route
+Handler pasa automáticamente al modelo de respaldo si el principal no responde en 12 s o está
+saturado. Verificar la conexión:
 
 ```bash
 pnpm ai:test
 ```
+
+**Route Handler `POST /api/npc/chat`** (HU-12): recibe `sesion_id`, `npc_id`, `mensaje_usuario` e
+`historial`; verifica la sesión del docente (401/403), valida con Zod (400), carga la sesión con
+RLS (404 si no es del docente, 409 si ya finalizó), llama a la IA con el prompt **de la sesión**
+(el del NPC o el personalizado por el docente) y guarda el intercambio en la tabla `mensaje`.
+Responde `respuesta_npc`, `timestamp_respuesta`, `tokens_entrada` y `tokens_salida`. Los errores
+de la IA se traducen a 504 (tiempo agotado), 503 (saturación) o 502, sin exponer detalles.
 
 ---
 
@@ -129,18 +141,21 @@ src/
 │   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
 │   │   ├── configuracion/     ← Escenario, paciente virtual y datos del estudiante (HU-06/07)
 │   │   └── simulacion/        ← Simulación 3D de la sesión en curso (HU-08/09/10)
+│   ├── api/npc/chat/          ← Route Handler del paciente virtual (HU-12)
 │   ├── acceso-denegado/       ← Página para cuentas sin rol docente
 │   ├── dev/                   ← Herramientas solo de desarrollo (galería de modelos, escenas)
 │   └── page.tsx               ← Página pública de presentación
 ├── components/
 │   ├── 3d/                    ← React Three Fiber: SceneCanvas, SceneLoader, sala, muebles, NPC
 │   ├── configuracion/         ← Configurador de la sesión y configuraciones guardadas
-│   ├── simulacion/            ← Pantalla de simulación (HUD, carga, invitación a explorar)
+│   ├── simulacion/            ← Simulación: HUD, panel de conversación, errores y cierre
 │   ├── layout/                ← Navegación principal, botón de logout
 │   └── ui/                    ← Componentes de shadcn/ui
 ├── lib/
 │   ├── auth/                  ← Rutas, DAL (verificación de sesión/rol), Server Actions
-│   ├── escena/                ← Colisiones, ajuste de modelos, URLs de Storage
+│   ├── conversacion/          ← Máquina de estados del NPC y envío de mensajes (HU-13/14/16)
+│   ├── escena/                ← Colisiones, encuadre, animaciones, ajuste de modelos, Storage
+│   ├── ia/                    ← Llamada al modelo de lenguaje con respaldo y clasificación de errores
 │   ├── escenarios/            ← Consultas y Server Actions de escenarios, sesiones y configuraciones
 │   ├── env/                   ← Validación de variables de entorno
 │   └── supabase/              ← Clientes: browser, server, admin (clave secreta), proxy
@@ -181,6 +196,20 @@ el paciente virtual y controles en primera persona (WASD + ratón con Pointer Lo
 por cajas delimitadoras. El canvas limita el `devicePixelRatio` a 1,5 y lo baja a 1 si el
 rendimiento cae (`PerformanceMonitor`). Añade `?debug=1` a la URL de la simulación para ver los FPS.
 Guía de modelos y escenas: [`docs/modelos-3d.md`](docs/modelos-3d.md).
+
+### Conversación con el paciente (Sprint 3)
+
+Al acercarse al paciente (≤ 3,2 m) el estudiante inicia la conversación con la tecla **E**, un clic
+sobre él o el botón "Conversar con …". La cámara se desplaza con suavidad hasta quedar frente al
+paciente y aparece el panel de conversación (Enter envía, Shift + Enter inserta una línea).
+
+El estado del paciente sigue la máquina de estados de la sección 4.3.4
+(`src/lib/conversacion/estados-npc.ts`): `inactivo → esperando_input → procesando → respondiendo →
+esperando_input`, con `error_comunicacion` (Reintentar / Finalizar sesión) y `sesion_finalizada`.
+Las transiciones no válidas se rechazan (p. ej. un doble envío). El paciente reacciona a cada
+estado: sigue al estudiante con la mirada, baja la cabeza al reflexionar y asiente y mueve la boca
+al responder; con un GLB riggeado usa sus clips `Idle`, `Pensando` y `Hablando` con fundidos de
+0,3 s. La conversación se guarda en la tabla `mensaje` y se recupera al recargar la página.
 
 ---
 

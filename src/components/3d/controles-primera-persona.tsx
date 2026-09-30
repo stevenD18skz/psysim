@@ -2,7 +2,7 @@
 
 import { PointerLockControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { type PerspectiveCamera, Vector3 } from 'three';
 
 import { useRegistroColisiones } from '@/components/3d/registro-colisiones';
@@ -85,14 +85,28 @@ export function ControlesPrimeraPersona({
     camera.lookAt(...camara.mirarA);
   }, [obtenerEstado, camara]);
 
+  // Al empezar a conversar se libera el ratón para poder escribir y usar el panel.
+  useEffect(() => {
+    if (habilitado) return;
+    velocidad.current.set(0, 0, 0);
+    if (document.pointerLockElement) document.exitPointerLock();
+  }, [habilitado]);
+
   useFrame(({ camera }, delta) => {
+    if (!habilitado) return;
     const total = Math.min(delta, DELTA_MAXIMO);
+
+    // Tras conversar (ojos a la altura de una persona sentada) se recupera la altura de pie.
+    const alturaOjos = camara.posicion[1];
+    if (Math.abs(camera.position.y - alturaOjos) > 0.001) {
+      camera.position.y += (alturaOjos - camera.position.y) * (1 - Math.exp(-6 * total));
+    }
     const pasos = Math.max(1, Math.ceil(total / SUBPASO));
     const dt = total / pasos;
     const { adelante, derecha, deseada } = temporales;
 
-    const avance = habilitado ? eje(teclas.current, 'adelante', 'atras') : 0;
-    const lateral = habilitado ? eje(teclas.current, 'derecha', 'izquierda') : 0;
+    const avance = eje(teclas.current, 'adelante', 'atras');
+    const lateral = eje(teclas.current, 'derecha', 'izquierda');
 
     camera.getWorldDirection(adelante).setY(0).normalize();
     derecha.crossVectors(adelante, ARRIBA).normalize();

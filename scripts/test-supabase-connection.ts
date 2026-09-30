@@ -106,7 +106,13 @@ if (fallos > 0) process.exitCode = 1;
 async function verificarSprint2(cliente: ReturnType<typeof createClient<Database>>, miId: string) {
   const PREFIJO = 'RLS-TEST';
 
-  for (const tabla of ['escenario', 'npc', 'sesion', 'configuracion_guardada'] as const) {
+  for (const tabla of [
+    'escenario',
+    'npc',
+    'sesion',
+    'configuracion_guardada',
+    'mensaje',
+  ] as const) {
     const { data } = await anonimo.from(tabla).select('id');
     comprobar((data ?? []).length === 0, `Navegador sin sesión: RLS no expone ${tabla}`);
   }
@@ -170,6 +176,23 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
         (borradas ?? []).length === 0,
         'RLS: el docente no puede borrar configuraciones de otro docente'
       );
+
+      // Sprint 3 — mensajes de la sesión de otro docente.
+      await admin
+        .from('mensaje')
+        .insert({ sesion_id: ajena!.id, remitente: 'estudiante', contenido: 'Mensaje ajeno' });
+      const { data: mensajesAjenos } = await cliente
+        .from('mensaje')
+        .select('id')
+        .eq('sesion_id', ajena!.id);
+      comprobar(mensajesAjenos?.length === 0, 'RLS: el docente no lee mensajes de otro docente');
+      const { error: errorMensajeAjeno } = await cliente
+        .from('mensaje')
+        .insert({ sesion_id: ajena!.id, remitente: 'estudiante', contenido: 'Intrusión' });
+      comprobar(
+        Boolean(errorMensajeAjeno),
+        'RLS: el docente no puede escribir en la conversación de otro docente'
+      );
     }
 
     // Suplantación: `usuario_id` no tiene privilegio de INSERT para el cliente.
@@ -188,6 +211,35 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
       'El docente crea su sesión (usuario_id = auth.uid(), estado en_curso)'
     );
     if (!propia) return;
+
+    // Sprint 3 — el docente escribe y lee la conversación de su sesión en curso.
+    const { error: errorMensaje } = await cliente.from('mensaje').insert([
+      { sesion_id: propia.id, remitente: 'estudiante', contenido: 'Hola' },
+      { sesion_id: propia.id, remitente: 'npc', contenido: 'Buenas', latencia_ms: 900 },
+    ]);
+    const { data: propios } = await cliente
+      .from('mensaje')
+      .select('remitente')
+      .eq('sesion_id', propia.id)
+      .order('creado_en')
+      .order('remitente');
+    comprobar(
+      !errorMensaje && propios?.map(m => m.remitente).join(',') === 'estudiante,npc',
+      'El docente guarda y lee (en orden) la conversación de su sesión'
+    );
+    const { error: errorMetricaEstudiante } = await cliente
+      .from('mensaje')
+      .insert({ sesion_id: propia.id, remitente: 'estudiante', contenido: 'x', latencia_ms: 5 });
+    comprobar(
+      Boolean(errorMetricaEstudiante),
+      'Solo los mensajes del paciente pueden llevar latencia y tokens'
+    );
+    const { data: editados } = await cliente
+      .from('mensaje')
+      .update({ contenido: 'editado' })
+      .eq('sesion_id', propia.id)
+      .select('id');
+    comprobar((editados ?? []).length === 0, 'Los mensajes no se pueden editar');
 
     const { error: errorInmutable } = await cliente
       .from('sesion')
@@ -218,6 +270,11 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
       .eq('id', propia.id)
       .select('id');
     comprobar((reabierta ?? []).length === 0, 'Una sesión finalizada ya no se puede modificar');
+
+    const { error: errorTrasCierre } = await cliente
+      .from('mensaje')
+      .insert({ sesion_id: propia.id, remitente: 'estudiante', contenido: 'Después del cierre' });
+    comprobar(Boolean(errorTrasCierre), 'No se pueden añadir mensajes a una sesión finalizada');
   } finally {
     await admin.from('sesion').delete().like('nombre_estudiante', `${PREFIJO}%`);
     await admin.from('configuracion_guardada').delete().like('nombre_configuracion', `${PREFIJO}%`);

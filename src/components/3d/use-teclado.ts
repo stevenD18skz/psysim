@@ -15,7 +15,7 @@ export type AccionMovimiento = keyof typeof MAPA_TECLAS;
 const TECLAS_MOVIMIENTO = new Set<string>(Object.values(MAPA_TECLAS).flat());
 
 /** ¿El evento viene de un campo de texto? Entonces no debe mover la cámara (p. ej. el chat). */
-function esCampoEditable(objetivo: EventTarget | null): boolean {
+export function esCampoEditable(objetivo: EventTarget | null): boolean {
   if (!(objetivo instanceof HTMLElement)) return false;
   return (
     objetivo.isContentEditable ||

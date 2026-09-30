@@ -31,7 +31,6 @@
     "posicion": [0.3, 0, -2],
     "rotacion": -10,
     "postura": "sentado",
-    "animacionIdle": "Idle",
     "colorRopa": "#4e6a8a",
     "colorPiel": "#c99a7b",
     "colorCabello": "#2f2520"

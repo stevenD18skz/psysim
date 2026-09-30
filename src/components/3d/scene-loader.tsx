@@ -3,18 +3,20 @@
 import { Suspense } from 'react';
 import { MathUtils } from 'three';
 
+import { CamaraConversacion } from '@/components/3d/camara-conversacion';
 import { ControlesPrimeraPersona } from '@/components/3d/controles-primera-persona';
 import { Iluminacion } from '@/components/3d/iluminacion';
+import { InteraccionPaciente } from '@/components/3d/interaccion-paciente';
 import { LimiteErrorModelo, ModeloGLB } from '@/components/3d/modelo-glb';
 import { Mueble } from '@/components/3d/mueble';
 import { NPCModel } from '@/components/3d/npc-model';
 import { RegistroColisionesProvider } from '@/components/3d/registro-colisiones';
 import { Sala } from '@/components/3d/sala';
 import { type Escena } from '@/schemas/escena.schema';
+import { useAppStore } from '@/store/app-store-provider';
 
 interface SceneLoaderProps {
   escena: Escena;
-  movimientoHabilitado?: boolean;
   onBloqueoCambia?: (bloqueado: boolean) => void;
 }
 
@@ -25,12 +27,10 @@ interface SceneLoaderProps {
  * Cada GLB tiene su propio `Suspense` y error boundary: la carga se refleja en la pantalla de
  * carga (vía `useProgress`) y un modelo que falla se sustituye por su versión procedural.
  */
-export function SceneLoader({
-  escena,
-  movimientoHabilitado = true,
-  onBloqueoCambia,
-}: SceneLoaderProps) {
+export function SceneLoader({ escena, onBloqueoCambia }: SceneLoaderProps) {
   const sala = <Sala sala={escena.sala} />;
+  // El estudiante solo camina mientras no conversa con el paciente y la sesión sigue abierta.
+  const movimientoHabilitado = useAppStore(state => state.npc.estado === 'inactivo');
 
   return (
     <RegistroColisionesProvider>
@@ -57,6 +57,8 @@ export function SceneLoader({
       ))}
 
       <NPCModel npc={escena.npc} />
+      <InteraccionPaciente npc={escena.npc} />
+      <CamaraConversacion npc={escena.npc} />
 
       <ControlesPrimeraPersona
         camara={escena.camara}

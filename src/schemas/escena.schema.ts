@@ -114,8 +114,22 @@ export const escenaSchema = z
       rotacion: grados,
       escala: escala.default(1),
       postura: z.enum(['sentado', 'de-pie']).default('sentado'),
-      /** Nombre del clip de animación en reposo dentro del GLB. */
-      animacionIdle: z.string().min(1).default('Idle'),
+      /**
+       * Nombres de los clips del GLB para cada fase de la conversación (HU-11 · T03, HU-15).
+       * Si falta un clip se usa `idle`; si el GLB no trae ninguno, se anima de forma procedural.
+       */
+      animaciones: z
+        .object({
+          idle: z.string().min(1).default('Idle'),
+          pensando: z.string().min(1).default('Pensando'),
+          hablando: z.string().min(1).default('Hablando'),
+        })
+        .default({ idle: 'Idle', pensando: 'Pensando', hablando: 'Hablando' }),
+      /**
+       * Posición de los ojos del estudiante durante la conversación (HU-13). Si se omite, se
+       * calcula a 1,6 m frente al paciente, a la altura de una persona sentada.
+       */
+      puntoConversacion: vector3.optional(),
       colorRopa: colorHex.default('#6f8f7a'),
       colorPiel: colorHex.default('#c99a7b'),
       colorCabello: colorHex.default('#3b2a22'),

@@ -3,29 +3,35 @@
 import { Clock, GraduationCap, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { type SesionActiva } from '@/types';
 
-function formatearDuracion(segundos: number): string {
-  const s = Math.max(0, Math.floor(segundos));
-  const horas = Math.floor(s / 3600);
-  const minutos = Math.floor((s % 3600) / 60);
-  const resto = s % 60;
-  const mm = String(minutos).padStart(2, '0');
-  const ss = String(resto).padStart(2, '0');
-  return horas > 0 ? `${horas}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-
-/** Cronómetro de la sesión. Aislado para que el tic de cada segundo no re-renderice el resto. */
-function Cronometro({ inicio }: { inicio: string }) {
+/**
+ * Cronómetro de la sesión. Aislado para que el tic de cada segundo no re-renderice el resto.
+ * Al finalizar la sesión se detiene y muestra la duración calculada por la base de datos.
+ */
+function Cronometro({ inicio, duracionFinal }: { inicio: string; duracionFinal?: number }) {
   const [ahora, setAhora] = useState<number | null>(null);
+  const detenido = duracionFinal !== undefined;
 
   useEffect(() => {
+    if (detenido) return;
     const actualizar = () => setAhora(Date.now());
-    actualizar();
+    const primero = requestAnimationFrame(actualizar);
     const intervalo = setInterval(actualizar, 1000);
-    return () => clearInterval(intervalo);
-  }, []);
+    return () => {
+      cancelAnimationFrame(primero);
+      clearInterval(intervalo);
+    };
+  }, [detenido]);
 
+  if (detenido) {
+    return (
+      <time className="tabular-nums" aria-label="Duración total de la sesión">
+        {formatearDuracion(duracionFinal)}
+      </time>
+    );
+  }
   if (ahora === null) return <span className="tabular-nums">--:--</span>;
   return (
     <time className="tabular-nums" aria-label="Tiempo transcurrido de la sesión">
@@ -35,7 +41,13 @@ function Cronometro({ inicio }: { inicio: string }) {
 }
 
 /** Tarjeta superpuesta con los datos de la sesión en curso. */
-export function HudSesion({ sesion }: { sesion: SesionActiva }) {
+export function HudSesion({
+  sesion,
+  duracionFinalSegundos,
+}: {
+  sesion: SesionActiva;
+  duracionFinalSegundos?: number;
+}) {
   return (
     <aside
       aria-label="Datos de la sesión"
@@ -73,7 +85,7 @@ export function HudSesion({ sesion }: { sesion: SesionActiva }) {
             <span className="sr-only">Duración</span>
           </dt>
           <dd>
-            <Cronometro inicio={sesion.inicio} />
+            <Cronometro inicio={sesion.inicio} duracionFinal={duracionFinalSegundos} />
           </dd>
         </div>
       </dl>

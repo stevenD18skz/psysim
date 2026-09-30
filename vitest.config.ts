@@ -21,6 +21,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
       SUPABASE_SECRET_KEY: 'sb_secret_test',
+      AI_API_KEY: 'ai_key_test',
     },
     clearMocks: true,
     restoreMocks: true,

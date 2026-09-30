@@ -29,7 +29,6 @@
     "posicion": [0, 0, -1.55],
     "rotacion": 0,
     "postura": "de-pie",
-    "animacionIdle": "Idle",
     "colorRopa": "#8a5a4e",
     "colorPiel": "#b5835f",
     "colorCabello": "#1f1a17"

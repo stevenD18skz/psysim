@@ -58,6 +58,19 @@ export interface SesionActiva {
   npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad'>;
 }
 
+export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
+
+/** Mensaje de la conversación con el paciente virtual (HU-14 · T01). */
+export interface MensajeConversacion {
+  id: string;
+  remitente: RemitenteMensaje;
+  contenido: string;
+  /** Momento del mensaje (ISO 8601). */
+  timestamp: string;
+  /** Solo en mensajes del NPC: tiempo de respuesta en milisegundos. */
+  latencia_ms?: number;
+}
+
 /** Datos del docente autenticado que la aplicación expone a la interfaz (DTO). */
 export interface PerfilDocente {
   id: string;
