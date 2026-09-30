@@ -1,373 +1,281 @@
 import {
-  MessageSquare,
-  Gamepad2,
-  Bot,
+  Armchair,
+  ArrowRight,
   BarChart3,
-  Wrench,
-  Zap,
+  Bot,
   BrainCircuit,
-  LogIn,
+  Coffee,
+  Gauge,
+  HeartPulse,
+  MessageSquare,
+  Target,
+  Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
+
+/** Catálogo de escenarios (coincide con supabase/migrations/…_sembrar_escenarios.sql). */
+const ESCENARIOS = [
+  {
+    codigo: 'E-01',
+    titulo: 'Duelo y pérdida',
+    categoria: 'Clínico',
+    nivel: 1,
+    competencia: 'Empatía y validación emocional',
+  },
+  {
+    codigo: 'E-02',
+    titulo: 'Ansiedad generalizada',
+    categoria: 'Clínico',
+    nivel: 2,
+    competencia: 'Evaluación estructurada',
+  },
+  {
+    codigo: 'E-03',
+    titulo: 'Episodio depresivo leve',
+    categoria: 'Clínico',
+    nivel: 2,
+    competencia: 'Evaluación de riesgo',
+  },
+  {
+    codigo: 'E-04',
+    titulo: 'Crisis de pánico aguda',
+    categoria: 'Clínico',
+    nivel: 3,
+    competencia: 'Intervención en crisis',
+  },
+  {
+    codigo: 'E-05',
+    titulo: 'Conflicto de pareja',
+    categoria: 'Cotidiano',
+    nivel: 1,
+    competencia: 'Escucha activa',
+  },
+  {
+    codigo: 'E-06',
+    titulo: 'Estrés académico',
+    categoria: 'Cotidiano',
+    nivel: 1,
+    competencia: 'Estrategias de afrontamiento',
+  },
+] as const;
+
+const NIVELES = ['', 'Básico', 'Intermedio', 'Avanzado'] as const;
+
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-1 flex-col items-center bg-black font-sans">
-      <main className="flex w-full max-w-7xl flex-1 flex-col items-center px-6 py-24 sm:px-16">
-        {/* Hero */}
-        <section className="mb-20 flex flex-col items-center gap-6 text-center">
-          <p className="font-mono text-sm tracking-widest text-zinc-500 uppercase">
-            Universidad del Valle
-          </p>
-          <h1 className="max-w-3xl text-4xl leading-tight font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-            Plataforma Web 3D para la Simulación de Escenarios Psicológicos
-          </h1>
-          <p className="max-w-2xl text-lg leading-8 text-zinc-400">
-            Plataforma web 3D interactiva diseñada para la simulación de escenarios de práctica
-            clínica orientada a estudiantes de psicología, integrando{' '}
-            <strong className="text-zinc-200">pacientes virtuales autónomos</strong> con
-            Inteligencia Artificial.
-          </p>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-            <span className="flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black">
-              <BrainCircuit className="h-5 w-5" /> Práctica Clínica Inmersiva
-            </span>
-            <span className="flex h-12 items-center justify-center rounded-full border border-white/15 px-6 text-sm font-medium text-zinc-300">
-              Brayan Steven Narvaez Valdes
-            </span>
-          </div>
-          <Link
-            href="/login"
-            className="mt-4 flex h-12 items-center justify-center gap-2 rounded-full bg-indigo-500 px-8 text-sm font-medium text-white transition-colors hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300"
-          >
-            <LogIn className="h-5 w-5" aria-hidden /> Ingresar como docente
-          </Link>
-        </section>
+    <div className="flex min-h-screen flex-1 flex-col bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
+        <span className="flex items-center gap-2 font-heading text-lg font-semibold">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Armchair className="size-4" aria-hidden />
+          </span>
+          PsySim
+        </span>
+        <Button asChild variant="outline">
+          <Link href="/login">Ingresar</Link>
+        </Button>
+      </header>
 
-        {/* Grid decorativa (estilo Next.js) */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6">
+        {/* Presentación */}
+        <section className="grid items-center gap-10 py-16 lg:grid-cols-[1.2fr_1fr] lg:py-24">
+          <div className="flex flex-col gap-6">
+            <p className="text-sm font-medium tracking-wide text-primary uppercase">
+              Universidad del Valle · Trabajo de grado
+            </p>
+            <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
+              Un consultorio virtual para practicar la entrevista clínica
+            </h1>
+            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
+              Plataforma web 3D donde estudiantes de psicología conversan con{' '}
+              <strong className="font-medium text-foreground">pacientes virtuales</strong> guiados
+              por inteligencia artificial, en escenarios que el docente configura y evalúa.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button asChild size="lg" className="h-11 px-5 text-base">
+                <Link href="/login">
+                  Ingresar como docente
+                  <ArrowRight aria-hidden />
+                </Link>
+              </Button>
+              <span className="text-sm text-muted-foreground">Brayan Steven Narváez Valdés</span>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-3xl border bg-card p-8 shadow-sm">
+            <div
+              className="absolute -top-16 -right-16 size-56 rounded-full bg-accent"
+              aria-hidden
+            />
+            <div
+              className="absolute -bottom-20 -left-10 size-48 rounded-full bg-sage"
+              aria-hidden
+            />
+            <div className="relative flex flex-col gap-4">
+              <BrainCircuit className="size-10 text-primary" aria-hidden />
+              <p className="font-heading text-2xl leading-snug">
+                «Buenas… la verdad no sé muy bien por dónde empezar.»
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Marta Lucía, 58 años — escenario E-01, Duelo y pérdida
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* Características */}
-        <section className="mb-20 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Características Principales
-            </h2>
-            <p className="mt-2 text-zinc-400">
-              Todo lo necesario para una simulación clínica realista
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <FeatureCard
-              icon={<MessageSquare className="h-6 w-6" />}
-              title="Interacción Conversacional con IA"
-              description="Diálogo bidireccional en lenguaje natural. El paciente virtual asume roles clínicos gracias a System Prompts dinámicos construidos a partir de parámetros del docente."
+        <Seccion titulo="Todo lo necesario para una práctica clínica realista">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Caracteristica
+              icono={<MessageSquare />}
+              titulo="Conversación con IA"
+              texto="Diálogo en lenguaje natural. El paciente adopta su perfil clínico a partir de un prompt que el docente puede ajustar en cada sesión."
             />
-            <FeatureCard
-              icon={<Gamepad2 className="h-6 w-6" />}
-              title="Entorno 3D Inmersivo"
-              description="Escenarios renderizados en React Three Fiber con modelos Low Poly, Instancing, Frustum Culling y compresión Draco para fluidez a 60 FPS en iGPU."
+            <Caracteristica
+              icono={<Armchair />}
+              titulo="Entorno 3D inmersivo"
+              texto="Consultorios navegables en primera persona con React Three Fiber, colisiones y modelos comprimidos con Draco."
             />
-            <FeatureCard
-              icon={<Bot className="h-6 w-6" />}
-              title="Animación Reactiva de NPCs"
-              description="Pacientes virtuales con animaciones esqueletales y sincronización de estados (idle, procesando, hablando) que responden a la carga emocional del diálogo."
+            <Caracteristica
+              icono={<Bot />}
+              titulo="Paciente reactivo"
+              texto="Animaciones sincronizadas con la conversación: escucha, reflexiona y responde."
             />
-            <FeatureCard
-              icon={<BarChart3 className="h-6 w-6" />}
-              title="Métricas Clínicas Automatizadas"
-              description="Registro invisible del desempeño: duración de sesión, total de intervenciones, latencias de respuesta y proximidad espacial frente al paciente."
+            <Caracteristica
+              icono={<BarChart3 />}
+              titulo="Métricas automáticas"
+              texto="Duración de la sesión, número de intervenciones y latencias de respuesta, sin interrumpir la práctica."
             />
-            <FeatureCard
-              icon={<Wrench className="h-6 w-6" />}
-              title="Constructor Paramétrico de Casos"
-              description="Interfaz para que docentes creen casos a medida, combinando entornos físicos, perfiles de síntomas, género y estados emocionales."
+            <Caracteristica
+              icono={<Wrench />}
+              titulo="Configuraciones reutilizables"
+              texto="El docente guarda sus ajustes por escenario y los carga en segundos para cada grupo."
             />
-            <FeatureCard
-              icon={<Zap className="h-6 w-6" />}
-              title="Rendimiento Optimizado"
-              description="Accesible desde hardware de gama ofimática sin necesidad de software o equipo VR especializado. Post-procesado con Bloom y Vignette."
+            <Caracteristica
+              icono={<Gauge />}
+              titulo="Pensado para equipos modestos"
+              texto="Funciona en el navegador de un portátil de oficina, sin gafas de realidad virtual ni instalaciones."
             />
           </div>
-        </section>
-
-        {/* Stack Tecnológico */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
-        <section className="mb-20 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Stack Tecnológico</h2>
-            <p className="mt-2 text-zinc-400">Entorno full-stack unificado en TypeScript</p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <StackColumn
-              title="Frontend & UI"
-              items={['Next.js 16 (App Router)', 'React 19', 'Tailwind CSS & shadcn/ui', 'Zustand']}
-            />
-            <StackColumn
-              title="Motor Web 3D"
-              items={[
-                'Three.js & R3F',
-                '@react-three/drei',
-                '@react-three/rapier',
-                'Post-procesado (Bloom)',
-              ]}
-            />
-            <StackColumn
-              title="Backend"
-              items={[
-                'Next.js Route Handlers (BFF)',
-                'Supabase (PostgreSQL)',
-                'Supabase Auth & Storage',
-                'Zod',
-              ]}
-            />
-            <StackColumn
-              title="Inteligencia Artificial"
-              items={[
-                'Google Gemini',
-                'Vercel AI SDK',
-                'System Prompts dinámicos',
-                'Procesamiento de intención',
-              ]}
-            />
-          </div>
-        </section>
+        </Seccion>
 
         {/* Escenarios */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
-        <section className="mb-20 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Catálogo de Escenarios</h2>
-            <p className="mt-2 text-zinc-400">
-              6 escenarios predeterminados calibrados por nivel de dificultad
-            </p>
+        <Seccion titulo="Seis escenarios, de lo cotidiano a la crisis">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ESCENARIOS.map(e => (
+              <article
+                key={e.codigo}
+                className="flex flex-col gap-3 rounded-2xl border bg-card p-5"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs">
+                    {e.codigo}
+                  </span>
+                  <span
+                    className={
+                      e.categoria === 'Clínico'
+                        ? 'inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground'
+                        : 'inline-flex items-center gap-1 rounded-full bg-sage px-2 py-0.5 text-xs text-sage-foreground'
+                    }
+                  >
+                    {e.categoria === 'Clínico' ? (
+                      <HeartPulse className="size-3" aria-hidden />
+                    ) : (
+                      <Coffee className="size-3" aria-hidden />
+                    )}
+                    {e.categoria}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground">{NIVELES[e.nivel]}</span>
+                </div>
+                <h3 className="text-lg font-semibold">{e.titulo}</h3>
+                <p className="mt-auto flex items-center gap-2 text-sm text-muted-foreground">
+                  <Target className="size-4 text-primary" aria-hidden />
+                  {e.competencia}
+                </p>
+              </article>
+            ))}
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <ScenarioCard
-              code="E-01"
-              title="Duelo y Pérdida"
-              level="Clínico Básico"
-              skill="Empatía y validación"
-            />
-            <ScenarioCard
-              code="E-02"
-              title="Ansiedad Generalizada"
-              level="Clínico Intermedio"
-              skill="Evaluación estructurada"
-            />
-            <ScenarioCard
-              code="E-03"
-              title="Episodio Depresivo Leve"
-              level="Clínico Intermedio"
-              skill="Evaluación de riesgo"
-            />
-            <ScenarioCard
-              code="E-04"
-              title="Crisis de Pánico Aguda"
-              level="Clínico Avanzado"
-              skill="Intervención en crisis"
-            />
-            <ScenarioCard
-              code="E-05"
-              title="Conflicto de Pareja"
-              level="Cotidiano Básico"
-              skill="Escucha activa"
-            />
-            <ScenarioCard
-              code="E-06"
-              title="Estrés Académico"
-              level="Cotidiano Básico"
-              skill="Afrontamiento"
-            />
-          </div>
-        </section>
+        </Seccion>
 
-        {/* Arquitectura */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
-        <section className="mb-20 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Arquitectura del Sistema</h2>
-            <p className="mt-2 text-zinc-400">
-              Basado en el Modelo C4, desacoplando responsabilidades
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <ArchCard
-              title="Cliente Web"
-              description="Estado global con Zustand, renderizado del canvas 3D y procesamiento de inputs asíncronos sin bloquear el main thread."
+        {/* Tecnología */}
+        <Seccion titulo="Tecnología">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ColumnaStack
+              titulo="Interfaz"
+              items={['Next.js 16 · React 19', 'Tailwind CSS · shadcn/ui', 'Zustand', 'Zod']}
             />
-            <ArchCard
-              title="Contenedor BFF"
-              description="Route Handlers (/api/npc/chat y /api/metrics/save) orquestan las peticiones como proxy seguro a la IA."
+            <ColumnaStack
+              titulo="Motor 3D"
+              items={['Three.js', 'React Three Fiber', '@react-three/drei', 'Draco']}
             />
-            <ArchCard
-              title="Máquina de Estados NPC"
-              description="Transiciones: inactivo → esperando_input → procesando → respondiendo → error_comunicacion."
+            <ColumnaStack
+              titulo="Datos"
+              items={['Supabase Auth', 'PostgreSQL + RLS', 'Supabase Storage', 'Route Handlers']}
+            />
+            <ColumnaStack
+              titulo="IA"
+              items={['Google Gemini', 'Vercel AI SDK', 'Prompts por escenario', 'Vercel']}
             />
           </div>
-        </section>
-
-        {/* Instalación */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
-        <section className="mb-20 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Instalación y Configuración
-            </h2>
-            <p className="mt-2 text-zinc-400">Prerequisitos: Node.js v18+, Supabase, API Key LLM</p>
-          </div>
-          <div className="w-full space-y-4">
-            <StepCard
-              step={1}
-              title="Clonar el repositorio"
-              code="git clone https://github.com/stevenD18skz/psysim.git"
-            />
-            <StepCard step={2} title="Instalar dependencias" code="pnpm install" />
-            <StepCard
-              step={3}
-              title="Configurar variables de entorno"
-              code={`# Duplicar .env.example a .env.local\nNEXT_PUBLIC_SUPABASE_URL="tu_url"\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."\nSUPABASE_SECRET_KEY="sb_secret_..."\nAI_API_KEY="api_key_de_gemini"`}
-            />
-            <StepCard
-              step={4}
-              title="Desplegar esquema de BD"
-              code={`pnpm exec supabase link --project-ref <ref>
-pnpm exec supabase db push`}
-            />
-            <StepCard step={5} title="Correr el entorno de desarrollo" code="pnpm dev" />
-          </div>
-        </section>
-
-        {/* Pruebas */}
-        <div className="mb-16 w-full border-t border-zinc-800" />
-        <section className="mb-16 w-full">
-          <div className="mb-12 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Pruebas y Despliegue</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-              <h3 className="mb-3 text-sm font-semibold tracking-wider text-zinc-300 uppercase">
-                Testing
-              </h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                <strong className="text-zinc-200">Vitest</strong> para lógica unitaria y{' '}
-                <strong className="text-zinc-200">Playwright</strong> para tests E2E y flujos
-                interactivos de simulación con mocking del WebGL.
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-              <h3 className="mb-3 text-sm font-semibold tracking-wider text-zinc-300 uppercase">
-                Despliegue
-              </h3>
-              <p className="text-sm leading-relaxed text-zinc-400">
-                Optimizado nativamente para <strong className="text-zinc-200">Vercel</strong>{' '}
-                utilizando Serverless Functions para IA y Edge Network para activos GLTF.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <div className="w-full border-t border-zinc-800 pt-8 pb-4 text-center">
-          <p className="text-sm text-zinc-500">
-            Trabajo Profesional — Universidad del Valle (2026)
-          </p>
-          <p className="mt-1 text-xs text-zinc-600">
-            Escuela de Ingeniería de Sistemas y Computación • Programa Académico de Ingeniería de
-            Sistemas
-          </p>
-        </div>
+        </Seccion>
       </main>
+
+      <footer className="mt-16 border-t">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+          <p>Trabajo de grado — Universidad del Valle (2026)</p>
+          <p>Escuela de Ingeniería de Sistemas y Computación</p>
+        </div>
+      </footer>
     </div>
   );
 }
 
-/* ─── Componentes auxiliares ─── */
+function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-8 border-t py-16">
+      <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{titulo}</h2>
+      {children}
+    </section>
+  );
+}
 
-function FeatureCard({
-  icon,
-  title,
-  description,
+function Caracteristica({
+  icono,
+  titulo,
+  texto,
 }: {
-  icon: ReactNode;
-  title: string;
-  description: string;
+  icono: ReactNode;
+  titulo: string;
+  texto: string;
 }) {
   return (
-    <div className="group rounded-xl border border-zinc-800 bg-zinc-950 p-6 transition-colors hover:border-zinc-700 hover:bg-zinc-900/50">
-      <div className="mb-3 text-white">{icon}</div>
-      <h3 className="mb-2 text-base font-semibold text-white">{title}</h3>
-      <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
+    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-6 transition-shadow hover:shadow-md">
+      <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground [&_svg]:size-5">
+        {icono}
+      </span>
+      <h3 className="text-lg font-semibold">{titulo}</h3>
+      <p className="text-sm leading-relaxed text-muted-foreground">{texto}</p>
     </div>
   );
 }
 
-function StackColumn({ title, items }: { title: string; items: string[] }) {
+function ColumnaStack({ titulo, items }: { titulo: string; items: string[] }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-      <h3 className="mb-4 text-sm font-semibold tracking-wider text-zinc-300 uppercase">{title}</h3>
-      <ul className="space-y-2">
+    <div className="rounded-2xl border bg-card p-6">
+      <h3 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+        {titulo}
+      </h3>
+      <ul className="flex flex-col gap-2 text-sm">
         {items.map(item => (
-          <li key={item} className="flex items-start gap-2 text-sm text-zinc-400">
-            <span className="mt-1 shrink-0 text-zinc-600">•</span>
+          <li key={item} className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-primary" aria-hidden />
             {item}
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function ScenarioCard({
-  code,
-  title,
-  level,
-  skill,
-}: {
-  code: string;
-  title: string;
-  level: string;
-  skill: string;
-}) {
-  return (
-    <div className="group rounded-xl border border-zinc-800 bg-zinc-950 p-5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/50">
-      <div className="mb-2 flex items-center gap-3">
-        <span className="rounded bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-500">
-          {code}
-        </span>
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-zinc-500">
-        <span className="text-zinc-400">{level}</span>
-        <span>·</span>
-        <span>{skill}</span>
-      </div>
-    </div>
-  );
-}
-
-function ArchCard({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6 transition-colors hover:border-zinc-700">
-      <h3 className="mb-3 text-base font-semibold text-white">{title}</h3>
-      <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
-    </div>
-  );
-}
-
-function StepCard({ step, title, code }: { step: number; title: string; code: string }) {
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-5">
-      <div className="mb-3 flex items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-black">
-          {step}
-        </span>
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-      </div>
-      <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 font-mono text-xs whitespace-pre-wrap text-zinc-400">
-        {code}
-      </pre>
     </div>
   );
 }

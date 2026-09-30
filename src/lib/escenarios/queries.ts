@@ -1,0 +1,137 @@
+import 'server-only';
+
+import { cache } from 'react';
+
+import { createClient } from '@/lib/supabase/server';
+import { type ConfiguracionGuardada, type EscenarioCatalogo, type SesionActiva } from '@/types';
+
+/*
+ * Consultas de lectura del Sprint 2. Todas usan el cliente con la sesión del docente, así que
+ * RLS garantiza que cada docente solo ve el catálogo activo y sus propias filas.
+ * Los errores de base de datos se relanzan: los captura el error boundary de la ruta.
+ */
+
+const COLUMNAS_ESCENARIO = `
+  id, codigo, titulo, descripcion, categoria, dificultad, competencia_central, configuracion_3d,
+  npc ( id, nombre, edad, perfil_clinico, prompt_sistema )
+` as const;
+
+/** HU-06 · T02 — Escenarios activos con su paciente virtual, ordenados por código. */
+export const obtenerCatalogoEscenarios = cache(async (): Promise<EscenarioCatalogo[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('escenario')
+    .select(COLUMNAS_ESCENARIO)
+    .eq('activo', true)
+    .order('codigo');
+
+  if (error) {
+    throw new Error('No fue posible cargar los escenarios.', { cause: error });
+  }
+
+  return data.flatMap(fila => {
+    // `npc` es 1:1 (FK única), pero PostgREST puede devolverlo nulo si falta el registro.
+    if (!fila.npc) return [];
+    return [
+      {
+        id: fila.id,
+        codigo: fila.codigo,
+        titulo: fila.titulo,
+        descripcion: fila.descripcion,
+        categoria: fila.categoria,
+        dificultad: fila.dificultad,
+        competenciaCentral: fila.competencia_central,
+        configuracion3d: fila.configuracion_3d,
+        npc: {
+          id: fila.npc.id,
+          nombre: fila.npc.nombre,
+          edad: fila.npc.edad,
+          perfilClinico: fila.npc.perfil_clinico,
+          promptSistema: fila.npc.prompt_sistema,
+        },
+      },
+    ];
+  });
+});
+
+/** HU-07 · T03 — Configuraciones guardadas del docente, de la más reciente a la más antigua. */
+export const obtenerConfiguracionesGuardadas = cache(async (): Promise<ConfiguracionGuardada[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('configuracion_guardada')
+    .select('id, nombre_configuracion, escenario_id, prompt_personalizado, creado_en')
+    .order('creado_en', { ascending: false });
+
+  if (error) {
+    throw new Error('No fue posible cargar las configuraciones guardadas.', { cause: error });
+  }
+
+  return data.map(fila => ({
+    id: fila.id,
+    nombre: fila.nombre_configuracion,
+    escenarioId: fila.escenario_id,
+    promptPersonalizado: fila.prompt_personalizado,
+    creadoEn: fila.creado_en,
+  }));
+});
+
+const COLUMNAS_SESION = `
+  id, inicio, estado, codigo_estudiante, nombre_estudiante,
+  escenario (
+    id, codigo, titulo, categoria, dificultad, competencia_central, configuracion_3d,
+    npc ( id, nombre, edad )
+  )
+` as const;
+
+/**
+ * Carga una sesión en curso del docente autenticado. Devuelve `null` si no existe, no es
+ * suya (RLS la oculta) o ya terminó.
+ */
+export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActiva | null> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('sesion')
+    .select(COLUMNAS_SESION)
+    .eq('id', id)
+    .eq('estado', 'en_curso')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error('No fue posible cargar la sesión.', { cause: error });
+  }
+  const escenario = data?.escenario;
+  if (!data || !escenario?.npc) return null;
+
+  return {
+    id: data.id,
+    inicio: data.inicio,
+    estudiante: { codigo: data.codigo_estudiante, nombre: data.nombre_estudiante },
+    escenario: {
+      id: escenario.id,
+      codigo: escenario.codigo,
+      titulo: escenario.titulo,
+      categoria: escenario.categoria,
+      dificultad: escenario.dificultad,
+      competenciaCentral: escenario.competencia_central,
+      configuracion3d: escenario.configuracion_3d,
+    },
+    npc: { id: escenario.npc.id, nombre: escenario.npc.nombre, edad: escenario.npc.edad },
+  };
+});
+
+/** Id de la sesión en curso más reciente del docente, si tiene alguna. */
+export async function obtenerIdUltimaSesionEnCurso(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('sesion')
+    .select('id')
+    .eq('estado', 'en_curso')
+    .order('inicio', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error('No fue posible consultar las sesiones en curso.', { cause: error });
+  }
+  return data?.id ?? null;
+}

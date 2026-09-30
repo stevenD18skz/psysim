@@ -8,6 +8,176 @@ export type Database = {
   };
   public: {
     Tables: {
+      configuracion_guardada: {
+        Row: {
+          creado_en: string;
+          docente_id: string;
+          escenario_id: string;
+          id: string;
+          nombre_configuracion: string;
+          prompt_personalizado: string;
+        };
+        Insert: {
+          creado_en?: string;
+          docente_id?: string;
+          escenario_id: string;
+          id?: string;
+          nombre_configuracion: string;
+          prompt_personalizado: string;
+        };
+        Update: {
+          creado_en?: string;
+          docente_id?: string;
+          escenario_id?: string;
+          id?: string;
+          nombre_configuracion?: string;
+          prompt_personalizado?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'configuracion_guardada_docente_id_fkey';
+            columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'configuracion_guardada_escenario_id_fkey';
+            columns: ['escenario_id'];
+            isOneToOne: false;
+            referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      escenario: {
+        Row: {
+          activo: boolean;
+          categoria: Database['public']['Enums']['categoria_escenario'];
+          codigo: string;
+          competencia_central: string;
+          configuracion_3d: string;
+          creado_en: string;
+          descripcion: string;
+          dificultad: Database['public']['Enums']['dificultad_escenario'];
+          id: string;
+          titulo: string;
+        };
+        Insert: {
+          activo?: boolean;
+          categoria: Database['public']['Enums']['categoria_escenario'];
+          codigo: string;
+          competencia_central: string;
+          configuracion_3d: string;
+          creado_en?: string;
+          descripcion: string;
+          dificultad: Database['public']['Enums']['dificultad_escenario'];
+          id?: string;
+          titulo: string;
+        };
+        Update: {
+          activo?: boolean;
+          categoria?: Database['public']['Enums']['categoria_escenario'];
+          codigo?: string;
+          competencia_central?: string;
+          configuracion_3d?: string;
+          creado_en?: string;
+          descripcion?: string;
+          dificultad?: Database['public']['Enums']['dificultad_escenario'];
+          id?: string;
+          titulo?: string;
+        };
+        Relationships: [];
+      };
+      npc: {
+        Row: {
+          creado_en: string;
+          edad: number;
+          escenario_id: string;
+          id: string;
+          nombre: string;
+          perfil_clinico: string;
+          prompt_sistema: string;
+        };
+        Insert: {
+          creado_en?: string;
+          edad: number;
+          escenario_id: string;
+          id?: string;
+          nombre: string;
+          perfil_clinico: string;
+          prompt_sistema: string;
+        };
+        Update: {
+          creado_en?: string;
+          edad?: number;
+          escenario_id?: string;
+          id?: string;
+          nombre?: string;
+          perfil_clinico?: string;
+          prompt_sistema?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'npc_escenario_id_fkey';
+            columns: ['escenario_id'];
+            isOneToOne: true;
+            referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      sesion: {
+        Row: {
+          codigo_estudiante: string;
+          escenario_id: string;
+          estado: Database['public']['Enums']['estado_sesion'];
+          fin: string | null;
+          id: string;
+          inicio: string;
+          nombre_estudiante: string;
+          prompt_sistema: string;
+          usuario_id: string;
+        };
+        Insert: {
+          codigo_estudiante: string;
+          escenario_id: string;
+          estado?: Database['public']['Enums']['estado_sesion'];
+          fin?: string | null;
+          id?: string;
+          inicio?: string;
+          nombre_estudiante: string;
+          prompt_sistema: string;
+          usuario_id?: string;
+        };
+        Update: {
+          codigo_estudiante?: string;
+          escenario_id?: string;
+          estado?: Database['public']['Enums']['estado_sesion'];
+          fin?: string | null;
+          id?: string;
+          inicio?: string;
+          nombre_estudiante?: string;
+          prompt_sistema?: string;
+          usuario_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sesion_escenario_id_fkey';
+            columns: ['escenario_id'];
+            isOneToOne: false;
+            referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sesion_usuario_id_fkey';
+            columns: ['usuario_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       usuario: {
         Row: {
           codigo_institucional: string;
@@ -41,8 +211,12 @@ export type Database = {
     };
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
+      es_docente: { Args: never; Returns: boolean };
     };
     Enums: {
+      categoria_escenario: 'clinico' | 'cotidiano';
+      dificultad_escenario: 'basico' | 'intermedio' | 'avanzado';
+      estado_sesion: 'en_curso' | 'finalizada' | 'interrumpida';
       rol_usuario: 'docente';
     };
     CompositeTypes: {
@@ -165,6 +339,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      categoria_escenario: ['clinico', 'cotidiano'],
+      dificultad_escenario: ['basico', 'intermedio', 'avanzado'],
+      estado_sesion: ['en_curso', 'finalizada', 'interrumpida'],
       rol_usuario: ['docente'],
     },
   },

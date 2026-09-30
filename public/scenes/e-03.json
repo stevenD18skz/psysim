@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "nombre": "Consultorio en penumbra — día nublado",
+  "sala": {
+    "ancho": 6,
+    "largo": 7,
+    "alto": 2.8,
+    "colores": {
+      "paredes": "#e4ddd4",
+      "acento": "#b7b3c2",
+      "suelo": "#8c6c55",
+      "techo": "#efebe5",
+      "zocalo": "#5f4b3e"
+    }
+  },
+  "mobiliario": [
+    { "id": "alfombra", "tipo": "alfombra", "posicion": [0.5, 0, -1], "color": "#9a8fa8", "colision": false },
+    { "id": "sillon-paciente", "tipo": "sillon", "posicion": [0.6, 0, -2.05], "rotacion": -15, "color": "#8c7f99" },
+    { "id": "mesa-auxiliar", "tipo": "mesa-auxiliar", "posicion": [-0.35, 0, -2.25], "color": "#6f5646" },
+    { "id": "lampara", "tipo": "lampara-pie", "posicion": [1.55, 0, -2.45], "color": "#f1d6b0" },
+    { "id": "sofa", "tipo": "sofa", "posicion": [2.55, 0, 0.9], "rotacion": -90, "color": "#9c8d80" },
+    { "id": "estanteria", "tipo": "estanteria", "posicion": [-2.78, 0, -0.6], "rotacion": 90, "color": "#6f5646" },
+    { "id": "escritorio", "tipo": "escritorio", "posicion": [-2.35, 0, 2.3], "rotacion": 90, "color": "#8c6c55" },
+    { "id": "planta", "tipo": "planta", "posicion": [-2.45, 0, -3.0] },
+    { "id": "ventana", "tipo": "ventana", "posicion": [-1.4, 1.55, -3.49], "colision": false },
+    { "id": "cuadro", "tipo": "cuadro", "posicion": [2.99, 1.65, 0.9], "rotacion": -90, "color": "#b7b3c2", "colision": false },
+    { "id": "reloj", "tipo": "reloj", "posicion": [1.4, 2.05, -3.49], "colision": false }
+  ],
+  "npc": {
+    "posicion": [0.6, 0, -2],
+    "rotacion": -15,
+    "postura": "sentado",
+    "animacionIdle": "Idle",
+    "colorRopa": "#6d6275",
+    "colorPiel": "#e0b598",
+    "colorCabello": "#4a3226"
+  },
+  "camara": {
+    "posicion": [-0.3, 1.6, 2.7],
+    "mirarA": [0.6, 1.05, -2],
+    "fov": 60
+  },
+  "navegacion": {
+    "limites": { "min": [-2.7, 1.2, -3.2], "max": [2.7, 2, 3.2] },
+    "radioJugador": 0.3,
+    "velocidad": 2
+  },
+  "iluminacion": {
+    "fondo": "#d9d8d6",
+    "ambiental": { "intensidad": 0.3, "color": "#e8ecf2" },
+    "hemisferica": { "intensidad": 0.45, "cielo": "#dfe6f0", "suelo": "#6e5f55" },
+    "direccional": { "intensidad": 0.9, "color": "#d6e2f0", "posicion": [-3, 4.5, -5] },
+    "puntuales": [{ "posicion": [1.55, 1.45, -2.45], "color": "#ffb46b", "intensidad": 4, "distancia": 5 }]
+  }
+}

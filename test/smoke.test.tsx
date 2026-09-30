@@ -16,7 +16,7 @@ describe('smoke', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Plataforma Web 3D para la Simulación de Escenarios Psicológicos',
+        name: 'Un consultorio virtual para practicar la entrevista clínica',
       })
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ingresar como docente/ })).toHaveAttribute(

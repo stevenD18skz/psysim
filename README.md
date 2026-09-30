@@ -99,21 +99,23 @@ pnpm ai:test
 
 ## Scripts
 
-| Script                         | Descripción                                              |
-| ------------------------------ | -------------------------------------------------------- |
-| `pnpm dev`                     | Servidor de desarrollo (Turbopack)                       |
-| `pnpm build` / `start`         | Build de producción / servidor de producción             |
-| `pnpm lint` / `lint:fix`       | ESLint (cero advertencias permitidas)                    |
-| `pnpm typecheck`               | Verificación de tipos con `tsc`                          |
-| `pnpm format` / `format:check` | Prettier                                                 |
-| `pnpm test`                    | Tests unitarios (Vitest)                                 |
-| `pnpm test:coverage`           | Tests unitarios con cobertura                            |
-| `pnpm test:e2e`                | Tests E2E (Playwright). Levanta `pnpm dev` si hace falta |
-| `pnpm check`                   | lint + typecheck + formato + tests unitarios             |
-| `pnpm db:types`                | Regenera los tipos de la base de datos                   |
-| `pnpm db:seed`                 | Crea las cuentas semilla                                 |
-| `pnpm supabase:test`           | Verifica conexión, RLS y claims del JWT con Supabase     |
-| `pnpm ai:test`                 | Verifica la conexión con la API de IA                    |
+| Script                         | Descripción                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| `pnpm dev`                     | Servidor de desarrollo (Turbopack)                           |
+| `pnpm build` / `start`         | Build de producción / servidor de producción                 |
+| `pnpm lint` / `lint:fix`       | ESLint (cero advertencias permitidas)                        |
+| `pnpm typecheck`               | Verificación de tipos con `tsc`                              |
+| `pnpm format` / `format:check` | Prettier                                                     |
+| `pnpm test`                    | Tests unitarios (Vitest)                                     |
+| `pnpm test:coverage`           | Tests unitarios con cobertura                                |
+| `pnpm test:e2e`                | Tests E2E (Playwright). Levanta `pnpm dev` si hace falta     |
+| `pnpm check`                   | lint + typecheck + formato + tests unitarios                 |
+| `pnpm db:types`                | Regenera los tipos de la base de datos                       |
+| `pnpm db:seed`                 | Crea las cuentas semilla                                     |
+| `pnpm modelos:inspeccionar`    | Informe de los GLB de `public/models` (medidas, animaciones) |
+| `pnpm modelos:subir`           | Optimiza los GLB con Draco y los sube a Supabase Storage     |
+| `pnpm supabase:test`           | Verifica conexión, RLS y claims del JWT con Supabase         |
+| `pnpm ai:test`                 | Verifica la conexión con la API de IA                        |
 
 ---
 
@@ -125,23 +127,30 @@ src/
 │   ├── (auth)/login/          ← Login del docente (formulario + Server Action)
 │   ├── (protected)/           ← Rutas que exigen sesión de docente
 │   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
-│   │   ├── configuracion/     ← Configuración del escenario (Sprint 2)
-│   │   └── simulacion/        ← Simulación 3D (Sprint 2–4)
+│   │   ├── configuracion/     ← Escenario, paciente virtual y datos del estudiante (HU-06/07)
+│   │   └── simulacion/        ← Simulación 3D de la sesión en curso (HU-08/09/10)
 │   ├── acceso-denegado/       ← Página para cuentas sin rol docente
+│   ├── dev/                   ← Herramientas solo de desarrollo (galería de modelos, escenas)
 │   └── page.tsx               ← Página pública de presentación
 ├── components/
-│   ├── 3d/                    ← Componentes de React Three Fiber
+│   ├── 3d/                    ← React Three Fiber: SceneCanvas, SceneLoader, sala, muebles, NPC
+│   ├── configuracion/         ← Configurador de la sesión y configuraciones guardadas
+│   ├── simulacion/            ← Pantalla de simulación (HUD, carga, invitación a explorar)
 │   ├── layout/                ← Navegación principal, botón de logout
 │   └── ui/                    ← Componentes de shadcn/ui
 ├── lib/
 │   ├── auth/                  ← Rutas, DAL (verificación de sesión/rol), Server Actions
+│   ├── escena/                ← Colisiones, ajuste de modelos, URLs de Storage
+│   ├── escenarios/            ← Consultas y Server Actions de escenarios, sesiones y configuraciones
 │   ├── env/                   ← Validación de variables de entorno
 │   └── supabase/              ← Clientes: browser, server, admin (clave secreta), proxy
 ├── schemas/                   ← Esquemas Zod compartidos cliente/servidor
 ├── store/                     ← Store de Zustand (slices)
 ├── types/                     ← Tipos globales y tipos generados de la BD
 └── proxy.ts                   ← Proxy de Next.js (antes middleware)
-public/models/                 ← Modelos 3D (.glb/.gltf) servidos como estáticos
+public/models/                 ← Modelos 3D fuente (se publican optimizados en Supabase Storage)
+public/scenes/                 ← JSON de la escena 3D de cada escenario (docs/modelos-3d.md)
+public/draco/                  ← Decodificadores Draco autoalojados
 supabase/                      ← config.toml y migraciones SQL
 scripts/                       ← Scripts de verificación y seed
 e2e/                           ← Tests de Playwright
@@ -157,11 +166,21 @@ docs/                          ← Documentación y registros de pruebas
 2. **Data Access Layer** (`src/lib/auth/dal.ts`): el layout y cada página protegida validan la
    sesión con el servidor de Auth (`getUser()`, detecta sesiones revocadas) y leen el rol de la
    tabla `usuario`. Es la verificación autoritativa.
-3. **RLS en PostgreSQL**: aunque el cliente use la clave publicable, cada usuario solo puede leer
-   su propio perfil. Las escrituras solo son posibles con la clave secreta desde el servidor.
+3. **RLS en PostgreSQL**: aunque el cliente use la clave publicable, cada docente solo lee su
+   perfil, el catálogo activo y sus propias sesiones y configuraciones. Los privilegios se
+   conceden por columna: por ejemplo, de una sesión solo se pueden modificar `estado` y `fin`.
 
 El rol llega al JWT mediante un **Custom Access Token Hook** de Supabase, lo que evita consultar
 la base de datos en cada petición del proxy.
+
+### Escena 3D
+
+La simulación monta la escena descrita por `public/scenes/e-XX.json` (validado con Zod): una sala
+procedural cálida, mobiliario (procedural o GLB desde Supabase Storage, comprimido con Draco),
+el paciente virtual y controles en primera persona (WASD + ratón con Pointer Lock) con colisiones
+por cajas delimitadoras. El canvas limita el `devicePixelRatio` a 1,5 y lo baja a 1 si el
+rendimiento cae (`PerformanceMonitor`). Añade `?debug=1` a la URL de la simulación para ver los FPS.
+Guía de modelos y escenas: [`docs/modelos-3d.md`](docs/modelos-3d.md).
 
 ---
 
