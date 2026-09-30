@@ -16,3 +16,6 @@ public/scenes
 *.gltf
 taiga.json
 supabase/.temp
+
+# Decodificadores Draco de terceros
+public/draco

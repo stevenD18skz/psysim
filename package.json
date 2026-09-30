@@ -26,6 +26,8 @@
     "ai:test": "node --env-file-if-exists=.env.local scripts/test-ai-connection.ts",
     "supabase:test": "node --env-file-if-exists=.env.local scripts/test-supabase-connection.ts",
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed-docentes.ts",
+    "modelos:inspeccionar": "node scripts/modelos.ts inspeccionar",
+    "modelos:subir": "node --env-file-if-exists=.env.local scripts/modelos.ts subir",
     "prepare": "husky"
   },
   "dependencies": {

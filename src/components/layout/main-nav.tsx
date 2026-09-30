@@ -1,5 +1,6 @@
 'use client';
 
+import { Armchair } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,7 +21,13 @@ export function MainNav() {
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/configuracion" className="font-semibold tracking-tight">
+        <Link
+          href="/configuracion"
+          className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight"
+        >
+          <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Armchair className="size-4" aria-hidden />
+          </span>
           PsySim
         </Link>
 

@@ -28,7 +28,16 @@ export default defineConfig({
       ? { 'x-vercel-protection-bypass': bypassVercel, 'x-vercel-set-bypass-cookie': 'true' }
       : undefined,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // WebGL por software (SwiftShader) para renderizar la escena 3D sin GPU (CI, headless).
+        launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] },
+      },
+    },
+  ],
   webServer: urlExterna
     ? undefined
     : {

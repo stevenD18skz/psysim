@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "nombre": "Sala de atención — crisis",
+  "sala": {
+    "ancho": 6,
+    "largo": 7,
+    "alto": 2.8,
+    "colores": {
+      "paredes": "#eee9e1",
+      "acento": "#c6d3cf",
+      "suelo": "#b08b6a",
+      "techo": "#f8f5ef",
+      "zocalo": "#6c5a4a"
+    }
+  },
+  "mobiliario": [
+    { "id": "silla-paciente", "tipo": "silla", "posicion": [0.55, 0, -2.1], "rotacion": -20, "color": "#7f9a86" },
+    { "id": "silla-apoyo", "tipo": "silla", "posicion": [-0.6, 0, -2.2], "rotacion": 15, "color": "#7f9a86" },
+    { "id": "mesa-auxiliar", "tipo": "mesa-auxiliar", "posicion": [0, 0, -2.75], "color": "#7a5f4a" },
+    { "id": "sofa", "tipo": "sofa", "posicion": [-2.55, 0, 0.4], "rotacion": 90, "color": "#a3b5ad" },
+    { "id": "escritorio", "tipo": "escritorio", "posicion": [2.35, 0, 1.9], "rotacion": -90, "color": "#a07a58" },
+    { "id": "planta-a", "tipo": "planta", "posicion": [2.5, 0, -3.0] },
+    { "id": "planta-b", "tipo": "planta", "posicion": [-2.5, 0, -3.0], "escala": 0.85 },
+    { "id": "ventana", "tipo": "ventana", "posicion": [1.5, 1.55, -3.49], "colision": false },
+    { "id": "cuadro", "tipo": "cuadro", "posicion": [-2.99, 1.65, 0.4], "rotacion": 90, "color": "#c6d3cf", "colision": false },
+    { "id": "reloj", "tipo": "reloj", "posicion": [2.99, 2.05, 0], "rotacion": -90, "colision": false }
+  ],
+  "npc": {
+    "posicion": [0, 0, -1.55],
+    "rotacion": 0,
+    "postura": "de-pie",
+    "animacionIdle": "Idle",
+    "colorRopa": "#8a5a4e",
+    "colorPiel": "#b5835f",
+    "colorCabello": "#1f1a17"
+  },
+  "camara": {
+    "posicion": [0, 1.6, 2.7],
+    "mirarA": [0, 1.4, -1.55],
+    "fov": 60
+  },
+  "navegacion": {
+    "limites": { "min": [-2.7, 1.2, -3.2], "max": [2.7, 2, 3.2] },
+    "radioJugador": 0.3,
+    "velocidad": 2
+  },
+  "iluminacion": {
+    "fondo": "#f1efe9",
+    "ambiental": { "intensidad": 0.45, "color": "#ffffff" },
+    "hemisferica": { "intensidad": 0.7, "cielo": "#f7f7f2", "suelo": "#8f7c6a" },
+    "direccional": { "intensidad": 2.1, "color": "#fff6e6", "posicion": [3, 5, -5] },
+    "puntuales": []
+  }
+}

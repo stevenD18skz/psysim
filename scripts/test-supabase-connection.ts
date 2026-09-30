@@ -75,8 +75,151 @@ if (!correo || !contrasena) {
       'RLS: el docente solo ve su propio perfil'
     );
 
+    await verificarSprint2(cliente, sesion.user!.id);
+    await cliente.auth.signOut({ scope: 'local' });
+  }
+}
+
+// 4. Cuenta sin rol docente: no ve el catálogo.
+const correoSinRol = process.env.E2E_SIN_ROL_CORREO;
+const contrasenaSinRol = process.env.E2E_SIN_ROL_CONTRASENA;
+if (correoSinRol && contrasenaSinRol) {
+  const cliente = createClient<Database>(url, clavePublicable, opciones);
+  const { error } = await cliente.auth.signInWithPassword({
+    email: correoSinRol,
+    password: contrasenaSinRol,
+  });
+  if (!error) {
+    const { data } = await cliente.from('escenario').select('id');
+    comprobar((data ?? []).length === 0, 'RLS: una cuenta sin rol docente no ve los escenarios');
     await cliente.auth.signOut({ scope: 'local' });
   }
 }
 
 if (fallos > 0) process.exitCode = 1;
+
+/**
+ * Sprint 2 — RLS y privilegios por columna de escenario, npc, sesion y configuracion_guardada.
+ * Crea datos de otro docente con la clave secreta para comprobar el aislamiento y los elimina
+ * al terminar.
+ */
+async function verificarSprint2(cliente: ReturnType<typeof createClient<Database>>, miId: string) {
+  const PREFIJO = 'RLS-TEST';
+
+  for (const tabla of ['escenario', 'npc', 'sesion', 'configuracion_guardada'] as const) {
+    const { data } = await anonimo.from(tabla).select('id');
+    comprobar((data ?? []).length === 0, `Navegador sin sesión: RLS no expone ${tabla}`);
+  }
+
+  const { data: escenarios } = await cliente.from('escenario').select('id, codigo');
+  const { data: npcs } = await cliente.from('npc').select('id');
+  comprobar(
+    escenarios?.length === 6,
+    `El docente lee los ${escenarios?.length ?? 0} escenarios activos`
+  );
+  comprobar(npcs?.length === 6, `El docente lee los ${npcs?.length ?? 0} NPC`);
+  const escenarioId = escenarios?.[0]?.id;
+  if (!escenarioId) return;
+
+  // Datos de otro docente (creados con la clave secreta).
+  const { data: otro } = await admin
+    .from('usuario')
+    .select('id')
+    .eq('rol', 'docente')
+    .neq('id', miId)
+    .limit(1)
+    .single();
+  const datosSesion = {
+    escenario_id: escenarioId,
+    codigo_estudiante: '209900099',
+    nombre_estudiante: `${PREFIJO} Estudiante`,
+    prompt_sistema: 'Prompt de prueba de las políticas RLS del Sprint 2.',
+  };
+
+  try {
+    if (otro) {
+      const { data: ajena } = await admin
+        .from('sesion')
+        .insert({ ...datosSesion, usuario_id: otro.id })
+        .select('id')
+        .single();
+      const { data: configAjena } = await admin
+        .from('configuracion_guardada')
+        .insert({
+          docente_id: otro.id,
+          escenario_id: escenarioId,
+          nombre_configuracion: `${PREFIJO} ajena`,
+          prompt_personalizado: 'Prompt de prueba de las políticas RLS del Sprint 2.',
+        })
+        .select('id')
+        .single();
+
+      const { data: vistas } = await cliente.from('sesion').select('id').eq('id', ajena!.id);
+      comprobar(vistas?.length === 0, 'RLS: el docente no ve las sesiones de otro docente');
+      const { data: configs } = await cliente
+        .from('configuracion_guardada')
+        .select('id')
+        .eq('id', configAjena!.id);
+      comprobar(configs?.length === 0, 'RLS: el docente no ve configuraciones de otro docente');
+      const { data: borradas } = await cliente
+        .from('configuracion_guardada')
+        .delete()
+        .eq('id', configAjena!.id)
+        .select('id');
+      comprobar(
+        (borradas ?? []).length === 0,
+        'RLS: el docente no puede borrar configuraciones de otro docente'
+      );
+    }
+
+    // Suplantación: `usuario_id` no tiene privilegio de INSERT para el cliente.
+    const { error: errorSuplantar } = await cliente
+      .from('sesion')
+      .insert({ ...datosSesion, usuario_id: otro?.id ?? miId });
+    comprobar(Boolean(errorSuplantar), 'No se puede crear una sesión indicando otro usuario_id');
+
+    const { data: propia, error: errorPropia } = await cliente
+      .from('sesion')
+      .insert(datosSesion)
+      .select('id, usuario_id, estado, fin')
+      .single();
+    comprobar(
+      !errorPropia && propia?.usuario_id === miId && propia.estado === 'en_curso' && !propia.fin,
+      'El docente crea su sesión (usuario_id = auth.uid(), estado en_curso)'
+    );
+    if (!propia) return;
+
+    const { error: errorInmutable } = await cliente
+      .from('sesion')
+      .update({ nombre_estudiante: `${PREFIJO} Cambiado` })
+      .eq('id', propia.id);
+    comprobar(Boolean(errorInmutable), 'Los datos del estudiante de una sesión son inmutables');
+
+    const { error: errorFin } = await cliente
+      .from('sesion')
+      .update({ fin: new Date().toISOString() })
+      .eq('id', propia.id);
+    comprobar(Boolean(errorFin), 'El cliente no puede escribir la hora de fin');
+
+    const { data: cerrada } = await cliente
+      .from('sesion')
+      .update({ estado: 'finalizada' })
+      .eq('id', propia.id)
+      .select('id, inicio, fin')
+      .single();
+    comprobar(
+      Boolean(cerrada?.fin) && cerrada!.fin! >= cerrada!.inicio,
+      'Al cerrar la sesión, la base de datos asigna la hora de fin (reloj del servidor)'
+    );
+
+    const { data: reabierta } = await cliente
+      .from('sesion')
+      .update({ estado: 'en_curso' })
+      .eq('id', propia.id)
+      .select('id');
+    comprobar((reabierta ?? []).length === 0, 'Una sesión finalizada ya no se puede modificar');
+  } finally {
+    await admin.from('sesion').delete().like('nombre_estudiante', `${PREFIJO}%`);
+    await admin.from('configuracion_guardada').delete().like('nombre_configuracion', `${PREFIJO}%`);
+  }
+}
