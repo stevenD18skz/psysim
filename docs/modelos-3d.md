@@ -46,17 +46,17 @@ Validado por `src/schemas/escena.schema.ts` (un test comprueba los seis archivos
 metros, eje Y arriba, suelo en y = 0, sala centrada en el origen; el estudiante entra por +Z y el
 paciente está hacia -Z. Rotaciones en grados.
 
-| Campo                 | Descripción                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| `sala`                | Medidas y colores de la sala procedural (suelo, paredes, friso, techo).                    |
-| `entorno.modelo`      | (Opcional) GLB de la sala completa; reemplaza la sala procedural.                          |
-| `mobiliario[]`        | Muebles: `id`, `tipo`, `posicion`, `rotacion`, `escala`, `color`, `colision`.              |
-| `mobiliario[].modelo` | (Opcional) GLB del mueble. Sin él —o si falla— se dibuja la versión procedural del `tipo`. |
-| `mobiliario[].ajuste` | `{ "alto": m }` o `{ "ancho": m }` y `girar` (°) para normalizar GLB de terceros.          |
-| `npc`                 | Posición/rotación del paciente, `postura` (`sentado`/`de-pie`), `modelo`, `animacionIdle`. |
-| `camara`              | Posición inicial de los ojos del estudiante, punto al que mira y `fov`.                    |
-| `navegacion`          | `limites` (min/max por eje), `radioJugador` y `velocidad` (m/s).                           |
-| `iluminacion`         | Color de fondo, luz ambiental, hemisférica, direccional (sombras) y lámparas.              |
+| Campo                 | Descripción                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sala`                | Medidas y colores de la sala procedural (suelo, paredes, friso, techo).                                                                             |
+| `entorno.modelo`      | (Opcional) GLB de la sala completa; reemplaza la sala procedural.                                                                                   |
+| `mobiliario[]`        | Muebles: `id`, `tipo`, `posicion`, `rotacion`, `escala`, `color`, `colision`.                                                                       |
+| `mobiliario[].modelo` | (Opcional) GLB del mueble. Sin él —o si falla— se dibuja la versión procedural del `tipo`.                                                          |
+| `mobiliario[].ajuste` | `{ "alto": m }` o `{ "ancho": m }` y `girar` (°) para normalizar GLB de terceros.                                                                   |
+| `npc`                 | Posición/rotación del paciente, `postura` (`sentado`/`de-pie`), `modelo`, `animaciones` (clips `idle`/`pensando`/`hablando`) y `puntoConversacion`. |
+| `camara`              | Posición inicial de los ojos del estudiante, punto al que mira y `fov`.                                                                             |
+| `navegacion`          | `limites` (min/max por eje), `radioJugador` y `velocidad` (m/s).                                                                                    |
+| `iluminacion`         | Color de fondo, luz ambiental, hemisférica, direccional (sombras) y lámparas.                                                                       |
 
 Tipos de mueble con versión procedural: `sofa`, `sillon`, `silla`, `mesa-centro`,
 `mesa-auxiliar`, `escritorio`, `estanteria`, `planta`, `lampara-pie`, `alfombra`, `cuadro`,

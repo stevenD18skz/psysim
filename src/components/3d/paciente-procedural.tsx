@@ -2,15 +2,20 @@
 
 import { RoundedBox } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useRef } from 'react';
-import { type Group } from 'three';
+import { useMemo, useRef } from 'react';
+import { type Group, type Mesh, Vector3 } from 'three';
 
+import { poseProcedural } from '@/lib/escena/animaciones';
 import { type Escena } from '@/schemas/escena.schema';
+import { useAppStore } from '@/store/app-store-provider';
 
 type ConfigNpc = Escena['npc'];
 
-/** Periodo de una respiración en reposo, en segundos. */
-const PERIODO_RESPIRACION = 4.2;
+/**
+ * Constante de las transiciones entre poses: ~0,3 s para completar el cambio (equivalente al
+ * `crossFadeTo(0.3)` de las animaciones del GLB, HU-15 · T02).
+ */
+const SUAVIDAD = 10;
 
 function Extremidad({
   posicion,
@@ -34,22 +39,59 @@ function Extremidad({
 }
 
 /**
- * Paciente virtual procedural de bajo poligonaje (versión provisional hasta tener el GLB).
- * Origen en el suelo y mirando hacia +Z. La respiración se anima en `useFrame` mutando la
- * escala del torso: no provoca re-renderizados de React.
+ * Paciente virtual procedural de bajo poligonaje (versión provisional hasta tener el GLB
+ * riggeado). Origen en el suelo y mirando hacia +Z.
+ *
+ * HU-14 · T03 / HU-15: se suscribe al estado del NPC en Zustand y en `useFrame` ajusta la
+ * respiración, la cabeza (sigue al estudiante con la mirada, baja al reflexionar, asiente al
+ * hablar) y la boca. Todo muta objetos de Three.js: no provoca re-renderizados de React.
  */
 export function PacienteProcedural({ npc }: { npc: ConfigNpc }) {
+  const estado = useAppStore(state => state.npc.estado);
   const torso = useRef<Group>(null);
+  const cabeza = useRef<Group>(null);
+  const boca = useRef<Mesh>(null);
+  const fase = useRef(0);
+  const camaraLocal = useMemo(() => new Vector3(), []);
+
   const sentado = npc.postura === 'sentado';
   const ropa = npc.colorRopa;
   const piel = npc.colorPiel;
   const cabello = npc.colorCabello;
   const pantalon = '#4a4643';
 
-  useFrame(({ clock }) => {
-    if (!torso.current) return;
-    const fase = Math.sin((clock.elapsedTime * 2 * Math.PI) / PERIODO_RESPIRACION);
-    torso.current.scale.set(1 + fase * 0.008, 1 + fase * 0.014, 1 + fase * 0.012);
+  useFrame(({ clock, camera }, delta) => {
+    if (!torso.current || !cabeza.current || !boca.current) return;
+    const dt = Math.min(delta, 0.1);
+
+    // Dirección hacia la cámara en el espacio del cuello (para seguir al estudiante).
+    const padre = cabeza.current.parent!;
+    padre.worldToLocal(camaraLocal.copy(camera.position));
+    const dx = camaraLocal.x - cabeza.current.position.x;
+    const dy = camaraLocal.y - cabeza.current.position.y;
+    const dz = camaraLocal.z - cabeza.current.position.z;
+    const mirada = {
+      giro: dz > 0 ? Math.atan2(dx, dz) : 0,
+      cabeceo: -Math.atan2(dy, Math.hypot(dx, dz)),
+    };
+
+    const pose = poseProcedural(estado, clock.elapsedTime, mirada);
+    const t = 1 - Math.exp(-SUAVIDAD * dt);
+
+    // Respiración: la fase avanza según el periodo actual, sin saltos al cambiar de estado.
+    fase.current += (dt * 2 * Math.PI) / pose.periodoRespiracion;
+    const respiracion = Math.sin(fase.current);
+    torso.current.scale.set(
+      1 + respiracion * 0.008,
+      1 + respiracion * 0.014,
+      1 + respiracion * 0.012
+    );
+
+    const rotacion = cabeza.current.rotation;
+    rotacion.x += (pose.cabeceo - rotacion.x) * t;
+    rotacion.y += (pose.giro - rotacion.y) * t;
+    rotacion.z += (pose.ladeo - rotacion.z) * t;
+    boca.current.scale.y += (0.25 + pose.boca - boca.current.scale.y) * Math.min(1, t * 2);
   });
 
   // Alturas de referencia según la postura.
@@ -110,7 +152,7 @@ export function PacienteProcedural({ npc }: { npc: ConfigNpc }) {
             <cylinderGeometry args={[0.05, 0.055, 0.1, 12]} />
             <meshStandardMaterial color={piel} roughness={0.7} />
           </mesh>
-          <group position-y={0.44}>
+          <group ref={cabeza} position-y={0.44}>
             <mesh castShadow>
               <sphereGeometry args={[0.115, 24, 20]} />
               <meshStandardMaterial color={piel} roughness={0.65} />
@@ -118,6 +160,11 @@ export function PacienteProcedural({ npc }: { npc: ConfigNpc }) {
             <mesh position={[0, 0.035, -0.02]} scale={[1.06, 0.95, 1.05]} castShadow>
               <sphereGeometry args={[0.12, 24, 20, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
               <meshStandardMaterial color={cabello} roughness={0.9} />
+            </mesh>
+            {/* Boca: se abre y cierra mientras el paciente responde */}
+            <mesh ref={boca} position={[0, -0.05, 0.103]} scale={[1, 0.25, 0.5]}>
+              <sphereGeometry args={[0.02, 12, 8]} />
+              <meshStandardMaterial color="#6b3a33" roughness={0.6} />
             </mesh>
             {/* Ojos: dan dirección a la mirada */}
             {[-0.04, 0.04].map(x => (

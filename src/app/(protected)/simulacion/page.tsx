@@ -7,7 +7,11 @@ import { z } from 'zod';
 import { SimulacionCliente } from '@/components/simulacion/simulacion-cliente';
 import { Button } from '@/components/ui/button';
 import { requerirDocente } from '@/lib/auth/dal';
-import { obtenerIdUltimaSesionEnCurso, obtenerSesionEnCurso } from '@/lib/escenarios/queries';
+import {
+  obtenerIdUltimaSesionEnCurso,
+  obtenerMensajesSesion,
+  obtenerSesionEnCurso,
+} from '@/lib/escenarios/queries';
 
 export const metadata: Metadata = {
   title: 'Simulación',
@@ -44,7 +48,10 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
     );
   }
 
-  return <SimulacionCliente sesion={sesion} />;
+  // La conversación guardada permite retomar la sesión tras recargar la página.
+  const historial = await obtenerMensajesSesion(sesion.id);
+
+  return <SimulacionCliente sesion={sesion} historial={historial} />;
 }
 
 function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: string }) {

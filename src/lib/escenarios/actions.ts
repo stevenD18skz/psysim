@@ -4,6 +4,7 @@ import { requerirDocente } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
 import {
   eliminarConfiguracionSchema,
+  finalizarSesionSchema,
   guardarConfiguracionSchema,
   iniciarSimulacionSchema,
 } from '@/schemas/configuracion.schema';
@@ -99,6 +100,38 @@ export async function guardarConfiguracion(
       creadoEn: data.creado_en,
     },
   };
+}
+
+/**
+ * HU-16 · T02 — Cierra una sesión en curso (`estado = finalizada`). La hora de fin la asigna la
+ * base de datos (trigger `sesion_asignar_fin`). El Sprint 4 (HU-19/20) añade aquí la
+ * persistencia de las métricas y la redirección a los resultados.
+ */
+export async function finalizarSesion(
+  valores: unknown
+): Promise<ResultadoAccion<{ inicio: string; fin: string }>> {
+  await requerirDocente();
+
+  const datos = finalizarSesionSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('sesion')
+    .update({ estado: 'finalizada' })
+    .eq('id', datos.data.sesionId)
+    .eq('estado', 'en_curso')
+    .select('inicio, fin')
+    .maybeSingle();
+
+  if (error || !data?.fin) {
+    if (error) console.error('[sesion] No se pudo finalizar:', error.code);
+    return { ok: false, error: 'No fue posible finalizar la sesión. Inténtalo de nuevo.' };
+  }
+
+  return { ok: true, datos: { inicio: data.inicio, fin: data.fin } };
 }
 
 /** Elimina una configuración guardada del docente. RLS impide borrar las de otros. */

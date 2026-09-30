@@ -98,3 +98,5 @@ export type GuardarConfiguracionInput = z.input<typeof guardarConfiguracionSchem
 export type GuardarConfiguracionData = z.output<typeof guardarConfiguracionSchema>;
 
 export const eliminarConfiguracionSchema = z.object({ id: z.uuid() });
+
+export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });

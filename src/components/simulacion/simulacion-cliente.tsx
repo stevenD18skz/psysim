@@ -1,40 +1,57 @@
 'use client';
 
 import { useProgress } from '@react-three/drei';
-import { AlertTriangle, Compass, MousePointer2, RotateCw } from 'lucide-react';
+import { AlertTriangle, Compass, MessageCircle, MousePointer2, RotateCw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
+import {
+  iniciarConversacion,
+  interaccionStore,
+  useInteraccion,
+} from '@/components/3d/interaccion-paciente';
 import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
+import { esCampoEditable } from '@/components/3d/use-teclado';
+import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
+import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
+import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
-import { useAppStore } from '@/store/app-store-provider';
-import { type SesionActiva } from '@/types';
+import { estaConversando } from '@/lib/conversacion/estados-npc';
+import { cn } from '@/lib/utils';
+import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
+import { type MensajeConversacion, type SesionActiva } from '@/types';
 
 // HU-08 · T01: Three.js necesita el DOM, así que la escena no se renderiza en el servidor.
 const EscenaSimulacion = dynamic(() => import('@/components/simulacion/escena-simulacion'), {
   ssr: false,
 });
 
+interface SimulacionClienteProps {
+  sesion: SesionActiva;
+  /** Conversación ya guardada de la sesión (al recargar la página se retoma). */
+  historial: MensajeConversacion[];
+}
+
 /**
  * HU-09 · T05 — Pantalla de simulación. Sincroniza la sesión cargada por el servidor con el
  * store de Zustand y monta la escena a partir del escenario guardado en el store.
  */
-export function SimulacionCliente({ sesion }: { sesion: SesionActiva }) {
+export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
 
   // Tras una recarga o al abrir la URL directamente, el store está vacío. En todos los casos se
-  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del docente), que
-  // además trae la hora de inicio autoritativa de la base de datos.
+  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del docente), con la
+  // hora de inicio de la base de datos y la conversación guardada.
   useEffect(() => {
-    iniciarSesion(sesion);
-  }, [sesion, iniciarSesion]);
+    iniciarSesion(sesion, historial);
+  }, [sesion, historial, iniciarSesion]);
 
   return (
     <div className="relative h-[calc(100dvh-3.5rem)] w-full overflow-hidden bg-background">
@@ -51,14 +68,49 @@ export function SimulacionCliente({ sesion }: { sesion: SesionActiva }) {
   );
 }
 
+/**
+ * HU-13 · T01 — Atajos para iniciar la conversación: tecla E (si el estudiante está cerca) o
+ * clic mientras el ratón está capturado y la mira apunta al paciente.
+ */
+function useAtajosConversacion() {
+  const store = useAppStoreApi();
+
+  useEffect(() => {
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (evento.code !== 'KeyE' || evento.repeat || esCampoEditable(evento.target)) return;
+      if (iniciarConversacion(store)) evento.preventDefault();
+    };
+    const alHacerClic = () => {
+      if (document.pointerLockElement && interaccionStore.getState().apuntando) {
+        iniciarConversacion(store);
+      }
+    };
+    window.addEventListener('keydown', alPulsar);
+    window.addEventListener('mousedown', alHacerClic);
+    return () => {
+      window.removeEventListener('keydown', alPulsar);
+      window.removeEventListener('mousedown', alHacerClic);
+    };
+  }, [store]);
+}
+
 function Escenario({ sesion }: { sesion: SesionActiva }) {
   const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d);
   const { active: cargandoModelos } = useProgress();
   const [canvasListo, setCanvasListo] = useState(false);
   const [bloqueado, setBloqueado] = useState(false);
   const depuracion = useSearchParams().get('debug') === '1';
+  const estadoNpc = useAppStore(state => state.npc.estado);
+  const cerca = useInteraccion(interaccion => interaccion.cerca);
+  const apuntando = useInteraccion(interaccion => interaccion.apuntando);
+  const { finalizar, finalizando, resumen } = useFinalizarSesion();
+
+  useAtajosConversacion();
 
   const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  const conversando = estaConversando(estadoNpc);
+  const explorando = estadoNpc === 'inactivo';
+  const nombrePaciente = sesion.npc.nombre;
 
   return (
     <>
@@ -73,13 +125,25 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
-          <HudSesion sesion={sesion} />
+          <HudSesion sesion={sesion} duracionFinalSegundos={resumen?.duracionSegundos} />
           {depuracion && <IndicadorFps />}
         </div>
 
-        {lista && !bloqueado && <InvitacionExplorar />}
-        {lista && bloqueado && <Mira />}
+        {lista && explorando && !bloqueado && (
+          <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
+        )}
+        {lista && explorando && bloqueado && (
+          <>
+            <Mira resaltada={cerca && apuntando} />
+            {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
+          </>
+        )}
       </div>
+
+      {lista && conversando && (
+        <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
+      )}
+      {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} />}
 
       {estado.estado === 'error' && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
@@ -114,8 +178,15 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   );
 }
 
-/** Tarjeta que invita a capturar el ratón para explorar (Pointer Lock requiere un clic). */
-function InvitacionExplorar() {
+/**
+ * Tarjeta que invita a capturar el ratón para explorar (Pointer Lock requiere un clic). Si el
+ * estudiante ya está cerca del paciente, ofrece además conversar con él (camino accesible sin
+ * ratón: también funciona con la tecla E).
+ */
+function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string; cerca: boolean }) {
+  const store = useAppStoreApi();
+  const nombreCorto = nombrePaciente.split(' ')[0];
+
   return (
     <div className="mt-auto flex justify-center pb-6">
       <div className="pointer-events-auto flex max-w-md animate-in flex-col items-center gap-4 rounded-2xl border bg-card/95 p-6 text-center shadow-xl backdrop-blur fade-in-0 slide-in-from-bottom-4">
@@ -125,7 +196,9 @@ function InvitacionExplorar() {
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">Explora el consultorio</h2>
           <p className="text-sm text-muted-foreground">
-            Acércate al paciente y ubícate frente a él antes de iniciar la conversación.
+            {cerca
+              ? `Estás frente a ${nombreCorto}. Cuando quieras, inicia la conversación.`
+              : `Acércate a ${nombreCorto} y ubícate frente a su silla para iniciar la conversación.`}
           </p>
         </div>
         <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -141,13 +214,25 @@ function InvitacionExplorar() {
             <span>ratón para mirar</span>
           </li>
           <li className="flex items-center gap-1.5">
+            <Tecla>E</Tecla>
+            <span>para conversar</span>
+          </li>
+          <li className="flex items-center gap-1.5">
             <Tecla>Esc</Tecla>
             <span>para liberar el ratón</span>
           </li>
         </ul>
-        <Button id={ID_BOTON_EXPLORAR} size="lg">
-          Comenzar a explorar
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button id={ID_BOTON_EXPLORAR} size="lg" variant={cerca ? 'outline' : 'default'}>
+            Comenzar a explorar
+          </Button>
+          {cerca && (
+            <Button size="lg" onClick={() => iniciarConversacion(store)}>
+              <MessageCircle aria-hidden />
+              Conversar con {nombreCorto}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -161,12 +246,38 @@ function Tecla({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Punto central mientras el ratón está capturado. */
-function Mira() {
+/** Punto central mientras el ratón está capturado; crece cuando apunta al paciente. */
+function Mira({ resaltada }: { resaltada: boolean }) {
   return (
     <div
       aria-hidden
-      className="absolute top-1/2 left-1/2 size-1.5 -translate-1/2 rounded-full bg-white/90 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]"
+      className={cn(
+        'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-all duration-200',
+        resaltada
+          ? 'size-4 border-2 border-white bg-primary/60 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
+          : 'size-1.5 bg-white/90 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
+      )}
     />
+  );
+}
+
+/** Indicación bajo la mira cuando el estudiante puede iniciar la conversación. */
+function PistaConversar({
+  nombrePaciente,
+  apuntando,
+}: {
+  nombrePaciente: string;
+  apuntando: boolean;
+}) {
+  const nombreCorto = nombrePaciente.split(' ')[0];
+  return (
+    <p
+      role="status"
+      className="absolute top-[calc(50%+1.75rem)] left-1/2 -translate-x-1/2 animate-in rounded-full bg-black/60 px-3 py-1.5 text-sm whitespace-nowrap text-white fade-in-0"
+    >
+      {apuntando ? 'Haz clic o presiona ' : 'Presiona '}
+      <kbd className="rounded bg-white/20 px-1.5 font-mono text-xs">E</kbd> para hablar con{' '}
+      {nombreCorto}
+    </p>
   );
 }

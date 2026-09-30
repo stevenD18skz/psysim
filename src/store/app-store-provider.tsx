@@ -20,9 +20,17 @@ export function AppStoreProvider({ children, estadoInicial }: AppStoreProviderPr
 }
 
 export function useAppStore<T>(selector: (state: AppState) => T): T {
+  return useStore(useAppStoreApi(), selector);
+}
+
+/**
+ * Acceso a la instancia del store (sin suscripción), para acciones que leen el estado en el
+ * momento de ejecutarse, como el envío de un mensaje al paciente.
+ */
+export function useAppStoreApi(): AppStore {
   const store = use(AppStoreContext);
   if (!store) {
     throw new Error('useAppStore debe usarse dentro de <AppStoreProvider>.');
   }
-  return useStore(store, selector);
+  return store;
 }

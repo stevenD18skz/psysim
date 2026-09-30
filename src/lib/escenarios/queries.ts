@@ -3,7 +3,12 @@ import 'server-only';
 import { cache } from 'react';
 
 import { createClient } from '@/lib/supabase/server';
-import { type ConfiguracionGuardada, type EscenarioCatalogo, type SesionActiva } from '@/types';
+import {
+  type ConfiguracionGuardada,
+  type EscenarioCatalogo,
+  type MensajeConversacion,
+  type SesionActiva,
+} from '@/types';
 
 /*
  * Consultas de lectura del Sprint 2. Todas usan el cliente con la sesión del docente, así que
@@ -118,6 +123,33 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
     npc: { id: escenario.npc.id, nombre: escenario.npc.nombre, edad: escenario.npc.edad },
   };
 });
+
+/**
+ * Historial de la conversación de una sesión, en orden cronológico. El mensaje del estudiante
+ * y la respuesta del NPC se insertan juntos (mismo `creado_en`): el orden del enum
+ * `remitente_mensaje` (estudiante < npc) desempata.
+ */
+export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeConversacion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('mensaje')
+    .select('id, remitente, contenido, creado_en, latencia_ms')
+    .eq('sesion_id', sesionId)
+    .order('creado_en')
+    .order('remitente');
+
+  if (error) {
+    throw new Error('No fue posible cargar la conversación.', { cause: error });
+  }
+
+  return data.map(fila => ({
+    id: fila.id,
+    remitente: fila.remitente,
+    contenido: fila.contenido,
+    timestamp: fila.creado_en,
+    ...(fila.latencia_ms !== null && { latencia_ms: fila.latencia_ms }),
+  }));
+}
 
 /** Id de la sesión en curso más reciente del docente, si tiene alguna. */
 export async function obtenerIdUltimaSesionEnCurso(): Promise<string | null> {

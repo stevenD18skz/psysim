@@ -15,16 +15,16 @@ interface ModeloGLBProps {
 }
 
 /**
- * HU-09 · T02 — Carga un modelo GLB (comprimido con Draco) con `useGLTF`.
+ * Carga un GLB (comprimido con Draco) con `useGLTF` y devuelve una copia lista para la escena:
+ * con sombras y, si se indica, normalizada con `ajuste` (unidades, origen y orientación).
  *
- * `useGLTF` guarda cada archivo en caché: si un mueble se repite en la escena, se descarga
- * una sola vez y aquí se clona (con `SkeletonUtils` para no romper modelos con esqueleto).
- * El segundo argumento indica dónde están los decodificadores Draco autoalojados.
+ * `useGLTF` guarda cada archivo en caché: si un modelo se repite, se descarga una sola vez y
+ * aquí se clona con `SkeletonUtils` para no romper los modelos con esqueleto (pacientes).
  */
-export function ModeloGLB({ ruta, ajuste }: ModeloGLBProps) {
-  const { scene } = useGLTF(resolverUrlModelo(ruta), RUTA_DRACO);
+export function useModeloGLB(ruta: string, ajuste?: AjusteModelo) {
+  const { scene, animations } = useGLTF(resolverUrlModelo(ruta), RUTA_DRACO);
 
-  const { copia, escala, desplazamiento } = useMemo(() => {
+  const modelo = useMemo(() => {
     const objeto = clonarConEsqueleto(scene);
     objeto.traverse((hijo: Object3D) => {
       if ((hijo as Mesh).isMesh) {
@@ -43,6 +43,12 @@ export function ModeloGLB({ ruta, ajuste }: ModeloGLBProps) {
     return { copia: objeto, ...resultado };
   }, [scene, ajuste]);
 
+  return { ...modelo, animaciones: animations };
+}
+
+/** HU-09 · T02 — Modelo GLB estático (muebles, entorno). */
+export function ModeloGLB({ ruta, ajuste }: ModeloGLBProps) {
+  const { copia, escala, desplazamiento } = useModeloGLB(ruta, ajuste);
   return (
     <group scale={escala} position={desplazamiento}>
       <primitive object={copia} />
