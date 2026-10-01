@@ -3,7 +3,7 @@
 import { PerformanceMonitor } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { type ReactNode, useState } from 'react';
-import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three';
+import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 
 import { MonitorRendimiento } from '@/components/3d/monitor-rendimiento';
 
@@ -34,7 +34,7 @@ export function SceneCanvas({ children, onListo }: SceneCanvasProps) {
     <Canvas
       className="absolute! inset-0"
       dpr={[1, dpr]}
-      shadows={{ type: PCFSoftShadowMap }}
+      shadows={{ type: PCFShadowMap }}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',

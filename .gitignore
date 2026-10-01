@@ -53,3 +53,4 @@ next-env.d.ts
 
 # project management export (not source code)
 taiga.json
+/claude_desing

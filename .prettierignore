@@ -19,3 +19,6 @@ supabase/.temp
 
 # Decodificadores Draco de terceros
 public/draco
+
+# Material de referencia (prototipos de Claude Design)
+claude_desing

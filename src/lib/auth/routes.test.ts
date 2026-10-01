@@ -3,19 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { RUTA_INICIO_DOCENTE, esRutaProtegida, rutaSiguienteSegura } from './routes';
 
 describe('esRutaProtegida', () => {
-  it.each(['/configuracion', '/configuracion/escenario', '/simulacion', '/simulacion/abc'])(
-    'protege %s',
-    ruta => {
-      expect(esRutaProtegida(ruta)).toBe(true);
-    }
-  );
+  it.each([
+    '/configuracion',
+    '/configuracion/escenario',
+    '/simulacion',
+    '/simulacion/abc',
+    '/laboratorio',
+    '/laboratorio/npc',
+  ])('protege %s', ruta => {
+    expect(esRutaProtegida(ruta)).toBe(true);
+  });
 
-  it.each(['/', '/login', '/acceso-denegado', '/configuraciones', '/simulacion-demo'])(
-    'no protege %s',
-    ruta => {
-      expect(esRutaProtegida(ruta)).toBe(false);
-    }
-  );
+  it.each([
+    '/',
+    '/login',
+    '/acceso-denegado',
+    '/configuraciones',
+    '/simulacion-demo',
+    '/laboratorios',
+  ])('no protege %s', ruta => {
+    expect(esRutaProtegida(ruta)).toBe(false);
+  });
 });
 
 describe('rutaSiguienteSegura', () => {

@@ -34,6 +34,8 @@ const eslintConfig = defineConfig([
     'src/types/database.types.ts',
     // Decodificadores Draco de terceros (copiados de three/examples).
     'public/draco/**',
+    // Material de referencia (prototipos exportados de Claude Design), no es código de la app.
+    'claude_desing/**',
   ]),
 ]);
 

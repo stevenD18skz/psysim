@@ -12,6 +12,7 @@ import { useAppStore } from '@/store/app-store-provider';
 const ENLACES: { href: Route; etiqueta: string }[] = [
   { href: '/configuracion', etiqueta: 'Configuración' },
   { href: '/simulacion', etiqueta: 'Simulación' },
+  { href: '/laboratorio', etiqueta: 'Laboratorio' },
 ];
 
 export function MainNav() {
