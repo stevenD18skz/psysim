@@ -29,8 +29,11 @@ interface SceneLoaderProps {
  */
 export function SceneLoader({ escena, onBloqueoCambia }: SceneLoaderProps) {
   const sala = <Sala sala={escena.sala} />;
-  // El estudiante solo camina mientras no conversa con el paciente y la sesión sigue abierta.
-  const movimientoHabilitado = useAppStore(state => state.npc.estado === 'inactivo');
+  // El estudiante solo camina cuando la simulación comenzó (HU-23), mientras no conversa con el
+  // paciente y la sesión sigue abierta.
+  const movimientoHabilitado = useAppStore(
+    state => state.npc.estado === 'inactivo' && state.sesion.activa?.comenzada === true
+  );
 
   return (
     <RegistroColisionesProvider>

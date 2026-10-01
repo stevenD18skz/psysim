@@ -130,38 +130,78 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     const sesionId = new URL(page.url()).searchParams.get('sesion')!;
 
     const hud = page.getByRole('complementary', { name: 'Datos de la sesión' });
-    await expect(hud).toContainText('E-01');
-    await expect(hud).toContainText('Duelo y pérdida');
-    await expect(hud).toContainText('Marta Lucía');
-    await expect(hud).toContainText(ESTUDIANTE.nombre);
 
     // La pantalla de carga desaparece cuando la escena está lista.
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
       timeout: 60_000,
     });
-    await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
+    // HU-23: antes de interactuar, el estudiante lee las instrucciones del caso. Es un modal:
+    // mientras está abierto, el resto de la página queda fuera del árbol de accesibilidad.
+    const instrucciones = page.getByRole('dialog', { name: /Duelo y pérdida/ });
+    await expect(instrucciones).toBeVisible();
+    await expect(instrucciones).toContainText('Empatía y validación emocional');
+    await expect(instrucciones).toContainText('cuatro meses después de la muerte repentina');
+    await expect(instrucciones).toContainText('Marta Lucía');
+    await expect(instrucciones).toContainText(ESTUDIANTE.nombre);
+    await expect(instrucciones).toContainText(ESTUDIANTE.codigo);
+    await expect(page.getByText('Sin iniciar')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeHidden();
 
-    // El registro existe en Supabase con estado en_curso y el prompt copiado.
+    // Es obligatorio: Escape no lo cierra; "Revisar nuevamente" solo vuelve al inicio del texto.
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Revisar nuevamente' }).click();
+    await expect(instrucciones).toBeVisible();
+
+    // El registro existe en Supabase con estado en_curso, el prompt copiado y sin comenzar.
     const admin = clienteAdmin();
-    if (admin) {
-      const { data } = await admin
+    const leerSesion = async () => {
+      const { data } = await admin!
         .from('sesion')
-        .select('estado, codigo_estudiante, nombre_estudiante, prompt_sistema, fin')
+        .select(
+          'estado, comenzada, inicio, codigo_estudiante, nombre_estudiante, prompt_sistema, fin'
+        )
         .eq('id', sesionId)
         .single();
-      expect(data).toMatchObject({
+      return data;
+    };
+    const creada = admin ? await leerSesion() : null;
+    if (admin) {
+      expect(creada).toMatchObject({
         estado: 'en_curso',
+        comenzada: false,
         codigo_estudiante: ESTUDIANTE.codigo,
         nombre_estudiante: ESTUDIANTE.nombre,
         fin: null,
       });
-      expect(data?.prompt_sistema).toContain('Eres Marta Lucía');
+      expect(creada?.prompt_sistema).toContain('Eres Marta Lucía');
     }
 
-    // Recargar conserva la sesión (se hidrata desde el servidor).
+    // Al confirmar, la simulación comienza: el tiempo corre desde ahora (hora del servidor).
+    await page.getByRole('button', { name: 'Entendido · Iniciar simulación' }).click();
+    await expect(instrucciones).toBeHidden();
+    await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
+    await expect(hud).toContainText('E-01');
+    await expect(hud).toContainText('Duelo y pérdida');
+    await expect(hud).toContainText('Marta Lucía');
+    await expect(hud).toContainText(ESTUDIANTE.nombre);
+    await expect(hud).not.toContainText('Sin iniciar');
+    if (admin) {
+      const comenzada = await leerSesion();
+      expect(comenzada?.comenzada).toBe(true);
+      expect(new Date(comenzada!.inicio).getTime()).toBeGreaterThan(
+        new Date(creada!.inicio).getTime()
+      );
+    }
+
+    // Recargar conserva la sesión (se hidrata desde el servidor) y no repite las instrucciones.
     await page.reload();
     await expect(hud).toContainText(ESTUDIANTE.nombre);
+    await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
+      timeout: 60_000,
+    });
+    await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
+    await expect(instrucciones).toBeHidden();
 
     // /simulacion sin parámetro retoma la última sesión en curso.
     await page.goto('/simulacion');

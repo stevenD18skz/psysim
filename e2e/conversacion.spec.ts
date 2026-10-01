@@ -42,6 +42,8 @@ async function crearSesion(sufijo: string): Promise<string> {
       codigo_estudiante: `${CODIGO_PRUEBAS}${sufijo}`,
       nombre_estudiante: 'Estudiante de Prueba Conversacion',
       prompt_sistema: PROMPT_BREVE,
+      // El estudiante ya confirmó las instrucciones del caso (HU-23): se va directo a conversar.
+      comenzada: true,
     })
     .select('id')
     .single();

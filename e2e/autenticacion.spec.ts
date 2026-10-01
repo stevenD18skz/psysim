@@ -125,7 +125,9 @@ test.describe('con credenciales de prueba', () => {
     context,
   }) => {
     await iniciarSesionComoDocente(page);
-    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    // El cierre de sesión está en el menú de la cuenta, al pie del menú lateral.
+    await page.getByRole('button', { name: /Cuenta de/ }).click();
+    await page.getByRole('menuitem', { name: 'Cerrar sesión' }).click();
 
     await expect(page).toHaveURL(/\/login$/);
     expect(await cookiesDeSesion(context)).toHaveLength(0);

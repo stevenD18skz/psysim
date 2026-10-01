@@ -171,6 +171,7 @@ export type Database = {
       sesion: {
         Row: {
           codigo_estudiante: string;
+          comenzada: boolean;
           escenario_id: string;
           estado: Database['public']['Enums']['estado_sesion'];
           fin: string | null;
@@ -182,6 +183,7 @@ export type Database = {
         };
         Insert: {
           codigo_estudiante: string;
+          comenzada?: boolean;
           escenario_id: string;
           estado?: Database['public']['Enums']['estado_sesion'];
           fin?: string | null;
@@ -193,6 +195,7 @@ export type Database = {
         };
         Update: {
           codigo_estudiante?: string;
+          comenzada?: boolean;
           escenario_id?: string;
           estado?: Database['public']['Enums']['estado_sesion'];
           fin?: string | null;

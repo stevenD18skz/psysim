@@ -14,6 +14,8 @@ import {
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { LogoUnivalle } from '@/components/layout/logo-univalle';
+import { PiePagina } from '@/components/layout/pie-pagina';
 import { Button } from '@/components/ui/button';
 
 /** Catálogo de escenarios (coincide con supabase/migrations/…_sembrar_escenarios.sql). */
@@ -67,12 +69,16 @@ const NIVELES = ['', 'Básico', 'Intermedio', 'Avanzado'] as const;
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background">
+      {/* Filete con el rojo institucional de la Universidad del Valle. */}
+      <div aria-hidden className="h-1 bg-marca" />
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <span className="flex items-center gap-2 font-heading text-lg font-semibold">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Armchair className="size-4" aria-hidden />
+        <span className="flex items-center gap-3">
+          <LogoUnivalle className="h-12" />
+          <span className="h-9 w-px bg-border" aria-hidden />
+          <span className="grid leading-tight">
+            <span className="font-heading text-xl font-semibold">PsySim</span>
+            <span className="text-xs text-muted-foreground">Simulador clínico · Psicología</span>
           </span>
-          PsySim
         </span>
         <Button asChild variant="outline">
           <Link href="/login">Ingresar</Link>
@@ -105,25 +111,17 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl border bg-card p-8 shadow-sm">
-            <div
-              className="absolute -top-16 -right-16 size-56 rounded-full bg-accent"
-              aria-hidden
-            />
-            <div
-              className="absolute -bottom-20 -left-10 size-48 rounded-full bg-sage"
-              aria-hidden
-            />
-            <div className="relative flex flex-col gap-4">
+          <figure className="rounded-lg border border-l-4 border-l-primary bg-card p-8 shadow-xs">
+            <div className="flex flex-col gap-4">
               <BrainCircuit className="size-10 text-primary" aria-hidden />
-              <p className="font-heading text-2xl leading-snug">
+              <blockquote className="font-heading text-2xl leading-snug">
                 «Buenas… la verdad no sé muy bien por dónde empezar.»
-              </p>
-              <p className="text-sm text-muted-foreground">
+              </blockquote>
+              <figcaption className="text-sm text-muted-foreground">
                 Marta Lucía, 58 años — escenario E-01, Duelo y pérdida
-              </p>
+              </figcaption>
             </div>
-          </div>
+          </figure>
         </section>
 
         {/* Características */}
@@ -223,12 +221,7 @@ export default function Home() {
         </Seccion>
       </main>
 
-      <footer className="mt-16 border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <p>Trabajo de grado — Universidad del Valle (2026)</p>
-          <p>Escuela de Ingeniería de Sistemas y Computación</p>
-        </div>
-      </footer>
+      <PiePagina className="mt-16" />
     </div>
   );
 }

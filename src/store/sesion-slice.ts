@@ -20,6 +20,11 @@ export interface SesionSlice {
      * (p. ej. tras recargar la página).
      */
     iniciar: (sesion: SesionActiva, historial?: MensajeConversacion[]) => void;
+    /**
+     * HU-23 · T03 — El estudiante confirmó las instrucciones: marca la sesión como comenzada con
+     * la hora de inicio que fijó la base de datos.
+     */
+    comenzar: (inicio: string) => void;
     /** HU-14 · T02 (`limpiarSesion`) — Resetea todos los slices de la sesión activa. */
     limpiar: () => void;
   };
@@ -44,6 +49,12 @@ export const crearSesionSlice =
           npc: { ...state.npc, ...estadoInicialNpc },
           metricas: { ...state.metricas, ...metricasDesdeHistorial(historial) },
         })),
+      comenzar: inicio =>
+        set(state => {
+          const { activa } = state.sesion;
+          if (!activa) return state;
+          return { sesion: { ...state.sesion, activa: { ...activa, comenzada: true, inicio } } };
+        }),
       limpiar: () =>
         set(state => ({
           sesion: { ...state.sesion, ...estadoInicialSesion },

@@ -100,3 +100,6 @@ export type GuardarConfiguracionData = z.output<typeof guardarConfiguracionSchem
 export const eliminarConfiguracionSchema = z.object({ id: z.uuid() });
 
 export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
+
+/** HU-23: el estudiante confirma las instrucciones y comienza la simulación. */
+export const comenzarSesionSchema = z.object({ sesionId: z.uuid() });
