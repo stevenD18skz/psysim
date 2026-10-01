@@ -43,13 +43,17 @@ export interface ConfiguracionGuardada {
 /** Sesión de simulación en curso, tal como la consumen la escena 3D y el chat. */
 export interface SesionActiva {
   id: string;
+  /** Momento en que comenzó la simulación (o en que se creó, si aún no ha comenzado). */
   inicio: string;
+  /** HU-23: `true` cuando el estudiante confirmó las instrucciones; desde ahí corre el tiempo. */
+  comenzada: boolean;
   estudiante: { codigo: string; nombre: string };
   escenario: Pick<
     EscenarioCatalogo,
     | 'id'
     | 'codigo'
     | 'titulo'
+    | 'descripcion'
     | 'categoria'
     | 'dificultad'
     | 'competenciaCentral'

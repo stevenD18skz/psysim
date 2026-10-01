@@ -1,7 +1,14 @@
 'use client';
 
 import { useProgress } from '@react-three/drei';
-import { AlertTriangle, Compass, MessageCircle, MousePointer2, RotateCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Compass,
+  MessageCircle,
+  MousePointer2,
+  RotateCw,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -19,6 +26,7 @@ import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
+import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
@@ -40,7 +48,8 @@ interface SimulacionClienteProps {
 
 /**
  * HU-09 · T05 — Pantalla de simulación. Sincroniza la sesión cargada por el servidor con el
- * store de Zustand y monta la escena a partir del escenario guardado en el store.
+ * store de Zustand y monta la escena a partir del escenario guardado en el store. Ocupa toda la
+ * pantalla, sin la navegación del panel, para que la práctica sea inmersiva.
  */
 export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
@@ -54,7 +63,7 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   }, [sesion, historial, iniciarSesion]);
 
   return (
-    <div className="relative h-[calc(100dvh-3.5rem)] w-full overflow-hidden bg-background">
+    <main className="relative h-dvh w-full overflow-hidden bg-background">
       {activa?.id === sesion.id ? (
         <Escenario sesion={activa} />
       ) : (
@@ -64,7 +73,7 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
           competencia={sesion.escenario.competenciaCentral}
         />
       )}
-    </div>
+    </main>
   );
 }
 
@@ -108,6 +117,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   useAtajosConversacion();
 
   const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  // HU-23: hasta que el estudiante confirme las instrucciones, la escena se ve pero no se usa.
+  const comenzada = sesion.comenzada;
   const conversando = estaConversando(estadoNpc);
   const explorando = estadoNpc === 'inactivo';
   const nombrePaciente = sesion.npc.nombre;
@@ -126,13 +137,28 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
           <HudSesion sesion={sesion} duracionFinalSegundos={resumen?.duracionSegundos} />
-          {depuracion && <IndicadorFps />}
+          <div className="flex items-start gap-2">
+            {depuracion && <IndicadorFps />}
+            {/* Sin menú en la simulación: salida discreta al panel. La sesión sigue en curso y
+                se retoma desde "Sesión en curso". */}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="pointer-events-auto bg-card/90 backdrop-blur"
+            >
+              <Link href="/configuracion">
+                <ArrowLeft aria-hidden />
+                Salir al panel
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {lista && explorando && !bloqueado && (
+        {lista && comenzada && explorando && !bloqueado && (
           <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
         )}
-        {lista && explorando && bloqueado && (
+        {lista && comenzada && explorando && bloqueado && (
           <>
             <Mira resaltada={cerca && apuntando} />
             {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
@@ -143,6 +169,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {lista && conversando && (
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
       )}
+      {lista && !comenzada && <InstruccionesCaso sesion={sesion} />}
       {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} />}
 
       {estado.estado === 'error' && (

@@ -27,6 +27,7 @@ const cuerpoValido = {
 
 const sesionEnCurso = {
   estado: 'en_curso',
+  comenzada: true,
   prompt_sistema: 'Eres Marta Lucía, 58 años.',
   escenario: { npc: { id: NPC_ID, nombre: 'Marta Lucía' } },
 };
@@ -152,6 +153,11 @@ describe('POST /api/npc/chat', () => {
 
   it('responde 409 si la sesión ya finalizó', async () => {
     clienteFalso({ ...sesionEnCurso, estado: 'finalizada' });
+    expect((await POST(peticion(cuerpoValido))).status).toBe(409);
+  });
+
+  it('HU-23: responde 409 si el estudiante aún no comenzó la simulación', async () => {
+    clienteFalso({ ...sesionEnCurso, comenzada: false });
     expect((await POST(peticion(cuerpoValido))).status).toBe(409);
   });
 

@@ -133,12 +133,16 @@ export function ConfiguradorSesion({
       const { sesionId } = resultado.datos;
       iniciarSesionEnStore({
         id: sesionId,
+        // Provisional: el inicio real lo fija la base de datos cuando el estudiante confirma las
+        // instrucciones del caso (HU-23); el servidor vuelve a sincronizarlo en /simulacion.
         inicio: new Date().toISOString(),
+        comenzada: false,
         estudiante: { codigo: datos.codigoEstudiante, nombre: datos.nombreEstudiante },
         escenario: {
           id: seleccionado.id,
           codigo: seleccionado.codigo,
           titulo: seleccionado.titulo,
+          descripcion: seleccionado.descripcion,
           categoria: seleccionado.categoria,
           dificultad: seleccionado.dificultad,
           competenciaCentral: seleccionado.competenciaCentral,

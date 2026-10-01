@@ -3,7 +3,7 @@
 import { PerformanceMonitor } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { type ReactNode, useState } from 'react';
-import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three';
+import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 
 import { MonitorRendimiento } from '@/components/3d/monitor-rendimiento';
 
@@ -24,7 +24,7 @@ interface SceneCanvasProps {
  * HU-08 · T01 — Canvas de React Three Fiber configurado para la simulación.
  *
  * Se importa con `next/dynamic` y `ssr: false` (Three.js necesita el DOM). El contenedor
- * padre DEBE tener un alto definido (p. ej. `h-[calc(100dvh-3.5rem)]`): si mide 0 px antes
+ * padre DEBE tener un alto definido (p. ej. `h-dvh`): si mide 0 px antes
  * de la hidratación, el canvas no puede calcular su relación de aspecto.
  */
 export function SceneCanvas({ children, onListo }: SceneCanvasProps) {
@@ -34,7 +34,7 @@ export function SceneCanvas({ children, onListo }: SceneCanvasProps) {
     <Canvas
       className="absolute! inset-0"
       dpr={[1, dpr]}
-      shadows={{ type: PCFSoftShadowMap }}
+      shadows={{ type: PCFShadowMap }}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',

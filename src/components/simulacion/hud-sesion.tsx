@@ -10,9 +10,17 @@ import { type SesionActiva } from '@/types';
  * Cronómetro de la sesión. Aislado para que el tic de cada segundo no re-renderice el resto.
  * Al finalizar la sesión se detiene y muestra la duración calculada por la base de datos.
  */
-function Cronometro({ inicio, duracionFinal }: { inicio: string; duracionFinal?: number }) {
+function Cronometro({
+  inicio,
+  comenzada,
+  duracionFinal,
+}: {
+  inicio: string;
+  comenzada: boolean;
+  duracionFinal?: number;
+}) {
   const [ahora, setAhora] = useState<number | null>(null);
-  const detenido = duracionFinal !== undefined;
+  const detenido = duracionFinal !== undefined || !comenzada;
 
   useEffect(() => {
     if (detenido) return;
@@ -25,7 +33,9 @@ function Cronometro({ inicio, duracionFinal }: { inicio: string; duracionFinal?:
     };
   }, [detenido]);
 
-  if (detenido) {
+  // HU-23: el tiempo empieza cuando el estudiante confirma las instrucciones del caso.
+  if (!comenzada) return <span className="tabular-nums">Sin iniciar</span>;
+  if (duracionFinal !== undefined) {
     return (
       <time className="tabular-nums" aria-label="Duración total de la sesión">
         {formatearDuracion(duracionFinal)}
@@ -85,7 +95,11 @@ export function HudSesion({
             <span className="sr-only">Duración</span>
           </dt>
           <dd>
-            <Cronometro inicio={sesion.inicio} duracionFinal={duracionFinalSegundos} />
+            <Cronometro
+              inicio={sesion.inicio}
+              comenzada={sesion.comenzada}
+              duracionFinal={duracionFinalSegundos}
+            />
           </dd>
         </div>
       </dl>

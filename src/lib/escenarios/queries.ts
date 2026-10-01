@@ -81,9 +81,9 @@ export const obtenerConfiguracionesGuardadas = cache(async (): Promise<Configura
 });
 
 const COLUMNAS_SESION = `
-  id, inicio, estado, codigo_estudiante, nombre_estudiante,
+  id, inicio, comenzada, estado, codigo_estudiante, nombre_estudiante,
   escenario (
-    id, codigo, titulo, categoria, dificultad, competencia_central, configuracion_3d,
+    id, codigo, titulo, descripcion, categoria, dificultad, competencia_central, configuracion_3d,
     npc ( id, nombre, edad )
   )
 ` as const;
@@ -110,11 +110,13 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
   return {
     id: data.id,
     inicio: data.inicio,
+    comenzada: data.comenzada,
     estudiante: { codigo: data.codigo_estudiante, nombre: data.nombre_estudiante },
     escenario: {
       id: escenario.id,
       codigo: escenario.codigo,
       titulo: escenario.titulo,
+      descripcion: escenario.descripcion,
       categoria: escenario.categoria,
       dificultad: escenario.dificultad,
       competenciaCentral: escenario.competencia_central,

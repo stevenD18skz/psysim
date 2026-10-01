@@ -4,6 +4,7 @@ import { requerirDocente } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
 import {
   eliminarConfiguracionSchema,
+  comenzarSesionSchema,
   finalizarSesionSchema,
   guardarConfiguracionSchema,
   iniciarSimulacionSchema,
@@ -132,6 +133,38 @@ export async function finalizarSesion(
   }
 
   return { ok: true, datos: { inicio: data.inicio, fin: data.fin } };
+}
+
+/**
+ * HU-23 · T03 — El estudiante confirmó las instrucciones del caso: la sesión comienza. La base
+ * de datos fija `inicio` con su propia hora (trigger `sesion_marcar_comienzo`), así el tiempo de
+ * lectura no cuenta como duración. Es idempotente: si ya había comenzado, conserva su inicio.
+ */
+export async function comenzarSesion(
+  valores: unknown
+): Promise<ResultadoAccion<{ inicio: string }>> {
+  await requerirDocente();
+
+  const datos = comenzarSesionSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('sesion')
+    .update({ comenzada: true })
+    .eq('id', datos.data.sesionId)
+    .eq('estado', 'en_curso')
+    .select('inicio')
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error('[sesion] No se pudo comenzar:', error.code);
+    return { ok: false, error: 'No fue posible comenzar la simulación. Inténtalo de nuevo.' };
+  }
+
+  return { ok: true, datos: { inicio: data.inicio } };
 }
 
 /** Elimina una configuración guardada del docente. RLS impide borrar las de otros. */

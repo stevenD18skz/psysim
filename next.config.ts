@@ -16,6 +16,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Solo en desarrollo: el indicador de Next.js no tapa el pie del menú lateral.
+  devIndicators: { position: 'bottom-right' },
   typedRoutes: true,
   turbopack: {
     rules: {

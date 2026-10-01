@@ -79,7 +79,8 @@ export function InteraccionPaciente({ npc }: { npc: Escena['npc'] }) {
  * paciente. Devuelve si se inició.
  */
 export function iniciarConversacion(store: AppStore): boolean {
-  const { npc } = store.getState();
+  const { npc, sesion } = store.getState();
+  if (!sesion.activa?.comenzada) return false;
   if (npc.estado !== 'inactivo' || !interaccionStore.getState().cerca) return false;
   return npc.actualizarEstadoNPC('esperando_input');
 }

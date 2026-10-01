@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = await createClient();
   const { data: sesion, error: errorSesion } = await supabase
     .from('sesion')
-    .select('estado, prompt_sistema, escenario ( npc ( id, nombre ) )')
+    .select('estado, comenzada, prompt_sistema, escenario ( npc ( id, nombre ) )')
     .eq('id', sesion_id)
     .maybeSingle();
 
@@ -83,6 +83,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (sesion.estado !== 'en_curso') {
     return responderError(409, 'La sesión de simulación ya finalizó.');
+  }
+  // HU-23: no se conversa hasta que el estudiante confirma las instrucciones del caso.
+  if (!sesion.comenzada) {
+    return responderError(409, 'La simulación aún no ha comenzado.');
   }
   const npc = sesion.escenario?.npc;
   if (!npc || npc.id !== npc_id) {

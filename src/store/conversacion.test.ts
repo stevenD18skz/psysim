@@ -7,11 +7,13 @@ import { crearAppStore } from './app-store';
 const sesion: SesionActiva = {
   id: '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60',
   inicio: '2026-09-30T15:00:00.000Z',
+  comenzada: true,
   estudiante: { codigo: '202012345', nombre: 'Ana María Pérez' },
   escenario: {
     id: '0f8fad5b-d9cb-469f-a165-70867728950e',
     codigo: 'E-01',
     titulo: 'Duelo y pérdida',
+    descripcion: 'Caso de prueba.',
     categoria: 'clinico',
     dificultad: 'basico',
     competenciaCentral: 'Empatía y validación emocional',

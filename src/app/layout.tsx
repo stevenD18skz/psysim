@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono, Source_Serif_4 } from 'next/font/google';
+import { Geist_Mono, Source_Sans_3, Source_Serif_4 } from 'next/font/google';
 
 import { Toaster } from '@/components/ui/sonner';
 
 import './globals.css';
 
-const geistSans = Geist({
+/** Texto de interfaz: sans humanista, sobria y muy legible en pantalla. */
+const sourceSans = Source_Sans_3({
   variable: '--font-sans',
   subsets: ['latin'],
 });
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
-/** Serifa para títulos: da el tono editorial y cálido del tema. */
+/** Serifa para títulos: tono académico, de la misma familia que el texto. */
 const sourceSerif = Source_Serif_4({
   variable: '--font-source-serif',
   subsets: ['latin'],
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f7f3ec',
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({
@@ -41,7 +42,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {children}
