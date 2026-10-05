@@ -38,8 +38,8 @@ export function TarjetaEscenario({
     <label
       data-testid={`escenario-${escenario.codigo}`}
       className={cn(
-        'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-all',
-        'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
+        'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-[border-color,box-shadow,background-color]',
+        'hover:border-primary/40 hover:shadow-md',
         'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
         seleccionado && 'border-primary bg-accent/50 shadow-md ring-1 ring-primary'
       )}

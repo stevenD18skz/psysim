@@ -69,28 +69,30 @@ export function ConfiguracionesGuardadas({
         </button>
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="border-t px-5 py-4">
-        {configuraciones.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <FolderOpen className="size-4 shrink-0" aria-hidden />
-            Cuando prepares un escenario, usa «Guardar configuración» para reutilizarlo en futuras
-            sesiones.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2" aria-label="Configuraciones guardadas">
-            {configuraciones.map(configuracion => (
-              <ItemConfiguracion
-                key={configuracion.id}
-                configuracion={configuracion}
-                tituloEscenario={tituloEscenario(configuracion.escenarioId)}
-                disponible={escenarios.some(e => e.id === configuracion.escenarioId)}
-                cargada={configuracion.id === cargadaId}
-                onCargar={onCargar}
-                onEliminada={onEliminada}
-              />
-            ))}
-          </ul>
-        )}
+      <CollapsibleContent>
+        <div className="border-t px-5 py-4">
+          {configuraciones.length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FolderOpen className="size-4 shrink-0" aria-hidden />
+              Cuando prepares un escenario, usa «Guardar configuración» para reutilizarlo en futuras
+              sesiones.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2" aria-label="Configuraciones guardadas">
+              {configuraciones.map(configuracion => (
+                <ItemConfiguracion
+                  key={configuracion.id}
+                  configuracion={configuracion}
+                  tituloEscenario={tituloEscenario(configuracion.escenarioId)}
+                  disponible={escenarios.some(e => e.id === configuracion.escenarioId)}
+                  cargada={configuracion.id === cargadaId}
+                  onCargar={onCargar}
+                  onEliminada={onEliminada}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

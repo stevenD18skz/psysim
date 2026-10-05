@@ -172,3 +172,20 @@
     background-color: color-mix(in oklch, var(--primary) 25%, transparent);
   }
 }
+
+/* Preguntas frecuentes (<details>): despliegue suave de la altura donde el navegador lo admite. */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 200ms ease,
+      content-visibility 200ms allow-discrete;
+  }
+  details[open]::details-content {
+    block-size: auto;
+  }
+}
