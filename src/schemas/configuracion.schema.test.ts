@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  guardarConfiguracionSchema,
-  iniciarSimulacionSchema,
-  type IniciarSimulacionInput,
-} from './configuracion.schema';
+import { iniciarSimulacionSchema, type IniciarSimulacionInput } from './configuracion.schema';
 
 const ESCENARIO_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const PROMPT = 'Eres un paciente de prueba con un perfil clínico suficientemente descrito.';
@@ -71,25 +67,5 @@ describe('iniciarSimulacionSchema', () => {
     );
     expect(erroresDe({ ...valido, promptSistema: 'corto' }).promptSistema).toBeDefined();
     expect(erroresDe({ ...valido, promptSistema: 'x'.repeat(8001) }).promptSistema).toBeDefined();
-  });
-});
-
-describe('guardarConfiguracionSchema', () => {
-  it('normaliza el nombre de la configuración', () => {
-    const datos = guardarConfiguracionSchema.parse({
-      escenarioId: ESCENARIO_ID,
-      promptPersonalizado: PROMPT,
-      nombre: '  Duelo   — grupo A ',
-    });
-    expect(datos.nombre).toBe('Duelo — grupo A');
-  });
-
-  it('exige un nombre de al menos 3 caracteres', () => {
-    const resultado = guardarConfiguracionSchema.safeParse({
-      escenarioId: ESCENARIO_ID,
-      promptPersonalizado: PROMPT,
-      nombre: 'ab',
-    });
-    expect(resultado.success).toBe(false);
   });
 });

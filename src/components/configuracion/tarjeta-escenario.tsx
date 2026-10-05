@@ -12,6 +12,8 @@ interface TarjetaEscenarioProps {
   escenario: EscenarioCatalogo;
   seleccionado: boolean;
   onSeleccionar: (escenario: EscenarioCatalogo) => void;
+  /** Se invoca al volver a activar el caso ya seleccionado (clic o Espacio): quita la selección. */
+  onDeseleccionar: () => void;
   /** `name` del grupo de radios: un único escenario seleccionado a la vez. */
   nombreGrupo: string;
   describedBy?: string;
@@ -27,6 +29,7 @@ export function TarjetaEscenario({
   escenario,
   seleccionado,
   onSeleccionar,
+  onDeseleccionar,
   nombreGrupo,
   describedBy,
 }: TarjetaEscenarioProps) {
@@ -38,8 +41,8 @@ export function TarjetaEscenario({
     <label
       data-testid={`escenario-${escenario.codigo}`}
       className={cn(
-        'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-all',
-        'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
+        'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-[border-color,box-shadow,background-color]',
+        'hover:border-primary/40 hover:shadow-md',
         'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
         seleccionado && 'border-primary bg-accent/50 shadow-md ring-1 ring-primary'
       )}
@@ -50,15 +53,25 @@ export function TarjetaEscenario({
         value={escenario.id}
         checked={seleccionado}
         onChange={() => onSeleccionar(escenario)}
+        // Un radio nativo no dispara `change` al pulsar el ya marcado: aquí se usa para deseleccionar.
+        onClick={() => {
+          if (seleccionado) onDeseleccionar();
+        }}
         aria-labelledby={`${idBase}-titulo`}
         aria-describedby={[`${idBase}-detalle`, describedBy].filter(Boolean).join(' ')}
         className="sr-only"
       />
 
       <div className="flex items-center gap-2">
-        <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
-          {escenario.codigo}
-        </span>
+        {escenario.propio ? (
+          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            Propio
+          </span>
+        ) : (
+          <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
+            {escenario.codigo}
+          </span>
+        )}
         <span
           className={cn(
             'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -85,7 +98,7 @@ export function TarjetaEscenario({
 
       <div className="flex flex-col gap-1">
         <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-semibold">
-          <span className="sr-only">{escenario.codigo}: </span>
+          {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
           {escenario.titulo}
         </h3>
         <p className="line-clamp-3 text-sm text-muted-foreground">{escenario.descripcion}</p>

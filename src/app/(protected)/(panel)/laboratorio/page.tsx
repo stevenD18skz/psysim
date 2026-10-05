@@ -44,7 +44,7 @@ export default function LaboratorioPage() {
           <li key={experimento.href}>
             <Link
               href={experimento.href}
-              className="group flex h-full flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="group flex h-full flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               <div className="flex items-center gap-2">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -58,10 +58,7 @@ export default function LaboratorioPage() {
               <p className="text-sm text-muted-foreground">{experimento.descripcion}</p>
               <span className="mt-auto flex items-center gap-1 text-sm font-medium text-primary">
                 Abrir
-                <ArrowRight
-                  className="size-4 transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                />
+                <ArrowRight className="size-4" aria-hidden />
               </span>
             </Link>
           </li>

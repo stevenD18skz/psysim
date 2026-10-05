@@ -8,7 +8,6 @@ export const LIMITES = {
   codigoEstudiante: { min: 5, max: 12 },
   nombreEstudiante: { min: 2, max: 120 },
   prompt: { min: 20, max: 8000 },
-  nombreConfiguracion: { min: 3, max: 150 },
 } as const;
 
 /** Letras (incluidas tildes y ñ), espacios, apóstrofes, puntos y guiones. */
@@ -71,33 +70,6 @@ export const iniciarSimulacionSchema = z.object({
 
 export type IniciarSimulacionInput = z.input<typeof iniciarSimulacionSchema>;
 export type IniciarSimulacionData = z.output<typeof iniciarSimulacionSchema>;
-
-/** HU-07 · T02 — Guardar la configuración actual con un nombre propio. */
-export const guardarConfiguracionSchema = z.object({
-  escenarioId: escenarioIdSchema,
-  promptPersonalizado: promptSchema,
-  nombre: z
-    .string()
-    .transform(normalizarEspacios)
-    .pipe(
-      z
-        .string()
-        .min(1, 'Ponle un nombre a la configuración.')
-        .min(
-          LIMITES.nombreConfiguracion.min,
-          `El nombre debe tener al menos ${LIMITES.nombreConfiguracion.min} caracteres.`
-        )
-        .max(
-          LIMITES.nombreConfiguracion.max,
-          `El nombre no puede superar los ${LIMITES.nombreConfiguracion.max} caracteres.`
-        )
-    ),
-});
-
-export type GuardarConfiguracionInput = z.input<typeof guardarConfiguracionSchema>;
-export type GuardarConfiguracionData = z.output<typeof guardarConfiguracionSchema>;
-
-export const eliminarConfiguracionSchema = z.object({ id: z.uuid() });
 
 export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
 

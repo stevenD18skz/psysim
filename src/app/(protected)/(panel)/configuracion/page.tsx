@@ -2,21 +2,15 @@ import type { Metadata } from 'next';
 
 import { ConfiguradorSesion } from '@/components/configuracion/configurador-sesion';
 import { requerirDocente } from '@/lib/auth/dal';
-import {
-  obtenerCatalogoEscenarios,
-  obtenerConfiguracionesGuardadas,
-} from '@/lib/escenarios/queries';
+import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
 
 export const metadata: Metadata = {
   title: 'Configuración',
 };
 
-export default async function ConfiguracionPage() {
+export default async function ConfiguracionPage({ searchParams }: PageProps<'/configuracion'>) {
   const perfil = await requerirDocente();
-  const [escenarios, configuraciones] = await Promise.all([
-    obtenerCatalogoEscenarios(),
-    obtenerConfiguracionesGuardadas(),
-  ]);
+  const [escenarios, { caso }] = await Promise.all([obtenerCatalogoEscenarios(), searchParams]);
 
   const primerNombre = perfil.nombre.split(' ')[0];
 
@@ -26,8 +20,8 @@ export default async function ConfiguracionPage() {
         <p className="text-sm font-medium tracking-wide text-primary uppercase">Nueva sesión</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Prepara la simulación</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Hola, {primerNombre}. Elige un escenario, ajusta al paciente virtual e ingresa los datos
-          del estudiante que va a practicar.
+          Hola, {primerNombre}. Elige un escenario o un caso tuyo, ajusta al paciente virtual e
+          ingresa los datos del estudiante que va a practicar.
         </p>
       </header>
 
@@ -36,7 +30,12 @@ export default async function ConfiguracionPage() {
           No hay escenarios activos por ahora. Contacta al administrador de la plataforma.
         </p>
       ) : (
-        <ConfiguradorSesion escenarios={escenarios} configuracionesIniciales={configuraciones} />
+        <ConfiguradorSesion
+          // `key` reinicia el formulario al llegar con otro caso preseleccionado.
+          key={typeof caso === 'string' ? caso : 'ninguno'}
+          escenarios={escenarios}
+          casoInicialId={typeof caso === 'string' ? caso : null}
+        />
       )}
     </div>
   );

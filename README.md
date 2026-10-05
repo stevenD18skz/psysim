@@ -139,7 +139,7 @@ src/
 │   ├── (auth)/login/          ← Login del docente (formulario + Server Action)
 │   ├── (protected)/           ← Rutas que exigen sesión de docente
 │   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
-│   │   ├── configuracion/     ← Escenario, paciente virtual y datos del estudiante (HU-06/07)
+│   │   ├── configuracion/     ← Escenario o caso propio, paciente virtual y datos del estudiante; /casos crea y edita casos
 │   │   └── simulacion/        ← Simulación 3D de la sesión en curso (HU-08/09/10)
 │   ├── api/npc/chat/          ← Route Handler del paciente virtual (HU-12)
 │   ├── acceso-denegado/       ← Página para cuentas sin rol docente
@@ -147,7 +147,8 @@ src/
 │   └── page.tsx               ← Página pública de presentación
 ├── components/
 │   ├── 3d/                    ← React Three Fiber: SceneCanvas, SceneLoader, sala, muebles, NPC
-│   ├── configuracion/         ← Configurador de la sesión y configuraciones guardadas
+│   ├── casos/                 ← Constructor guiado de casos, vista previa del prompt y prueba del paciente
+│   ├── configuracion/         ← Configurador de la sesión y "Mis casos"
 │   ├── simulacion/            ← Simulación: HUD, panel de conversación, errores y cierre
 │   ├── layout/                ← Navegación principal, botón de logout
 │   └── ui/                    ← Componentes de shadcn/ui
@@ -156,7 +157,8 @@ src/
 │   ├── conversacion/          ← Máquina de estados del NPC y envío de mensajes (HU-13/14/16)
 │   ├── escena/                ← Colisiones, encuadre, animaciones, ajuste de modelos, Storage
 │   ├── ia/                    ← Llamada al modelo de lenguaje con respaldo y clasificación de errores
-│   ├── escenarios/            ← Consultas y Server Actions de escenarios, sesiones y configuraciones
+│   ├── escenarios/            ← Consultas y Server Actions de escenarios y sesiones
+│   ├── casos/                 ← Casos propios del docente: composición del prompt, opciones y Server Actions
 │   ├── env/                   ← Validación de variables de entorno
 │   └── supabase/              ← Clientes: browser, server, admin (clave secreta), proxy
 ├── schemas/                   ← Esquemas Zod compartidos cliente/servidor

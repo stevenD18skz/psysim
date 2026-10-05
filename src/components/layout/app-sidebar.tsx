@@ -3,7 +3,9 @@
 import {
   ChevronsUpDown,
   ClipboardPlus,
+  FilePlus2,
   FlaskConical,
+  Globe,
   Loader2,
   LogOut,
   type LucideIcon,
@@ -63,6 +65,13 @@ const ENLACE_SESION_EN_CURSO: Enlace = {
   icono: MonitorPlay,
 };
 
+const ENLACE_NUEVO_CASO: Enlace = {
+  href: '/configuracion/casos/nuevo',
+  etiqueta: 'Nuevo caso',
+  descripcion: 'Constructor guiado de pacientes',
+  icono: FilePlus2,
+};
+
 const ENLACE_LABORATORIO: Enlace = {
   href: '/laboratorio',
   etiqueta: 'Laboratorio',
@@ -76,6 +85,16 @@ function iniciales(nombre: string) {
   const primera = partes[0]?.[0] ?? '';
   const ultima = partes.length > 1 ? (partes.at(-1)?.[0] ?? '') : '';
   return (primera + ultima).toUpperCase();
+}
+
+/**
+ * ¿La ruta actual pertenece al enlace? `/configuracion` solo coincide con su propia página, no
+ * con `/configuracion/casos/…`, que tiene su enlace aparte.
+ */
+function estaActivo(pathname: string, href: string) {
+  if (pathname === href) return true;
+  if (href === '/configuracion') return false;
+  return pathname.startsWith(`${href}/`);
 }
 
 /**
@@ -104,6 +123,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
           ? [ENLACE_NUEVA_SESION, ENLACE_SESION_EN_CURSO]
           : [ENLACE_NUEVA_SESION],
     },
+    { titulo: 'Mis casos', enlaces: [ENLACE_NUEVO_CASO] },
     { titulo: 'Herramientas', enlaces: [ENLACE_LABORATORIO] },
   ];
 
@@ -122,12 +142,12 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
           <Link
             href="/configuracion"
             onClick={alNavegar}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none group-data-[collapsible=icon]:justify-center focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <LogoUnivalle className="h-11 group-data-[collapsible=icon]:h-9" />
+            <LogoUnivalle className="h-11" />
             <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
               <span className="font-heading text-xl font-semibold tracking-tight">PsySim</span>
-              <span className="truncate text-xs text-muted-foreground">
+              <span className="truncate text-xs text-sidebar-foreground/65">
                 Simulador clínico · Psicología
               </span>
             </span>
@@ -138,7 +158,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
               onClick={toggleSidebar}
               aria-label={contraido ? 'Expandir menú' : 'Contraer menú'}
               title={contraido ? 'Expandir menú (Ctrl + B)' : 'Contraer menú (Ctrl + B)'}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/65 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               {contraido ? (
                 <PanelLeftOpen className="size-4" aria-hidden />
@@ -152,9 +172,16 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
 
       <SidebarContent className="gap-1 px-1">
         <nav aria-label="Navegación principal" className="contents">
-          {secciones.map(seccion => (
+          {secciones.map((seccion, indice) => (
             <SidebarGroup key={seccion.titulo}>
-              <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] uppercase">
+              {/* Contraído no hay etiquetas: una línea fina separa las secciones. */}
+              {indice > 0 && (
+                <div
+                  aria-hidden
+                  className="mx-auto mb-1 hidden h-px w-8 bg-sidebar-border group-data-[collapsible=icon]:block"
+                />
+              )}
+              <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] text-sidebar-foreground/55 uppercase">
                 {seccion.titulo}
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -163,7 +190,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
                     <ElementoMenu
                       key={enlace.href}
                       enlace={enlace}
-                      activo={pathname === enlace.href || pathname.startsWith(`${enlace.href}/`)}
+                      activo={estaActivo(pathname, enlace.href)}
                       enCurso={enlace === ENLACE_SESION_EN_CURSO}
                       onNavegar={alNavegar}
                     />
@@ -176,7 +203,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
       </SidebarContent>
 
       {perfil && (
-        <SidebarFooter className="border-t p-2">
+        <SidebarFooter className="border-t border-sidebar-border p-2">
           <SidebarMenu>
             <SidebarMenuItem>
               <DropdownMenu>
@@ -185,21 +212,22 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
                     size="lg"
                     tooltip={perfil.nombre}
                     aria-label={`Cuenta de ${perfil.nombre}`}
-                    className="data-[state=open]:bg-sidebar-accent"
+                    className="h-14 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[state=open]:bg-sidebar-accent"
                   >
                     <span
                       aria-hidden
-                      className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground ring-2 ring-sidebar"
                     >
                       {iniciales(perfil.nombre)}
                     </span>
-                    <span className="grid min-w-0 flex-1 text-left leading-tight">
+                    <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                       <span className="truncate font-medium">{perfil.nombre}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {perfil.correo}
-                      </span>
+                      <span className="truncate text-xs text-sidebar-foreground/65">Docente</span>
                     </span>
-                    <ChevronsUpDown className="ml-auto text-muted-foreground" aria-hidden />
+                    <ChevronsUpDown
+                      className="ml-auto text-sidebar-foreground/65 group-data-[collapsible=icon]:hidden"
+                      aria-hidden
+                    />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -216,6 +244,12 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
                     </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/" onClick={alNavegar}>
+                      <Globe aria-hidden />
+                      Ir a la página de inicio
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
                     disabled={cerrando}
@@ -263,28 +297,35 @@ function ElementoMenu({
         isActive={activo}
         tooltip={etiqueta}
         className={cn(
-          'relative h-11 gap-3 px-2.5 group-data-[collapsible=icon]:justify-center',
-          'data-active:bg-accent data-active:text-accent-foreground',
+          'relative h-12 gap-3 px-2 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0',
+          'data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground',
           // Barra roja a la izquierda del elemento activo.
-          'before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary before:opacity-0 data-active:before:opacity-100'
+          'before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-full before:bg-sidebar-primary before:opacity-0 data-active:before:opacity-100'
         )}
       >
         <Link href={href} aria-current={activo ? 'page' : undefined} onClick={onNavegar}>
-          <span className="relative flex size-5 shrink-0 items-center justify-center">
-            <Icono className="size-[18px]!" aria-hidden />
+          <span
+            className={cn(
+              'relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+              activo
+                ? 'bg-sidebar-primary text-white'
+                : 'bg-foreground/6 text-sidebar-foreground/80'
+            )}
+          >
+            <Icono className="size-[17px]!" aria-hidden />
             {enCurso && (
               <span
                 aria-hidden
-                className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-success ring-2 ring-sidebar"
+                className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-success ring-2 ring-sidebar"
               />
             )}
           </span>
-          <span className="grid min-w-0 leading-tight">
+          <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate">{etiqueta}</span>
             <span
               className={cn(
                 'truncate text-xs font-normal',
-                activo ? 'text-accent-foreground/80' : 'text-muted-foreground'
+                activo ? 'text-sidebar-foreground/75' : 'text-sidebar-foreground/55'
               )}
             >
               {descripcion}

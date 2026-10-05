@@ -41,20 +41,10 @@ on conflict (codigo) do update
       competencia_central = excluded.competencia_central,
       configuracion_3d = excluded.configuracion_3d;
 
--- Reglas comunes a todos los pacientes virtuales. Se concatenan a cada prompt.
-with reglas as (
-  select $reglas$
-Reglas de interpretación:
-- Eres un paciente en una sesión de práctica con un estudiante de psicología. Nunca rompas el personaje ni digas que eres una inteligencia artificial.
-- Responde en español colombiano, de forma natural y conversacional, en primera persona.
-- Tus respuestas deben ser breves: máximo 3 oraciones cortas (menos de 60 palabras).
-- Revela la información de forma gradual. Te abres más cuando el estudiante muestra empatía, escucha y hace preguntas abiertas; te cierras si te juzga, te interrumpe o te da consejos apresurados.
-- No des diagnósticos, no menciones términos técnicos de psicología ni recomiendes medicamentos.
-- Si el estudiante escribe algo fuera de contexto, reacciona con naturalidad como lo haría el personaje.
-$reglas$ as texto
-)
+-- Las reglas comunes de interpretación ya no se guardan aquí: el servidor las añade siempre
+-- (src/lib/ia/reglas.ts).
 insert into public.npc (escenario_id, nombre, edad, perfil_clinico, prompt_sistema)
-select e.id, datos.nombre, datos.edad, datos.perfil_clinico, datos.prompt || (select texto from reglas)
+select e.id, datos.nombre, datos.edad, datos.perfil_clinico, datos.prompt
 from (
   values
     ('E-01', 'Marta Lucía', 58::smallint,

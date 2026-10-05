@@ -1,0 +1,1 @@
+PsySim: simulador de entrevista clínica con pacientes virtuales de inteligencia artificial

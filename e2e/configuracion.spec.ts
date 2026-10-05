@@ -4,10 +4,10 @@ import { expect, test } from '@playwright/test';
 import { hayCredenciales, iniciarSesionComoDocente } from './helpers';
 
 /**
- * Sprint 2 — HU-06 (configuración y datos del estudiante), HU-07 (configuraciones guardadas)
+ * Sprint 2 — HU-06 (configuración y datos del estudiante), HU-07 (casos propios, antes configuraciones)
  * y HU-09 · T05 (flujo completo hasta la escena 3D). Registro en docs/pruebas/sprint-2.md.
  *
- * Los datos creados (configuraciones con prefijo "E2E", sesiones con el código de estudiante
+ * Los datos creados (casos propios con prefijo "E2E", sesiones con el código de estudiante
  * reservado 2099000xx) se eliminan al terminar con la clave secreta.
  */
 
@@ -26,7 +26,8 @@ async function limpiarDatosDePrueba() {
   const admin = clienteAdmin();
   if (!admin) return;
   await admin.from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
-  await admin.from('configuracion_guardada').delete().like('nombre_configuracion', `${PREFIJO}%`);
+  // El NPC se elimina en cascada. Las sesiones ya se borraron arriba (referencian el escenario).
+  await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
 }
 
 test.describe('configuración del escenario (Sprint 2)', () => {
@@ -74,48 +75,70 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page).toHaveURL(/\/configuracion$/);
   });
 
-  test('HU-07: guarda, lista, carga y elimina una configuración', async ({ page }) => {
+  test('HU-07: guarda un escenario ajustado como caso propio y lo elimina', async ({ page }) => {
     const nombre = `${PREFIJO} Duelo grupo A`;
     const prompt = `${PREFIJO}: Eres Marta Lucía y hoy estás especialmente reservada con el estudiante.`;
 
-    const guardar = page.getByRole('button', { name: 'Guardar configuración' });
+    const guardar = page.getByRole('button', { name: 'Guardar como mi caso' });
     await expect(guardar).toBeDisabled();
 
     await page.getByTestId('escenario-E-01').click();
     await page.getByLabel('Comportamiento del paciente').fill(prompt);
     await expect(page.getByText('Personalizado', { exact: true })).toBeVisible();
     await guardar.click();
-    await page.getByLabel('Nombre de la configuración').fill(nombre);
+    await page.getByLabel('Nombre del caso').fill(nombre);
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-    await expect(page.getByText(`Configuración «${nombre}» guardada.`)).toBeVisible();
+    await expect(page.getByText(`«${nombre}» guardado en Mis casos.`)).toBeVisible();
 
     // Persiste tras recargar: se lee de Supabase.
     await page.reload();
-    await page.getByRole('button', { name: /Mis configuraciones guardadas/ }).click();
-    const lista = page.getByRole('list', { name: 'Configuraciones guardadas' });
-    await expect(lista.getByText(nombre)).toBeVisible();
-    await expect(lista).toContainText('E-01 · Duelo y pérdida');
+    const propio = page.getByRole('radio', { name: new RegExp(nombre) });
+    await expect(propio).toBeVisible();
 
-    // Cargar no borra los datos del estudiante ya ingresados (T04).
+    // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
     await page.getByTestId('escenario-E-03').click();
-    await page.getByLabel('Código institucional').fill(ESTUDIANTE.codigo);
-    await page.getByLabel('Nombre completo').fill(ESTUDIANTE.nombre);
-    await page.getByRole('button', { name: `Cargar la configuración ${nombre}` }).click();
-    await expect(page.getByRole('radio', { name: /Duelo y pérdida/ })).toBeChecked();
+    await propio.check({ force: true });
     await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(prompt);
-    await expect(page.getByLabel('Código institucional')).toHaveValue(ESTUDIANTE.codigo);
-    await expect(page.getByLabel('Nombre completo')).toHaveValue(ESTUDIANTE.nombre);
 
-    // No se permiten nombres repetidos.
-    await guardar.click();
-    await page.getByLabel('Nombre de la configuración').fill(nombre);
-    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-    await expect(page.getByText('Ya tienes una configuración con ese nombre.')).toBeVisible();
-    await page.getByRole('button', { name: 'Cancelar el guardado' }).click();
-
-    await page.getByRole('button', { name: `Eliminar la configuración ${nombre}` }).click();
+    await page.getByRole('button', { name: `Eliminar el caso ${nombre}` }).click();
     await page.getByRole('button', { name: 'Sí, eliminar' }).click();
-    await expect(lista.getByText(nombre)).toBeHidden();
+    await expect(page.getByRole('radio', { name: new RegExp(nombre) })).toBeHidden();
+  });
+
+  test('HU-07: crea un caso con el constructor guiado y lo edita', async ({ page }) => {
+    const titulo = `${PREFIJO} Caso del constructor`;
+
+    await page.getByRole('link', { name: /Crear (caso nuevo|mi primer caso)/ }).click();
+    await expect(page).toHaveURL(/\/configuracion\/casos\/nuevo$/);
+
+    await page.getByLabel('Título del caso').fill(titulo);
+    await page.getByLabel('Competencia que se entrena').fill('Escucha activa');
+    await page.getByLabel('Nombre', { exact: true }).fill('Camila Rojas');
+    await page.getByLabel('Edad').fill('29');
+    await page
+      .getByLabel('Situación y motivo de consulta')
+      .fill('Llega a consulta tras perder su empleo y sentirse sin rumbo.');
+    await page.getByRole('button', { name: 'tristeza persistente' }).click();
+    await page.getByRole('button', { name: 'reservado' }).click();
+    await page.getByLabel('Frase de apertura').fill('Hola, no sé por dónde empezar.');
+
+    // La vista previa se arma con los campos y no incluye las reglas fijas.
+    const vista = page.getByLabel('Prompt generado');
+    await expect(vista).toContainText('Eres Camila Rojas, una persona de 29 años.');
+    await expect(vista).toContainText('tristeza persistente');
+    await expect(vista).not.toContainText('Reglas de interpretación');
+
+    await page.getByRole('button', { name: 'Guardar caso' }).click();
+    await expect(page).toHaveURL(/\/configuracion\?caso=[0-9a-f-]{36}$/);
+    await expect(page.getByRole('radio', { name: new RegExp(titulo) })).toBeChecked();
+
+    // Editar recupera los campos del constructor.
+    await page.getByRole('link', { name: `Editar el caso ${titulo}` }).click();
+    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Camila Rojas');
+    await expect(page.getByRole('button', { name: 'tristeza persistente' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   test('HU-06 · T04 y HU-09 · T05: inicia la sesión y carga la escena 3D', async ({ page }) => {
@@ -147,9 +170,12 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page.getByText('Sin iniciar')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeHidden();
 
-    // Es obligatorio: Escape no lo cierra; "Revisar nuevamente" solo vuelve al inicio del texto.
+    // La ficha del paciente incluye su perfil y las instrucciones no tienen "Revisar nuevamente".
+    await expect(instrucciones).toContainText('Viuda desde hace cuatro meses');
+    await expect(page.getByRole('button', { name: 'Revisar nuevamente' })).toHaveCount(0);
+
+    // Es obligatorio: Escape no lo cierra.
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Revisar nuevamente' }).click();
     await expect(instrucciones).toBeVisible();
 
     // El registro existe en Supabase con estado en_curso, el prompt copiado y sin comenzar.

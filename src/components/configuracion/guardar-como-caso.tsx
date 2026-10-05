@@ -6,52 +6,49 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { guardarConfiguracion } from '@/lib/escenarios/actions';
-import { guardarConfiguracionSchema, LIMITES } from '@/schemas/configuracion.schema';
-import { type ConfiguracionGuardada } from '@/types';
+import { guardarVariante } from '@/lib/casos/actions';
+import { guardarVarianteSchema, LIMITES_CASO } from '@/schemas/caso.schema';
 
-interface GuardarConfiguracionProps {
+interface GuardarComoCasoProps {
   escenarioId: string | null;
+  /** Título del caso de origen: se propone como punto de partida del nombre. */
+  tituloSugerido: string;
   promptActual: string;
   deshabilitado?: boolean;
-  onGuardada: (configuracion: ConfiguracionGuardada) => void;
+  onGuardado: () => void;
 }
 
 /**
- * HU-07 · T02 — Botón secundario "Guardar configuración". Solo se habilita con un escenario
- * seleccionado; al activarlo pide un nombre en línea (sin diálogos del navegador).
+ * Botón secundario "Guardar como mi caso". Copia el caso elegido, con el prompt ajustado, a
+ * "Mis casos". Solo se habilita con un caso seleccionado; al activarlo pide un nombre en línea
+ * (sin diálogos del navegador).
  */
-export function GuardarConfiguracion({
+export function GuardarComoCaso({
   escenarioId,
+  tituloSugerido,
   promptActual,
   deshabilitado = false,
-  onGuardada,
-}: GuardarConfiguracionProps) {
+  onGuardado,
+}: GuardarComoCasoProps) {
   const idCampo = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [editando, setEditando] = useState(false);
-  const [nombre, setNombre] = useState('');
+  const [titulo, setTitulo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
 
   const cancelar = () => {
     setEditando(false);
-    setNombre('');
+    setTitulo('');
     setError(null);
   };
 
   const guardar = () => {
-    const datos = guardarConfiguracionSchema.safeParse({
-      escenarioId,
-      nombre,
-      promptPersonalizado: promptActual,
-    });
+    const datos = guardarVarianteSchema.safeParse({ escenarioId, titulo, prompt: promptActual });
     if (!datos.success) {
       const errores = datos.error.flatten().fieldErrors;
       setError(
-        errores.nombre?.[0] ??
-          errores.promptPersonalizado?.[0] ??
-          'Selecciona un escenario antes de guardar.'
+        errores.titulo?.[0] ?? errores.prompt?.[0] ?? 'Selecciona un caso antes de guardar.'
       );
       inputRef.current?.focus();
       return;
@@ -59,14 +56,14 @@ export function GuardarConfiguracion({
 
     setError(null);
     startTransition(async () => {
-      const resultado = await guardarConfiguracion(datos.data);
+      const resultado = await guardarVariante(datos.data);
       if (!resultado.ok) {
         setError(resultado.error);
         inputRef.current?.focus();
         return;
       }
-      onGuardada(resultado.datos);
-      toast.success(`Configuración «${resultado.datos.nombre}» guardada.`);
+      toast.success(`«${datos.data.titulo}» guardado en Mis casos.`);
+      onGuardado();
       cancelar();
     });
   };
@@ -79,13 +76,14 @@ export function GuardarConfiguracion({
         size="lg"
         disabled={!escenarioId || deshabilitado}
         onClick={() => {
+          setTitulo(tituloSugerido ? `${tituloSugerido} (mi versión)` : '');
           setEditando(true);
           // Enfoca el campo en cuanto aparece.
-          requestAnimationFrame(() => inputRef.current?.focus());
+          requestAnimationFrame(() => inputRef.current?.select());
         }}
       >
         <Save aria-hidden />
-        Guardar configuración
+        Guardar como mi caso
       </Button>
     );
   }
@@ -94,13 +92,13 @@ export function GuardarConfiguracion({
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
         <label htmlFor={idCampo} className="sr-only">
-          Nombre de la configuración
+          Nombre del caso
         </label>
         <Input
           ref={inputRef}
           id={idCampo}
-          value={nombre}
-          onChange={evento => setNombre(evento.target.value)}
+          value={titulo}
+          onChange={evento => setTitulo(evento.target.value)}
           onKeyDown={evento => {
             // Enter guarda sin enviar el formulario principal; Escape cancela.
             if (evento.key === 'Enter') {
@@ -110,8 +108,8 @@ export function GuardarConfiguracion({
               cancelar();
             }
           }}
-          placeholder="Nombre, p. ej. Duelo — grupo A"
-          maxLength={LIMITES.nombreConfiguracion.max}
+          placeholder="Nombre del caso"
+          maxLength={LIMITES_CASO.titulo.max}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${idCampo}-error` : undefined}
           disabled={guardando}

@@ -53,7 +53,12 @@ const sesion: SesionActiva = {
     competenciaCentral: 'Empatía y validación emocional',
     configuracion3d: 'scenes/e-01.json',
   },
-  npc: { id: '7c9e6679-7425-40de-944b-e07fc1f90ae7', nombre: 'Marta Lucía', edad: 58 },
+  npc: {
+    id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+    nombre: 'Marta Lucía',
+    edad: 58,
+    perfilClinico: 'Viuda reciente.',
+  },
 };
 
 describe('slice sesion (HU-06 · T04)', () => {

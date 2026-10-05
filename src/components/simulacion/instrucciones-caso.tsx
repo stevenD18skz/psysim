@@ -3,15 +3,15 @@
 import {
   ClipboardCheck,
   GraduationCap,
+  Armchair,
   Loader2,
   MessageSquareText,
-  RotateCcw,
   Target,
-  UserRound,
 } from 'lucide-react';
 import { useRef, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,12 +21,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CONSULTORIOS } from '@/lib/casos/opciones';
 import { comenzarSesion } from '@/lib/escenarios/actions';
 import {
   ETIQUETA_CATEGORIA,
   ETIQUETA_DIFICULTAD,
   NIVEL_DIFICULTAD,
 } from '@/lib/escenarios/etiquetas';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
@@ -53,13 +55,7 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
   const contenido = useRef<HTMLDivElement>(null);
   const { escenario, npc, estudiante } = sesion;
   const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
-
-  // HU-23 · T03 — "Revisar nuevamente": vuelve al inicio del texto para releerlo.
-  const revisar = () => {
-    const reducirMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    contenido.current?.scrollTo({ top: 0, behavior: reducirMovimiento ? 'auto' : 'smooth' });
-    contenido.current?.focus({ preventScroll: true });
-  };
+  const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
 
   const comenzar = () =>
     startTransition(async () => {
@@ -135,27 +131,48 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
           <section className="flex flex-col gap-2">
             <TituloSeccion icono={MessageSquareText}>Descripción del caso</TituloSeccion>
             <p className="leading-relaxed text-pretty">{escenario.descripcion}</p>
+            {consultorio && (
+              <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <Armchair className="size-4 shrink-0" aria-hidden />
+                Entorno: {consultorio.nombre} · {consultorio.detalle.toLowerCase()}
+              </p>
+            )}
           </section>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <section className="flex flex-col gap-1.5 rounded-md border p-4">
-              <TituloSeccion icono={UserRound}>Paciente</TituloSeccion>
-              <p className="font-medium">{npc.nombre}</p>
-              <p className="text-sm text-muted-foreground">{npc.edad} años</p>
-            </section>
-            <section className="flex flex-col gap-1.5 rounded-md border p-4">
-              <TituloSeccion icono={GraduationCap}>Estudiante</TituloSeccion>
-              <dl className="flex flex-col gap-0.5">
-                <dt className="sr-only">Nombre completo</dt>
-                <dd className="font-medium">{estudiante.nombre}</dd>
-                <dt className="sr-only">Código institucional</dt>
-                <dd className="font-mono text-sm text-muted-foreground">{estudiante.codigo}</dd>
-              </dl>
-              <p className="text-xs text-muted-foreground">
-                Verifica que tus datos sean correctos antes de comenzar.
-              </p>
-            </section>
-          </div>
+          <section
+            aria-label="Ficha del paciente"
+            className="flex flex-col gap-4 rounded-xl border bg-linear-to-br from-accent/50 via-card to-card p-5"
+          >
+            <div className="flex items-center gap-4">
+              <AvatarPaciente
+                src={avatarDeEscena(escenario.configuracion3d)}
+                nombre={npc.nombre}
+                className="size-16 font-heading text-xl ring-4 ring-card"
+              />
+              <div className="leading-tight">
+                <TituloSeccionTexto>Paciente</TituloSeccionTexto>
+                <p className="mt-1 font-heading text-2xl font-semibold">{npc.nombre}</p>
+                <p className="text-sm text-muted-foreground">{npc.edad} años</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 border-t border-dashed pt-4">
+              <TituloSeccionTexto>Lo que sabes antes de entrar</TituloSeccionTexto>
+              <p className="text-sm leading-relaxed text-pretty">{npc.perfilClinico}</p>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-1.5 rounded-xl border p-4">
+            <TituloSeccion icono={GraduationCap}>Estudiante</TituloSeccion>
+            <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              <dt className="sr-only">Nombre completo</dt>
+              <dd className="font-medium">{estudiante.nombre}</dd>
+              <dt className="sr-only">Código institucional</dt>
+              <dd className="font-mono text-sm text-muted-foreground">{estudiante.codigo}</dd>
+            </dl>
+            <p className="text-xs text-muted-foreground">
+              Verifica que tus datos sean correctos antes de comenzar.
+            </p>
+          </section>
 
           <section className="flex flex-col gap-2">
             <TituloSeccion icono={ClipboardCheck}>Cómo se desarrolla la sesión</TituloSeccion>
@@ -176,10 +193,6 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
         </div>
 
         <DialogFooter className="m-0 flex-col-reverse gap-2 border-t bg-muted/50 px-6 py-4 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={revisar} disabled={comenzando}>
-            <RotateCcw aria-hidden />
-            Revisar nuevamente
-          </Button>
           <Button onClick={comenzar} disabled={comenzando}>
             {comenzando && <Loader2 className="animate-spin" aria-hidden />}
             Entendido · Iniciar simulación
@@ -200,6 +213,14 @@ function TituloSeccion({
   return (
     <h3 className="flex items-center gap-2 font-sans text-xs font-semibold tracking-wide text-muted-foreground uppercase">
       <Icono className="size-4" aria-hidden />
+      {children}
+    </h3>
+  );
+}
+
+function TituloSeccionTexto({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="font-sans text-xs font-semibold tracking-wide text-muted-foreground uppercase">
       {children}
     </h3>
   );

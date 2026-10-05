@@ -1,3 +1,5 @@
+import { type BorradorCaso } from '@/schemas/caso.schema';
+
 import { type Database } from './database.types';
 
 export type { Database, Json } from './database.types';
@@ -29,14 +31,10 @@ export interface EscenarioCatalogo {
   /** Ruta relativa a /public del JSON de la escena 3D. */
   configuracion3d: string;
   npc: NpcEscenario;
-}
-
-/** Configuración guardada por el docente (HU-07). */
-export interface ConfiguracionGuardada {
-  id: string;
-  nombre: string;
-  escenarioId: string;
-  promptPersonalizado: string;
+  /** `true` si es un caso creado por el docente ("Mis casos"); `false` si es del catálogo oficial. */
+  propio: boolean;
+  /** Campos del constructor guiado, para volver a editar un caso propio. */
+  borrador: BorradorCaso | null;
   creadoEn: string;
 }
 
@@ -59,7 +57,7 @@ export interface SesionActiva {
     | 'competenciaCentral'
     | 'configuracion3d'
   >;
-  npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad'>;
+  npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad' | 'perfilClinico'>;
 }
 
 export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
