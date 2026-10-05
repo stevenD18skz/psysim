@@ -19,9 +19,9 @@ describe('smoke', () => {
         name: 'Un consultorio virtual para practicar la entrevista clínica',
       })
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Ingresar como docente/ })).toHaveAttribute(
-      'href',
-      '/login'
-    );
+    // Hay un CTA en la presentación y otro fijo para móvil: ambos llevan al login.
+    const enlaces = screen.getAllByRole('link', { name: /Ingresar como docente/ });
+    expect(enlaces.length).toBeGreaterThanOrEqual(1);
+    for (const enlace of enlaces) expect(enlace).toHaveAttribute('href', '/login');
   });
 });

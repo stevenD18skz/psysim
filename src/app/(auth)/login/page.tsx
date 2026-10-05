@@ -10,6 +10,9 @@ import { LoginForm } from './login-form';
 
 export const metadata: Metadata = {
   title: 'Iniciar sesión',
+  description: 'Acceso para docentes de la plataforma PsySim de la Universidad del Valle.',
+  alternates: { canonical: '/login' },
+  robots: { index: false, follow: false },
 };
 
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {

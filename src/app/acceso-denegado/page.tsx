@@ -9,6 +9,7 @@ import { RUTA_LOGIN } from '@/lib/auth/routes';
 
 export const metadata: Metadata = {
   title: 'Acceso denegado',
+  robots: { index: false, follow: false },
 };
 
 async function volverAlLogin() {

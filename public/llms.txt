@@ -1,0 +1,16 @@
+# PsySim
+
+> Plataforma web 3D de la Universidad del Valle (Cali, Colombia) para practicar la entrevista clínica con pacientes virtuales guiados por inteligencia artificial. Proyecto de trabajo de grado de la Escuela de Ingeniería de Sistemas y Computación.
+
+PsySim permite a un docente de psicología configurar un escenario (paciente, contexto y consultorio 3D), y a los estudiantes conversar en lenguaje natural con un paciente virtual. La sesión registra métricas como duración, número de intervenciones y latencia de respuesta. El acceso a la plataforma es solo para docentes con cuenta.
+
+## Páginas públicas
+
+- [Inicio](https://psysim.vercel.app/): descripción, escenarios disponibles, tecnología y preguntas frecuentes.
+
+## Datos clave
+
+- Escenarios: seis (duelo y pérdida, ansiedad generalizada, episodio depresivo leve, crisis de pánico aguda, conflicto de pareja y estrés académico).
+- Funciona en el navegador, sin gafas de realidad virtual ni instalaciones.
+- IA conversacional: Google Gemini mediante Vercel AI SDK.
+- Autor: Brayan Steven Narváez Valdés.
