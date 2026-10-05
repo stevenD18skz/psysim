@@ -13,6 +13,8 @@ import {
 import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
+import { componerInstrucciones } from './reglas';
+
 const URL_BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
@@ -49,7 +51,7 @@ export class ErrorIA extends Error {
 }
 
 export interface EntradaPaciente {
-  /** Prompt del sistema de la sesión (perfil clínico del paciente). */
+  /** Prompt del caso (sin las reglas fijas: `componerInstrucciones` las añade al enviarlo). */
   promptSistema: string;
   historial: readonly MensajeHistorial[];
   mensaje: string;
@@ -182,7 +184,7 @@ async function generarCon(
   try {
     resultado = await generateText({
       model: modelo,
-      instructions: entrada.promptSistema,
+      instructions: componerInstrucciones(entrada.promptSistema),
       messages: construirMensajes(entrada.historial, entrada.mensaje),
       temperature: AI_TEMPERATURE,
       maxOutputTokens: AI_MAX_TOKENS,

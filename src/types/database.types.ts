@@ -8,51 +8,10 @@ export type Database = {
   };
   public: {
     Tables: {
-      configuracion_guardada: {
-        Row: {
-          creado_en: string;
-          docente_id: string;
-          escenario_id: string;
-          id: string;
-          nombre_configuracion: string;
-          prompt_personalizado: string;
-        };
-        Insert: {
-          creado_en?: string;
-          docente_id?: string;
-          escenario_id: string;
-          id?: string;
-          nombre_configuracion: string;
-          prompt_personalizado: string;
-        };
-        Update: {
-          creado_en?: string;
-          docente_id?: string;
-          escenario_id?: string;
-          id?: string;
-          nombre_configuracion?: string;
-          prompt_personalizado?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'configuracion_guardada_docente_id_fkey';
-            columns: ['docente_id'];
-            isOneToOne: false;
-            referencedRelation: 'usuario';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'configuracion_guardada_escenario_id_fkey';
-            columns: ['escenario_id'];
-            isOneToOne: false;
-            referencedRelation: 'escenario';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       escenario: {
         Row: {
           activo: boolean;
+          borrador: Json | null;
           categoria: Database['public']['Enums']['categoria_escenario'];
           codigo: string;
           competencia_central: string;
@@ -60,11 +19,13 @@ export type Database = {
           creado_en: string;
           descripcion: string;
           dificultad: Database['public']['Enums']['dificultad_escenario'];
+          docente_id: string | null;
           id: string;
           titulo: string;
         };
         Insert: {
           activo?: boolean;
+          borrador?: Json | null;
           categoria: Database['public']['Enums']['categoria_escenario'];
           codigo: string;
           competencia_central: string;
@@ -72,11 +33,13 @@ export type Database = {
           creado_en?: string;
           descripcion: string;
           dificultad: Database['public']['Enums']['dificultad_escenario'];
+          docente_id?: string | null;
           id?: string;
           titulo: string;
         };
         Update: {
           activo?: boolean;
+          borrador?: Json | null;
           categoria?: Database['public']['Enums']['categoria_escenario'];
           codigo?: string;
           competencia_central?: string;
@@ -84,10 +47,19 @@ export type Database = {
           creado_en?: string;
           descripcion?: string;
           dificultad?: Database['public']['Enums']['dificultad_escenario'];
+          docente_id?: string | null;
           id?: string;
           titulo?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'escenario_docente_id_fkey';
+            columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       mensaje: {
         Row: {

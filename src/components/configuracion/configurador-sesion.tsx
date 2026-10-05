@@ -1,14 +1,15 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, ArrowRight, Loader2, RotateCcw, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowRight, Loader2, Plus, RotateCcw, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { toast } from 'sonner';
 
-import { ConfiguracionesGuardadas } from '@/components/configuracion/configuraciones-guardadas';
-import { GuardarConfiguracion } from '@/components/configuracion/guardar-configuracion';
+import { ReglasFijas } from '@/components/casos/reglas-fijas';
+import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
+import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -25,31 +26,33 @@ import {
   LIMITES,
 } from '@/schemas/configuracion.schema';
 import { useAppStore } from '@/store/app-store-provider';
-import { type ConfiguracionGuardada, type EscenarioCatalogo } from '@/types';
+import { type EscenarioCatalogo } from '@/types';
 
 interface ConfiguradorSesionProps {
+  /** Catálogo oficial y casos propios del docente. */
   escenarios: EscenarioCatalogo[];
-  configuracionesIniciales: ConfiguracionGuardada[];
+  /** Caso que llega preseleccionado (p. ej. recién guardado desde el constructor). */
+  casoInicialId?: string | null;
 }
 
 /**
  * HU-06 y HU-07 — Pantalla de preparación de la simulación.
  *
- * 1. El docente elige un escenario (un solo escenario seleccionado a la vez).
+ * 1. El docente elige un caso: uno predefinido o uno de "Mis casos" (un solo caso a la vez).
  * 2. Revisa el perfil del paciente virtual y ajusta su comportamiento (prompt del sistema).
- * 3. Ingresa los datos del estudiante e inicia la sesión, o guarda la configuración.
+ * 3. Ingresa los datos del estudiante e inicia la sesión, o guarda el ajuste como caso propio.
  */
-export function ConfiguradorSesion({
-  escenarios,
-  configuracionesIniciales,
-}: ConfiguradorSesionProps) {
+export function ConfiguradorSesion({ escenarios, casoInicialId = null }: ConfiguradorSesionProps) {
   const router = useRouter();
   const iniciarSesionEnStore = useAppStore(state => state.sesion.iniciar);
   const idGrupo = useId();
 
-  const [configuraciones, setConfiguraciones] = useState(configuracionesIniciales);
-  const [listaAbierta, setListaAbierta] = useState(false);
-  const [configuracionCargadaId, setConfiguracionCargadaId] = useState<string | null>(null);
+  const oficiales = escenarios.filter(e => !e.propio);
+  const propios = escenarios
+    .filter(e => e.propio)
+    .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
+  const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
+
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [iniciando, startTransition] = useTransition();
 
@@ -63,8 +66,8 @@ export function ConfiguradorSesion({
     resolver: zodResolver(iniciarSimulacionSchema),
     mode: 'onTouched',
     defaultValues: {
-      escenarioId: '',
-      promptSistema: '',
+      escenarioId: casoInicial?.id ?? '',
+      promptSistema: casoInicial?.npc.promptSistema ?? '',
       codigoEstudiante: '',
       nombreEstudiante: '',
     },
@@ -77,37 +80,27 @@ export function ConfiguradorSesion({
   const escenario = escenarios.find(e => e.id === escenarioId) ?? null;
   const promptPersonalizado = escenario !== null && promptSistema !== escenario.npc.promptSistema;
 
-  const seleccionarEscenario = (nuevo: EscenarioCatalogo, prompt = nuevo.npc.promptSistema) => {
+  const seleccionarEscenario = (nuevo: EscenarioCatalogo) => {
     const opciones = { shouldDirty: true, shouldValidate: isSubmitted };
     setValue('escenarioId', nuevo.id, opciones);
-    setValue('promptSistema', prompt, opciones);
+    setValue('promptSistema', nuevo.npc.promptSistema, opciones);
   };
 
   const onSeleccionar = (nuevo: EscenarioCatalogo) => {
     if (nuevo.id === escenarioId) return;
     seleccionarEscenario(nuevo);
-    setConfiguracionCargadaId(null);
   };
 
-  // HU-07 · T04: cargar una configuración no toca los datos del estudiante.
-  const onCargarConfiguracion = (configuracion: ConfiguracionGuardada) => {
-    const destino = escenarios.find(e => e.id === configuracion.escenarioId);
-    if (!destino) return;
-    seleccionarEscenario(destino, configuracion.promptPersonalizado);
-    setConfiguracionCargadaId(configuracion.id);
-    toast.info(`Configuración «${configuracion.nombre}» cargada.`);
-    document.getElementById('paso-paciente')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Un caso recién guardado entra en la lista al recargar los datos del servidor.
+  const onGuardadaComoCaso = () => router.refresh();
 
-  const onGuardada = (configuracion: ConfiguracionGuardada) => {
-    setConfiguraciones(actuales => [configuracion, ...actuales]);
-    setConfiguracionCargadaId(configuracion.id);
-    setListaAbierta(true);
-  };
-
-  const onEliminada = (id: string) => {
-    setConfiguraciones(actuales => actuales.filter(c => c.id !== id));
-    if (id === configuracionCargadaId) setConfiguracionCargadaId(null);
+  // Si el caso seleccionado se elimina, se limpia la selección.
+  const onCasoEliminado = (id: string) => {
+    if (id === escenarioId) {
+      setValue('escenarioId', '', { shouldDirty: true });
+      setValue('promptSistema', '', { shouldDirty: true });
+    }
+    router.refresh();
   };
 
   const restablecerPrompt = () => {
@@ -160,16 +153,6 @@ export function ConfiguradorSesion({
 
   return (
     <div className="flex flex-col gap-8">
-      <ConfiguracionesGuardadas
-        configuraciones={configuraciones}
-        escenarios={escenarios}
-        abierto={listaAbierta}
-        onAbiertoChange={setListaAbierta}
-        cargadaId={configuracionCargadaId}
-        onCargar={onCargarConfiguracion}
-        onEliminada={onEliminada}
-      />
-
       <form
         noValidate
         onSubmit={handleSubmit(onSubmit)}
@@ -178,8 +161,8 @@ export function ConfiguradorSesion({
       >
         {/* Paso 1 — Escenario */}
         <section className="flex flex-col gap-4">
-          <EncabezadoPaso numero={1} titulo="Elige el escenario" id="paso-escenario-titulo">
-            Cada escenario trae un paciente virtual con un perfil clínico distinto.
+          <EncabezadoPaso numero={1} titulo="Elige el caso" id="paso-escenario-titulo">
+            Usa uno de los escenarios predefinidos o uno de tus propios casos.
           </EncabezadoPaso>
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
@@ -191,18 +174,64 @@ export function ConfiguradorSesion({
             aria-labelledby="paso-escenario-titulo"
             aria-required
             aria-invalid={errors.escenarioId ? true : undefined}
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            className="flex flex-col gap-8"
           >
-            {escenarios.map(e => (
-              <TarjetaEscenario
-                key={e.id}
-                escenario={e}
-                nombreGrupo={idGrupo}
-                seleccionado={e.id === escenarioId}
-                onSeleccionar={onSeleccionar}
-                describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-              />
-            ))}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                Escenarios predefinidos
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {oficiales.map(e => (
+                  <TarjetaEscenario
+                    key={e.id}
+                    escenario={e}
+                    nombreGrupo={idGrupo}
+                    seleccionado={e.id === escenarioId}
+                    onSeleccionar={onSeleccionar}
+                    describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                  Mis casos
+                </h3>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/configuracion/casos/nuevo">
+                    <Plus aria-hidden />
+                    Crear caso nuevo
+                  </Link>
+                </Button>
+              </div>
+              {propios.length === 0 ? (
+                <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+                  Aún no tienes casos propios. Crea uno desde cero o guarda como caso el ajuste de
+                  un escenario predefinido.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {propios.map(e => (
+                    <div key={e.id} className="flex flex-col gap-2">
+                      <TarjetaEscenario
+                        escenario={e}
+                        nombreGrupo={idGrupo}
+                        seleccionado={e.id === escenarioId}
+                        onSeleccionar={onSeleccionar}
+                        describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                      />
+                      <AccionesCasoPropio
+                        casoId={e.id}
+                        titulo={e.titulo}
+                        onEliminado={onCasoEliminado}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -277,7 +306,7 @@ export function ConfiguradorSesion({
                   ) : (
                     <p id="promptSistema-ayuda">
                       Estas instrucciones guían al modelo de lenguaje. Los cambios solo aplican a
-                      esta sesión, a menos que guardes la configuración.
+                      esta sesión, a menos que los guardes como caso propio.
                     </p>
                   )}
                   <span
@@ -290,6 +319,7 @@ export function ConfiguradorSesion({
                     {LIMITES.prompt.max.toLocaleString('es-CO')}
                   </span>
                 </div>
+                <ReglasFijas className="mt-1" />
               </div>
             </div>
           </section>
@@ -354,11 +384,12 @@ export function ConfiguradorSesion({
 
         {/* Acciones */}
         <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-2xl border bg-card/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center">
-          <GuardarConfiguracion
+          <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
+            tituloSugerido={escenario?.titulo ?? ''}
             promptActual={promptSistema}
             deshabilitado={iniciando}
-            onGuardada={onGuardada}
+            onGuardado={onGuardadaComoCaso}
           />
           <p className="text-sm text-muted-foreground sm:ml-auto">
             {escenario ? (

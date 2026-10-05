@@ -99,31 +99,28 @@ if (correoSinRol && contrasenaSinRol) {
 if (fallos > 0) process.exitCode = 1;
 
 /**
- * Sprint 2 — RLS y privilegios por columna de escenario, npc, sesion y configuracion_guardada.
+ * Sprint 2 — RLS y privilegios por columna de escenario (con casos propios), npc y sesion.
  * Crea datos de otro docente con la clave secreta para comprobar el aislamiento y los elimina
  * al terminar.
  */
 async function verificarSprint2(cliente: ReturnType<typeof createClient<Database>>, miId: string) {
   const PREFIJO = 'RLS-TEST';
 
-  for (const tabla of [
-    'escenario',
-    'npc',
-    'sesion',
-    'configuracion_guardada',
-    'mensaje',
-  ] as const) {
+  for (const tabla of ['escenario', 'npc', 'sesion', 'mensaje'] as const) {
     const { data } = await anonimo.from(tabla).select('id');
     comprobar((data ?? []).length === 0, `Navegador sin sesión: RLS no expone ${tabla}`);
   }
 
-  const { data: escenarios } = await cliente.from('escenario').select('id, codigo');
+  const { data: escenarios } = await cliente
+    .from('escenario')
+    .select('id, codigo')
+    .is('docente_id', null);
   const { data: npcs } = await cliente.from('npc').select('id');
   comprobar(
     escenarios?.length === 6,
     `El docente lee los ${escenarios?.length ?? 0} escenarios activos`
   );
-  comprobar(npcs?.length === 6, `El docente lee los ${npcs?.length ?? 0} NPC`);
+  comprobar((npcs?.length ?? 0) >= 6, `El docente lee los ${npcs?.length ?? 0} NPC`);
   const escenarioId = escenarios?.[0]?.id;
   if (!escenarioId) return;
 
@@ -149,32 +146,43 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
         .insert({ ...datosSesion, usuario_id: otro.id })
         .select('id')
         .single();
-      const { data: configAjena } = await admin
-        .from('configuracion_guardada')
+      // Caso propio de otro docente (con su NPC).
+      const { data: casoAjeno } = await admin
+        .from('escenario')
         .insert({
+          codigo: 'C-99999999',
+          titulo: `${PREFIJO} caso ajeno`,
+          descripcion: 'Caso de prueba de las políticas RLS.',
+          categoria: 'cotidiano',
+          dificultad: 'basico',
+          competencia_central: 'Prueba',
+          configuracion_3d: 'scenes/e-01.json',
           docente_id: otro.id,
-          escenario_id: escenarioId,
-          nombre_configuracion: `${PREFIJO} ajena`,
-          prompt_personalizado: 'Prompt de prueba de las políticas RLS del Sprint 2.',
         })
         .select('id')
         .single();
 
       const { data: vistas } = await cliente.from('sesion').select('id').eq('id', ajena!.id);
       comprobar(vistas?.length === 0, 'RLS: el docente no ve las sesiones de otro docente');
-      const { data: configs } = await cliente
-        .from('configuracion_guardada')
-        .select('id')
-        .eq('id', configAjena!.id);
-      comprobar(configs?.length === 0, 'RLS: el docente no ve configuraciones de otro docente');
-      const { data: borradas } = await cliente
-        .from('configuracion_guardada')
-        .delete()
-        .eq('id', configAjena!.id)
+      const { data: casos } = await cliente.from('escenario').select('id').eq('id', casoAjeno!.id);
+      comprobar(casos?.length === 0, 'RLS: el docente no ve los casos propios de otro docente');
+      const { data: modificados } = await cliente
+        .from('escenario')
+        .update({ titulo: `${PREFIJO} modificado` })
+        .eq('id', casoAjeno!.id)
         .select('id');
       comprobar(
-        (borradas ?? []).length === 0,
-        'RLS: el docente no puede borrar configuraciones de otro docente'
+        (modificados ?? []).length === 0,
+        'RLS: el docente no puede modificar los casos de otro docente'
+      );
+      const { data: oficiales } = await cliente
+        .from('escenario')
+        .update({ titulo: `${PREFIJO} oficial` })
+        .eq('codigo', 'E-01')
+        .select('id');
+      comprobar(
+        (oficiales ?? []).length === 0,
+        'RLS: el docente no puede modificar los escenarios oficiales'
       );
 
       // Sprint 3 — mensajes de la sesión de otro docente.
@@ -277,6 +285,6 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
     comprobar(Boolean(errorTrasCierre), 'No se pueden añadir mensajes a una sesión finalizada');
   } finally {
     await admin.from('sesion').delete().like('nombre_estudiante', `${PREFIJO}%`);
-    await admin.from('configuracion_guardada').delete().like('nombre_configuracion', `${PREFIJO}%`);
+    await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
   }
 }

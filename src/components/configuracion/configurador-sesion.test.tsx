@@ -1,27 +1,37 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { guardarConfiguracion, iniciarSimulacion } from '@/lib/escenarios/actions';
+import { guardarVariante } from '@/lib/casos/actions';
+import { iniciarSimulacion } from '@/lib/escenarios/actions';
 import { AppStoreProvider, useAppStore } from '@/store/app-store-provider';
-import { type ConfiguracionGuardada, type EscenarioCatalogo } from '@/types';
+import { type EscenarioCatalogo } from '@/types';
 
 import { ConfiguradorSesion } from './configurador-sesion';
 
 const push = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+const refresh = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
-vi.mock('@/lib/escenarios/actions', () => ({
-  iniciarSimulacion: vi.fn(),
-  guardarConfiguracion: vi.fn(),
-  eliminarConfiguracion: vi.fn(),
+vi.mock('@/lib/escenarios/actions', () => ({ iniciarSimulacion: vi.fn() }));
+vi.mock('@/lib/casos/actions', () => ({
+  guardarVariante: vi.fn(),
+  archivarCaso: vi.fn(),
+  crearCaso: vi.fn(),
+  actualizarCaso: vi.fn(),
+  probarPaciente: vi.fn(),
 }));
 
 const mockIniciar = vi.mocked(iniciarSimulacion);
-const mockGuardar = vi.mocked(guardarConfiguracion);
+const mockGuardar = vi.mocked(guardarVariante);
 
-function escenario(codigo: string, titulo: string, id: string): EscenarioCatalogo {
+function escenario(
+  codigo: string,
+  titulo: string,
+  id: string,
+  extra: Partial<EscenarioCatalogo> = {}
+): EscenarioCatalogo {
   return {
     id,
     codigo,
@@ -31,6 +41,9 @@ function escenario(codigo: string, titulo: string, id: string): EscenarioCatalog
     dificultad: 'basico',
     competenciaCentral: 'Escucha activa',
     configuracion3d: `scenes/${codigo.toLowerCase()}.json`,
+    propio: false,
+    borrador: null,
+    creadoEn: '2026-09-30T10:00:00.000Z',
     npc: {
       id: `${id.slice(0, -1)}9`,
       nombre: `Paciente ${codigo}`,
@@ -38,19 +51,27 @@ function escenario(codigo: string, titulo: string, id: string): EscenarioCatalog
       perfilClinico: `Perfil clínico de ${codigo}.`,
       promptSistema: `Prompt original del paciente del escenario ${codigo}.`,
     },
+    ...extra,
   };
 }
 
 const E01 = escenario('E-01', 'Duelo y pérdida', '11111111-1111-4111-8111-111111111111');
 const E02 = escenario('E-02', 'Ansiedad generalizada', '22222222-2222-4222-8222-222222222222');
-
-const guardada: ConfiguracionGuardada = {
-  id: '33333333-3333-4333-8333-333333333333',
-  nombre: 'Ansiedad — grupo B',
-  escenarioId: E02.id,
-  promptPersonalizado: 'Prompt personalizado y guardado para el grupo B.',
-  creadoEn: '2026-09-29T20:00:00.000Z',
-};
+const PROPIO = escenario(
+  'C-90000001',
+  'Mi caso de ansiedad',
+  '33333333-3333-4333-8333-333333333333',
+  {
+    propio: true,
+    npc: {
+      id: '33333333-3333-4333-8333-333333333339',
+      nombre: 'Paciente propio',
+      edad: 30,
+      perfilClinico: 'Perfil del caso propio.',
+      promptSistema: 'Prompt del caso propio redactado por el docente.',
+    },
+  }
+);
 
 /** Expone el slice `sesion` del store para las aserciones. */
 const espia: { sesion: unknown } = { sesion: null };
@@ -62,10 +83,10 @@ function EspiaStore() {
   return null;
 }
 
-function renderizar(configuraciones: ConfiguracionGuardada[] = []) {
+function renderizar(escenarios: EscenarioCatalogo[] = [E01, E02], casoInicialId?: string) {
   return render(
     <AppStoreProvider>
-      <ConfiguradorSesion escenarios={[E01, E02]} configuracionesIniciales={configuraciones} />
+      <ConfiguradorSesion escenarios={escenarios} casoInicialId={casoInicialId} />
       <EspiaStore />
     </AppStoreProvider>
   );
@@ -74,6 +95,7 @@ function renderizar(configuraciones: ConfiguracionGuardada[] = []) {
 describe('ConfiguradorSesion', () => {
   beforeEach(() => {
     push.mockReset();
+    refresh.mockReset();
     mockIniciar.mockReset();
     mockGuardar.mockReset();
     espia.sesion = null;
@@ -153,31 +175,57 @@ describe('ConfiguradorSesion', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('habilita "Guardar configuración" solo con un escenario seleccionado (HU-07 · T02)', async () => {
+  it('invita a crear un caso cuando "Mis casos" está vacío', () => {
+    renderizar();
+
+    expect(screen.getByText(/Aún no tienes casos propios/)).toBeVisible();
+    expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
+      'href',
+      '/configuracion/casos/nuevo'
+    );
+  });
+
+  it('lista los casos propios aparte, con acciones para editarlos y eliminarlos', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01, PROPIO]);
+
+    expect(screen.queryByText(/Aún no tienes casos propios/)).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })
+    ).toHaveAttribute('href', `/configuracion/casos/${PROPIO.id}`);
+
+    await usuario.click(
+      screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
+    );
+    expect(screen.getByText('¿Eliminar este caso?')).toBeVisible();
+  });
+
+  it('llega con un caso propio preseleccionado y su prompt cargado', () => {
+    renderizar([E01, PROPIO], PROPIO.id);
+
+    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeChecked();
+    expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(
+      PROPIO.npc.promptSistema
+    );
+  });
+
+  it('habilita "Guardar como mi caso" solo con un caso seleccionado', async () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    const boton = screen.getByRole('button', { name: /Guardar configuración/ });
+    const boton = screen.getByRole('button', { name: /Guardar como mi caso/ });
     expect(boton).toBeDisabled();
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
     expect(boton).toBeEnabled();
   });
 
-  it('guarda la configuración con el prompt editado y la agrega a la lista', async () => {
+  it('guarda el prompt editado como caso propio y recarga la lista', async () => {
     const usuario = userEvent.setup();
-    mockGuardar.mockImplementation(async valores => {
-      const { nombre, promptPersonalizado, escenarioId } = valores as Record<string, string>;
-      return {
-        ok: true,
-        datos: {
-          id: '55555555-5555-4555-8555-555555555555',
-          nombre: nombre!,
-          escenarioId: escenarioId!,
-          promptPersonalizado: promptPersonalizado!,
-          creadoEn: '2026-09-30T10:00:00.000Z',
-        },
-      };
+    mockGuardar.mockResolvedValue({
+      ok: true,
+      datos: { id: '55555555-5555-4555-8555-555555555555' },
     });
     renderizar();
 
@@ -187,46 +235,16 @@ describe('ConfiguradorSesion', () => {
     await usuario.type(prompt, 'Un prompt ajustado por el docente para el grupo A.');
     expect(screen.getByText('Personalizado')).toBeVisible();
 
-    await usuario.click(screen.getByRole('button', { name: /Guardar configuración/ }));
-    await usuario.type(
-      screen.getByLabelText('Nombre de la configuración'),
-      'Duelo — grupo A{Enter}'
-    );
+    await usuario.click(screen.getByRole('button', { name: /Guardar como mi caso/ }));
+    const nombre = screen.getByLabelText('Nombre del caso');
+    await usuario.clear(nombre);
+    await usuario.type(nombre, 'Duelo — grupo A{Enter}');
 
     expect(mockGuardar).toHaveBeenCalledWith({
       escenarioId: E01.id,
-      nombre: 'Duelo — grupo A',
-      promptPersonalizado: 'Un prompt ajustado por el docente para el grupo A.',
+      titulo: 'Duelo — grupo A',
+      prompt: 'Un prompt ajustado por el docente para el grupo A.',
     });
-    const lista = await screen.findByRole('list', { name: 'Configuraciones guardadas' });
-    expect(within(lista).getByText('Duelo — grupo A')).toBeVisible();
-  });
-
-  it('muestra un mensaje cuando no hay configuraciones guardadas (HU-07 · T03)', async () => {
-    const usuario = userEvent.setup();
-    renderizar();
-
-    await usuario.click(screen.getByRole('button', { name: /Mis configuraciones guardadas/ }));
-    expect(screen.getByText(/usa «Guardar configuración» para reutilizarlo/)).toBeVisible();
-  });
-
-  it('carga una configuración guardada sin borrar los datos del estudiante (HU-07 · T04)', async () => {
-    const usuario = userEvent.setup();
-    renderizar([guardada]);
-
-    await usuario.type(screen.getByLabelText('Código institucional'), '202099999');
-    await usuario.type(screen.getByLabelText('Nombre completo'), 'Luis Gómez');
-
-    await usuario.click(screen.getByRole('button', { name: /Mis configuraciones guardadas/ }));
-    await usuario.click(
-      screen.getByRole('button', { name: 'Cargar la configuración Ansiedad — grupo B' })
-    );
-
-    expect(screen.getByRole('radio', { name: /Ansiedad generalizada/ })).toBeChecked();
-    expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(
-      guardada.promptPersonalizado
-    );
-    expect(screen.getByLabelText('Código institucional')).toHaveValue('202099999');
-    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Luis Gómez');
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 });

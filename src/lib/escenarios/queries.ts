@@ -3,12 +3,8 @@ import 'server-only';
 import { cache } from 'react';
 
 import { createClient } from '@/lib/supabase/server';
-import {
-  type ConfiguracionGuardada,
-  type EscenarioCatalogo,
-  type MensajeConversacion,
-  type SesionActiva,
-} from '@/types';
+import { borradorCasoSchema } from '@/schemas/caso.schema';
+import { type EscenarioCatalogo, type MensajeConversacion, type SesionActiva } from '@/types';
 
 /*
  * Consultas de lectura del Sprint 2. Todas usan el cliente con la sesión del docente, así que
@@ -18,10 +14,14 @@ import {
 
 const COLUMNAS_ESCENARIO = `
   id, codigo, titulo, descripcion, categoria, dificultad, competencia_central, configuracion_3d,
+  docente_id, borrador, creado_en,
   npc ( id, nombre, edad, perfil_clinico, prompt_sistema )
 ` as const;
 
-/** HU-06 · T02 — Escenarios activos con su paciente virtual, ordenados por código. */
+/**
+ * HU-06 · T02 — Escenarios activos con su paciente virtual: el catálogo oficial y los casos propios
+ * del docente (RLS oculta los de otros), ordenados por código.
+ */
 export const obtenerCatalogoEscenarios = cache(async (): Promise<EscenarioCatalogo[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -47,6 +47,9 @@ export const obtenerCatalogoEscenarios = cache(async (): Promise<EscenarioCatalo
         dificultad: fila.dificultad,
         competenciaCentral: fila.competencia_central,
         configuracion3d: fila.configuracion_3d,
+        propio: fila.docente_id !== null,
+        borrador: leerBorrador(fila.borrador),
+        creadoEn: fila.creado_en,
         npc: {
           id: fila.npc.id,
           nombre: fila.npc.nombre,
@@ -59,26 +62,11 @@ export const obtenerCatalogoEscenarios = cache(async (): Promise<EscenarioCatalo
   });
 });
 
-/** HU-07 · T03 — Configuraciones guardadas del docente, de la más reciente a la más antigua. */
-export const obtenerConfiguracionesGuardadas = cache(async (): Promise<ConfiguracionGuardada[]> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('configuracion_guardada')
-    .select('id, nombre_configuracion, escenario_id, prompt_personalizado, creado_en')
-    .order('creado_en', { ascending: false });
-
-  if (error) {
-    throw new Error('No fue posible cargar las configuraciones guardadas.', { cause: error });
-  }
-
-  return data.map(fila => ({
-    id: fila.id,
-    nombre: fila.nombre_configuracion,
-    escenarioId: fila.escenario_id,
-    promptPersonalizado: fila.prompt_personalizado,
-    creadoEn: fila.creado_en,
-  }));
-});
+/** El borrador es JSON libre en la base de datos: si no cumple el esquema se ignora. */
+function leerBorrador(valor: unknown) {
+  const resultado = borradorCasoSchema.safeParse(valor);
+  return resultado.success ? resultado.data : null;
+}
 
 const COLUMNAS_SESION = `
   id, inicio, comenzada, estado, codigo_estudiante, nombre_estudiante,

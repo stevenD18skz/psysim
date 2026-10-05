@@ -138,7 +138,11 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
     });
     // El prompt del sistema viaja como instrucción de sistema, no como mensaje del usuario.
     const llamada = modelo.doGenerateCalls[0]!;
-    expect(llamada.prompt[0]).toMatchObject({ role: 'system', content: 'Eres Marta Lucía.' });
+    expect(llamada.prompt[0]).toMatchObject({ role: 'system' });
+    // Siempre se añaden las reglas fijas después del prompt del caso.
+    const sistema = (llamada.prompt[0] as { content: string }).content;
+    expect(sistema.startsWith('Eres Marta Lucía.')).toBe(true);
+    expect(sistema).toContain('Reglas de interpretación:');
     expect(llamada.prompt.at(-1)).toMatchObject({ role: 'user' });
     expect(llamada.maxOutputTokens).toBe(300);
   });

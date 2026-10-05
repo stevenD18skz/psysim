@@ -56,9 +56,15 @@ export function TarjetaEscenario({
       />
 
       <div className="flex items-center gap-2">
-        <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
-          {escenario.codigo}
-        </span>
+        {escenario.propio ? (
+          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            Propio
+          </span>
+        ) : (
+          <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
+            {escenario.codigo}
+          </span>
+        )}
         <span
           className={cn(
             'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -85,7 +91,7 @@ export function TarjetaEscenario({
 
       <div className="flex flex-col gap-1">
         <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-semibold">
-          <span className="sr-only">{escenario.codigo}: </span>
+          {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
           {escenario.titulo}
         </h3>
         <p className="line-clamp-3 text-sm text-muted-foreground">{escenario.descripcion}</p>
