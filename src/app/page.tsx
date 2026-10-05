@@ -3,69 +3,21 @@ import {
   ArrowRight,
   BarChart3,
   Bot,
-  BrainCircuit,
   CheckCircle2,
-  Coffee,
   Gauge,
-  HeartPulse,
   MessageSquare,
-  Target,
   Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { EscenariosGaleria } from '@/components/landing/escenarios-galeria';
+import { HeroVisual } from '@/components/landing/hero-visual';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/lib/seo/json-ld';
 import { DESCRIPCION_SITIO, NOMBRE_SITIO, TITULO_SITIO, URL_SITIO } from '@/lib/sitio';
-
-/** Catálogo de escenarios (coincide con supabase/migrations/…_sembrar_escenarios.sql). */
-const ESCENARIOS = [
-  {
-    codigo: 'E-01',
-    titulo: 'Duelo y pérdida',
-    categoria: 'Clínico',
-    nivel: 1,
-    competencia: 'Empatía y validación emocional',
-  },
-  {
-    codigo: 'E-02',
-    titulo: 'Ansiedad generalizada',
-    categoria: 'Clínico',
-    nivel: 2,
-    competencia: 'Evaluación estructurada',
-  },
-  {
-    codigo: 'E-03',
-    titulo: 'Episodio depresivo leve',
-    categoria: 'Clínico',
-    nivel: 2,
-    competencia: 'Evaluación de riesgo',
-  },
-  {
-    codigo: 'E-04',
-    titulo: 'Crisis de pánico aguda',
-    categoria: 'Clínico',
-    nivel: 3,
-    competencia: 'Intervención en crisis',
-  },
-  {
-    codigo: 'E-05',
-    titulo: 'Conflicto de pareja',
-    categoria: 'Cotidiano',
-    nivel: 1,
-    competencia: 'Escucha activa',
-  },
-  {
-    codigo: 'E-06',
-    titulo: 'Estrés académico',
-    categoria: 'Cotidiano',
-    nivel: 1,
-    competencia: 'Estrategias de afrontamiento',
-  },
-] as const;
 
 const PREGUNTAS = [
   {
@@ -157,87 +109,117 @@ const DATOS_ESTRUCTURADOS = {
   ],
 };
 
-const NIVELES = ['', 'Básico', 'Intermedio', 'Avanzado'] as const;
-
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background pb-20 md:pb-0">
       <JsonLd datos={DATOS_ESTRUCTURADOS} />
       {/* Filete con el rojo institucional de la Universidad del Valle. */}
       <div aria-hidden className="h-1 bg-marca" />
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <span className="flex items-center gap-3">
-          <LogoUnivalle className="h-12" />
-          <span className="h-9 w-px bg-border" aria-hidden />
-          <span className="grid leading-tight">
-            <span className="font-heading text-xl font-semibold">PsySim</span>
-            <span className="text-xs text-muted-foreground">Simulador clínico · Psicología</span>
+      <div className="relative isolate overflow-hidden border-b">
+        {/* Fondo del hero: resplandor con el rojo institucional y trama de puntos. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-[radial-gradient(60rem_32rem_at_85%_-10%,color-mix(in_oklab,var(--marca)_12%,transparent),transparent),radial-gradient(40rem_28rem_at_0%_100%,var(--accent),transparent)]"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,black,transparent_85%)] bg-size-[22px_22px]"
+        />
+        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
+          <span className="flex items-center gap-3">
+            <LogoUnivalle className="h-12" />
+            <span className="h-9 w-px bg-border" aria-hidden />
+            <span className="grid leading-tight">
+              <span className="font-heading text-xl font-semibold">PsySim</span>
+              <span className="text-xs text-muted-foreground">Simulador clínico · Psicología</span>
+            </span>
           </span>
-        </span>
-        <nav aria-label="Principal" className="flex items-center gap-2 sm:gap-6">
-          <a
-            href="#como-funciona"
-            className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
-          >
-            Cómo funciona
-          </a>
-          <a
-            href="#escenarios"
-            className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
-          >
-            Escenarios
-          </a>
-          <a
-            href="#preguntas-frecuentes"
-            className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
-          >
-            Preguntas frecuentes
-          </a>
-          <Button asChild variant="outline">
-            <Link href="/login">Ingresar</Link>
-          </Button>
-        </nav>
-      </header>
+          <nav aria-label="Principal" className="flex items-center gap-2 sm:gap-6">
+            <a
+              href="#como-funciona"
+              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
+            >
+              Cómo funciona
+            </a>
+            <a
+              href="#escenarios"
+              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
+            >
+              Escenarios
+            </a>
+            <a
+              href="#preguntas-frecuentes"
+              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
+            >
+              Preguntas frecuentes
+            </a>
+            <Button asChild variant="outline">
+              <Link href="/login">Ingresar</Link>
+            </Button>
+          </nav>
+        </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6">
         {/* Presentación */}
-        <section className="grid items-center gap-10 py-16 lg:grid-cols-[1.2fr_1fr] lg:py-24">
-          <div className="flex flex-col gap-6">
-            <p className="text-sm font-medium tracking-wide text-primary uppercase">
-              Universidad del Valle · Trabajo de grado
-            </p>
-            <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-              Un consultorio virtual para practicar la entrevista clínica
+        <section
+          aria-labelledby="titulo-principal"
+          className="mx-auto grid w-full max-w-7xl items-center gap-14 px-6 pt-8 pb-20 lg:grid-cols-[1fr_1.1fr] lg:gap-16 lg:pt-14 lg:pb-28"
+        >
+          <div className="flex flex-col gap-7 motion-safe:animate-in motion-safe:duration-700 motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3">
+            <h1
+              id="titulo-principal"
+              className="text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]"
+            >
+              Un consultorio virtual para practicar la{' '}
+              <span className="bg-[linear-gradient(transparent_62%,color-mix(in_oklab,var(--marca)_22%,transparent)_62%)] px-1">
+                entrevista clínica
+              </span>
             </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
+            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Plataforma web 3D donde estudiantes de psicología conversan con{' '}
               <strong className="font-medium text-foreground">pacientes virtuales</strong> guiados
               por inteligencia artificial, en escenarios que el docente configura y evalúa.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg" className="h-11 px-5 text-base">
+              <Button asChild size="lg" className="h-12 px-6 text-base shadow-md">
                 <Link href="/login">
                   Ingresar como docente
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>
-              <span className="text-sm text-muted-foreground">Brayan Steven Narváez Valdés</span>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 bg-card/80 px-6 text-base"
+              >
+                <a href="#escenarios">Ver los escenarios</a>
+              </Button>
             </div>
+            <dl className="grid max-w-lg grid-cols-3 gap-4 border-t pt-6">
+              {[
+                ['6', 'escenarios, del día a día a la crisis'],
+                ['0', 'instalaciones ni gafas de realidad virtual'],
+                ['IA', 'paciente que responde en lenguaje natural'],
+              ].map(([valor, texto]) => (
+                <div key={texto} className="flex flex-col gap-1">
+                  <dt className="font-heading text-3xl font-semibold text-primary">{valor}</dt>
+                  <dd className="text-xs leading-snug text-muted-foreground">{texto}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-sm text-muted-foreground">
+              Proyecto de{' '}
+              <span className="font-medium text-foreground">Brayan Steven Narváez Valdés</span>
+            </p>
           </div>
 
-          <figure className="rounded-lg border border-l-4 border-l-primary bg-card p-8 shadow-xs">
-            <div className="flex flex-col gap-4">
-              <BrainCircuit className="size-10 text-primary" aria-hidden />
-              <blockquote className="font-heading text-2xl leading-snug">
-                «Buenas… la verdad no sé muy bien por dónde empezar.»
-              </blockquote>
-              <figcaption className="text-sm text-muted-foreground">
-                Marta Lucía, 58 años — escenario E-01, Duelo y pérdida
-              </figcaption>
-            </div>
-          </figure>
+          <div className="motion-safe:animate-in motion-safe:duration-1000 motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-5">
+            <HeroVisual />
+          </div>
         </section>
+      </div>
 
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 pt-16">
         {/* Resumen */}
         <aside
           aria-labelledby="resumen"
@@ -313,60 +295,12 @@ export default function Home() {
         </Seccion>
 
         {/* Escenarios */}
-        <Seccion id="escenarios" titulo="Seis escenarios, de lo cotidiano a la crisis">
-          <div className="overflow-x-auto rounded-2xl border bg-card">
-            <table className="w-full min-w-[34rem] text-left text-sm">
-              <caption className="sr-only">
-                Escenarios disponibles con su categoría, nivel y competencia que se entrena
-              </caption>
-              <thead className="border-b bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Código
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Escenario
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Categoría
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Nivel
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Competencia que se entrena
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {ESCENARIOS.map(e => (
-                  <tr key={e.codigo}>
-                    <td className="px-4 py-3 font-mono text-xs">{e.codigo}</td>
-                    <th scope="row" className="px-4 py-3 font-semibold">
-                      {e.titulo}
-                    </th>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5">
-                        {e.categoria === 'Clínico' ? (
-                          <HeartPulse className="size-3.5 text-primary" aria-hidden />
-                        ) : (
-                          <Coffee className="size-3.5 text-primary" aria-hidden />
-                        )}
-                        {e.categoria}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{NIVELES[e.nivel]}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      <span className="inline-flex items-center gap-2">
-                        <Target className="size-4 shrink-0 text-primary" aria-hidden />
-                        {e.competencia}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <Seccion
+          id="escenarios"
+          titulo="Seis escenarios, de lo cotidiano a la crisis"
+          descripcion="Elige uno para ver al paciente, la competencia que entrena y cómo empieza la conversación."
+        >
+          <EscenariosGaleria />
         </Seccion>
 
         {/* Tecnología */}
@@ -427,10 +361,23 @@ export default function Home() {
   );
 }
 
-function Seccion({ id, titulo, children }: { id?: string; titulo: string; children: ReactNode }) {
+function Seccion({
+  id,
+  titulo,
+  descripcion,
+  children,
+}: {
+  id?: string;
+  titulo: string;
+  descripcion?: string;
+  children: ReactNode;
+}) {
   return (
     <section id={id} className="flex scroll-mt-8 flex-col gap-8 border-t py-16">
-      <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{titulo}</h2>
+      <div className="flex max-w-2xl flex-col gap-2">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{titulo}</h2>
+        {descripcion && <p className="text-muted-foreground">{descripcion}</p>}
+      </div>
       {children}
     </section>
   );

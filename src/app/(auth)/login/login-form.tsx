@@ -1,13 +1,12 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2, LockKeyhole, Mail } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { iniciarSesion } from '@/lib/auth/actions';
@@ -19,6 +18,7 @@ interface LoginFormProps {
 
 export function LoginForm({ siguiente }: LoginFormProps) {
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
+  const [verContrasena, setVerContrasena] = useState(false);
   const [enviando, startTransition] = useTransition();
 
   const {
@@ -43,64 +43,88 @@ export function LoginForm({ siguiente }: LoginFormProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Iniciar sesión</CardTitle>
-        <CardDescription>Acceso exclusivo para docentes.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-          {errorServidor && (
-            <Alert variant="destructive" role="alert">
-              <AlertCircle aria-hidden />
-              <AlertDescription>{errorServidor}</AlertDescription>
-            </Alert>
-          )}
+    <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      {errorServidor && (
+        <Alert variant="destructive" role="alert">
+          <AlertCircle aria-hidden />
+          <AlertDescription>{errorServidor}</AlertDescription>
+        </Alert>
+      )}
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="correo">Correo institucional</Label>
-            <Input
-              id="correo"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              placeholder="nombre@correounivalle.edu.co"
-              aria-invalid={errors.correo ? true : undefined}
-              aria-describedby={errors.correo ? 'correo-error' : undefined}
-              disabled={enviando}
-              {...register('correo')}
-            />
-            {errors.correo && (
-              <p id="correo-error" className="text-sm text-destructive">
-                {errors.correo.message}
-              </p>
-            )}
-          </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="correo">Correo institucional</Label>
+        <div className="relative">
+          <Mail
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="correo"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            placeholder="nombre@correounivalle.edu.co"
+            aria-invalid={errors.correo ? true : undefined}
+            aria-describedby={errors.correo ? 'correo-error' : undefined}
+            disabled={enviando}
+            className="h-11 pl-10"
+            {...register('correo')}
+          />
+        </div>
+        {errors.correo && (
+          <p id="correo-error" className="text-sm text-destructive">
+            {errors.correo.message}
+          </p>
+        )}
+      </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="contrasena">Contraseña</Label>
-            <Input
-              id="contrasena"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={errors.contrasena ? true : undefined}
-              aria-describedby={errors.contrasena ? 'contrasena-error' : undefined}
-              disabled={enviando}
-              {...register('contrasena')}
-            />
-            {errors.contrasena && (
-              <p id="contrasena-error" className="text-sm text-destructive">
-                {errors.contrasena.message}
-              </p>
-            )}
-          </div>
-
-          <Button type="submit" size="lg" disabled={enviando} aria-busy={enviando}>
-            {enviando && <Loader2 className="animate-spin" aria-hidden />}
-            {enviando ? 'Ingresando…' : 'Iniciar sesión'}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="contrasena">Contraseña</Label>
+        <div className="relative">
+          <LockKeyhole
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="contrasena"
+            type={verContrasena ? 'text' : 'password'}
+            autoComplete="current-password"
+            aria-invalid={errors.contrasena ? true : undefined}
+            aria-describedby={errors.contrasena ? 'contrasena-error' : undefined}
+            disabled={enviando}
+            className="h-11 pr-11 pl-10"
+            {...register('contrasena')}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
+            onClick={() => setVerContrasena(visible => !visible)}
+            aria-label={verContrasena ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+            aria-pressed={verContrasena}
+            disabled={enviando}
+          >
+            {verContrasena ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        {errors.contrasena && (
+          <p id="contrasena-error" className="text-sm text-destructive">
+            {errors.contrasena.message}
+          </p>
+        )}
+      </div>
+
+      <Button
+        type="submit"
+        size="lg"
+        className="h-11 text-base"
+        disabled={enviando}
+        aria-busy={enviando}
+      >
+        {enviando && <Loader2 className="animate-spin" aria-hidden />}
+        {enviando ? 'Ingresando…' : 'Iniciar sesión'}
+      </Button>
+    </form>
   );
 }
