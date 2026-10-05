@@ -1,4 +1,4 @@
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -42,12 +42,8 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
             aria-hidden
             className="absolute inset-0 -z-10 bg-[radial-gradient(30rem_20rem_at_100%_0%,color-mix(in_oklab,var(--marca)_8%,transparent),transparent)]"
           />
-          <div className="flex w-full max-w-sm flex-col gap-8">
+          <div className="flex w-full max-w-sm flex-col gap-8 text-center">
             <div className="flex flex-col gap-2">
-              <p className="flex w-fit items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                <ShieldCheck className="size-3.5 text-primary" aria-hidden />
-                Acceso exclusivo para docentes
-              </p>
               <h1 className="text-4xl font-semibold tracking-tight">Bienvenido de nuevo</h1>
               <p className="text-muted-foreground">
                 Ingresa con tu correo institucional para preparar y dirigir las sesiones de
@@ -64,7 +60,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               </p>
               <Link
                 href="/"
-                className="inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
+                className="mx-auto inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
               >
                 <ArrowLeft className="size-4" aria-hidden />
                 Volver al inicio

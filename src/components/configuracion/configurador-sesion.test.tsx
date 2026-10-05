@@ -199,7 +199,7 @@ describe('ConfiguradorSesion', () => {
 
     expect(screen.getByText(/Aún no tienes casos propios/)).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toBeVisible();
-    expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toHaveAttribute(
       'href',
       '/configuracion/casos/nuevo'
     );
@@ -210,6 +210,11 @@ describe('ConfiguradorSesion', () => {
     renderizar([E01, PROPIO]);
 
     expect(screen.queryByText(/Aún no tienes casos propios/)).not.toBeInTheDocument();
+    // Con casos, la creación es una tarjeta punteada junto a ellos.
+    expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
+      'href',
+      '/configuracion/casos/nuevo'
+    );
     expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })

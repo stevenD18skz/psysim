@@ -72,7 +72,7 @@ const COLUMNAS_SESION = `
   id, inicio, comenzada, estado, codigo_estudiante, nombre_estudiante,
   escenario (
     id, codigo, titulo, descripcion, categoria, dificultad, competencia_central, configuracion_3d,
-    npc ( id, nombre, edad )
+    npc ( id, nombre, edad, perfil_clinico )
   )
 ` as const;
 
@@ -110,7 +110,12 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
       competenciaCentral: escenario.competencia_central,
       configuracion3d: escenario.configuracion_3d,
     },
-    npc: { id: escenario.npc.id, nombre: escenario.npc.nombre, edad: escenario.npc.edad },
+    npc: {
+      id: escenario.npc.id,
+      nombre: escenario.npc.nombre,
+      edad: escenario.npc.edad,
+      perfilClinico: escenario.npc.perfil_clinico,
+    },
   };
 });
 

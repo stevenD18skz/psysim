@@ -108,7 +108,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   test('HU-07: crea un caso con el constructor guiado y lo edita', async ({ page }) => {
     const titulo = `${PREFIJO} Caso del constructor`;
 
-    await page.getByRole('link', { name: 'Crear caso nuevo' }).click();
+    await page.getByRole('link', { name: /Crear (caso nuevo|mi primer caso)/ }).click();
     await expect(page).toHaveURL(/\/configuracion\/casos\/nuevo$/);
 
     await page.getByLabel('Título del caso').fill(titulo);
@@ -170,9 +170,12 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page.getByText('Sin iniciar')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeHidden();
 
-    // Es obligatorio: Escape no lo cierra; "Revisar nuevamente" solo vuelve al inicio del texto.
+    // La ficha del paciente incluye su perfil y las instrucciones no tienen "Revisar nuevamente".
+    await expect(instrucciones).toContainText('Viuda desde hace cuatro meses');
+    await expect(page.getByRole('button', { name: 'Revisar nuevamente' })).toHaveCount(0);
+
+    // Es obligatorio: Escape no lo cierra.
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Revisar nuevamente' }).click();
     await expect(instrucciones).toBeVisible();
 
     // El registro existe en Supabase con estado en_curso, el prompt copiado y sin comenzar.

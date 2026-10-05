@@ -57,7 +57,7 @@ export interface SesionActiva {
     | 'competenciaCentral'
     | 'configuracion3d'
   >;
-  npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad'>;
+  npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad' | 'perfilClinico'>;
 }
 
 export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
