@@ -8,7 +8,6 @@ import {
   HeartPulse,
   MessageSquareQuote,
   Target,
-  UserRound,
   X,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -16,6 +15,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
   ESCENARIOS_PUBLICOS,
@@ -126,7 +126,11 @@ function TarjetaEscenarioPublico({
           {escenario.categoria}
         </span>
         <span className="absolute bottom-3 left-4 flex items-center gap-1.5 text-sm font-medium text-white">
-          <UserRound className="size-4" aria-hidden />
+          <AvatarPaciente
+            src={escenario.paciente.foto}
+            nombre={escenario.paciente.nombre}
+            className="size-7 text-[10px] ring-2 ring-white/80"
+          />
           {escenario.paciente.nombre}, {escenario.paciente.edad} años
         </span>
       </span>
@@ -225,9 +229,11 @@ function DetalleEscenario({
             className="flex flex-col gap-3 rounded-2xl border bg-muted/40 p-5"
           >
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <UserRound className="size-5" aria-hidden />
-              </span>
+              <AvatarPaciente
+                src={escenario.paciente.foto}
+                nombre={escenario.paciente.nombre}
+                className="size-14 text-base ring-4 ring-card"
+              />
               <div className="leading-tight">
                 <p className="font-heading text-lg font-semibold">{escenario.paciente.nombre}</p>
                 <p className="text-sm text-muted-foreground">{escenario.paciente.edad} años</p>

@@ -175,10 +175,30 @@ describe('ConfiguradorSesion', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('permite deseleccionar el caso pulsándolo de nuevo y oculta el paso del paciente', async () => {
+    const usuario = userEvent.setup();
+    renderizar();
+
+    const duelo = screen.getByRole('radio', { name: /Duelo y pérdida/ });
+    await usuario.click(duelo);
+    expect(duelo).toBeChecked();
+    expect(screen.getByLabelText('Comportamiento del paciente')).toBeVisible();
+
+    await usuario.click(duelo);
+    expect(duelo).not.toBeChecked();
+    expect(screen.queryByLabelText('Comportamiento del paciente')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Guardar como mi caso/ })).toBeDisabled();
+
+    // Se puede volver a elegir el mismo u otro caso.
+    await usuario.click(duelo);
+    expect(duelo).toBeChecked();
+  });
+
   it('invita a crear un caso cuando "Mis casos" está vacío', () => {
     renderizar();
 
     expect(screen.getByText(/Aún no tienes casos propios/)).toBeVisible();
+    expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
       'href',
       '/configuracion/casos/nuevo'

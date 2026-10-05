@@ -12,6 +12,8 @@ interface TarjetaEscenarioProps {
   escenario: EscenarioCatalogo;
   seleccionado: boolean;
   onSeleccionar: (escenario: EscenarioCatalogo) => void;
+  /** Se invoca al volver a activar el caso ya seleccionado (clic o Espacio): quita la selección. */
+  onDeseleccionar: () => void;
   /** `name` del grupo de radios: un único escenario seleccionado a la vez. */
   nombreGrupo: string;
   describedBy?: string;
@@ -27,6 +29,7 @@ export function TarjetaEscenario({
   escenario,
   seleccionado,
   onSeleccionar,
+  onDeseleccionar,
   nombreGrupo,
   describedBy,
 }: TarjetaEscenarioProps) {
@@ -50,6 +53,10 @@ export function TarjetaEscenario({
         value={escenario.id}
         checked={seleccionado}
         onChange={() => onSeleccionar(escenario)}
+        // Un radio nativo no dispara `change` al pulsar el ya marcado: aquí se usa para deseleccionar.
+        onClick={() => {
+          if (seleccionado) onDeseleccionar();
+        }}
         aria-labelledby={`${idBase}-titulo`}
         aria-describedby={[`${idBase}-detalle`, describedBy].filter(Boolean).join(' ')}
         className="sr-only"

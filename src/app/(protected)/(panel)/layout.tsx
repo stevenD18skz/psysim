@@ -30,7 +30,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
         style={
           {
             '--sidebar-width': '17rem',
-            '--sidebar-width-icon': '3.5rem',
+            '--sidebar-width-icon': '4rem',
           } as React.CSSProperties
         }
       >

@@ -1,12 +1,25 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, ArrowRight, Loader2, Plus, RotateCcw, UserRound } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Bookmark,
+  FilePlus2,
+  Loader2,
+  type LucideIcon,
+  Plus,
+  Repeat2,
+  RotateCcw,
+  Target,
+  Wand2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
@@ -18,6 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { iniciarSimulacion } from '@/lib/escenarios/actions';
+import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import {
   type IniciarSimulacionData,
@@ -91,15 +106,18 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
     seleccionarEscenario(nuevo);
   };
 
+  // Volver a pulsar el caso elegido lo deselecciona y oculta el paso del paciente.
+  const onDeseleccionar = () => {
+    setValue('escenarioId', '', { shouldDirty: true });
+    setValue('promptSistema', '', { shouldDirty: true });
+  };
+
   // Un caso recién guardado entra en la lista al recargar los datos del servidor.
   const onGuardadaComoCaso = () => router.refresh();
 
   // Si el caso seleccionado se elimina, se limpia la selección.
   const onCasoEliminado = (id: string) => {
-    if (id === escenarioId) {
-      setValue('escenarioId', '', { shouldDirty: true });
-      setValue('promptSistema', '', { shouldDirty: true });
-    }
+    if (id === escenarioId) onDeseleccionar();
     router.refresh();
   };
 
@@ -162,7 +180,8 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
         {/* Paso 1 — Escenario */}
         <section className="flex flex-col gap-4">
           <EncabezadoPaso numero={1} titulo="Elige el caso" id="paso-escenario-titulo">
-            Usa uno de los escenarios predefinidos o uno de tus propios casos.
+            Usa uno de los escenarios predefinidos o uno de tus propios casos. Pulsa de nuevo el
+            caso elegido para quitar la selección.
           </EncabezadoPaso>
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
@@ -188,6 +207,7 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                     nombreGrupo={idGrupo}
                     seleccionado={e.id === escenarioId}
                     onSeleccionar={onSeleccionar}
+                    onDeseleccionar={onDeseleccionar}
                     describedBy={errors.escenarioId ? 'escenario-error' : undefined}
                   />
                 ))}
@@ -207,10 +227,7 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                 </Button>
               </div>
               {propios.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-                  Aún no tienes casos propios. Crea uno desde cero o guarda como caso el ajuste de
-                  un escenario predefinido.
-                </p>
+                <EstadoVacioMisCasos />
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {propios.map(e => (
@@ -220,6 +237,7 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                         nombreGrupo={idGrupo}
                         seleccionado={e.id === escenarioId}
                         onSeleccionar={onSeleccionar}
+                        onDeseleccionar={onDeseleccionar}
                         describedBy={errors.escenarioId ? 'escenario-error' : undefined}
                       />
                       <AccionesCasoPropio
@@ -250,28 +268,60 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
               Revisa su perfil y, si lo necesitas, adapta cómo debe comportarse en esta sesión.
             </EncabezadoPaso>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              <article className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <UserRound className="size-6" aria-hidden />
-                  </span>
-                  <div>
-                    <h3 className="text-xl font-semibold">{escenario.npc.nombre}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {escenario.npc.edad} años · {escenario.codigo} {escenario.titulo}
-                    </p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-stretch">
+              {/* Izquierda: el perfil del paciente y, debajo, las reglas que siempre se aplican. */}
+              <div className="flex flex-col gap-4">
+                <article className="overflow-hidden rounded-2xl border bg-card shadow-xs">
+                  <div className="flex items-center gap-4 bg-linear-to-br from-accent via-accent/60 to-card px-5 py-5">
+                    <AvatarPaciente
+                      src={avatarDeEscena(escenario.configuracion3d)}
+                      nombre={escenario.npc.nombre}
+                      className="size-16 font-heading text-xl shadow-sm ring-4 ring-card"
+                    />
+                    <div className="min-w-0 leading-tight">
+                      <h3 className="truncate font-heading text-2xl font-semibold">
+                        {escenario.npc.nombre}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {escenario.npc.edad} años
+                        {escenario.propio ? '' : ` · ${escenario.codigo}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Perfil clínico
-                  </h4>
-                  <p className="text-sm leading-relaxed">{escenario.npc.perfilClinico}</p>
-                </div>
-              </article>
+                  <div className="flex flex-col gap-4 p-5">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                        {ETIQUETA_CATEGORIA[escenario.categoria]}
+                      </span>
+                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                        Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        Caso
+                      </h4>
+                      <p className="text-sm font-medium">{escenario.titulo}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        Perfil clínico
+                      </h4>
+                      <p className="text-sm leading-relaxed">{escenario.npc.perfilClinico}</p>
+                    </div>
+                    <div className="flex items-start gap-2 border-t border-dashed pt-4 text-sm">
+                      <Target className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                      <p>
+                        <span className="text-muted-foreground">Se entrena: </span>
+                        <span className="font-medium">{escenario.competenciaCentral}</span>
+                      </p>
+                    </div>
+                  </div>
+                </article>
+                <ReglasFijas />
+              </div>
 
-              <div className="flex flex-col gap-2 rounded-2xl border bg-card p-5 shadow-xs">
+              <div className="flex min-h-96 flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <Label htmlFor="promptSistema">Comportamiento del paciente</Label>
                   {promptPersonalizado && <Badge variant="secondary">Personalizado</Badge>}
@@ -289,8 +339,8 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                 </div>
                 <Textarea
                   id="promptSistema"
-                  rows={10}
-                  className="max-h-96 min-h-48 font-mono text-[13px] leading-relaxed"
+                  // Ocupa todo el alto disponible: la tarjeta mide lo mismo que la columna del perfil.
+                  className="field-sizing-fixed min-h-64 flex-1 resize-none font-mono text-[13px] leading-relaxed"
                   aria-invalid={errors.promptSistema ? true : undefined}
                   aria-describedby={
                     errors.promptSistema ? 'promptSistema-error' : 'promptSistema-ayuda'
@@ -319,7 +369,6 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                     {LIMITES.prompt.max.toLocaleString('es-CO')}
                   </span>
                 </div>
-                <ReglasFijas className="mt-1" />
               </div>
             </div>
           </section>
@@ -407,6 +456,61 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
           </Button>
         </div>
       </form>
+    </div>
+  );
+}
+
+const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[] = [
+  {
+    icono: Wand2,
+    titulo: 'Desde cero',
+    texto: 'Un constructor guiado con vista previa del prompt y prueba del paciente.',
+  },
+  {
+    icono: Bookmark,
+    titulo: 'Desde un escenario',
+    texto: 'Elige uno arriba, ajusta su comportamiento y pulsa «Guardar como mi caso».',
+  },
+  {
+    icono: Repeat2,
+    titulo: 'Reutilízalos',
+    texto: 'Quedan en esta lista, listos para cada sesión y cada grupo.',
+  },
+];
+
+/** "Mis casos" sin casos todavía: explica qué son y las dos formas de empezar. */
+function EstadoVacioMisCasos() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-dashed bg-linear-to-br from-accent/60 via-card to-card">
+      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+          <FilePlus2 className="size-7" aria-hidden />
+        </span>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <h4 className="font-heading text-xl font-semibold">Aquí vivirán tus propios casos</h4>
+          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Aún no tienes casos propios. Crea pacientes a tu medida y reutilízalos con cada grupo,
+            sin volver a escribir nada.
+          </p>
+        </div>
+        <Button asChild size="lg">
+          <Link href="/configuracion/casos/nuevo">
+            <Plus aria-hidden />
+            Crear mi primer caso
+          </Link>
+        </Button>
+      </div>
+      <ul className="grid gap-4 border-t border-dashed bg-card/60 p-6 text-sm sm:grid-cols-3 sm:px-8">
+        {CONSEJOS_MIS_CASOS.map(({ icono: Icono, titulo, texto }) => (
+          <li key={titulo} className="flex items-start gap-3">
+            <Icono className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <p className="leading-snug">
+              <span className="font-medium">{titulo}. </span>
+              <span className="text-muted-foreground">{texto}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

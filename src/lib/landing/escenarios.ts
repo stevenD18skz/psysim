@@ -15,7 +15,7 @@ export interface EscenarioPublico {
   competencia: string;
   resumen: string;
   consultorio: string;
-  paciente: { nombre: string; edad: number; perfil: string; apertura: string };
+  paciente: { nombre: string; foto: string; edad: number; perfil: string; apertura: string };
   imagen: { src: string; alt: string };
 }
 
@@ -33,6 +33,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Consultorio cálido, luz de tarde',
     paciente: {
       nombre: 'Marta Lucía',
+      foto: '/pacientes/marta-lucia.webp',
       edad: 58,
       perfil:
         'Viuda desde hace cuatro meses tras el infarto repentino de su esposo, con quien estuvo casada 32 años. Tristeza persistente, llanto frecuente, culpa por no haber notado señales, insomnio y aislamiento social. Sin ideación suicida.',
@@ -55,6 +56,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Consultorio sereno, luz de mañana',
     paciente: {
       nombre: 'Andrés Felipe',
+      foto: '/pacientes/andres-felipe.webp',
       edad: 34,
       perfil:
         'Contador con preocupación excesiva y difícil de controlar desde hace ocho meses sobre el trabajo, la salud y su familia. Tensión muscular, irritabilidad, fatiga y dificultad para concentrarse.',
@@ -77,6 +79,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Consultorio en penumbra, día nublado',
     paciente: {
       nombre: 'Laura Sofía',
+      foto: '/pacientes/laura-sofia.webp',
       edad: 26,
       perfil:
         'Diseñadora gráfica con tres semanas de ánimo bajo, pérdida de interés, cansancio, alteraciones del sueño y dificultad para concentrarse. Ideación pasiva de muerte ocasional, sin plan ni intención.',
@@ -98,6 +101,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Sala de atención luminosa',
     paciente: {
       nombre: 'Julián David',
+      foto: '/pacientes/julian-david.webp',
       edad: 24,
       perfil:
         'Estudiante de último semestre que llega en plena crisis de pánico: taquicardia, hiperventilación, temblor, mareo y miedo intenso a morir. Segundo episodio en el mes.',
@@ -120,6 +124,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Sala de orientación, luz de atardecer',
     paciente: {
       nombre: 'Carolina',
+      foto: '/pacientes/carolina.webp',
       edad: 35,
       perfil:
         'Administradora con discusiones frecuentes con su pareja por la distribución de las tareas del hogar y la falta de comunicación. Frustración y cansancio emocional, sin violencia en la relación.',
@@ -142,6 +147,7 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
     consultorio: 'Oficina de bienestar universitario',
     paciente: {
       nombre: 'Santiago',
+      foto: '/pacientes/santiago.webp',
       edad: 20,
       perfil:
         'Estudiante de ingeniería en semana de parciales, desbordado por la carga académica. Procrastinación, insomnio, irritabilidad y presión familiar por mantener la beca.',
