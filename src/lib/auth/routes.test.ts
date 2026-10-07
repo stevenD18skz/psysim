@@ -8,6 +8,7 @@ describe('esRutaProtegida', () => {
     '/configuracion/escenario',
     '/simulacion',
     '/simulacion/abc',
+    '/estudiantes',
     '/laboratorio',
     '/laboratorio/npc',
   ])('protege %s', ruta => {
@@ -21,6 +22,7 @@ describe('esRutaProtegida', () => {
     '/configuraciones',
     '/simulacion-demo',
     '/laboratorios',
+    '/estudiantes-publico',
   ])('no protege %s', ruta => {
     expect(esRutaProtegida(ruta)).toBe(false);
   });

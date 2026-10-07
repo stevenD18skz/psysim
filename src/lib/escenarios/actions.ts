@@ -2,6 +2,7 @@
 
 import { requerirDocente } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
+import { type TablesInsert } from '@/types/database.types';
 import {
   comenzarSesionSchema,
   finalizarSesionSchema,
@@ -16,7 +17,8 @@ const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del formulario.';
 const FOREIGN_KEY_VIOLATION = '23503';
 
 /**
- * HU-06 · T04 — Crea el registro de la sesión de simulación (`estado = en_curso`).
+ * HU-06 · T04 — Crea el registro de la sesión de simulación (`estado = en_curso`). Si el
+ * estudiante es nuevo, queda registrado; si ya existía, la sesión se suma a su historial.
  *
  * El `usuario_id` lo asigna la base de datos (`default auth.uid()`) y RLS impide crear
  * sesiones a nombre de otro docente. El prompt enviado se guarda como copia en la sesión.
@@ -31,15 +33,19 @@ export async function iniciarSimulacion(
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
 
+  // `estudiante_id` no se envía: el trigger `sesion_registrar_estudiante` registra (o reconoce)
+  // al estudiante por su código y enlaza la sesión en la misma inserción.
+  const fila: Omit<TablesInsert<'sesion'>, 'estudiante_id'> = {
+    escenario_id: datos.data.escenarioId,
+    codigo_estudiante: datos.data.codigoEstudiante,
+    nombre_estudiante: datos.data.nombreEstudiante,
+    prompt_sistema: datos.data.promptSistema,
+  };
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('sesion')
-    .insert({
-      escenario_id: datos.data.escenarioId,
-      codigo_estudiante: datos.data.codigoEstudiante,
-      nombre_estudiante: datos.data.nombreEstudiante,
-      prompt_sistema: datos.data.promptSistema,
-    })
+    .insert(fila as TablesInsert<'sesion'>)
     .select('id')
     .single();
 

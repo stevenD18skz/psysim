@@ -1,28 +1,17 @@
 // @vitest-environment node
 // (GLTFLoader comprueba `instanceof ArrayBuffer`, que falla entre el realm de Node y el de jsdom.)
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
-import { Box3, type Group } from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { Box3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 
+import { leerGlb } from '../../../test/leer-glb';
+
 import { ACCIONES_NPC, esAccionNpc, metaAccion, METADATOS_ACCIONES } from './acciones';
-import { type GlbCargado } from './cargar-glb';
 import { buscarModeloNpc, CATALOGO_NPC, NPC_POR_DEFECTO, urlModeloNpc } from './catalogo';
 import { ControladorNpc } from './controlador-npc';
 
 /** Huesos que la interfaz y el controlador dan por hechos (cabeza, globo, pose manual…). */
 const HUESOS_BASICOS = ['root', 'hips', 'spine', 'neck', 'head', 'upperArm_R', 'thigh_L'];
-
-/** Lee un GLB de `public/` con el mismo cargador que usa el navegador. */
-async function leerGlb(url: string): Promise<GlbCargado> {
-  const datos = readFileSync(path.join(process.cwd(), 'public', url));
-  const buffer = datos.buffer.slice(datos.byteOffset, datos.byteOffset + datos.byteLength);
-  const gltf = await new GLTFLoader().parseAsync(buffer, '');
-  return { escena: gltf.scene as Group, animaciones: gltf.animations };
-}
 
 describe('acciones del NPC', () => {
   it('cada acción tiene metadatos, en el mismo orden y con una tecla única', () => {

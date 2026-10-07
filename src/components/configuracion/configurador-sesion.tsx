@@ -25,6 +25,8 @@ import { useForm, useWatch } from 'react-hook-form';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
+import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
+import { EstadoEstudiante } from '@/components/configuracion/estado-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -35,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { iniciarSimulacion } from '@/lib/escenarios/actions';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
+import { buscarPorCodigo } from '@/lib/estudiantes/estudiantes';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { promptSchema } from '@/schemas/configuracion.schema';
@@ -47,13 +50,17 @@ import {
   LIMITES,
 } from '@/schemas/configuracion.schema';
 import { useAppStore } from '@/store/app-store-provider';
-import { type EscenarioCatalogo } from '@/types';
+import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 
 interface ConfiguradorSesionProps {
   /** Catálogo oficial y casos propios del docente. */
   escenarios: EscenarioCatalogo[];
   /** Caso que llega preseleccionado (p. ej. recién guardado desde el constructor). */
   casoInicialId?: string | null;
+  /** Estudiantes registrados por el docente, para elegirlos en lugar de escribirlos. */
+  estudiantes?: EstudianteRegistrado[];
+  /** Estudiante que llega preseleccionado (p. ej. desde la página de estudiantes). */
+  estudianteInicial?: EstudianteRegistrado | null;
 }
 
 /**
@@ -61,9 +68,15 @@ interface ConfiguradorSesionProps {
  *
  * 1. El docente elige un caso: uno predefinido o uno de "Mis casos" (un solo caso a la vez).
  * 2. Revisa el perfil del paciente virtual y ajusta su comportamiento (prompt del sistema).
- * 3. Ingresa los datos del estudiante e inicia la sesión, o guarda el ajuste como caso propio.
+ * 3. Elige a un estudiante registrado o escribe sus datos (si es nuevo, queda registrado al
+ *    iniciar) e inicia la sesión, o guarda el ajuste como caso propio.
  */
-export function ConfiguradorSesion({ escenarios, casoInicialId = null }: ConfiguradorSesionProps) {
+export function ConfiguradorSesion({
+  escenarios,
+  casoInicialId = null,
+  estudiantes = [],
+  estudianteInicial = null,
+}: ConfiguradorSesionProps) {
   const router = useRouter();
   const iniciarSesionEnStore = useAppStore(state => state.sesion.iniciar);
   const idGrupo = useId();
@@ -89,8 +102,8 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
     defaultValues: {
       escenarioId: casoInicial?.id ?? '',
       promptSistema: casoInicial?.npc.promptSistema ?? '',
-      codigoEstudiante: '',
-      nombreEstudiante: '',
+      codigoEstudiante: estudianteInicial?.codigo ?? '',
+      nombreEstudiante: estudianteInicial?.nombre ?? '',
     },
   });
 
@@ -102,9 +115,10 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
   const promptPersonalizado = escenario !== null && promptSistema !== escenario.npc.promptSistema;
 
   // Estado de cada paso: completado (✓), actual (el primero pendiente) o pendiente.
+  const codigoValido = codigoEstudianteSchema.safeParse(codigoEstudiante).success;
   const estudianteValido =
-    codigoEstudianteSchema.safeParse(codigoEstudiante).success &&
-    nombreEstudianteSchema.safeParse(nombreEstudiante).success;
+    codigoValido && nombreEstudianteSchema.safeParse(nombreEstudiante).success;
+  const registrado = buscarPorCodigo(estudiantes, codigoEstudiante);
   const estadoPaso1: EstadoPaso = escenario ? 'completado' : 'actual';
   const estadoPaso2: EstadoPaso = !escenario
     ? 'pendiente'
@@ -141,6 +155,12 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
   const onCasoEliminado = (id: string) => {
     if (id === escenarioId) onDeseleccionar();
     router.refresh();
+  };
+
+  const opcionesEstudiante = { shouldDirty: true, shouldValidate: true } as const;
+  const elegirEstudiante = (estudiante: EstudianteRegistrado) => {
+    setValue('codigoEstudiante', estudiante.codigo, opcionesEstudiante);
+    setValue('nombreEstudiante', estudiante.nombre, opcionesEstudiante);
   };
 
   const restablecerPrompt = () => {
@@ -402,9 +422,18 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
           titulo="Datos del estudiante"
           estado={estadoPaso3}
           ultimo
-          descripcion="Quedan registrados en la sesión para el seguimiento de su desempeño."
+          descripcion="Elige a un estudiante que ya practicó o escribe sus datos: queda registrado para el seguimiento de su desempeño."
         >
           <div className="grid gap-4 rounded-2xl border bg-card p-5 shadow-xs sm:grid-cols-2">
+            {estudiantes.length > 0 && (
+              <div className="border-b border-dashed pb-4 sm:col-span-2">
+                <BuscadorEstudiante
+                  estudiantes={estudiantes}
+                  onSeleccionar={elegirEstudiante}
+                  deshabilitado={iniciando}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Label htmlFor="codigoEstudiante">Código institucional</Label>
               <Input
@@ -442,6 +471,12 @@ export function ConfiguradorSesion({ escenarios, casoInicialId = null }: Configu
                 </p>
               )}
             </div>
+            <EstadoEstudiante
+              registrado={registrado}
+              nombre={nombreEstudiante}
+              codigoValido={codigoValido}
+              onUsarNombre={nombre => setValue('nombreEstudiante', nombre, opcionesEstudiante)}
+            />
           </div>
         </Paso>
 

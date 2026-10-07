@@ -19,8 +19,8 @@ const EXPERIMENTOS: Experimento[] = [
     href: '/laboratorio/npc',
     titulo: 'NPC con esqueleto y animaciones',
     descripcion:
-      'Seis personajes low poly en GLB (Tomás, Ernesto, Leo, Lucía, Marina y Rosa), cada uno con su esqueleto y 13 animaciones (reposo, saludar, asentir, pensar, sentarse…), globo de diálogo y pose manual.',
-    estado: 'Prototipo',
+      'Seis personajes low poly en GLB (Tomás, Ernesto, Leo, Lucía, Marina y Rosa), cada uno con su esqueleto y 13 animaciones (reposo, saludar, asentir, pensar, sentarse…), globo de diálogo y pose manual. Ya son los pacientes de la simulación.',
+    estado: 'En la simulación',
   },
 ];
 

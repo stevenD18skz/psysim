@@ -144,6 +144,7 @@ export async function enviarMensaje(
     contenido: datos.data.respuesta_npc,
     timestamp: datos.data.timestamp_respuesta,
     latencia_ms: latencia,
+    ...(datos.data.emocion_npc && { emocion: datos.data.emocion_npc }),
   });
   final.metricas.registrarTokens(datos.data.tokens_entrada, datos.data.tokens_salida);
   final.conversacion.establecerPendiente(null);

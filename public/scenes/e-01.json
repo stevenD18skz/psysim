@@ -32,6 +32,8 @@
     { "id": "libros-mesa", "tipo": "decoracion", "modelo": "muebles/book-stack.glb", "ajuste": { "alto": 0.12 }, "posicion": [0.03, 0.425, -0.66], "rotacion": 20, "colision": false }
   ],
   "npc": {
+    "personaje": "rosa",
+    "alturaAsiento": 0.56,
     "posicion": [0, 0, -1.95],
     "rotacion": 0,
     "postura": "sentado",

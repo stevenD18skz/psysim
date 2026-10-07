@@ -7,9 +7,11 @@ import { type AnimationAction, type Group, LoopRepeat, MathUtils } from 'three';
 
 import { iniciarConversacion, NOMBRE_OBJETO_NPC } from '@/components/3d/interaccion-paciente';
 import { LimiteErrorModelo, useModeloGLB } from '@/components/3d/modelo-glb';
+import { PacientePersonaje } from '@/components/3d/paciente-personaje';
 import { PacienteProcedural } from '@/components/3d/paciente-procedural';
 import { Colisionable } from '@/components/3d/registro-colisiones';
 import { clipParaEstado, DURACION_FUNDIDO_S } from '@/lib/escena/animaciones';
+import { buscarModeloNpc, urlModeloNpc } from '@/lib/npc/catalogo';
 import { type Escena } from '@/schemas/escena.schema';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
 
@@ -57,9 +59,10 @@ function NpcGlbAnimado({ npc, ruta }: { npc: ConfigNpc; ruta: string }) {
 }
 
 /**
- * Paciente virtual posicionado según el JSON de la escena (HU-11 · T02). Usa el GLB si está
- * definido y, si no (o si falla), la figura procedural. Un clic sobre él, estando cerca, inicia
- * la conversación (HU-13 · T01).
+ * Paciente virtual posicionado según el JSON de la escena (HU-11 · T02). En orden de
+ * preferencia usa el personaje del catálogo (`npc.personaje`), un GLB propio (`npc.modelo`) o la
+ * figura procedural, que es también el respaldo si el GLB no carga. Un clic sobre él, estando
+ * cerca, inicia la conversación (HU-13 · T01).
  */
 export function NPCModel({ npc }: { npc: ConfigNpc }) {
   const store = useAppStoreApi();
@@ -90,7 +93,23 @@ export function NPCModel({ npc }: { npc: ConfigNpc }) {
         document.body.style.cursor = '';
       }}
     >
-      {npc.modelo ? (
+      {npc.personaje ? (
+        <LimiteErrorModelo
+          ruta={urlModeloNpc(buscarModeloNpc(npc.personaje))}
+          fallback={procedural}
+        >
+          <Suspense fallback={null}>
+            <Colisionable id="npc">
+              {/* `key`: otro personaje o postura monta un animador nuevo. */}
+              <PacientePersonaje
+                key={`${npc.personaje}-${npc.postura}-${npc.alturaAsiento}-${npc.piernas}`}
+                npc={npc}
+                personaje={buscarModeloNpc(npc.personaje)}
+              />
+            </Colisionable>
+          </Suspense>
+        </LimiteErrorModelo>
+      ) : npc.modelo ? (
         <LimiteErrorModelo ruta={npc.modelo} fallback={procedural}>
           <Suspense fallback={null}>
             {/* Dentro del Suspense: la colisión se calcula cuando el GLB ya está cargado. */}

@@ -42,7 +42,8 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
  *    y corresponder al NPC indicado (404). El prompt del sistema es el de la sesión (el del NPC,
  *    o el personalizado por el docente al configurarla).
  * 4. Llama a la IA con el prompt, el historial y el mensaje (504/502/503 si falla).
- * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con el consumo de tokens.
+ * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con su emoción (para el
+ *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
 export async function POST(request: Request): Promise<Response> {
   const docente = await obtenerSesionDocente();
@@ -139,6 +140,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const cuerpoRespuesta: NpcChatResponse = {
     respuesta_npc: respuesta.texto,
+    emocion_npc: respuesta.emocion,
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: respuesta.tokensEntrada,
     tokens_salida: respuesta.tokensSalida,

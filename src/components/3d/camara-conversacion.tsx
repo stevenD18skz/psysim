@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 
+import { useMedidasPaciente } from '@/components/3d/medidas-paciente';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
 import { encuadreConversacion } from '@/lib/escena/encuadre';
 import { type Escena } from '@/schemas/escena.schema';
@@ -16,22 +17,24 @@ const ARRIBA = new Vector3(0, 1, 0);
 /**
  * HU-13 · T01 — Transición de cámara al conversar: mientras el paciente está en un estado de
  * conversación, lleva la cámara con suavidad (amortiguación exponencial, independiente de los
- * FPS) hasta el punto frente al paciente y la orienta hacia sus ojos.
+ * FPS) hasta el punto frente al paciente y la orienta hacia sus ojos (los reales, si el paciente
+ * es un personaje GLB).
  *
  * Se implementa con interpolación propia en lugar de `CameraControls`: convive con
  * `PointerLockControls` sin que dos controladores se disputen la cámara.
  */
 export function CamaraConversacion({ npc }: { npc: Escena['npc'] }) {
   const conversando = useAppStore(state => estaConversando(state.npc.estado));
+  const alturaOjos = useMedidasPaciente(medidas => medidas.alturaOjos);
 
   const objetivo = useMemo(() => {
-    const { posicion, mirarA } = encuadreConversacion(npc);
+    const { posicion, mirarA } = encuadreConversacion(npc, alturaOjos);
     const destino = new Vector3(...posicion);
     const orientacion = new Quaternion().setFromRotationMatrix(
       new Matrix4().lookAt(destino, new Vector3(...mirarA), ARRIBA)
     );
     return { destino, orientacion };
-  }, [npc]);
+  }, [npc, alturaOjos]);
 
   useFrame(({ camera }, delta) => {
     if (!conversando) return;

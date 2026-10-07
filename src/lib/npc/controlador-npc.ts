@@ -1,6 +1,5 @@
 import {
   type AnimationAction,
-  AnimationClip,
   AnimationMixer,
   type Bone,
   Box3,
@@ -17,14 +16,13 @@ import {
   type PerspectiveCamera,
   type Skeleton,
   SkeletonHelper,
-  SkinnedMesh,
   Sphere,
   Vector3,
 } from 'three';
-import { clone as clonarConEsqueleto } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 import { type AccionNpc, type MetaAccion, metaAccion, METADATOS_ACCIONES } from './acciones';
 import { type GlbCargado } from './cargar-glb';
+import { RigNpc } from './rig';
 
 export type InterruptorNpc = 'esqueleto' | 'malla' | 'pasear' | 'autogirar';
 export type EjeRotacion = 'x' | 'y' | 'z';
@@ -82,16 +80,11 @@ const ATAJOS_INTERRUPTORES: Readonly<Record<string, InterruptorNpc>> = {
   G: 'autogirar',
 };
 
-/** Los materiales de una malla, siempre como arreglo. */
-function listaMateriales(malla: Mesh): Material[] {
-  return Array.isArray(malla.material) ? malla.material : [malla.material];
-}
-
 /**
  * Controlador imperativo de un NPC cargado desde un GLB con esqueleto y animaciones.
  *
- * Es dueño de su copia del modelo (clonada con `SkeletonUtils` y con materiales propios, así el
- * GLB original queda intacto en caché), del mixer, de las ayudas visuales del esqueleto y del
+ * Es dueño de su copia del modelo (`RigNpc`: clonada y con materiales propios, así el GLB
+ * original queda intacto en caché), del mixer, de las ayudas visuales del esqueleto y del
  * estado que cambia en cada fotograma. Expone una pequeña tienda (`suscribir` / `obtenerEstado`)
  * para que React lea el estado de la interfaz con `useSyncExternalStore`. Los métodos son
  * propiedades flecha: se pueden pasar directamente como callbacks.
@@ -108,12 +101,9 @@ export class ControladorNpc {
   readonly esqueletoVisible: SkeletonHelper;
   readonly articulaciones: Group;
 
-  private readonly mallas: Mesh[];
+  private readonly rig: RigNpc;
   private readonly esqueleto: Skeleton;
-  private readonly hueso: Map<string, Bone>;
   private readonly cabeza: Bone | undefined;
-  private readonly materiales: Material[];
-  private readonly materialesPorMalla: Map<Mesh, Material[]>;
   private readonly posicionesReposo: Map<Bone, Vector3>;
   private readonly mixer: AnimationMixer;
   private readonly acciones = new Map<AccionNpc, AnimationAction>();
@@ -141,40 +131,19 @@ export class ControladorNpc {
   private estado: EstadoNpc;
   private readonly oyentes = new Set<() => void>();
 
-  constructor({ escena, animaciones }: GlbCargado) {
-    const copia = clonarConEsqueleto(escena) as Group;
-    this.modelo = new Group();
-    this.modelo.name = `${escena.name || 'npc'}_laboratorio`;
-    this.modelo.add(copia);
-
-    // Mallas con materiales propios (los del GLB en caché no se tocan).
-    this.mallas = [];
-    this.materialesPorMalla = new Map();
-    copia.traverse(objeto => {
-      if (!(objeto instanceof Mesh)) return;
-      objeto.castShadow = true;
-      objeto.receiveShadow = true;
-      objeto.frustumCulled = false;
-      const propios = listaMateriales(objeto).map(m => m.clone());
-      objeto.material = Array.isArray(objeto.material) ? propios : propios[0]!;
-      this.mallas.push(objeto);
-      this.materialesPorMalla.set(objeto, propios);
-    });
-    this.materiales = [...this.materialesPorMalla.values()].flat();
-
-    const conPiel = this.mallas.find((m): m is SkinnedMesh => m instanceof SkinnedMesh);
-    if (!conPiel) throw new Error('El GLB no tiene una malla con esqueleto (SkinnedMesh).');
-    this.esqueleto = conPiel.skeleton;
-    this.huesos = this.esqueleto.bones;
-    this.hueso = new Map(this.huesos.map(b => [b.name, b]));
-    this.cabeza = this.hueso.get('head');
+  constructor(glb: GlbCargado) {
+    this.rig = new RigNpc(glb, 'laboratorio');
+    this.modelo = this.rig.raiz;
+    this.esqueleto = this.rig.esqueleto;
+    this.huesos = this.rig.huesos;
+    this.cabeza = this.rig.hueso('head');
     this.nombresHuesos = this.huesos.map(b => b.name).filter(n => n !== 'root');
     this.posicionesReposo = new Map(this.huesos.map(b => [b, b.position.clone()]));
 
     // Una acción por clip del GLB con nombre conocido.
-    this.mixer = new AnimationMixer(copia);
+    this.mixer = new AnimationMixer(this.rig.copia);
     for (const meta of METADATOS_ACCIONES) {
-      const clip = AnimationClip.findByName(animaciones, meta.id);
+      const clip = this.rig.clips.get(meta.id);
       if (!clip) continue;
       const accion = this.mixer.clipAction(clip);
       if (meta.bucle) {
@@ -188,7 +157,7 @@ export class ControladorNpc {
     this.accionesDisponibles = new Set(this.acciones.keys());
 
     // Ayudas del esqueleto.
-    this.esqueletoVisible = new SkeletonHelper(conPiel);
+    this.esqueletoVisible = new SkeletonHelper(this.rig.mallaConPiel);
     const lineas = this.esqueletoVisible.material as MeshBasicMaterial;
     lineas.vertexColors = false;
     lineas.color = new Color(COLOR_ACENTO);
@@ -258,8 +227,7 @@ export class ControladorNpc {
       this.materialArticulacion.dispose();
       this.materialSeleccion.dispose();
       this.materialOculto.dispose();
-      this.materiales.forEach(m => m.dispose());
-      this.esqueleto.dispose();
+      this.rig.liberar();
     };
   };
 
@@ -314,7 +282,7 @@ export class ControladorNpc {
     if (clave === 'esqueleto') {
       this.esqueletoVisible.visible = valor;
       this.articulaciones.visible = valor;
-      for (const m of this.materiales) {
+      for (const m of this.rig.materiales) {
         m.transparent = valor;
         m.opacity = valor ? 0.35 : 1;
         m.depthWrite = !valor;
@@ -322,8 +290,8 @@ export class ControladorNpc {
       }
     }
     if (clave === 'malla') {
-      for (const malla of this.mallas) {
-        const propios = this.materialesPorMalla.get(malla)!;
+      for (const malla of this.rig.mallas) {
+        const propios = this.rig.materialesPorMalla.get(malla)!;
         const visibles = valor ? propios : propios.map((): Material => this.materialOculto);
         malla.material = Array.isArray(malla.material) ? visibles : visibles[0]!;
       }
@@ -339,7 +307,7 @@ export class ControladorNpc {
 
   // ---------- Pose manual ----------
   private leerRotacion(nombre: string): Record<EjeRotacion, number> {
-    const r = this.hueso.get(nombre)?.rotation;
+    const r = this.rig.hueso(nombre)?.rotation;
     if (!r) return { x: 0, y: 0, z: 0 };
     return {
       x: Math.round(r.x / GRADOS),
@@ -378,7 +346,7 @@ export class ControladorNpc {
     const yaEnPose = this.estado.modoPose;
     this.entrarEnPose();
     const { huesoPose } = this.estado;
-    const hueso = this.hueso.get(huesoPose);
+    const hueso = this.rig.hueso(huesoPose);
     if (!hueso) return;
     // Al entrar en pose, los demás ejes parten de la pose en que quedó la animación.
     const base = yaEnPose ? this.estado.rotacion : this.leerRotacion(huesoPose);
@@ -388,7 +356,7 @@ export class ControladorNpc {
 
   reiniciarHueso = () => {
     this.entrarEnPose();
-    this.hueso.get(this.estado.huesoPose)?.rotation.set(0, 0, 0);
+    this.rig.hueso(this.estado.huesoPose)?.rotation.set(0, 0, 0);
     this.actualizar({ rotacion: { x: 0, y: 0, z: 0 } });
   };
 

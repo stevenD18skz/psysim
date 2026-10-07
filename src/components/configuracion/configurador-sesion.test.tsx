@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { guardarVariante } from '@/lib/casos/actions';
 import { iniciarSimulacion } from '@/lib/escenarios/actions';
 import { AppStoreProvider, useAppStore } from '@/store/app-store-provider';
-import { type EscenarioCatalogo } from '@/types';
+import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 
 import { ConfiguradorSesion } from './configurador-sesion';
 
@@ -83,10 +83,35 @@ function EspiaStore() {
   return null;
 }
 
-function renderizar(escenarios: EscenarioCatalogo[] = [E01, E02], casoInicialId?: string) {
+const ANA: EstudianteRegistrado = {
+  id: '55555555-5555-4555-8555-555555555555',
+  codigo: '202012345',
+  nombre: 'Ana María Pérez',
+  creadoEn: '2026-10-01T15:00:00.000Z',
+  metricas: {
+    sesiones: 3,
+    finalizadas: 2,
+    segundosPractica: 80 * 60,
+    casos: 2,
+    intervenciones: 24,
+    ultimaSesion: '2026-10-05T15:00:00.000Z',
+  },
+};
+
+function renderizar(
+  escenarios: EscenarioCatalogo[] = [E01, E02],
+  casoInicialId?: string,
+  estudiantes: EstudianteRegistrado[] = [],
+  estudianteInicial: EstudianteRegistrado | null = null
+) {
   return render(
     <AppStoreProvider>
-      <ConfiguradorSesion escenarios={escenarios} casoInicialId={casoInicialId} />
+      <ConfiguradorSesion
+        escenarios={escenarios}
+        casoInicialId={casoInicialId}
+        estudiantes={estudiantes}
+        estudianteInicial={estudianteInicial}
+      />
       <EspiaStore />
     </AppStoreProvider>
   );
@@ -271,5 +296,60 @@ describe('ConfiguradorSesion', () => {
       prompt: 'Un prompt ajustado por el docente para el grupo A.',
     });
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  describe('estudiantes registrados', () => {
+    it('sin estudiantes registrados no muestra el buscador y avisa que se registrará', async () => {
+      const usuario = userEvent.setup();
+      renderizar();
+
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      await usuario.type(screen.getByLabelText('Código institucional'), '202099999');
+      expect(screen.getByText(/Estudiante nuevo: quedará registrado/)).toBeVisible();
+    });
+
+    it('busca por nombre y, al elegirlo, llena código y nombre con su historial', async () => {
+      const usuario = userEvent.setup();
+      renderizar([E01, E02], undefined, [ANA]);
+
+      await usuario.type(screen.getByRole('combobox'), 'perez');
+      await usuario.click(screen.getByRole('option', { name: /Ana María Pérez/ }));
+
+      expect(screen.getByLabelText('Código institucional')).toHaveValue('202012345');
+      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
+      expect(screen.getByText('Estudiante registrado')).toBeVisible();
+      expect(screen.getByText('3 sesiones')).toBeVisible();
+      expect(screen.getByText('1 h 20 min de práctica')).toBeVisible();
+    });
+
+    it('se elige con el teclado: flechas y Enter (sin enviar el formulario)', async () => {
+      const usuario = userEvent.setup();
+      renderizar([E01, E02], undefined, [ANA]);
+
+      await usuario.click(screen.getByRole('combobox'));
+      await usuario.keyboard('2020{ArrowDown}{Enter}');
+
+      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
+      expect(mockIniciar).not.toHaveBeenCalled();
+    });
+
+    it('si el código ya existe con otro nombre, ofrece usar el registrado', async () => {
+      const usuario = userEvent.setup();
+      renderizar([E01, E02], undefined, [ANA]);
+
+      await usuario.type(screen.getByLabelText('Código institucional'), '202012345');
+      await usuario.type(screen.getByLabelText('Nombre completo'), 'Ana Perez');
+      expect(screen.getByText(/se corregirá el nombre registrado/)).toBeVisible();
+
+      await usuario.click(screen.getByRole('button', { name: /Usar «Ana María Pérez»/ }));
+      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
+    });
+
+    it('llega con un estudiante preseleccionado desde la página de estudiantes', () => {
+      renderizar([E01, E02], undefined, [ANA], ANA);
+
+      expect(screen.getByLabelText('Código institucional')).toHaveValue('202012345');
+      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
+    });
   });
 });

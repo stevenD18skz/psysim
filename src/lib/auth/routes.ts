@@ -14,7 +14,12 @@ export const RUTA_INICIO_DOCENTE = '/configuracion' satisfies Route;
 export const RUTA_ACCESO_DENEGADO = '/acceso-denegado' satisfies Route;
 
 /** Prefijos que exigen una sesión de docente. Incluyen todas sus subrutas. */
-export const PREFIJOS_PROTEGIDOS = ['/configuracion', '/simulacion', '/laboratorio'] as const;
+export const PREFIJOS_PROTEGIDOS = [
+  '/configuracion',
+  '/simulacion',
+  '/estudiantes',
+  '/laboratorio',
+] as const;
 
 /** Parámetro de búsqueda con la ruta a la que volver tras iniciar sesión. */
 export const PARAM_SIGUIENTE = 'siguiente';

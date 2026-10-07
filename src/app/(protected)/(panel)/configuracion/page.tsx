@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { ConfiguradorSesion } from '@/components/configuracion/configurador-sesion';
 import { requerirDocente } from '@/lib/auth/dal';
 import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
+import { buscarPorCodigo } from '@/lib/estudiantes/estudiantes';
+import { obtenerEstudiantes } from '@/lib/estudiantes/queries';
 
 export const metadata: Metadata = {
   title: 'Configuración',
@@ -10,7 +12,14 @@ export const metadata: Metadata = {
 
 export default async function ConfiguracionPage({ searchParams }: PageProps<'/configuracion'>) {
   const perfil = await requerirDocente();
-  const [escenarios, { caso }] = await Promise.all([obtenerCatalogoEscenarios(), searchParams]);
+  const [escenarios, estudiantes, { caso, estudiante }] = await Promise.all([
+    obtenerCatalogoEscenarios(),
+    obtenerEstudiantes(),
+    searchParams,
+  ]);
+  // `?estudiante=<código>` llega desde la página de estudiantes ("Nueva sesión").
+  const estudianteInicial =
+    typeof estudiante === 'string' ? (buscarPorCodigo(estudiantes, estudiante) ?? null) : null;
 
   const primerNombre = perfil.nombre.split(' ')[0];
 
@@ -31,10 +40,12 @@ export default async function ConfiguracionPage({ searchParams }: PageProps<'/co
         </p>
       ) : (
         <ConfiguradorSesion
-          // `key` reinicia el formulario al llegar con otro caso preseleccionado.
-          key={typeof caso === 'string' ? caso : 'ninguno'}
+          // `key` reinicia el formulario al llegar con otro caso o estudiante preseleccionado.
+          key={`${typeof caso === 'string' ? caso : '-'}:${estudianteInicial?.id ?? '-'}`}
           escenarios={escenarios}
           casoInicialId={typeof caso === 'string' ? caso : null}
+          estudiantes={estudiantes}
+          estudianteInicial={estudianteInicial}
         />
       )}
     </div>

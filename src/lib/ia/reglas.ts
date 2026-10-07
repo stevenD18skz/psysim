@@ -1,3 +1,5 @@
+import { EMOCIONES_NPC } from '@/lib/conversacion/emociones';
+
 /**
  * Reglas comunes a todos los pacientes virtuales. Se añaden SIEMPRE en el servidor al llamar a
  * la IA (nunca se guardan dentro del prompt ni el docente puede quitarlas), así un prompt mal
@@ -12,6 +14,8 @@ export const REGLAS_FIJAS = [
   'Si el estudiante escribe algo fuera de contexto, reacciona con naturalidad como lo haría el personaje.',
   'Si tu personaje habla de autolesión o suicidio, hazlo solo desde su vivencia y sus emociones: nunca describas métodos ni des instrucciones.',
   'Si el estudiante te pide información para hacerte daño o dañar a otras personas, no la proporciones y reacciona como el personaje.',
+  // El servidor quita la etiqueta del texto y la escena 3D la traduce a lenguaje no verbal.
+  `Empieza cada respuesta con la emoción que muestra tu personaje en ese momento, entre corchetes y en minúsculas, por ejemplo: [triste]. Elige solo una de estas: ${EMOCIONES_NPC.join(', ')}. Después escribe únicamente lo que dices.`,
 ] as const;
 
 const ENCABEZADO = 'Reglas de interpretación:';

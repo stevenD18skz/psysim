@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { IDS_MODELO_NPC } from '@/lib/npc/catalogo';
+
 /**
  * HU-09 · T01 — Estructura del archivo JSON que describe la escena 3D de un escenario
  * (public/scenes/e-XX.json). La documentación de cada campo está en public/scenes/README.md.
@@ -108,12 +110,29 @@ export const escenaSchema = z
       .optional(),
     mobiliario: z.array(muebleSchema).max(80),
     npc: z.object({
+      /**
+       * Personaje del catálogo (`src/lib/npc/catalogo.ts`): GLB con esqueleto, 13 animaciones y
+       * lenguaje no verbal según el estado y la emoción. Tiene prioridad sobre `modelo`; si no
+       * carga, se usa el paciente procedural.
+       */
+      personaje: z.enum(IDS_MODELO_NPC).optional(),
+      /** GLB propio con clips `Idle`, `Pensando` y `Hablando` (ver `animaciones`). */
       modelo: rutaModeloSchema.optional(),
       ajuste: ajusteModeloSchema.optional(),
       posicion: vector3,
       rotacion: grados,
       escala: escala.default(1),
       postura: z.enum(['sentado', 'de-pie']).default('sentado'),
+      /**
+       * Altura (m) del asiento donde se sienta el personaje: 0,56 en el sillón y el sofá
+       * procedurales, 0,49 en la silla.
+       */
+      alturaAsiento: z.number().min(0.2).max(1.2).default(0.56),
+      /**
+       * Piernas del personaje sentado: `estiradas` sobre el cojín (sillones y sofás profundos) o
+       * `dobladas`, colgando por el borde (sillas).
+       */
+      piernas: z.enum(['estiradas', 'dobladas']).default('estiradas'),
       /**
        * Nombres de los clips del GLB para cada fase de la conversación (HU-11 · T03, HU-15).
        * Si falta un clip se usa `idle`; si el GLB no trae ninguno, se anima de forma procedural.
