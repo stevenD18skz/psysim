@@ -7,6 +7,18 @@ const CARACTERES_POR_SEGUNDO = 45;
 /** Duración máxima: las respuestas largas se aceleran para no hacer esperar al estudiante. */
 const DURACION_MAXIMA_S = 4;
 
+/**
+ * Segundos que tarda en mostrarse un texto con la escritura progresiva. La voz del paciente
+ * (balbuceo) la usa para durar lo mismo que el texto en pantalla.
+ */
+export function duracionEscritura(texto: string): number {
+  return texto.length / velocidadEscritura(texto);
+}
+
+function velocidadEscritura(texto: string): number {
+  return Math.max(CARACTERES_POR_SEGUNDO, texto.length / DURACION_MAXIMA_S);
+}
+
 function prefiereMenosMovimiento(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -35,7 +47,7 @@ export function useTextoProgresivo(texto: string, activo: boolean, alTerminar: (
       return () => cancelAnimationFrame(cuadro);
     }
 
-    const velocidad = Math.max(CARACTERES_POR_SEGUNDO, texto.length / DURACION_MAXIMA_S);
+    const velocidad = velocidadEscritura(texto);
     const inicio = performance.now();
     const avanzar = () => {
       const visibles = Math.min(

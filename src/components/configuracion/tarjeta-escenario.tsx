@@ -1,4 +1,5 @@
 import { Check, Coffee, HeartPulse, Target } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 import {
   ETIQUETA_CATEGORIA,
@@ -17,13 +18,17 @@ interface TarjetaEscenarioProps {
   /** `name` del grupo de radios: un único escenario seleccionado a la vez. */
   nombreGrupo: string;
   describedBy?: string;
+  /** Acciones del caso (editar, eliminar…), en el pie de la tarjeta. */
+  acciones?: ReactNode;
 }
 
 /**
  * HU-06 · T02 — Tarjeta de un escenario del catálogo.
  *
  * Es un `<input type="radio">` nativo envuelto en un `<label>`: el grupo se recorre con
- * las flechas del teclado y los lectores de pantalla lo anuncian como opción única.
+ * las flechas del teclado y los lectores de pantalla lo anuncian como opción única. Las
+ * `acciones` van en un pie dentro del mismo marco pero fuera del `<label>`: un enlace o botón
+ * dentro de él sería HTML inválido y cada clic marcaría además el caso.
  */
 export function TarjetaEscenario({
   escenario,
@@ -32,103 +37,119 @@ export function TarjetaEscenario({
   onDeseleccionar,
   nombreGrupo,
   describedBy,
+  acciones,
 }: TarjetaEscenarioProps) {
   const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
   const IconoCategoria = escenario.categoria === 'clinico' ? HeartPulse : Coffee;
   const idBase = `escenario-${escenario.codigo.toLowerCase()}`;
 
   return (
-    <label
-      data-testid={`escenario-${escenario.codigo}`}
+    <div
       className={cn(
-        'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs transition-[border-color,box-shadow,background-color]',
+        'flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,background-color]',
         'hover:border-primary/40 hover:shadow-md',
-        'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
+        // Solo el foco del radio resalta la tarjeta; el de las acciones lleva su propio anillo.
+        'has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50',
         seleccionado && 'border-primary bg-accent/50 shadow-md ring-1 ring-primary'
       )}
     >
-      <input
-        type="radio"
-        name={nombreGrupo}
-        value={escenario.id}
-        checked={seleccionado}
-        onChange={() => onSeleccionar(escenario)}
-        // Un radio nativo no dispara `change` al pulsar el ya marcado: aquí se usa para deseleccionar.
-        onClick={() => {
-          if (seleccionado) onDeseleccionar();
-        }}
-        aria-labelledby={`${idBase}-titulo`}
-        aria-describedby={[`${idBase}-detalle`, describedBy].filter(Boolean).join(' ')}
-        className="sr-only"
-      />
-
-      <div className="flex items-center gap-2">
-        {escenario.propio ? (
-          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            Propio
-          </span>
-        ) : (
-          <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
-            {escenario.codigo}
-          </span>
-        )}
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-            escenario.categoria === 'clinico'
-              ? 'bg-accent text-accent-foreground'
-              : 'bg-sage text-sage-foreground'
-          )}
-        >
-          <IconoCategoria className="size-3" aria-hidden />
-          {ETIQUETA_CATEGORIA[escenario.categoria]}
-        </span>
-        <span
-          aria-hidden
-          className={cn(
-            'ml-auto flex size-6 items-center justify-center rounded-full border transition-colors',
-            seleccionado
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border bg-background text-transparent'
-          )}
-        >
-          <Check className="size-3.5" />
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-semibold">
-          {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
-          {escenario.titulo}
-        </h3>
-        <p className="line-clamp-3 text-sm text-muted-foreground">{escenario.descripcion}</p>
-      </div>
-
-      <dl
-        id={`${idBase}-detalle`}
-        className="mt-auto flex flex-col gap-2 border-t border-dashed pt-3 text-sm"
+      <label
+        data-testid={`escenario-${escenario.codigo}`}
+        className="group relative flex flex-1 cursor-pointer flex-col gap-3 p-5"
       >
+        <input
+          type="radio"
+          name={nombreGrupo}
+          value={escenario.id}
+          checked={seleccionado}
+          onChange={() => onSeleccionar(escenario)}
+          // Un radio nativo no dispara `change` al pulsar el ya marcado: aquí se usa para deseleccionar.
+          onClick={() => {
+            if (seleccionado) onDeseleccionar();
+          }}
+          aria-labelledby={`${idBase}-titulo`}
+          aria-describedby={[`${idBase}-detalle`, describedBy].filter(Boolean).join(' ')}
+          className="sr-only"
+        />
+
         <div className="flex items-center gap-2">
-          <dt className="sr-only">Competencia central</dt>
-          <Target className="size-4 shrink-0 text-primary" aria-hidden />
-          <dd className="font-medium">{escenario.competenciaCentral}</dd>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <dt className="sr-only">Nivel de complejidad</dt>
-          <span className="flex gap-0.5" aria-hidden>
-            {[1, 2, 3].map(paso => (
-              <span
-                key={paso}
-                className={cn(
-                  'h-2.5 w-1.5 rounded-full',
-                  paso <= nivel ? 'bg-primary' : 'bg-border'
-                )}
-              />
-            ))}
+          {escenario.propio ? (
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              Propio
+            </span>
+          ) : (
+            <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground">
+              {escenario.codigo}
+            </span>
+          )}
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+              escenario.categoria === 'clinico'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-sage text-sage-foreground'
+            )}
+          >
+            <IconoCategoria className="size-3" aria-hidden />
+            {ETIQUETA_CATEGORIA[escenario.categoria]}
           </span>
-          <dd>Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}</dd>
+          <span
+            aria-hidden
+            className={cn(
+              'ml-auto flex size-6 items-center justify-center rounded-full border transition-colors',
+              seleccionado
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-background text-transparent'
+            )}
+          >
+            <Check className="size-3.5" />
+          </span>
         </div>
-      </dl>
-    </label>
+
+        <div className="flex flex-col gap-1">
+          <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-semibold">
+            {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
+            {escenario.titulo}
+          </h3>
+          <p className="line-clamp-3 text-sm text-muted-foreground">{escenario.descripcion}</p>
+        </div>
+
+        <dl
+          id={`${idBase}-detalle`}
+          className="mt-auto flex flex-col gap-2 border-t border-dashed pt-3 text-sm"
+        >
+          <div className="flex items-center gap-2">
+            <dt className="sr-only">Competencia central</dt>
+            <Target className="size-4 shrink-0 text-primary" aria-hidden />
+            <dd className="font-medium">{escenario.competenciaCentral}</dd>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <dt className="sr-only">Nivel de complejidad</dt>
+            <span className="flex gap-0.5" aria-hidden>
+              {[1, 2, 3].map(paso => (
+                <span
+                  key={paso}
+                  className={cn(
+                    'h-2.5 w-1.5 rounded-full',
+                    paso <= nivel ? 'bg-primary' : 'bg-border'
+                  )}
+                />
+              ))}
+            </span>
+            <dd>Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}</dd>
+          </div>
+        </dl>
+      </label>
+      {acciones && (
+        <div
+          className={cn(
+            'flex min-h-11 items-center gap-1 border-t px-2 py-1.5 transition-colors',
+            seleccionado ? 'border-primary/30 bg-card/60' : 'bg-muted/30'
+          )}
+        >
+          {acciones}
+        </div>
+      )}
+    </div>
   );
 }

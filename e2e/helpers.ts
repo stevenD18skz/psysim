@@ -15,7 +15,7 @@ export const hayCredenciales = Boolean(docente.correo && docente.contrasena);
 export async function iniciarSesion(page: Page, correo: string, contrasena: string) {
   await page.goto('/login');
   await page.getByLabel('Correo institucional').fill(correo);
-  await page.getByLabel('Contraseña').fill(contrasena);
+  await page.getByLabel('Contraseña', { exact: true }).fill(contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 }
 

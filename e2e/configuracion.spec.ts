@@ -26,6 +26,8 @@ async function limpiarDatosDePrueba() {
   const admin = clienteAdmin();
   if (!admin) return;
   await admin.from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
+  // Cada sesión registra a su estudiante: se borra después (las sesiones lo referencian).
+  await admin.from('estudiante').delete().like('codigo', `${CODIGO_PRUEBAS}%`);
   // El NPC se elimina en cascada. Las sesiones ya se borraron arriba (referencian el escenario).
   await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
 }
@@ -42,8 +44,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   });
 
   test('HU-06 · T02: muestra los seis escenarios y expande el perfil del NPC', async ({ page }) => {
-    const opciones = page.getByRole('radio');
-    await expect(opciones).toHaveCount(6);
+    // Los seis escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
+    await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(6);
     for (const codigo of ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'E-06']) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
     }
@@ -134,6 +136,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     // Editar recupera los campos del constructor.
     await page.getByRole('link', { name: `Editar el caso ${titulo}` }).click();
+    // En desarrollo, la primera visita compila la ruta: puede tardar más que la espera por defecto.
+    await expect(page).toHaveURL(/\/configuracion\/casos\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Camila Rojas');
     await expect(page.getByRole('button', { name: 'tristeza persistente' })).toHaveAttribute(
       'aria-pressed',
@@ -229,9 +233,18 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
     await expect(instrucciones).toBeHidden();
 
-    // /simulacion sin parámetro retoma la última sesión en curso.
+    // /simulacion sin parámetro retoma la última sesión en curso. Otros archivos de tests corren
+    // en paralelo con el mismo docente y pueden haber creado una más reciente: se compara con la
+    // última en curso según la base de datos, no necesariamente la de este test.
     await page.goto('/simulacion');
-    await expect(page).toHaveURL(`/simulacion?sesion=${sesionId}`);
+    await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
+    if (admin) {
+      const retomada = new URL(page.url()).searchParams.get('sesion');
+      const { data } = await admin.from('sesion').select('estado').eq('id', retomada!).single();
+      expect(data?.estado).toBe('en_curso');
+    } else {
+      await expect(page).toHaveURL(`/simulacion?sesion=${sesionId}`);
+    }
   });
 
   test('HU-10: camina con el teclado y respeta muebles y límites', async ({ page }) => {

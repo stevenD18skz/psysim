@@ -27,21 +27,31 @@ export function direccionNpc(rotacionGrados: number): [number, number] {
  * HU-13 · T01 — Encuadre de la cámara durante la conversación: el estudiante se "sienta"
  * frente al paciente (ojos a 1,25 m si el paciente está sentado) y lo mira ligeramente por
  * debajo de los ojos, para que su rostro quede visible sobre el panel de conversación.
+ *
+ * `alturaOjosPaciente` es la altura real de los ojos del personaje cargado; sin ella se usa la
+ * aproximada según la postura.
  */
-export function encuadreConversacion(npc: ConfigNpc): {
+export function encuadreConversacion(
+  npc: ConfigNpc,
+  alturaOjosPaciente?: number | null
+): {
   posicion: Vector3Tuple;
   mirarA: Vector3Tuple;
 } {
   const [x, , z] = npc.posicion;
-  const alturaCabeza = alturaCabezaNpc(npc.postura);
+  const alturaCabeza = alturaOjosPaciente ?? alturaCabezaNpc(npc.postura);
   const mirarA: Vector3Tuple = [x, alturaCabeza - DESCENSO_MIRADA, z];
 
   if (npc.puntoConversacion) return { posicion: npc.puntoConversacion, mirarA };
 
   const [dx, dz] = direccionNpc(npc.rotacion);
-  const alturaOjos = npc.postura === 'sentado' ? 1.25 : 1.6;
+  const alturaOjosEstudiante = npc.postura === 'sentado' ? 1.25 : 1.6;
   return {
-    posicion: [x + dx * DISTANCIA_CONVERSACION, alturaOjos, z + dz * DISTANCIA_CONVERSACION],
+    posicion: [
+      x + dx * DISTANCIA_CONVERSACION,
+      alturaOjosEstudiante,
+      z + dz * DISTANCIA_CONVERSACION,
+    ],
     mirarA,
   };
 }

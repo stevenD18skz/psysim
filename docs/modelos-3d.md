@@ -8,7 +8,8 @@ escenario. Cubre HU-09 (carga del escenario) y prepara HU-11/HU-15 (NPC animado,
 ```
 public/models/
 ├── muebles/   → mobiliario y decoración (sofás, plantas, lámparas, cuadros…)
-├── npcs/      → pacientes virtuales (un GLB por personaje)
+├── personajes/ → pacientes y NPC con esqueleto y 13 animaciones (servidos desde public, §4)
+├── npcs/      → GLB estáticos antiguos (sin esqueleto; ya no los usa ninguna escena)
 └── entornos/  → (opcional) una sala completa en un solo GLB
 ```
 
@@ -46,17 +47,17 @@ Validado por `src/schemas/escena.schema.ts` (un test comprueba los seis archivos
 metros, eje Y arriba, suelo en y = 0, sala centrada en el origen; el estudiante entra por +Z y el
 paciente está hacia -Z. Rotaciones en grados.
 
-| Campo                 | Descripción                                                                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sala`                | Medidas y colores de la sala procedural (suelo, paredes, friso, techo).                                                                             |
-| `entorno.modelo`      | (Opcional) GLB de la sala completa; reemplaza la sala procedural.                                                                                   |
-| `mobiliario[]`        | Muebles: `id`, `tipo`, `posicion`, `rotacion`, `escala`, `color`, `colision`.                                                                       |
-| `mobiliario[].modelo` | (Opcional) GLB del mueble. Sin él —o si falla— se dibuja la versión procedural del `tipo`.                                                          |
-| `mobiliario[].ajuste` | `{ "alto": m }` o `{ "ancho": m }` y `girar` (°) para normalizar GLB de terceros.                                                                   |
-| `npc`                 | Posición/rotación del paciente, `postura` (`sentado`/`de-pie`), `modelo`, `animaciones` (clips `idle`/`pensando`/`hablando`) y `puntoConversacion`. |
-| `camara`              | Posición inicial de los ojos del estudiante, punto al que mira y `fov`.                                                                             |
-| `navegacion`          | `limites` (min/max por eje), `radioJugador` y `velocidad` (m/s).                                                                                    |
-| `iluminacion`         | Color de fondo, luz ambiental, hemisférica, direccional (sombras) y lámparas.                                                                       |
+| Campo                 | Descripción                                                                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sala`                | Medidas y colores de la sala procedural (suelo, paredes, friso, techo).                                                                                                  |
+| `entorno.modelo`      | (Opcional) GLB de la sala completa; reemplaza la sala procedural.                                                                                                        |
+| `mobiliario[]`        | Muebles: `id`, `tipo`, `posicion`, `rotacion`, `escala`, `color`, `colision`.                                                                                            |
+| `mobiliario[].modelo` | (Opcional) GLB del mueble. Sin él —o si falla— se dibuja la versión procedural del `tipo`.                                                                               |
+| `mobiliario[].ajuste` | `{ "alto": m }` o `{ "ancho": m }` y `girar` (°) para normalizar GLB de terceros.                                                                                        |
+| `npc`                 | Posición/rotación del paciente, `personaje` (§4), `postura` (`sentado`/`de-pie`), `alturaAsiento`, `piernas`, `modelo`/`animaciones` (GLB propio) y `puntoConversacion`. |
+| `camara`              | Posición inicial de los ojos del estudiante, punto al que mira y `fov`.                                                                                                  |
+| `navegacion`          | `limites` (min/max por eje), `radioJugador` y `velocidad` (m/s).                                                                                                         |
+| `iluminacion`         | Color de fondo, luz ambiental, hemisférica, direccional (sombras) y lámparas.                                                                                            |
 
 Tipos de mueble con versión procedural: `sofa`, `sillon`, `silla`, `mesa-centro`,
 `mesa-auxiliar`, `escritorio`, `estanteria`, `planta`, `lampara-pie`, `alfombra`, `cuadro`,
@@ -80,40 +81,83 @@ círculo de radio `radioJugador` y se desliza a lo largo de los obstáculos. Se 
 raycasting contra la malla porque funciona igual con muebles procedurales y GLB, y cuesta O(n)
 por fotograma con n ≈ 15.
 
-## 4. Pacientes virtuales: animaciones (necesario para el Sprint 3)
+## 4. Pacientes virtuales: personajes con animaciones
 
-Los 12 personajes de `public/models/npcs/` **no tienen esqueleto ni animaciones** (están en
-pose T). Para que el paciente pueda sentarse y reaccionar (HU-11 · T03, HU-15) hay que riggearlos
-y añadirles animaciones. Con Mixamo (gratuito) toma ~10 minutos por personaje:
+Los pacientes son los personajes de `public/models/personajes/` (los mismos del laboratorio,
+`/laboratorio/npc`): GLB low poly con el mismo esqueleto y 13 clips (`idle`, `think`, `wave`,
+`yes`, `no`, `sit`…). El catálogo está en `src/lib/npc/catalogo.ts` y cada escena elige uno con
+`npc.personaje`. Se sirven desde `public` (~350 KB cada uno, no pasan por el bucket).
 
-1. **Blender:** _File → Import → glTF_ con el personaje → _File → Export → FBX_.
-2. **[mixamo.com](https://www.mixamo.com):** _Upload Character_ con el FBX → coloca los
-   marcadores (barbilla, muñecas, codos, rodillas, ingle) → _Next_.
-3. Descarga estas animaciones (formato FBX Binary, _In Place_ si aparece):
-   - **Idle**: `Sitting Idle` (o `Idle` para pacientes de pie, como E-04) — con _Skin_.
-   - **Pensando**: `Sitting Thinking` / `Thinking` — _Without Skin_.
-   - **Hablando**: `Sitting Talking` / `Talking` — _Without Skin_.
-4. **Blender:** importa el FBX con skin y luego las demás animaciones; en el _Action Editor_
-   renombra las acciones a `Idle`, `Pensando` y `Hablando`, y márcalas con _Fake User_.
-5. _File → Export → glTF 2.0 (.glb)_ con _Animation → Actions_ activado. Guarda el resultado
-   en `public/models/npcs/<nombre>.glb` (sobrescribe el original) y ejecuta
-   `pnpm modelos:subir npcs`.
+| Escenario | Paciente          | Personaje | Postura                             |
+| --------- | ----------------- | --------- | ----------------------------------- |
+| E-01      | Marta Lucía, 58   | `rosa`    | sentada en sillón                   |
+| E-02      | Andrés Felipe, 34 | `tomas`   | sentado en sillón                   |
+| E-03      | Laura Sofía, 26   | `lucia`   | sentada en sillón                   |
+| E-04      | Julián David, 24  | `tomas`   | de pie                              |
+| E-05      | Carolina, 35      | `marina`  | sentada en sofá                     |
+| E-06      | Santiago, 20      | `leo`     | sentado en silla (piernas dobladas) |
 
-Asignación propuesta de personajes a los escenarios (según edad y estilo):
+**Sentado.** Los clips están hechos de pie, así que la animación va en dos capas
+(`src/lib/npc/postura.ts`): un clip fijo para caderas y piernas sobre el asiento
+(`alturaAsiento`: 0,56 en sillón/sofá, 0,49 en silla; `piernas`: `estiradas` sobre el cojín o
+`dobladas` colgando por el borde) y los clips del torso sin pistas de piernas, con las manos en
+el regazo.
 
-| Escenario | Paciente          | Modelo   |
-| --------- | ----------------- | -------- |
-| E-01      | Marta Lucía, 58   | `rosa`   |
-| E-02      | Andrés Felipe, 34 | `kwame`  |
-| E-03      | Laura Sofía, 26   | `lucia`  |
-| E-04      | Julián David, 24  | `yusuf`  |
-| E-05      | Carolina, 35      | `ingrid` |
-| E-06      | Santiago, 20      | `mateo`  |
+**Lenguaje no verbal** (`src/lib/npc/comportamiento.ts` + `animador-paciente.ts`):
 
-Mientras un personaje no tenga animaciones, la escena usa el paciente procedural (sentado o de
-pie según `npc.postura`), que ya respira de forma sutil.
+| Momento                         | Qué hace el paciente                                               |
+| ------------------------------- | ------------------------------------------------------------------ |
+| El estudiante recorre la sala   | Lo sigue con la mirada si está cerca y delante de él.              |
+| Se sienta frente a él (1.ª vez) | Saluda con la mano (si vuelve, asiente).                           |
+| Escucha (`esperando_input`)     | Busca el contacto visual.                                          |
+| Piensa (`procesando`)           | Mano al mentón, desvía la mirada y baja un poco la cabeza.         |
+| Responde (`respondiendo`)       | Cabeceos al ritmo del habla; asiente o niega si empieza con sí/no. |
+| Fin de la sesión                | Se despide con la mano.                                            |
 
-## 5. Licencias
+Encima, la **emoción** de su última respuesta cambia postura, párpados, respiración, inquietud
+y contacto visual: `neutral`, `tranquilo`, `triste`, `ansioso`, `abrumado`, `molesto`,
+`aliviado`. La IA la elige con una etiqueta al inicio de cada respuesta (`[triste] …`, regla
+fija en `src/lib/ia/reglas.ts`); el servidor la quita del texto y la envía como `emocion_npc`. No
+se muestra como texto: leerla es parte de la práctica. Para revisarlas sin conversar:
+<http://localhost:3000/dev/escena/e-01?estado=procesando&emocion=abrumado> (también con los
+selectores de la esquina).
+
+**Añadir un personaje:** exporta el GLB con los mismos nombres de huesos y clips, cópialo a
+`public/models/personajes/` y agrégalo a `CATALOGO_NPC` (`npc.test.ts` verifica esqueleto y
+clips). Si cambia el rostro de un paciente, regenera su avatar con
+`node scripts/capturar-rostros.mjs` (ver el script) y las capturas de la página pública con
+`node scripts/capturar-escenas.mjs`.
+
+Si el personaje no carga, la escena usa el paciente procedural (sentado o de pie según
+`npc.postura`). Sigue siendo posible usar un GLB propio con `npc.modelo` y clips `Idle`,
+`Pensando` y `Hablando` (ver `npc.animaciones`).
+
+## 5. Ambiente dinámico y sonido
+
+La sala y el sonido acompañan el **clima emocional** de la conversación: un promedio móvil de las
+emociones de las respuestas del paciente en dos ejes, valencia (agradable/desagradable) y
+activación (calmada/agitada) — `src/lib/ambiente/clima.ts`. Con el clima neutro la escena queda
+exactamente como la describe su JSON; los cambios tardan unos segundos en asentarse.
+
+| Clima                                | Escena 3D                                                                   | Sonido                 |
+| ------------------------------------ | --------------------------------------------------------------------------- | ---------------------- |
+| Calma (tranquilo, aliviado)          | Luz más cálida y brillante, polvo dorado flotando                           | Viento suave y pájaros |
+| Pesadumbre (triste)                  | Luz fría y tenue, bruma, partículas que caen                                | Lluvia                 |
+| Tensión (ansioso, molesto, abrumado) | Luz apagada, niebla, partículas oscuras en remolino, viñeta rojiza que late | Zumbido grave y latido |
+
+- Luz y fondo: `Iluminacion`; niebla y partículas: `AmbienteDinamico`; viñeta: `VeloEmocional`
+  (CSS sobre el canvas, sin coste de GPU; no late con "reducir movimiento").
+- Sonido: `src/lib/audio/motor-audio.ts`, sintetizado con la Web Audio API (sin archivos). Incluye
+  el murmullo de la sala, el tic del reloj, efectos al iniciar, enviar y finalizar, y la **voz
+  inventada** del paciente (`src/lib/audio/voz.ts`): sílabas con la entonación de la frase,
+  sincronizadas con el texto, con el tono de cada personaje (`voz` en el catálogo) y el ritmo de
+  su emoción. El botón del altavoz del HUD lo silencia (se recuerda en el navegador).
+- Para revisarlo sin conversar: `/dev/escena/e-01?emocion=abrumado` (el sonido solo suena en
+  `/simulacion`, tras el clic en "Iniciar simulación").
+- Por ahora siempre está activo. Pendiente: que el docente lo configure por sesión ("ambiente
+  dinámico", "voz de los pacientes") y, si se prefiere, reemplazar las capas por grabaciones.
+
+## 6. Licencias
 
 Los modelos de `public/models/muebles` provienen de paquetes de terceros (p. ej. Poly Pizza).
 Antes de publicar la beta, verifica la licencia de cada modelo usado y añade la atribución que

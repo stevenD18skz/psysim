@@ -1,3 +1,4 @@
+import { type EmocionNpc } from '@/lib/conversacion/emociones';
 import { type BorradorCaso } from '@/schemas/caso.schema';
 
 import { type Database } from './database.types';
@@ -38,6 +39,29 @@ export interface EscenarioCatalogo {
   creadoEn: string;
 }
 
+/** Métricas básicas de un estudiante (vista `estudiante_resumen`). */
+export interface MetricasEstudiante {
+  sesiones: number;
+  finalizadas: number;
+  /** Tiempo de práctica de las sesiones finalizadas (s). */
+  segundosPractica: number;
+  /** Casos distintos que ha practicado. */
+  casos: number;
+  /** Mensajes que ha enviado al paciente en todas sus sesiones. */
+  intervenciones: number;
+  /** Inicio de su sesión más reciente (ISO 8601), o `null` si aún no tiene. */
+  ultimaSesion: string | null;
+}
+
+/** Estudiante registrado por el docente, con sus métricas básicas. */
+export interface EstudianteRegistrado {
+  id: string;
+  codigo: string;
+  nombre: string;
+  creadoEn: string;
+  metricas: MetricasEstudiante;
+}
+
 /** Sesión de simulación en curso, tal como la consumen la escena 3D y el chat. */
 export interface SesionActiva {
   id: string;
@@ -71,6 +95,11 @@ export interface MensajeConversacion {
   timestamp: string;
   /** Solo en mensajes del NPC: tiempo de respuesta en milisegundos. */
   latencia_ms?: number;
+  /**
+   * Solo en mensajes del NPC: emoción que expresa con el cuerpo en la escena 3D. No se guarda en
+   * la base de datos: al retomar una sesión, las respuestas anteriores no la tienen.
+   */
+  emocion?: EmocionNpc;
 }
 
 /** Datos del docente autenticado que la aplicación expone a la interfaz (DTO). */

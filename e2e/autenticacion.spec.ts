@@ -9,6 +9,7 @@ import {
   leerSesion,
   sinRol,
 } from './helpers';
+import { clienteAdmin } from './flujos';
 
 /** /simulacion, o la sesión en curso a la que redirige si el docente tiene una. */
 const RUTA_SIMULACION = /\/simulacion(\?sesion=[0-9a-f-]{36})?$/;
@@ -19,7 +20,7 @@ const RUTA_SIMULACION = /\/simulacion(\?sesion=[0-9a-f-]{36})?$/;
  */
 
 test.describe('rutas protegidas sin sesión (HU-03)', () => {
-  for (const ruta of ['/configuracion', '/simulacion', '/simulacion/sesion']) {
+  for (const ruta of ['/configuracion', '/simulacion', '/simulacion/sesion', '/estudiantes']) {
     test(`${ruta} redirige a /login`, async ({ page }) => {
       await page.goto(ruta);
       await expect(page).toHaveURL(`/login?siguiente=${encodeURIComponent(ruta)}`);
@@ -43,6 +44,17 @@ test.describe('con credenciales de prueba', () => {
     await expect(page.getByRole('heading', { name: 'Prepara la simulación' })).toBeVisible();
     expect(await cookiesDeSesion(context)).not.toHaveLength(0);
 
+    // HU-27 · T02: el saludo usa el nombre del docente (el de la base de datos, si hay acceso).
+    const { data: perfil } = (await clienteAdmin()
+      ?.from('usuario')
+      .select('nombre')
+      .eq('correo', docente.correo.toLowerCase())
+      .maybeSingle()) ?? { data: null };
+    const primerNombre = perfil?.nombre.split(' ')[0];
+    await expect(page.getByText(/^Hola, /)).toContainText(
+      primerNombre ? `Hola, ${primerNombre}.` : /Hola, \p{L}+\./u
+    );
+
     // Recarga de página.
     await page.reload();
     await expect(page).toHaveURL(/\/configuracion$/);
@@ -63,7 +75,7 @@ test.describe('con credenciales de prueba', () => {
     await page.goto('/simulacion');
     await expect(page).toHaveURL(/\/login\?siguiente=%2Fsimulacion/);
     await page.getByLabel('Correo institucional').fill(docente.correo);
-    await page.getByLabel('Contraseña').fill(docente.contrasena);
+    await page.getByLabel('Contraseña', { exact: true }).fill(docente.contrasena);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await expect(page).toHaveURL(RUTA_SIMULACION);
   });

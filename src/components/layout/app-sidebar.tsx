@@ -12,6 +12,7 @@ import {
   MonitorPlay,
   PanelLeftClose,
   PanelLeftOpen,
+  UsersRound,
 } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
@@ -72,6 +73,13 @@ const ENLACE_NUEVO_CASO: Enlace = {
   icono: FilePlus2,
 };
 
+const ENLACE_ESTUDIANTES: Enlace = {
+  href: '/estudiantes',
+  etiqueta: 'Estudiantes',
+  descripcion: 'Registro y sesiones',
+  icono: UsersRound,
+};
+
 const ENLACE_LABORATORIO: Enlace = {
   href: '/laboratorio',
   etiqueta: 'Laboratorio',
@@ -124,6 +132,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
           : [ENLACE_NUEVA_SESION],
     },
     { titulo: 'Mis casos', enlaces: [ENLACE_NUEVO_CASO] },
+    { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
     { titulo: 'Herramientas', enlaces: [ENLACE_LABORATORIO] },
   ];
 

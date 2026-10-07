@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { precargarModelo } from '@/components/3d/modelo-glb';
+import { cargarGlb } from '@/lib/npc/cargar-glb';
+import { buscarModeloNpc, urlModeloNpc } from '@/lib/npc/catalogo';
 import { type Escena, escenaSchema } from '@/schemas/escena.schema';
 
 export type EstadoEscena =
@@ -10,11 +12,14 @@ export type EstadoEscena =
   | { estado: 'lista'; escena: Escena }
   | { estado: 'error'; mensaje: string };
 
-/** Todas las rutas de GLB que usa una escena (entorno, muebles y paciente). */
+/**
+ * Rutas de los GLB del bucket que usa una escena (entorno, muebles y paciente). El personaje del
+ * catálogo se sirve aparte (`public/models/personajes`) y tiene prioridad sobre `npc.modelo`.
+ */
 export function rutasModelos(escena: Escena): string[] {
   const rutas = [
     escena.entorno?.modelo,
-    escena.npc.modelo,
+    escena.npc.personaje ? undefined : escena.npc.modelo,
     ...escena.mobiliario.map(m => m.modelo),
   ].filter((ruta): ruta is string => Boolean(ruta));
   return [...new Set(rutas)];
@@ -41,6 +46,9 @@ export function useEscena(ruta: string): { estado: EstadoEscena; reintentar: () 
           return;
         }
         rutasModelos(resultado.data).forEach(precargarModelo);
+        const { personaje } = resultado.data.npc;
+        // Si falla, el error se muestra al montarlo (y se usa el paciente procedural).
+        if (personaje) cargarGlb(urlModeloNpc(buscarModeloNpc(personaje))).catch(() => {});
         setEstado({ estado: 'lista', escena: resultado.data });
       })
       .catch((error: unknown) => {

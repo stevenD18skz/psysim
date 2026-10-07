@@ -61,6 +61,41 @@ export type Database = {
           },
         ];
       };
+      estudiante: {
+        Row: {
+          actualizado_en: string;
+          codigo: string;
+          creado_en: string;
+          docente_id: string;
+          id: string;
+          nombre: string;
+        };
+        Insert: {
+          actualizado_en?: string;
+          codigo: string;
+          creado_en?: string;
+          docente_id?: string;
+          id?: string;
+          nombre: string;
+        };
+        Update: {
+          actualizado_en?: string;
+          codigo?: string;
+          creado_en?: string;
+          docente_id?: string;
+          id?: string;
+          nombre?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'estudiante_docente_id_fkey';
+            columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       mensaje: {
         Row: {
           contenido: string;
@@ -146,6 +181,7 @@ export type Database = {
           comenzada: boolean;
           escenario_id: string;
           estado: Database['public']['Enums']['estado_sesion'];
+          estudiante_id: string;
           fin: string | null;
           id: string;
           inicio: string;
@@ -158,6 +194,7 @@ export type Database = {
           comenzada?: boolean;
           escenario_id: string;
           estado?: Database['public']['Enums']['estado_sesion'];
+          estudiante_id: string;
           fin?: string | null;
           id?: string;
           inicio?: string;
@@ -170,6 +207,7 @@ export type Database = {
           comenzada?: boolean;
           escenario_id?: string;
           estado?: Database['public']['Enums']['estado_sesion'];
+          estudiante_id?: string;
           fin?: string | null;
           id?: string;
           inicio?: string;
@@ -183,6 +221,20 @@ export type Database = {
             columns: ['escenario_id'];
             isOneToOne: false;
             referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sesion_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sesion_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiante_resumen';
             referencedColumns: ['id'];
           },
           {
@@ -223,7 +275,21 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      estudiante_resumen: {
+        Row: {
+          casos_distintos: number | null;
+          codigo: string | null;
+          creado_en: string | null;
+          id: string | null;
+          intervenciones: number | null;
+          nombre: string | null;
+          segundos_practica: number | null;
+          sesiones_finalizadas: number | null;
+          sesiones_total: number | null;
+          ultima_sesion: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };

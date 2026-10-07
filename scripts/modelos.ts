@@ -32,9 +32,12 @@ export function nombreKebab(archivo: string): string {
   return `${base}.glb`;
 }
 
+/** Carpetas que la aplicación sirve directamente desde `public` (no van al bucket). */
+const CARPETAS_LOCALES = new Set(['personajes']);
+
 function listarModelos(): { carpeta: string; archivo: string; ruta: string }[] {
   return readdirSync(RAIZ, { withFileTypes: true })
-    .filter(entrada => entrada.isDirectory())
+    .filter(entrada => entrada.isDirectory() && !CARPETAS_LOCALES.has(entrada.name))
     .flatMap(carpeta =>
       readdirSync(path.join(RAIZ, carpeta.name))
         .filter(archivo => archivo.toLowerCase().endsWith('.glb'))

@@ -28,9 +28,13 @@ import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
+import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
+import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
+import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
+import { buscarModeloNpc } from '@/lib/npc/catalogo';
 import { cn } from '@/lib/utils';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
 import { type MensajeConversacion, type SesionActiva } from '@/types';
@@ -122,6 +126,11 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const conversando = estaConversando(estadoNpc);
   const explorando = estadoNpc === 'inactivo';
   const nombrePaciente = sesion.npc.nombre;
+  const personaje = estado.estado === 'lista' ? estado.escena.npc.personaje : undefined;
+  const motorAudio = useSonidoSimulacion({
+    comenzada,
+    voz: personaje ? buscarModeloNpc(personaje).voz : VOZ_POR_DEFECTO,
+  });
 
   return (
     <>
@@ -133,12 +142,16 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         />
       )}
 
+      {/* Ambiente dinámico: el velo de la pantalla sigue el clima emocional del paciente. */}
+      {lista && <VeloEmocional />}
+
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
           <HudSesion sesion={sesion} duracionFinalSegundos={resumen?.duracionSegundos} />
           <div className="flex items-start gap-2">
             {depuracion && <IndicadorFps />}
+            <BotonSonido motor={motorAudio} />
             {/* Sin menú en la simulación: salida discreta al panel. La sesión sigue en curso y
                 se retoma desde "Sesión en curso". */}
             <Button

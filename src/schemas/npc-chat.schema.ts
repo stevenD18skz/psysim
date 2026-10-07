@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { EMOCIONES_NPC } from '@/lib/conversacion/emociones';
+
 /** Límites del contrato de /api/npc/chat (HU-12 · T02). */
 export const LIMITES_CHAT = {
   /** Máximo de caracteres de una intervención del estudiante. */
@@ -41,6 +43,8 @@ export const npcChatRequestSchema = z.object({
 /** HU-12 · T01/T05 — Respuesta exitosa del Route Handler. */
 export const npcChatResponseSchema = z.object({
   respuesta_npc: z.string().min(1),
+  /** Emoción que el paciente expresa con el cuerpo (no se muestra como texto). */
+  emocion_npc: z.enum(EMOCIONES_NPC).nullable().default(null),
   /** Momento (ISO 8601) en que el servidor recibió la respuesta de la IA. */
   timestamp_respuesta: z.iso.datetime(),
   /** Consumo de la IA: no se muestra en la interfaz, se acumula para el cierre (Sprint 4). */

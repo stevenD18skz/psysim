@@ -53,4 +53,5 @@ next-env.d.ts
 
 # project management export (not source code)
 taiga.json
+*-pychsims-*.json
 /claude_desing

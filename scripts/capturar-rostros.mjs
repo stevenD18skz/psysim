@@ -29,9 +29,15 @@ const PACIENTES = {
   'e-06': 'santiago',
 };
 
-const ALTURA_CABEZA = { sentado: 1.2, 'de-pie': 1.62 };
+/**
+ * Altura aproximada de los ojos de los personajes (m): de pie, ~1,17; sentados, unos 0,7 m sobre
+ * el asiento (`npc.alturaAsiento`, 0,56 por defecto).
+ */
+function alturaOjos(npc) {
+  return npc.postura === 'de-pie' ? 1.17 : (npc.alturaAsiento ?? 0.56) + 0.7;
+}
 /** Distancia de la cámara al rostro (m): cuanto menor, más cerca. */
-const DISTANCIA = 0.62;
+const DISTANCIA = 0.8;
 
 const navegador = await chromium.launch({
   args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
@@ -41,9 +47,9 @@ for (const [id, nombre] of Object.entries(PACIENTES)) {
   if (solo && !solo.includes(id)) continue;
   const escena = JSON.parse(readFileSync(`public/scenes/${id}.json`, 'utf8'));
   const [x, , z] = escena.npc.posicion;
-  const y = ALTURA_CABEZA[escena.npc.postura] ?? 1.2;
+  const y = alturaOjos(escena.npc);
   const camara = [x, y + 0.03, z + DISTANCIA].join(',');
-  const mirar = [x, y, z].join(',');
+  const mirar = [x, y + 0.05, z].join(',');
 
   const pagina = await navegador.newPage({ viewport: { width: 640, height: 640 } });
   await pagina.goto(`${base}/dev/escena/${id}?camara=${camara}&mirar=${mirar}`, {

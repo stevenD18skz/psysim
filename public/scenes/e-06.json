@@ -29,6 +29,9 @@
     { "id": "reloj", "tipo": "reloj", "posicion": [-1.6, 2.05, -3.49], "colision": false }
   ],
   "npc": {
+    "personaje": "leo",
+    "alturaAsiento": 0.49,
+    "piernas": "dobladas",
     "posicion": [0, 0, -1.95],
     "rotacion": 0,
     "postura": "sentado",

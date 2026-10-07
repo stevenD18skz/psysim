@@ -27,6 +27,8 @@
     { "id": "reloj", "tipo": "reloj", "posicion": [1.4, 2.05, -3.49], "colision": false }
   ],
   "npc": {
+    "personaje": "lucia",
+    "alturaAsiento": 0.56,
     "posicion": [0.6, 0, -2],
     "rotacion": -15,
     "postura": "sentado",

@@ -26,6 +26,7 @@
     { "id": "reloj", "tipo": "reloj", "posicion": [2.99, 2.05, 0], "rotacion": -90, "colision": false }
   ],
   "npc": {
+    "personaje": "tomas",
     "posicion": [0, 0, -1.55],
     "rotacion": 0,
     "postura": "de-pie",

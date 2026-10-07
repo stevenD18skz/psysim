@@ -30,6 +30,7 @@ const sesion: SesionActiva = {
 
 const respuestaOk = {
   respuesta_npc: 'Buenas... no sé por dónde empezar.',
+  emocion_npc: 'ansioso',
   timestamp_respuesta: '2026-09-30T15:01:00.000Z',
   tokens_entrada: 500,
   tokens_salida: 20,
@@ -85,6 +86,8 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     expect(conversacion.mensajes[1]).toMatchObject({
       latencia_ms: 1234,
       timestamp: respuestaOk.timestamp_respuesta,
+      // La emoción viaja con el mensaje para el lenguaje no verbal del paciente 3D.
+      emocion: 'ansioso',
     });
     expect(conversacion.pendiente).toBeNull();
     expect(npc.estado).toBe('respondiendo');

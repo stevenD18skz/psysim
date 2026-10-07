@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { MathUtils } from 'three';
 
+import { AmbienteDinamico } from '@/components/3d/ambiente-dinamico';
 import { CamaraConversacion } from '@/components/3d/camara-conversacion';
 import { ControlesPrimeraPersona } from '@/components/3d/controles-primera-persona';
 import { Iluminacion } from '@/components/3d/iluminacion';
@@ -38,6 +39,7 @@ export function SceneLoader({ escena, onBloqueoCambia }: SceneLoaderProps) {
   return (
     <RegistroColisionesProvider>
       <Iluminacion iluminacion={escena.iluminacion} />
+      <AmbienteDinamico sala={escena.sala} />
 
       {escena.entorno ? (
         <LimiteErrorModelo ruta={escena.entorno.modelo} fallback={sala}>

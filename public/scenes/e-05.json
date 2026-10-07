@@ -27,6 +27,8 @@
     { "id": "reloj", "tipo": "reloj", "posicion": [2.99, 2.05, 1.6], "rotacion": -90, "colision": false }
   ],
   "npc": {
+    "personaje": "marina",
+    "alturaAsiento": 0.56,
     "posicion": [0.35, 0, -2.4],
     "rotacion": 0,
     "postura": "sentado",

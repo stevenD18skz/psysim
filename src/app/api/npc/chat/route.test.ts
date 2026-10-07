@@ -71,6 +71,7 @@ describe('POST /api/npc/chat', () => {
     });
     vi.mocked(generarRespuestaPaciente).mockResolvedValue({
       texto: 'Buenas... no sé muy bien por dónde empezar.',
+      emocion: 'ansioso',
       tokensEntrada: 512,
       tokensSalida: 21,
       modelo: 'gemini-3.5-flash',
@@ -86,6 +87,7 @@ describe('POST /api/npc/chat', () => {
     const json = await respuesta.json();
     expect(json).toEqual({
       respuesta_npc: 'Buenas... no sé muy bien por dónde empezar.',
+      emocion_npc: 'ansioso',
       timestamp_respuesta: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       tokens_entrada: 512,
       tokens_salida: 21,

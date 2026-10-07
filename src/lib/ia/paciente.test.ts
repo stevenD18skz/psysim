@@ -132,6 +132,7 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
 
     expect(respuesta).toEqual({
       texto: 'Buenas... no sé por dónde empezar.',
+      emocion: null,
       tokensEntrada: 120,
       tokensSalida: 18,
       modelo: 'principal',
@@ -145,6 +146,22 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
     expect(sistema).toContain('Reglas de interpretación:');
     expect(llamada.prompt.at(-1)).toMatchObject({ role: 'user' });
     expect(llamada.maxOutputTokens).toBe(300);
+  });
+
+  it('separa la etiqueta de emoción del texto antes de limpiarlo', async () => {
+    const modelo = modeloQueResponde('Marta Lucía: [emocion: abrumada] "Es que... es demasiado."');
+    const respuesta = await generarRespuestaPaciente(entrada, solo(modelo));
+
+    expect(respuesta).toMatchObject({ texto: 'Es que... es demasiado.', emocion: 'abrumado' });
+    const sistema = (modelo.doGenerateCalls[0]!.prompt[0] as { content: string }).content;
+    expect(sistema).toContain('[triste]');
+  });
+
+  it('una respuesta que solo trae la etiqueta es inválida', async () => {
+    const modelo = modeloQueResponde('[emocion: triste]');
+    await expect(generarRespuestaPaciente(entrada, solo(modelo))).rejects.toMatchObject({
+      tipo: 'respuesta_invalida',
+    });
   });
 
   it('lanza ErrorIA respuesta_invalida si el modelo responde vacío', async () => {

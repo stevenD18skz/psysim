@@ -30,6 +30,11 @@ describe('archivos de escena en public/scenes', () => {
     expect(resultado.error?.issues ?? []).toEqual([]);
   });
 
+  it.each(archivos)('%s usa un personaje del catálogo como paciente', nombre => {
+    const escena = escenaSchema.parse(leerEscena(nombre));
+    expect(escena.npc.personaje).toBeDefined();
+  });
+
   it.each(archivos)('%s ubica al paciente dentro de la sala', nombre => {
     const escena = escenaSchema.parse(leerEscena(nombre));
     const [x, , z] = escena.npc.posicion;
@@ -46,6 +51,24 @@ describe('escenaSchema', () => {
     const alfombra = escena.mobiliario.find(m => m.id === 'alfombra');
     expect(alfombra?.rotacion).toBe(0);
     expect(alfombra?.escala).toBe(1);
+  });
+
+  it('acepta personajes del catálogo y rechaza los desconocidos', () => {
+    const escena = base();
+    escena.npc.personaje = 'ernesto';
+    expect(escenaSchema.safeParse(escena).success).toBe(true);
+    (escena.npc as { personaje: string }).personaje = 'nadie';
+    expect(escenaSchema.safeParse(escena).success).toBe(false);
+  });
+
+  it('el paciente sentado tiene asiento de sillón y piernas estiradas por defecto', () => {
+    const escena = base();
+    delete escena.npc.alturaAsiento;
+    delete escena.npc.piernas;
+    expect(escenaSchema.parse(escena).npc).toMatchObject({
+      alturaAsiento: 0.56,
+      piernas: 'estiradas',
+    });
   });
 
   it('rechaza una cámara fuera de los límites de navegación', () => {

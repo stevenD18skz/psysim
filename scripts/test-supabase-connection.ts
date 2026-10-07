@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 
 import { createClient } from '@supabase/supabase-js';
 
-import { type Database } from '../src/types/database.types.ts';
+import { type Database, type TablesInsert } from '../src/types/database.types.ts';
 
 if (existsSync('.env.test.local')) process.loadEnvFile('.env.test.local');
 
@@ -132,12 +132,14 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
     .neq('id', miId)
     .limit(1)
     .single();
+  // `estudiante_id` lo asigna el trigger `sesion_registrar_estudiante` (los tipos generados no lo
+  // saben y lo marcan obligatorio).
   const datosSesion = {
     escenario_id: escenarioId,
     codigo_estudiante: '209900099',
     nombre_estudiante: `${PREFIJO} Estudiante`,
     prompt_sistema: 'Prompt de prueba de las políticas RLS del Sprint 2.',
-  };
+  } as TablesInsert<'sesion'>;
 
   try {
     if (otro) {
@@ -285,6 +287,7 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
     comprobar(Boolean(errorTrasCierre), 'No se pueden añadir mensajes a una sesión finalizada');
   } finally {
     await admin.from('sesion').delete().like('nombre_estudiante', `${PREFIJO}%`);
+    await admin.from('estudiante').delete().like('nombre', `${PREFIJO}%`);
     await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
   }
 }

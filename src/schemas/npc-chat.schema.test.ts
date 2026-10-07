@@ -53,6 +53,28 @@ describe('npcChatRequestSchema (HU-12 · T02)', () => {
 });
 
 describe('npcChatResponseSchema', () => {
+  it('sin emoción (respuestas de versiones anteriores) la deja en null', () => {
+    const resultado = npcChatResponseSchema.safeParse({
+      respuesta_npc: 'Hola.',
+      timestamp_respuesta: new Date().toISOString(),
+      tokens_entrada: 1,
+      tokens_salida: 1,
+    });
+    expect(resultado.success && resultado.data.emocion_npc).toBeNull();
+  });
+
+  it('rechaza una emoción desconocida', () => {
+    expect(
+      npcChatResponseSchema.safeParse({
+        respuesta_npc: 'Hola.',
+        emocion_npc: 'eufórico',
+        timestamp_respuesta: new Date().toISOString(),
+        tokens_entrada: 1,
+        tokens_salida: 1,
+      }).success
+    ).toBe(false);
+  });
+
   it('acepta una respuesta con tokens nulos', () => {
     expect(
       npcChatResponseSchema.safeParse({
