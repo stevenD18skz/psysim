@@ -202,7 +202,8 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
 
     await aviso.getByRole('button', { name: 'Reintentar' }).click();
     await expect(aviso).toBeHidden();
-    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 30_000 });
+    // El servidor concede hasta 25 s a la IA (con modelo de respaldo) más la escritura progresiva.
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 45_000 });
     // El mensaje no se duplicó y ahora tiene respuesta.
     await expect(panel.locator('[data-remitente="estudiante"]')).toHaveCount(1);
     await expect(panel.locator('[data-remitente="npc"]')).toHaveCount(1);

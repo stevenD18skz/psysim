@@ -1,3 +1,5 @@
+import { type Voz } from '@/lib/audio/voz';
+
 /**
  * Personajes 3D (NPC) disponibles. Cada uno es un GLB en `public/models/personajes/` con el mismo
  * esqueleto y las 13 animaciones de `acciones.ts` (exportados desde los prototipos de Claude
@@ -18,6 +20,8 @@ export interface ModeloNpc {
   color: string;
   /** Aspecto del personaje, para textos alternativos y la documentación. */
   descripcion: string;
+  /** Voz inventada (balbuceo) con la que "habla" en la simulación. */
+  voz: Voz;
 }
 
 export const CARPETA_MODELOS_PERSONAJES = '/models/personajes';
@@ -29,6 +33,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_tomas.glb',
     color: '#416180',
     descripcion: 'Hombre joven con gorro de lana y bufanda',
+    voz: { tono: 150, ritmo: 1 },
   },
   {
     id: 'ernesto',
@@ -36,6 +41,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_ernesto.glb',
     color: '#6b5d52',
     descripcion: 'Hombre mayor con barba blanca, gorra y chaleco',
+    voz: { tono: 115, ritmo: 0.85 },
   },
   {
     id: 'leo',
@@ -43,6 +49,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_leo.glb',
     color: '#c0714f',
     descripcion: 'Estudiante joven con buzo verde y morral',
+    voz: { tono: 165, ritmo: 1.1 },
   },
   {
     id: 'lucia',
@@ -50,6 +57,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_lucia.glb',
     color: '#7f9a86',
     descripcion: 'Mujer joven pelirroja con suéter amarillo',
+    voz: { tono: 255, ritmo: 1.05 },
   },
   {
     id: 'marina',
@@ -57,6 +65,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_marina.glb',
     color: '#5980a6',
     descripcion: 'Mujer adulta con pañoleta y delantal',
+    voz: { tono: 225, ritmo: 1 },
   },
   {
     id: 'rosa',
@@ -64,6 +73,7 @@ export const CATALOGO_NPC = [
     archivo: 'npc_rosa.glb',
     color: '#b5835a',
     descripcion: 'Mujer mayor de cabello cano, gafas y chal',
+    voz: { tono: 200, ritmo: 0.9 },
   },
 ] as const satisfies readonly ModeloNpc[];
 

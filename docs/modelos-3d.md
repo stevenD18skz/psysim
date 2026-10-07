@@ -132,7 +132,32 @@ Si el personaje no carga, la escena usa el paciente procedural (sentado o de pie
 `npc.postura`). Sigue siendo posible usar un GLB propio con `npc.modelo` y clips `Idle`,
 `Pensando` y `Hablando` (ver `npc.animaciones`).
 
-## 5. Licencias
+## 5. Ambiente dinámico y sonido
+
+La sala y el sonido acompañan el **clima emocional** de la conversación: un promedio móvil de las
+emociones de las respuestas del paciente en dos ejes, valencia (agradable/desagradable) y
+activación (calmada/agitada) — `src/lib/ambiente/clima.ts`. Con el clima neutro la escena queda
+exactamente como la describe su JSON; los cambios tardan unos segundos en asentarse.
+
+| Clima                                | Escena 3D                                                                   | Sonido                 |
+| ------------------------------------ | --------------------------------------------------------------------------- | ---------------------- |
+| Calma (tranquilo, aliviado)          | Luz más cálida y brillante, polvo dorado flotando                           | Viento suave y pájaros |
+| Pesadumbre (triste)                  | Luz fría y tenue, bruma, partículas que caen                                | Lluvia                 |
+| Tensión (ansioso, molesto, abrumado) | Luz apagada, niebla, partículas oscuras en remolino, viñeta rojiza que late | Zumbido grave y latido |
+
+- Luz y fondo: `Iluminacion`; niebla y partículas: `AmbienteDinamico`; viñeta: `VeloEmocional`
+  (CSS sobre el canvas, sin coste de GPU; no late con "reducir movimiento").
+- Sonido: `src/lib/audio/motor-audio.ts`, sintetizado con la Web Audio API (sin archivos). Incluye
+  el murmullo de la sala, el tic del reloj, efectos al iniciar, enviar y finalizar, y la **voz
+  inventada** del paciente (`src/lib/audio/voz.ts`): sílabas con la entonación de la frase,
+  sincronizadas con el texto, con el tono de cada personaje (`voz` en el catálogo) y el ritmo de
+  su emoción. El botón del altavoz del HUD lo silencia (se recuerda en el navegador).
+- Para revisarlo sin conversar: `/dev/escena/e-01?emocion=abrumado` (el sonido solo suena en
+  `/simulacion`, tras el clic en "Iniciar simulación").
+- Por ahora siempre está activo. Pendiente: que el docente lo configure por sesión ("ambiente
+  dinámico", "voz de los pacientes") y, si se prefiere, reemplazar las capas por grabaciones.
+
+## 6. Licencias
 
 Los modelos de `public/models/muebles` provienen de paquetes de terceros (p. ej. Poly Pizza).
 Antes de publicar la beta, verifica la licencia de cada modelo usado y añade la atribución que

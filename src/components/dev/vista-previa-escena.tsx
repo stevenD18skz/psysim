@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
+import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { type EmocionNpc, EMOCIONES_NPC, esEmocionNpc } from '@/lib/conversacion/emociones';
 import { ESTADOS_NPC, type EstadoNpc } from '@/lib/conversacion/estados-npc';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
@@ -34,15 +35,14 @@ function ControlPaciente() {
     store.setState(state => ({
       conversacion: {
         ...state.conversacion,
-        mensajes: [
-          {
-            id: crypto.randomUUID(),
-            remitente: 'npc',
-            contenido: 'Sí, bueno… es que no sé.',
-            timestamp: new Date().toISOString(),
-            emocion: siguiente,
-          },
-        ],
+        // Varias respuestas con la misma emoción: el clima del ambiente llega a su extremo.
+        mensajes: Array.from({ length: 4 }, () => ({
+          id: crypto.randomUUID(),
+          remitente: 'npc' as const,
+          contenido: 'Sí, bueno… es que no sé.',
+          timestamp: new Date().toISOString(),
+          emocion: siguiente,
+        })),
       },
     }));
 
@@ -111,6 +111,7 @@ export function VistaPreviaEscena({ ruta }: { ruta: string }) {
       {escena && (
         <EscenaSimulacion escena={escena} onListo={() => {}} onBloqueoCambia={setBloqueado} />
       )}
+      {escena && <VeloEmocional />}
       {estado.estado === 'error' && <p className="p-6 text-destructive">{estado.mensaje}</p>}
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
         <IndicadorFps />

@@ -233,9 +233,18 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
     await expect(instrucciones).toBeHidden();
 
-    // /simulacion sin parámetro retoma la última sesión en curso.
+    // /simulacion sin parámetro retoma la última sesión en curso. Otros archivos de tests corren
+    // en paralelo con el mismo docente y pueden haber creado una más reciente: se compara con la
+    // última en curso según la base de datos, no necesariamente la de este test.
     await page.goto('/simulacion');
-    await expect(page).toHaveURL(`/simulacion?sesion=${sesionId}`);
+    await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
+    if (admin) {
+      const retomada = new URL(page.url()).searchParams.get('sesion');
+      const { data } = await admin.from('sesion').select('estado').eq('id', retomada!).single();
+      expect(data?.estado).toBe('en_curso');
+    } else {
+      await expect(page).toHaveURL(`/simulacion?sesion=${sesionId}`);
+    }
   });
 
   test('HU-10: camina con el teclado y respeta muebles y límites', async ({ page }) => {

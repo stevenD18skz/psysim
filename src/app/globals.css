@@ -148,6 +148,26 @@
   }
 }
 
+/* Latido del velo emocional de la simulación (doble pulso, como "lub-dub"). */
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  12% {
+    opacity: 1;
+  }
+  24% {
+    opacity: 0.8;
+  }
+  36% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.75;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
