@@ -9,7 +9,11 @@ import { docente, hayCredenciales, iniciarSesionComoDocente } from './helpers';
  * Registro en docs/pruebas/sprint-3.md.
  */
 
-const CODIGO_PRUEBAS = '2099000';
+/**
+ * Código reservado de este archivo. Distinto del de configuracion.spec.ts (2099000): los archivos
+ * corren en paralelo y la limpieza de uno borraría las sesiones del otro a mitad de un test.
+ */
+const CODIGO_PRUEBAS = '2099010';
 const PROMPT_BREVE =
   'Eres Marta Lucía, una mujer de 58 años que perdió a su esposo hace cuatro meses. ' +
   'Responde siempre en español, con una sola oración corta y en primera persona.';
@@ -53,7 +57,10 @@ async function crearSesion(sufijo: string): Promise<string> {
 
 async function limpiar() {
   if (!process.env.SUPABASE_SECRET_KEY) return;
-  await clienteAdmin().from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
+  const admin = clienteAdmin();
+  await admin.from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
+  // Cada sesión registra a su estudiante: se borra después (las sesiones lo referencian).
+  await admin.from('estudiante').delete().like('codigo', `${CODIGO_PRUEBAS}%`);
 }
 
 /** Abre la simulación y camina hacia el paciente hasta poder conversar. */
