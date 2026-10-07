@@ -268,21 +268,22 @@ export function ConfiguradorSesion({
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {propios.map(e => (
-                    <div key={e.id} className="flex flex-col gap-2">
-                      <TarjetaEscenario
-                        escenario={e}
-                        nombreGrupo={idGrupo}
-                        seleccionado={e.id === escenarioId}
-                        onSeleccionar={onSeleccionar}
-                        onDeseleccionar={onDeseleccionar}
-                        describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                      />
-                      <AccionesCasoPropio
-                        casoId={e.id}
-                        titulo={e.titulo}
-                        onEliminado={onCasoEliminado}
-                      />
-                    </div>
+                    <TarjetaEscenario
+                      key={e.id}
+                      escenario={e}
+                      nombreGrupo={idGrupo}
+                      seleccionado={e.id === escenarioId}
+                      onSeleccionar={onSeleccionar}
+                      onDeseleccionar={onDeseleccionar}
+                      describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                      acciones={
+                        <AccionesCasoPropio
+                          casoId={e.id}
+                          titulo={e.titulo}
+                          onEliminado={onCasoEliminado}
+                        />
+                      }
+                    />
                   ))}
                   <TarjetaNuevoCaso />
                 </div>

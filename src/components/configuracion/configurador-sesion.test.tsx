@@ -248,7 +248,15 @@ describe('ConfiguradorSesion', () => {
     await usuario.click(
       screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
     );
-    expect(screen.getByText('¿Eliminar este caso?')).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent('¿Eliminar?');
+    expect(screen.getByRole('button', { name: 'Sí, eliminar' })).toHaveFocus();
+    // Las acciones van fuera del <label>: pulsarlas no selecciona el caso.
+    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).not.toBeChecked();
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(
+      screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
+    ).toBeVisible();
   });
 
   it('llega con un caso propio preseleccionado y su prompt cargado', () => {
