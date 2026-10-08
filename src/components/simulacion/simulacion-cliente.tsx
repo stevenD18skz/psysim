@@ -24,6 +24,7 @@ import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
@@ -60,7 +61,7 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
 
   // Tras una recarga o al abrir la URL directamente, el store está vacío. En todos los casos se
-  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del docente), con la
+  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del estudiante), con la
   // hora de inicio de la base de datos y la conversación guardada.
   useEffect(() => {
     iniciarSesion(sesion, historial);
@@ -152,15 +153,23 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
           <div className="flex items-start gap-2">
             {depuracion && <IndicadorFps />}
             <BotonSonido motor={motorAudio} />
+            {lista && comenzada && !resumen && (
+              <BotonFinalizar
+                onFinalizar={finalizar}
+                finalizando={finalizando}
+                // Nunca con una respuesta de la IA en camino (evita cierres a medias).
+                deshabilitado={estadoNpc === 'procesando'}
+              />
+            )}
             {/* Sin menú en la simulación: salida discreta al panel. La sesión sigue en curso y
-                se retoma desde "Sesión en curso". */}
+                se retoma desde "Mis prácticas". */}
             <Button
               asChild
               variant="outline"
               size="sm"
               className="pointer-events-auto bg-card/90 backdrop-blur"
             >
-              <Link href="/configuracion">
+              <Link href="/practicas">
                 <ArrowLeft aria-hidden />
                 Salir al panel
               </Link>
@@ -193,8 +202,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
             </span>
             <h2 className="text-xl font-semibold">{estado.mensaje}</h2>
             <p className="text-sm text-muted-foreground">
-              Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, vuelve a la
-              configuración y selecciona otro escenario.
+              Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, vuelve a tus
+              prácticas y avísale a tu docente.
             </p>
             <div className="flex gap-2">
               <Button onClick={reintentar}>
@@ -202,7 +211,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
                 Reintentar
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/configuracion">Volver a configuración</Link>
+                <Link href="/practicas">Volver a mis prácticas</Link>
               </Button>
             </div>
           </div>

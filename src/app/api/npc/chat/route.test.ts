@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { obtenerSesionDocente } from '@/lib/auth/dal';
+import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import type * as ModuloPaciente from '@/lib/ia/paciente';
 import { ErrorIA, generarRespuestaPaciente } from '@/lib/ia/paciente';
+import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 
 import { POST } from './route';
 
-vi.mock('@/lib/auth/dal', () => ({ obtenerSesionDocente: vi.fn() }));
+vi.mock('@/lib/auth/dal', () => ({ obtenerSesionUsuario: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/sesiones/datos-privados', () => ({
+  leerEscenarioDeSesion: vi.fn(),
+  leerPromptDeSesion: vi.fn(),
+}));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/ia/paciente', async importOriginal => ({
   ...(await importOriginal<typeof ModuloPaciente>()),
@@ -25,11 +30,23 @@ const cuerpoValido = {
   historial: [],
 };
 
-const sesionEnCurso = {
-  estado: 'en_curso',
-  comenzada: true,
-  prompt_sistema: 'Eres Marta Lucía, 58 años.',
-  escenario: { npc: { id: NPC_ID, nombre: 'Marta Lucía' } },
+const ESCENARIO_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const PROMPT = 'Eres Marta Lucía, 58 años.';
+
+/** Lo que ve el estudiante con RLS: la sesión sin el prompt. */
+const sesionEnCurso = { estado: 'en_curso', comenzada: true, escenario_id: ESCENARIO_ID };
+
+/** Lo que el servidor lee con la clave secreta: el caso con su paciente. */
+const escenarioDeLaSesion = {
+  id: ESCENARIO_ID,
+  codigo: 'E-01',
+  titulo: 'Duelo y pérdida',
+  descripcion: 'Duelo reciente.',
+  categoria: 'clinico' as const,
+  dificultad: 'basico' as const,
+  competenciaCentral: 'Empatía',
+  configuracion3d: 'scenes/e-01.json',
+  npc: { id: NPC_ID, nombre: 'Marta Lucía', edad: 58, perfilClinico: 'Viuda.' },
 };
 
 /** Cliente de Supabase falso: devuelve la sesión indicada y registra las inserciones. */
@@ -59,16 +76,18 @@ function peticion(cuerpo: unknown) {
 
 describe('POST /api/npc/chat', () => {
   beforeEach(() => {
-    vi.mocked(obtenerSesionDocente).mockResolvedValue({
+    vi.mocked(obtenerSesionUsuario).mockResolvedValue({
       estado: 'autorizado',
       perfil: {
-        id: 'd0c3e7e4-0000-4000-8000-000000000001',
-        nombre: 'Docente',
-        correo: 'docente@psysim.test',
-        codigoInstitucional: 'DOC-1',
-        rol: 'docente',
+        id: 'e57d1a00-0000-4000-8000-000000000001',
+        nombre: 'Ana Pérez',
+        correo: 'ana.perez@correounivalle.edu.co',
+        codigoInstitucional: '202012345',
+        rol: 'estudiante',
       },
     });
+    vi.mocked(leerEscenarioDeSesion).mockResolvedValue(escenarioDeLaSesion);
+    vi.mocked(leerPromptDeSesion).mockResolvedValue(PROMPT);
     vi.mocked(generarRespuestaPaciente).mockResolvedValue({
       texto: 'Buenas... no sé muy bien por dónde empezar.',
       emocion: 'ansioso',
@@ -93,9 +112,10 @@ describe('POST /api/npc/chat', () => {
       tokens_salida: 21,
     });
 
-    // Usa el prompt de la sesión y el mensaje del estudiante.
+    // Usa el prompt de la sesión (leído en el servidor) y el mensaje del estudiante.
+    expect(leerPromptDeSesion).toHaveBeenCalledWith(SESION_ID);
     expect(generarRespuestaPaciente).toHaveBeenCalledWith({
-      promptSistema: sesionEnCurso.prompt_sistema,
+      promptSistema: PROMPT,
       historial: [],
       mensaje: cuerpoValido.mensaje_usuario,
       nombrePaciente: 'Marta Lucía',
@@ -132,25 +152,50 @@ describe('POST /api/npc/chat', () => {
     expect(respuesta.status).toBe(400);
   });
 
-  it('responde 401 sin sesión y 403 sin rol docente', async () => {
-    vi.mocked(obtenerSesionDocente).mockResolvedValueOnce({ estado: 'sin-sesion' });
+  it('responde 401 sin sesión y 403 sin rol o con rol de docente', async () => {
+    vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({ estado: 'sin-sesion' });
     expect((await POST(peticion(cuerpoValido))).status).toBe(401);
 
-    vi.mocked(obtenerSesionDocente).mockResolvedValueOnce({ estado: 'sin-permiso' });
+    vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({ estado: 'sin-permiso' });
+    expect((await POST(peticion(cuerpoValido))).status).toBe(403);
+
+    // El docente ya no conversa con el paciente: solo el estudiante dueño de la sesión.
+    vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({
+      estado: 'autorizado',
+      perfil: {
+        id: 'd0c3e7e4-0000-4000-8000-000000000001',
+        nombre: 'Docente',
+        correo: 'docente@psysim.test',
+        codigoInstitucional: 'DOC-1',
+        rol: 'docente',
+      },
+    });
     expect((await POST(peticion(cuerpoValido))).status).toBe(403);
     expect(generarRespuestaPaciente).not.toHaveBeenCalled();
   });
 
-  it('HU-12 · T03: responde 404 si la sesión no existe o no es del docente', async () => {
+  it('HU-12 · T03: responde 404 si la sesión no existe o no es del estudiante', async () => {
     clienteFalso(null);
     expect((await POST(peticion(cuerpoValido))).status).toBe(404);
+    // Sin la sesión verificada con RLS no se leen datos con la clave secreta.
+    expect(leerPromptDeSesion).not.toHaveBeenCalled();
   });
 
   it('HU-12 · T03: responde 404 si el NPC no pertenece a la sesión', async () => {
-    clienteFalso({ ...sesionEnCurso, escenario: { npc: { id: 'otro', nombre: 'X' } } });
+    clienteFalso(sesionEnCurso);
+    vi.mocked(leerEscenarioDeSesion).mockResolvedValueOnce({
+      ...escenarioDeLaSesion,
+      npc: { ...escenarioDeLaSesion.npc, id: 'otro' },
+    });
     const respuesta = await POST(peticion(cuerpoValido));
     expect(respuesta.status).toBe(404);
     expect(generarRespuestaPaciente).not.toHaveBeenCalled();
+  });
+
+  it('responde 500 si no se puede leer el caso de la sesión', async () => {
+    clienteFalso(sesionEnCurso);
+    vi.mocked(leerPromptDeSesion).mockRejectedValueOnce(new Error('caído'));
+    expect((await POST(peticion(cuerpoValido))).status).toBe(500);
   });
 
   it('responde 409 si la sesión ya finalizó', async () => {

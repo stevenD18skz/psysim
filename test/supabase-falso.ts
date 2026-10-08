@@ -111,7 +111,17 @@ export function crearSupabaseFalso() {
   const auth = {
     getUser: vi.fn(async () => ({ data: { user: null }, error: null }) as unknown),
     signInWithPassword: vi.fn(async () => ({ data: {}, error: null }) as unknown),
+    signInWithOAuth: vi.fn(
+      async () =>
+        ({ data: { url: 'https://accounts.google.com/o/oauth2' }, error: null }) as unknown
+    ),
+    exchangeCodeForSession: vi.fn(async () => ({ data: { user: null }, error: null }) as unknown),
     signOut: vi.fn(async () => ({ error: null }) as unknown),
+    /** API de administración (solo con la clave secreta). */
+    admin: {
+      createUser: vi.fn(async () => ({ data: { user: { id: 'nuevo' } }, error: null }) as unknown),
+      deleteUser: vi.fn(async () => ({ data: {}, error: null }) as unknown),
+    },
   };
 
   const rpc = vi.fn(async (funcion: string) => {

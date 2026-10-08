@@ -43,6 +43,14 @@ export interface EscenarioCatalogo {
 export interface MetricasEstudiante {
   sesiones: number;
   finalizadas: number;
+  /** Sesiones que el estudiante está haciendo ahora mismo. */
+  enCurso: number;
+  /** Sesiones terminadas cuya retroalimentación aún no se ha publicado. */
+  pendientesRetroalimentacion: number;
+  /** Promedio de las notas publicadas (0.0–5.0), o `null` si aún no tiene. */
+  notaPromedio: number | null;
+  /** Códigos de acceso vigentes que aún no ha usado. */
+  codigosPendientes: number;
   /** Tiempo de práctica de las sesiones finalizadas (s). */
   segundosPractica: number;
   /** Casos distintos que ha practicado. */
@@ -58,6 +66,10 @@ export interface EstudianteRegistrado {
   id: string;
   codigo: string;
   nombre: string;
+  /** Correo con el que inicia sesión con Google (`null` en registros anteriores a las cuentas). */
+  correo: string | null;
+  /** `true` si tiene cuenta: puede recibir códigos de acceso. */
+  cuentaVinculada: boolean;
   creadoEn: string;
   metricas: MetricasEstudiante;
 }
@@ -102,11 +114,78 @@ export interface MensajeConversacion {
   emocion?: EmocionNpc;
 }
 
-/** Datos del docente autenticado que la aplicación expone a la interfaz (DTO). */
-export interface PerfilDocente {
+/** Datos del usuario autenticado (docente o estudiante) que la aplicación expone (DTO). */
+export interface PerfilUsuario {
   id: string;
   nombre: string;
   correo: string;
   codigoInstitucional: string;
   rol: RolUsuario;
+}
+
+/** Estado de un código de acceso, derivado de sus fechas y de si ya se canjeó. */
+export type EstadoAsignacion = 'pendiente' | 'usada' | 'anulada' | 'vencida';
+
+/** Código de acceso que el docente generó para un estudiante. */
+export interface Asignacion {
+  id: string;
+  codigo: string;
+  estado: EstadoAsignacion;
+  expiraEn: string;
+  creadoEn: string;
+  sesionId: string | null;
+  escenario: { codigo: string; titulo: string };
+}
+
+/** Sesión en un listado (historial del estudiante o del docente). */
+export interface SesionHistorial {
+  id: string;
+  estado: EstadoSesion;
+  comenzada: boolean;
+  inicio: string;
+  fin: string | null;
+  escenario: { codigo: string; titulo: string };
+  /** Nombre del docente que la asignó (en el panel del estudiante). */
+  docente: string | null;
+  /** `null` si el docente aún no ha empezado a revisarla. */
+  retroalimentacion: { publicada: boolean; nota: number | null } | null;
+}
+
+/** Frase subrayada por el docente en una intervención del estudiante. */
+export interface Anotacion {
+  id: string;
+  mensajeId: string;
+  /** Posiciones en puntos de código dentro del mensaje: [inicio, fin). */
+  inicio: number;
+  fin: number;
+  fragmento: string;
+  comentario: string;
+}
+
+/** Retroalimentación de una sesión (borrador o publicada). */
+export interface Retroalimentacion {
+  comentarioGeneral: string;
+  /** 0.0–5.0 con un decimal. */
+  nota: number | null;
+  publicadaEn: string | null;
+  actualizadoEn: string;
+  anotaciones: Anotacion[];
+}
+
+/** Sesión completa para revisarla (docente) o releerla con su retroalimentación (estudiante). */
+export interface DetalleSesion {
+  id: string;
+  estado: EstadoSesion;
+  comenzada: boolean;
+  inicio: string;
+  fin: string | null;
+  estudiante: { id: string; codigo: string; nombre: string };
+  docente: string | null;
+  escenario: Pick<
+    EscenarioCatalogo,
+    'codigo' | 'titulo' | 'competenciaCentral' | 'configuracion3d'
+  >;
+  npc: Pick<NpcEscenario, 'nombre' | 'edad'>;
+  mensajes: MensajeConversacion[];
+  retroalimentacion: Retroalimentacion | null;
 }

@@ -2,13 +2,15 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { leerEscenarioDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 import { borradorCasoSchema } from '@/schemas/caso.schema';
 import { type EscenarioCatalogo, type MensajeConversacion, type SesionActiva } from '@/types';
 
 /*
- * Consultas de lectura del Sprint 2. Todas usan el cliente con la sesión del docente, así que
- * RLS garantiza que cada docente solo ve el catálogo activo y sus propias filas.
+ * Consultas de lectura del Sprint 2. Usan el cliente con la sesión del usuario, así que RLS
+ * garantiza que cada docente solo ve el catálogo activo y sus propias filas, y cada estudiante
+ * solo sus sesiones.
  * Los errores de base de datos se relanzan: los captura el error boundary de la ruta.
  */
 
@@ -68,23 +70,18 @@ function leerBorrador(valor: unknown) {
   return resultado.success ? resultado.data : null;
 }
 
-const COLUMNAS_SESION = `
-  id, inicio, comenzada, estado, codigo_estudiante, nombre_estudiante,
-  escenario (
-    id, codigo, titulo, descripcion, categoria, dificultad, competencia_central, configuracion_3d,
-    npc ( id, nombre, edad, perfil_clinico )
-  )
-` as const;
-
 /**
- * Carga una sesión en curso del docente autenticado. Devuelve `null` si no existe, no es
+ * Carga una sesión en curso del estudiante autenticado. Devuelve `null` si no existe, no es
  * suya (RLS la oculta) o ya terminó.
+ *
+ * La sesión se lee con RLS; el caso y el paciente, con la clave secreta, porque el estudiante no
+ * tiene acceso a `escenario` ni a `npc` (ver src/lib/sesiones/datos-privados.ts).
  */
 export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActiva | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('sesion')
-    .select(COLUMNAS_SESION)
+    .select('id, inicio, comenzada, codigo_estudiante, nombre_estudiante, escenario_id')
     .eq('id', id)
     .eq('estado', 'en_curso')
     .maybeSingle();
@@ -92,30 +89,19 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
   if (error) {
     throw new Error('No fue posible cargar la sesión.', { cause: error });
   }
-  const escenario = data?.escenario;
-  if (!data || !escenario?.npc) return null;
+  if (!data) return null;
+
+  const escenario = await leerEscenarioDeSesion(data.escenario_id);
+  if (!escenario) return null;
+  const { npc, ...datosEscenario } = escenario;
 
   return {
     id: data.id,
     inicio: data.inicio,
     comenzada: data.comenzada,
     estudiante: { codigo: data.codigo_estudiante, nombre: data.nombre_estudiante },
-    escenario: {
-      id: escenario.id,
-      codigo: escenario.codigo,
-      titulo: escenario.titulo,
-      descripcion: escenario.descripcion,
-      categoria: escenario.categoria,
-      dificultad: escenario.dificultad,
-      competenciaCentral: escenario.competencia_central,
-      configuracion3d: escenario.configuracion_3d,
-    },
-    npc: {
-      id: escenario.npc.id,
-      nombre: escenario.npc.nombre,
-      edad: escenario.npc.edad,
-      perfilClinico: escenario.npc.perfil_clinico,
-    },
+    escenario: datosEscenario,
+    npc,
   };
 });
 
@@ -146,7 +132,7 @@ export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeCo
   }));
 }
 
-/** Id de la sesión en curso más reciente del docente, si tiene alguna. */
+/** Id de la sesión en curso más reciente del estudiante, si tiene alguna. */
 export async function obtenerIdUltimaSesionEnCurso(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase

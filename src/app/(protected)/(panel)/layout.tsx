@@ -5,21 +5,25 @@ import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { obtenerIdUltimaSesionEnCurso } from '@/lib/escenarios/queries';
 
 /** Cookie donde el componente `Sidebar` recuerda si el menú está expandido o contraído. */
 const COOKIE_MENU = 'sidebar_state';
 
 /**
- * Layout del panel del docente (configuración, laboratorio…): menú lateral que se contrae a
+ * Layout de los paneles del docente (configuración, estudiantes…) y del estudiante (prácticas):
+ * menú lateral que se contrae a
  * una columna de íconos (Ctrl/⌘ + B) y, en pantallas pequeñas, se abre como panel deslizable.
  * El estado se lee de la cookie en el servidor para que no parpadee al cargar.
  */
 export default async function PanelLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const usuario = await obtenerSesionUsuario();
+  const esEstudiante = usuario.estado === 'autorizado' && usuario.perfil.rol === 'estudiante';
   const [almacen, sesionEnCurso] = await Promise.all([
     cookies(),
-    // Si la consulta falla, el menú simplemente no ofrece retomar la sesión.
-    obtenerIdUltimaSesionEnCurso().catch(() => null),
+    // Solo el estudiante retoma sesiones. Si la consulta falla, el menú no lo ofrece.
+    esEstudiante ? obtenerIdUltimaSesionEnCurso().catch(() => null) : null,
   ]);
   const menuAbierto = almacen.get(COOKIE_MENU)?.value !== 'false';
 
@@ -34,7 +38,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
           } as React.CSSProperties
         }
       >
-        <AppSidebar sesionEnCurso={sesionEnCurso !== null} />
+        <AppSidebar sesionEnCurso={sesionEnCurso} />
         <SidebarInset className="min-w-0">
           {/* Solo en móvil: el menú vive en un panel deslizable y necesita un botón visible. */}
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-3 backdrop-blur md:hidden">

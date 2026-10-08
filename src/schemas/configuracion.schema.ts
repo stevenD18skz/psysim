@@ -60,16 +60,24 @@ export const promptSchema = z
 
 const escenarioIdSchema = z.uuid('Selecciona un escenario para continuar.');
 
-/** HU-06 · T03/T04 — Formulario completo para iniciar una simulación. */
-export const iniciarSimulacionSchema = z.object({
+/** Días que el código de acceso es válido antes de canjearse (el docente elige). */
+export const VIGENCIAS_DIAS = [1, 3, 7, 30] as const;
+export type VigenciaDias = (typeof VIGENCIAS_DIAS)[number];
+export const VIGENCIA_POR_DEFECTO: VigenciaDias = 7;
+
+/**
+ * Formulario de /configuracion: el docente elige el caso, ajusta al paciente y asigna la
+ * simulación a uno de sus estudiantes con cuenta. Genera un código de acceso individual.
+ */
+export const generarAsignacionSchema = z.object({
   escenarioId: escenarioIdSchema,
   promptSistema: promptSchema,
-  codigoEstudiante: codigoEstudianteSchema,
-  nombreEstudiante: nombreEstudianteSchema,
+  estudianteId: z.uuid('Elige al estudiante que va a practicar.'),
+  vigenciaDias: z.literal(VIGENCIAS_DIAS, 'Elige cuánto tiempo será válido el código.'),
 });
 
-export type IniciarSimulacionInput = z.input<typeof iniciarSimulacionSchema>;
-export type IniciarSimulacionData = z.output<typeof iniciarSimulacionSchema>;
+export type GenerarAsignacionInput = z.input<typeof generarAsignacionSchema>;
+export type GenerarAsignacionData = z.output<typeof generarAsignacionSchema>;
 
 export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
 

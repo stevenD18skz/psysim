@@ -7,6 +7,8 @@ import {
   contarSesiones,
   filtrarEstudiantes,
   formatearDia,
+  formatearFechaHora,
+  formatearNota,
   formatearTiempoPractica,
   normalizarTexto,
 } from './estudiantes';
@@ -16,10 +18,16 @@ function estudiante(codigo: string, nombre: string): EstudianteRegistrado {
     id: codigo,
     codigo,
     nombre,
+    correo: null,
+    cuentaVinculada: false,
     creadoEn: '2026-10-01T15:00:00.000Z',
     metricas: {
       sesiones: 1,
       finalizadas: 0,
+      enCurso: 0,
+      pendientesRetroalimentacion: 0,
+      notaPromedio: null,
+      codigosPendientes: 0,
       segundosPractica: 0,
       casos: 1,
       intervenciones: 0,
@@ -87,5 +95,20 @@ describe('formatos', () => {
   it('formatea el día en la hora de Colombia', () => {
     // 02:00 UTC del 7 de octubre es aún 6 de octubre en Bogotá.
     expect(formatearDia('2026-10-07T02:00:00.000Z')).toMatch(/^6 de oct/);
+  });
+});
+
+describe('formatearNota', () => {
+  it('usa un decimal y coma decimal', () => {
+    expect(formatearNota(4.5)).toBe('4,5');
+    expect(formatearNota(3)).toBe('3,0');
+    expect(formatearNota(null)).toBe('—');
+  });
+});
+
+describe('formatearFechaHora', () => {
+  it('muestra la hora de Colombia', () => {
+    // 20:05 UTC = 3:05 p. m. en Bogotá (UTC-5).
+    expect(formatearFechaHora('2026-10-07T20:05:00.000Z')).toMatch(/7.+oct.+2026.+3:05/);
   });
 });

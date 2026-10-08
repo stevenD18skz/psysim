@@ -5,9 +5,12 @@ import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
-import { cerrarSesion, iniciarSesion } from './actions';
+import { cerrarSesion, iniciarSesion, iniciarSesionConGoogle } from './actions';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers({ origin: 'https://psysim.vercel.app' })),
+}));
 vi.mock('next/navigation', () => ({
   // Como en Next.js, `redirect` corta la ejecución lanzando un error.
   redirect: vi.fn((ruta: string) => {
@@ -35,8 +38,8 @@ describe('iniciarSesion (HU-02)', () => {
     loginExitoso();
     db.responder('usuario', { data: { rol: 'docente' } });
 
-    await expect(iniciarSesion(CREDENCIALES, '/simulacion?sesion=abc')).rejects.toThrow(
-      'NEXT_REDIRECT:/simulacion?sesion=abc'
+    await expect(iniciarSesion(CREDENCIALES, '/estudiantes?pagina=2')).rejects.toThrow(
+      'NEXT_REDIRECT:/estudiantes?pagina=2'
     );
     expect(db.auth.signInWithPassword).toHaveBeenCalledWith({
       email: CREDENCIALES.correo,
@@ -52,12 +55,26 @@ describe('iniciarSesion (HU-02)', () => {
     );
   });
 
-  it('sin rol docente cierra la sesión y muestra acceso denegado', async () => {
+  it('sin perfil en la plataforma cierra la sesión y muestra acceso denegado', async () => {
     loginExitoso();
-    db.responder('usuario', { data: { rol: 'estudiante' } });
+    db.responder('usuario', { data: null });
 
     await expect(iniciarSesion(CREDENCIALES)).rejects.toThrow('NEXT_REDIRECT:/acceso-denegado');
     expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('un estudiante (cuenta de prueba con contraseña) va a sus prácticas', async () => {
+    loginExitoso();
+    db.responder('usuario', { data: { rol: 'estudiante' } });
+    await expect(iniciarSesion(CREDENCIALES)).rejects.toThrow('NEXT_REDIRECT:/practicas');
+  });
+
+  it('a un estudiante no lo devuelve a una ruta del docente', async () => {
+    loginExitoso();
+    db.responder('usuario', { data: { rol: 'estudiante' } });
+    await expect(iniciarSesion(CREDENCIALES, '/configuracion')).rejects.toThrow(
+      'NEXT_REDIRECT:/practicas'
+    );
   });
 
   it.each([
@@ -102,6 +119,32 @@ describe('iniciarSesion (HU-02)', () => {
       error: 'Revisa los datos del formulario.',
     });
     expect(db.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+});
+
+describe('iniciarSesionConGoogle', () => {
+  it('redirige a Google con la URL de retorno y el dominio institucional', async () => {
+    await expect(iniciarSesionConGoogle('/unirse/abc-defg-hij')).rejects.toThrow(
+      'NEXT_REDIRECT:https://accounts.google.com/o/oauth2'
+    );
+    expect(db.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://psysim.vercel.app/auth/callback?siguiente=%2Funirse%2Fabc-defg-hij',
+        queryParams: { hd: 'correounivalle.edu.co', prompt: 'select_account' },
+      },
+    });
+  });
+
+  it('si Supabase falla, muestra un error sin redirigir', async () => {
+    db.auth.signInWithOAuth.mockResolvedValueOnce({
+      data: { url: null },
+      error: { code: 'provider_disabled', status: 400 },
+    });
+    expect(await iniciarSesionConGoogle()).toEqual({
+      error: 'No fue posible conectar con Google. Inténtalo de nuevo.',
+    });
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 

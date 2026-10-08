@@ -3,14 +3,14 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
-import { ROL_PERMITIDO, RUTA_ACCESO_DENEGADO, RUTA_LOGIN } from '@/lib/auth/routes';
+import { esRol, RUTA_ACCESO_DENEGADO, RUTA_INICIO, RUTA_LOGIN } from '@/lib/auth/routes';
 import { createClient } from '@/lib/supabase/server';
-import { type PerfilDocente } from '@/types';
+import { type PerfilUsuario, type RolUsuario } from '@/types';
 
-export type SesionDocente =
+export type SesionUsuario =
   | { estado: 'sin-sesion' }
   | { estado: 'sin-permiso' }
-  | { estado: 'autorizado'; perfil: PerfilDocente };
+  | { estado: 'autorizado'; perfil: PerfilUsuario };
 
 /**
  * Data Access Layer: verificación autoritativa de la sesión y del rol.
@@ -19,7 +19,7 @@ export type SesionDocente =
  * el servidor de Auth con `getUser()` —detecta sesiones cerradas o revocadas— y el rol se
  * lee de la tabla `usuario`. Se memoriza por petición con `cache`.
  */
-export const obtenerSesionDocente = cache(async (): Promise<SesionDocente> => {
+export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
   const supabase = await createClient();
 
   const {
@@ -42,7 +42,7 @@ export const obtenerSesionDocente = cache(async (): Promise<SesionDocente> => {
     throw new Error('No fue posible cargar el perfil del usuario.', { cause: errorPerfil });
   }
 
-  if (!perfil || perfil.rol !== ROL_PERMITIDO) {
+  if (!perfil || !esRol(perfil.rol)) {
     return { estado: 'sin-permiso' };
   }
 
@@ -59,11 +59,10 @@ export const obtenerSesionDocente = cache(async (): Promise<SesionDocente> => {
 });
 
 /**
- * Exige una sesión de docente válida. Redirige a /login o a /acceso-denegado si no la hay.
- * Úsalo en layouts, páginas, Server Actions y Route Handlers protegidos.
+ * Exige una sesión válida con cualquier rol. Redirige a /login o a /acceso-denegado si no la hay.
  */
-export async function requerirDocente(): Promise<PerfilDocente> {
-  const sesion = await obtenerSesionDocente();
+export async function requerirUsuario(): Promise<PerfilUsuario> {
+  const sesion = await obtenerSesionUsuario();
 
   if (sesion.estado === 'sin-sesion') {
     redirect(RUTA_LOGIN);
@@ -73,4 +72,26 @@ export async function requerirDocente(): Promise<PerfilDocente> {
   }
 
   return sesion.perfil;
+}
+
+/** Exige el rol indicado. Con otro rol válido, lleva a la ruta de inicio de ese rol. */
+async function requerirRol(rol: RolUsuario): Promise<PerfilUsuario> {
+  const perfil = await requerirUsuario();
+  if (perfil.rol !== rol) {
+    redirect(RUTA_INICIO[perfil.rol]);
+  }
+  return perfil;
+}
+
+/**
+ * Exige una sesión de docente. Úsalo en las páginas, Server Actions y Route Handlers del panel
+ * del docente (configurar, asignar, revisar).
+ */
+export function requerirDocente(): Promise<PerfilUsuario> {
+  return requerirRol('docente');
+}
+
+/** Exige una sesión de estudiante (canjear códigos, practicar y ver su retroalimentación). */
+export function requerirEstudiante(): Promise<PerfilUsuario> {
+  return requerirRol('estudiante');
 }

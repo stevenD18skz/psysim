@@ -3,6 +3,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import { existe } from '../test/pendiente';
 
+import { docente, estudiante } from './helpers';
+
 /**
  * Pasos reutilizables de los flujos E2E (Sprint 6, HU-27). El Canvas 3D es un bloque de píxeles
  * para Playwright: cada paso se verifica con el DOM que lo rodea (pantalla de carga, modales,
@@ -26,41 +28,188 @@ export function clienteAdmin() {
   return url && clave ? createClient(url, clave, { auth: { persistSession: false } }) : null;
 }
 
-/**
- * Borra las sesiones (con sus mensajes y métricas, en cascada) y los estudiantes cuyo código
- * empieza por `prefijo`. Cada archivo de tests usa un prefijo reservado propio para no borrar
- * los datos de otro que corre en paralelo.
- */
-export async function limpiarPorCodigo(prefijo: string) {
-  const admin = clienteAdmin();
-  if (!admin) return;
-  await admin.from('sesion').delete().like('codigo_estudiante', `${prefijo}%`);
-  await admin.from('estudiante').delete().like('codigo', `${prefijo}%`);
+/** Cliente con la clave secreta; falla si no está definida (los tests que lo usan lo exigen). */
+function admin() {
+  const cliente = clienteAdmin();
+  if (!cliente) throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SECRET_KEY.');
+  return cliente;
 }
 
-export interface DatosEstudiante {
-  codigo: string;
-  nombre: string;
+const LETRAS = 'abcdefghijklmnopqrstuvwxyz';
+const letras = (n: number) =>
+  Array.from({ length: n }, () => LETRAS[Math.floor(Math.random() * LETRAS.length)]).join('');
+
+/**
+ * Código de acceso de prueba. Las tres primeras letras son el prefijo reservado de cada archivo de
+ * tests: así cada uno limpia solo sus datos aunque corran en paralelo.
+ */
+export function codigoDePrueba(prefijo: string) {
+  return `${prefijo}-${letras(4)}-${letras(3)}`;
+}
+
+interface Registro {
+  docenteId: string;
+  estudianteId: string;
 }
 
 /**
- * En /configuracion: elige el escenario, escribe los datos del estudiante e inicia la sesión.
- * Devuelve el id de la sesión creada (de la URL de /simulacion).
+ * Registro del estudiante de prueba por el docente de prueba (como si el docente lo hubiera
+ * registrado desde Estudiantes). Es idempotente: el trigger lo enlaza a la cuenta por el correo.
  */
-export async function prepararSesion(
-  page: Page,
-  { escenario = 'E-01', estudiante }: { escenario?: string; estudiante: DatosEstudiante }
+export async function registrarEstudiantePrueba(cuenta = estudiante): Promise<Registro> {
+  const cliente = admin();
+  const [{ data: profesor }, { data: alumno }] = await Promise.all([
+    cliente.from('usuario').select('id').eq('correo', docente.correo.toLowerCase()).single(),
+    cliente
+      .from('usuario')
+      .select('nombre, codigo_institucional')
+      .eq('correo', cuenta.correo.toLowerCase())
+      .single(),
+  ]);
+  if (!profesor || !alumno) throw new Error('Faltan las cuentas de prueba: ejecuta pnpm db:seed.');
+
+  const { data, error } = await cliente
+    .from('estudiante')
+    .upsert(
+      {
+        docente_id: profesor.id,
+        codigo: alumno.codigo_institucional,
+        nombre: alumno.nombre,
+        correo: cuenta.correo.toLowerCase(),
+      },
+      { onConflict: 'docente_id,codigo' }
+    )
+    .select('id')
+    .single();
+  if (error) throw error;
+  return { docenteId: profesor.id, estudianteId: data.id };
+}
+
+interface OpcionesCodigo {
+  escenario?: string;
+  /** Prompt de la sesión; por defecto, el del paciente del escenario. */
+  prompt?: string;
+  cuenta?: typeof estudiante;
+}
+
+/** El docente de prueba asigna un caso al estudiante de prueba: devuelve el código de acceso. */
+export async function crearCodigoAcceso(
+  prefijo: string,
+  { escenario = 'E-01', prompt, cuenta }: OpcionesCodigo = {}
 ): Promise<string> {
+  const cliente = admin();
+  const { docenteId, estudianteId } = await registrarEstudiantePrueba(cuenta);
+  const { data: caso } = await cliente
+    .from('escenario')
+    .select('id, npc ( prompt_sistema )')
+    .eq('codigo', escenario)
+    .single();
+  // Sin los tipos de la base de datos, PostgREST tipa el NPC (1:1) como lista.
+  const npc = (caso?.npc ?? null) as unknown as { prompt_sistema: string } | null;
+  if (!caso || !npc) throw new Error(`No existe el escenario ${escenario}.`);
+
+  const codigo = codigoDePrueba(prefijo);
+  const { error } = await cliente.from('asignacion').insert({
+    docente_id: docenteId,
+    estudiante_id: estudianteId,
+    escenario_id: caso.id,
+    prompt_sistema: prompt ?? npc.prompt_sistema,
+    codigo,
+    expira_en: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  });
+  if (error) throw error;
+  return codigo;
+}
+
+/**
+ * Sesión en curso del estudiante de prueba creada directamente en la base de datos (sin pasar por
+ * la interfaz), enlazada a un código de prueba para poder limpiarla.
+ */
+export async function crearSesionEstudiante(
+  prefijo: string,
+  { comenzada = true, ...opciones }: OpcionesCodigo & { comenzada?: boolean } = {}
+): Promise<string> {
+  const cliente = admin();
+  const codigo = await crearCodigoAcceso(prefijo, opciones);
+  const { data: asignacion } = await cliente
+    .from('asignacion')
+    .select('id, docente_id, escenario_id, prompt_sistema, estudiante ( id, codigo, nombre )')
+    .eq('codigo', codigo)
+    .single();
+  const alumno = asignacion!.estudiante as unknown as {
+    id: string;
+    codigo: string;
+    nombre: string;
+  };
+
+  const { data: sesion, error } = await cliente
+    .from('sesion')
+    .insert({
+      usuario_id: asignacion!.docente_id,
+      escenario_id: asignacion!.escenario_id,
+      estudiante_id: alumno.id,
+      codigo_estudiante: alumno.codigo,
+      nombre_estudiante: alumno.nombre,
+      prompt_sistema: asignacion!.prompt_sistema,
+      comenzada,
+    })
+    .select('id')
+    .single();
+  if (error) throw error;
+  await cliente.from('asignacion').update({ sesion_id: sesion.id }).eq('id', asignacion!.id);
+  return sesion.id;
+}
+
+/**
+ * Borra los códigos indicados (o los que empiezan por el prefijo de 3 letras) y sus sesiones, con
+ * los mensajes y la retroalimentación en cascada.
+ */
+export async function limpiarCodigos(prefijoOCodigos: string | string[]) {
+  const cliente = clienteAdmin();
+  if (!cliente) return;
+  const consulta = cliente.from('asignacion').select('id, sesion_id');
+  const { data } = await (typeof prefijoOCodigos === 'string'
+    ? consulta.like('codigo', `${prefijoOCodigos}-%`)
+    : consulta.in('codigo', prefijoOCodigos));
+  const sesiones = (data ?? []).flatMap(a => (a.sesion_id ? [a.sesion_id] : []));
+  if (sesiones.length) await cliente.from('sesion').delete().in('id', sesiones);
+  if (data?.length) {
+    await cliente
+      .from('asignacion')
+      .delete()
+      .in(
+        'id',
+        data.map(a => a.id)
+      );
+  }
+}
+
+/**
+ * El estudiante (con la sesión ya iniciada) escribe el código en «Mis prácticas» y entra a la
+ * simulación. Devuelve el id de la sesión (de la URL de /simulacion).
+ */
+export async function canjearCodigoEnPracticas(page: Page, codigo: string): Promise<string> {
   // SwiftShader renderiza por software: un viewport pequeño mantiene un FPS útil.
   await page.setViewportSize({ width: 800, height: 600 });
-  await page.goto('/configuracion');
-  await page.getByTestId(`escenario-${escenario}`).click();
-  await page.getByLabel('Código institucional').fill(estudiante.codigo);
-  await page.getByLabel('Nombre completo').fill(estudiante.nombre);
-  await page.getByRole('button', { name: 'Iniciar simulación' }).click();
+  await page.goto('/practicas');
+  await page.getByLabel('Código de acceso').fill(codigo);
+  await page.getByRole('button', { name: 'Entrar a la simulación' }).click();
 
   await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
   return new URL(page.url()).searchParams.get('sesion')!;
+}
+
+/**
+ * Atajo de los tests de la simulación: el docente de prueba asigna el caso (en la base de datos) y
+ * el estudiante, ya con la sesión iniciada, canjea el código desde la interfaz.
+ */
+export async function prepararSesion(
+  page: Page,
+  prefijo: string,
+  opciones: OpcionesCodigo = {}
+): Promise<string> {
+  const codigo = await crearCodigoAcceso(prefijo, opciones);
+  return canjearCodigoEnPracticas(page, codigo);
 }
 
 /** Espera a que cargue la escena, confirma las instrucciones del caso (HU-23) y la inicia. */

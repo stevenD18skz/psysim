@@ -1,20 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
 
-import { hayCredenciales, iniciarSesionComoDocente } from './helpers';
+import { limpiarCodigos, prepararSesion, registrarEstudiantePrueba } from './flujos';
+import {
+  hayCredenciales,
+  hayCredencialesEstudiante,
+  iniciarSesionComoDocente,
+  iniciarSesionComoEstudiante,
+  MOTIVO_SIN_ESTUDIANTE,
+} from './helpers';
 
 /**
- * Sprint 2 — HU-06 (configuración y datos del estudiante), HU-07 (casos propios, antes configuraciones)
- * y HU-09 · T05 (flujo completo hasta la escena 3D). Registro en docs/pruebas/sprint-2.md.
+ * Sprint 2 — HU-06 (configuración y asignación al estudiante), HU-07 (casos propios) y HU-09 · T05
+ * (flujo completo hasta la escena 3D). Registro en docs/pruebas/sprint-2.md.
  *
- * Los datos creados (casos propios con prefijo "E2E", sesiones con el código de estudiante
- * reservado 2099000xx) se eliminan al terminar con la clave secreta.
+ * El docente configura y genera un código de acceso; el estudiante lo canjea y la simulación
+ * corre en su sesión. Los datos creados (casos propios con prefijo "E2E", códigos con el prefijo
+ * "cfg" y sus sesiones) se eliminan al terminar con la clave secreta.
  */
 
 const PREFIJO = 'E2E';
-/** Código reservado para las pruebas: identifica las sesiones que se limpian al terminar. */
-const CODIGO_PRUEBAS = '2099000';
-const ESTUDIANTE = { codigo: `${CODIGO_PRUEBAS}01`, nombre: 'Estudiante de Prueba Automatizada' };
+/** Prefijo de los códigos de acceso de este archivo: identifica lo que se limpia al terminar. */
+const PREFIJO_CODIGOS = 'cfg';
+/** Nombre del estudiante de prueba (E2E_ESTUDIANTE_*, creado por pnpm db:seed). */
+const ESTUDIANTE = { codigo: '209990001', nombre: 'Estudiante de Prueba Uno' };
+/** Códigos generados desde la interfaz (aleatorios): se limpian por su valor. */
+const codigosGenerados: string[] = [];
 
 function clienteAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,9 +36,8 @@ function clienteAdmin() {
 async function limpiarDatosDePrueba() {
   const admin = clienteAdmin();
   if (!admin) return;
-  await admin.from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
-  // Cada sesión registra a su estudiante: se borra después (las sesiones lo referencian).
-  await admin.from('estudiante').delete().like('codigo', `${CODIGO_PRUEBAS}%`);
+  await limpiarCodigos(PREFIJO_CODIGOS);
+  if (codigosGenerados.length) await limpiarCodigos(codigosGenerados);
   // El NPC se elimina en cascada. Las sesiones ya se borraron arriba (referencian el escenario).
   await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
 }
@@ -36,7 +46,11 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
   test.describe.configure({ mode: 'serial' });
 
-  test.beforeAll(limpiarDatosDePrueba);
+  test.beforeAll(async () => {
+    await limpiarDatosDePrueba();
+    // El estudiante de prueba debe estar registrado (con cuenta) para recibir códigos.
+    if (hayCredencialesEstudiante) await registrarEstudiantePrueba();
+  });
   test.afterAll(limpiarDatosDePrueba);
 
   test.beforeEach(async ({ page }) => {
@@ -59,22 +73,53 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     // Solo un escenario seleccionado a la vez.
     await page.getByTestId('escenario-E-02').click();
-    await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
+    await expect(
+      page.getByRole('radiogroup', { name: /Elige el caso/ }).getByRole('radio', { checked: true })
+    ).toHaveCount(1);
     await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(/Eres Andrés Felipe/);
   });
 
-  test('HU-06 · T03: valida los datos del estudiante con mensajes inline', async ({ page }) => {
-    await page.getByRole('button', { name: 'Iniciar simulación' }).click();
+  test('HU-06 · T03: exige el caso y el estudiante con mensajes inline', async ({ page }) => {
+    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
     await expect(page.getByText('Selecciona un escenario para continuar.')).toBeVisible();
-    await expect(page.getByText('Ingresa el código institucional del estudiante.')).toBeVisible();
-    await expect(page.getByText('Ingresa el nombre completo del estudiante.')).toBeVisible();
-
-    await page.getByLabel('Código institucional').fill('20-ABC');
-    await page.getByLabel('Nombre completo').fill('A');
-    await page.getByLabel('Nombre completo').blur();
-    await expect(page.getByText('El código solo puede contener números.')).toBeVisible();
-    await expect(page.getByText('El nombre debe tener al menos 2 caracteres.')).toBeVisible();
+    await expect(page.getByText('Elige al estudiante que va a practicar.')).toBeVisible();
     await expect(page).toHaveURL(/\/configuracion$/);
+  });
+
+  test('HU-06 · T04: asigna el caso a un estudiante y genera su código de acceso', async ({
+    page,
+  }) => {
+    test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
+
+    await page.getByTestId('escenario-E-01').click();
+    await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill(ESTUDIANTE.codigo);
+    await page.getByRole('option', { name: new RegExp(ESTUDIANTE.nombre) }).click();
+    await expect(page.getByTestId('estudiante-elegido')).toHaveText(ESTUDIANTE.nombre);
+    await page.getByRole('radio', { name: '1 día' }).check({ force: true });
+    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
+
+    const dialogo = page.getByRole('dialog', { name: 'Código de acceso listo' });
+    const codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
+    codigosGenerados.push(codigo);
+    expect(codigo).toMatch(/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/);
+    await expect(dialogo).toContainText(`/unirse/${codigo}`);
+    // La simulación ya no se abre en el equipo del docente.
+    await expect(page).toHaveURL(/\/configuracion/);
+
+    // Queda en la base de datos con el prompt copiado y una vigencia de un día.
+    const admin = clienteAdmin();
+    if (admin) {
+      const { data } = await admin
+        .from('asignacion')
+        .select('prompt_sistema, expira_en, creado_en, sesion_id')
+        .eq('codigo', codigo)
+        .single();
+      expect(data?.prompt_sistema).toContain('Eres Marta Lucía');
+      expect(data?.sesion_id).toBeNull();
+      const horas =
+        (new Date(data!.expira_en).getTime() - new Date(data!.creado_en).getTime()) / 3_600_000;
+      expect(horas).toBeCloseTo(24, 0);
+    }
   });
 
   test('HU-07: guarda un escenario ajustado como caso propio y lo elimina', async ({ page }) => {
@@ -144,17 +189,23 @@ test.describe('configuración del escenario (Sprint 2)', () => {
       'true'
     );
   });
+});
 
-  test('HU-06 · T04 y HU-09 · T05: inicia la sesión y carga la escena 3D', async ({ page }) => {
+test.describe('simulación del estudiante (Sprint 2)', () => {
+  test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(() => limpiarCodigos(PREFIJO_CODIGOS));
+  test.afterAll(() => limpiarCodigos(PREFIJO_CODIGOS));
+
+  test.beforeEach(async ({ page }) => {
+    await iniciarSesionComoEstudiante(page);
+  });
+
+  test('HU-09 · T05: el estudiante canjea el código y carga la escena 3D', async ({ page }) => {
     test.slow(); // La escena 3D se renderiza por software (SwiftShader) en CI.
 
-    await page.getByTestId('escenario-E-01').click();
-    await page.getByLabel('Código institucional').fill(ESTUDIANTE.codigo);
-    await page.getByLabel('Nombre completo').fill(ESTUDIANTE.nombre);
-    await page.getByRole('button', { name: 'Iniciar simulación' }).click();
-
-    await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
-    const sesionId = new URL(page.url()).searchParams.get('sesion')!;
+    const sesionId = await prepararSesion(page, PREFIJO_CODIGOS);
 
     const hud = page.getByRole('complementary', { name: 'Datos de la sesión' });
 
@@ -234,8 +285,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(instrucciones).toBeHidden();
 
     // /simulacion sin parámetro retoma la última sesión en curso. Otros archivos de tests corren
-    // en paralelo con el mismo docente y pueden haber creado una más reciente: se compara con la
-    // última en curso según la base de datos, no necesariamente la de este test.
+    // en paralelo con el mismo estudiante y pueden haber creado una más reciente: se compara con
+    // la última en curso según la base de datos, no necesariamente la de este test.
     await page.goto('/simulacion');
     await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
     if (admin) {
@@ -287,7 +338,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await mantener('KeyW', 6000);
     const bloqueado = await posicion();
     expect(bloqueado[2]).toBeGreaterThan(-0.5);
-    expect(bloqueado[2]).toBeLessThan(tras1[2]);
+    // Con buen FPS el primer tramo ya llega a la mesa: no avanza más, pero tampoco retrocede.
+    expect(bloqueado[2]).toBeLessThanOrEqual(tras1[2]);
 
     // D: se desliza a la derecha y nunca supera el límite de navegación (x ≤ 2.7).
     await mantener('KeyD', 4000);
@@ -309,7 +361,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(
       page.getByRole('heading', { name: 'Esta sesión no está disponible' })
     ).toBeVisible();
-    await page.getByRole('link', { name: 'Preparar una sesión' }).click();
-    await expect(page).toHaveURL(/\/configuracion$/);
+    await page.getByRole('link', { name: 'Ir a mis prácticas' }).click();
+    await expect(page).toHaveURL(/\/practicas$/);
   });
 });

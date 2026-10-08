@@ -1,11 +1,9 @@
-import { ArrowRight, Clock, MessageSquareText, MonitorPlay, UsersRound } from 'lucide-react';
+import { ClipboardCheck, MonitorPlay, Radio, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
+import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
 import { ListaEstudiantes } from '@/components/estudiantes/lista-estudiantes';
-import { Button } from '@/components/ui/button';
 import { requerirDocente } from '@/lib/auth/dal';
-import { formatearTiempoPractica } from '@/lib/estudiantes/estudiantes';
 import { obtenerEstudiantes } from '@/lib/estudiantes/queries';
 
 export const metadata: Metadata = {
@@ -13,8 +11,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Estudiantes registrados por el docente con sus métricas básicas. Se registran solos al iniciar
- * su primera sesión; desde aquí se prepara una nueva sesión para cualquiera de ellos.
+ * Gestión de estudiantes del docente: los registra con su correo institucional (así entran con
+ * Google), les asigna simulaciones con un código de acceso y ve qué sesiones están en progreso o
+ * esperan su retroalimentación.
  */
 export default async function EstudiantesPage() {
   await requerirDocente();
@@ -23,36 +22,31 @@ export default async function EstudiantesPage() {
   const totales = estudiantes.reduce(
     (suma, { metricas }) => ({
       sesiones: suma.sesiones + metricas.sesiones,
-      segundos: suma.segundos + metricas.segundosPractica,
-      intervenciones: suma.intervenciones + metricas.intervenciones,
+      enCurso: suma.enCurso + metricas.enCurso,
+      pendientes: suma.pendientes + metricas.pendientesRetroalimentacion,
     }),
-    { sesiones: 0, segundos: 0, intervenciones: 0 }
+    { sesiones: 0, enCurso: 0, pendientes: 0 }
   );
 
   const indicadores = [
-    { icono: UsersRound, etiqueta: 'Estudiantes', valor: String(estudiantes.length) },
-    { icono: MonitorPlay, etiqueta: 'Sesiones', valor: String(totales.sesiones) },
-    {
-      icono: Clock,
-      etiqueta: 'Tiempo de práctica',
-      valor: formatearTiempoPractica(totales.segundos),
-    },
-    {
-      icono: MessageSquareText,
-      etiqueta: 'Intervenciones',
-      valor: totales.intervenciones.toLocaleString('es-CO'),
-    },
+    { icono: UsersRound, etiqueta: 'Estudiantes', valor: estudiantes.length },
+    { icono: Radio, etiqueta: 'En progreso ahora', valor: totales.enCurso },
+    { icono: ClipboardCheck, etiqueta: 'Por revisar', valor: totales.pendientes },
+    { icono: MonitorPlay, etiqueta: 'Sesiones', valor: totales.sesiones },
   ];
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-sm font-medium tracking-wide text-primary uppercase">Seguimiento</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Estudiantes</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Cada estudiante queda registrado al iniciar su primera sesión. Cuando vuelva a practicar,
-          búscalo por su código o nombre al preparar la sesión.
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex flex-1 flex-col gap-2">
+          <p className="text-sm font-medium tracking-wide text-primary uppercase">Seguimiento</p>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Estudiantes</h1>
+          <p className="max-w-2xl text-muted-foreground">
+            Registra a tus estudiantes con su correo institucional, asígnales simulaciones con un
+            código de acceso y revisa sus sesiones para darles retroalimentación.
+          </p>
+        </div>
+        {estudiantes.length > 0 && <BotonRegistrarEstudiante />}
       </header>
 
       {estudiantes.length === 0 ? (
@@ -62,16 +56,12 @@ export default async function EstudiantesPage() {
           </span>
           <div className="flex flex-col gap-1">
             <h2 className="text-xl font-semibold">Aún no hay estudiantes registrados</h2>
-            <p className="text-sm text-muted-foreground">
-              Aparecerán aquí en cuanto prepares su primera sesión.
+            <p className="max-w-md text-sm text-muted-foreground">
+              Regístralos con su código, nombre y correo @correounivalle.edu.co. Entrarán con
+              «Continuar con Google» y podrás enviarles códigos de acceso.
             </p>
           </div>
-          <Button asChild>
-            <Link href="/configuracion">
-              Preparar una sesión
-              <ArrowRight aria-hidden />
-            </Link>
-          </Button>
+          <BotonRegistrarEstudiante />
         </div>
       ) : (
         <>
@@ -85,7 +75,9 @@ export default async function EstudiantesPage() {
                   <Icono className="size-4 text-primary" aria-hidden />
                   {etiqueta}
                 </dt>
-                <dd className="font-heading text-2xl font-semibold tabular-nums">{valor}</dd>
+                <dd className="font-heading text-2xl font-semibold tabular-nums">
+                  {valor.toLocaleString('es-CO')}
+                </dd>
               </div>
             ))}
           </dl>

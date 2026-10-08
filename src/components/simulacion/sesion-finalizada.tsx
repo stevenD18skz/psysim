@@ -10,8 +10,9 @@ import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
 
 /**
- * Cierre de la sesión (versión mínima del Sprint 3). El Sprint 4 (HU-21) la reemplaza por la
- * pantalla /resultados con las métricas persistidas y el historial completo.
+ * Cierre de la sesión (versión mínima del Sprint 3). El estudiante pasa a su práctica, donde
+ * relee la conversación y, cuando el docente la publique, ve la retroalimentación. El Sprint 4
+ * (HU-21) añade las métricas persistidas.
  */
 export function SesionFinalizada({
   resumen,
@@ -24,10 +25,10 @@ export function SesionFinalizada({
   const limpiarSesion = useAppStore(state => state.sesion.limpiar);
   const [navegando, startTransition] = useTransition();
 
-  const nuevaSesion = () =>
+  const verPractica = () =>
     startTransition(() => {
       limpiarSesion();
-      router.push('/configuracion');
+      router.push(`/practicas/${sesion.id}`);
     });
 
   const indicadores = [
@@ -61,6 +62,9 @@ export function SesionFinalizada({
           <p className="text-sm text-muted-foreground">
             {sesion.estudiante.nombre} · {sesion.escenario.codigo} {sesion.escenario.titulo}
           </p>
+          <p className="mt-2 text-sm">
+            Tu docente revisará la conversación y te dejará su retroalimentación.
+          </p>
         </div>
         <dl className="grid w-full grid-cols-3 gap-3">
           {indicadores.map(({ icono: Icono, etiqueta, valor }) => (
@@ -74,8 +78,8 @@ export function SesionFinalizada({
             </div>
           ))}
         </dl>
-        <Button size="lg" onClick={nuevaSesion} disabled={navegando} autoFocus>
-          Preparar una nueva sesión
+        <Button size="lg" onClick={verPractica} disabled={navegando} autoFocus>
+          Ver mi práctica
         </Button>
       </section>
     </div>

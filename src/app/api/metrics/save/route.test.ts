@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { obtenerSesionDocente } from '@/lib/auth/dal';
+import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
 
 import { existe } from '../../../../../test/pendiente';
@@ -12,8 +12,9 @@ import { crearSupabaseFalso, type SupabaseFalso } from '../../../../../test/supa
  * Pendiente: se activa cuando exista `src/app/api/metrics/save/route.ts`. Define el contrato
  * acordado en Taiga, con las mismas convenciones que `/api/npc/chat`:
  *
- * - 401/403 sin sesión de docente; 400 con el detalle por campo (`campos`) si el cuerpo no pasa
- *   Zod; 409 si la sesión no está `en_curso` (se consulta `sesion.estado` antes de guardar).
+ * - 401/403 sin sesión del estudiante (quien finaliza la sesión desde su equipo); 400 con el
+ *   detalle por campo (`campos`) si el cuerpo no pasa Zod; 409 si la sesión no está `en_curso`
+ *   (se consulta `sesion.estado` antes de guardar).
  * - Guarda de forma atómica con la función de PostgreSQL `guardar_metricas_cierre` (INSERT en
  *   `metrica` + UPDATE de la sesión), invocada con `supabase.rpc` y parámetros `p_<campo>`.
  * - 500 con un mensaje genérico si falla la base de datos: nunca expone detalles internos.
@@ -22,7 +23,7 @@ import { crearSupabaseFalso, type SupabaseFalso } from '../../../../../test/supa
  */
 const RUTA = './route';
 
-vi.mock('@/lib/auth/dal', () => ({ obtenerSesionDocente: vi.fn() }));
+vi.mock('@/lib/auth/dal', () => ({ obtenerSesionUsuario: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
@@ -56,14 +57,14 @@ describe.skipIf(!existe('src/app/api/metrics/save/route.ts'))(
     beforeEach(() => {
       db = crearSupabaseFalso();
       vi.mocked(createClient).mockResolvedValue(db.cliente as never);
-      vi.mocked(obtenerSesionDocente).mockResolvedValue({
+      vi.mocked(obtenerSesionUsuario).mockResolvedValue({
         estado: 'autorizado',
         perfil: {
-          id: 'd0c3e7e4-0000-4000-8000-000000000001',
-          nombre: 'Docente',
-          correo: 'docente@psysim.test',
-          codigoInstitucional: 'DOC-1',
-          rol: 'docente',
+          id: 'e57d1a00-0000-4000-8000-000000000001',
+          nombre: 'Ana Pérez',
+          correo: 'ana.perez@correounivalle.edu.co',
+          codigoInstitucional: '202012345',
+          rol: 'estudiante',
         },
       });
       vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -129,10 +130,10 @@ describe.skipIf(!existe('src/app/api/metrics/save/route.ts'))(
       }
     );
 
-    it('responde 401 sin sesión y 403 sin rol docente', async () => {
-      vi.mocked(obtenerSesionDocente).mockResolvedValueOnce({ estado: 'sin-sesion' });
+    it('responde 401 sin sesión y 403 sin rol', async () => {
+      vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({ estado: 'sin-sesion' });
       expect((await POST(peticion(CUERPO))).status).toBe(401);
-      vi.mocked(obtenerSesionDocente).mockResolvedValueOnce({ estado: 'sin-permiso' });
+      vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({ estado: 'sin-permiso' });
       expect((await POST(peticion(CUERPO))).status).toBe(403);
       expect(db.rpc).not.toHaveBeenCalled();
     });

@@ -12,17 +12,21 @@ interface BuscadorEstudianteProps {
   estudiantes: readonly EstudianteRegistrado[];
   onSeleccionar: (estudiante: EstudianteRegistrado) => void;
   deshabilitado?: boolean;
+  etiqueta?: string;
+  /** Texto cuando ningún estudiante coincide con lo escrito. */
+  mensajeVacio?: string;
 }
 
 /**
- * Busca entre los estudiantes ya registrados por código o nombre (patrón combobox de ARIA:
- * flechas para recorrer, Enter para elegir, Escape para cerrar). Al elegir uno, el formulario
- * se llena con sus datos.
+ * Busca entre los estudiantes registrados por código o nombre (patrón combobox de ARIA:
+ * flechas para recorrer, Enter para elegir, Escape para cerrar).
  */
 export function BuscadorEstudiante({
   estudiantes,
   onSeleccionar,
   deshabilitado = false,
+  etiqueta = 'Busca al estudiante',
+  mensajeVacio = 'Ningún estudiante registrado coincide.',
 }: BuscadorEstudianteProps) {
   const id = useId();
   const idLista = `${id}-lista`;
@@ -60,7 +64,7 @@ export function BuscadorEstudiante({
   return (
     <div className="relative flex flex-col gap-2">
       <label htmlFor={id} className="text-sm font-medium">
-        ¿Ya practicó antes?
+        {etiqueta}
       </label>
       <div className="relative">
         <Search
@@ -100,10 +104,7 @@ export function BuscadorEstudiante({
           className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg motion-safe:animate-in motion-safe:fade-in-0"
         >
           {resultados.length === 0 ? (
-            <li className="px-3 py-2.5 text-sm text-muted-foreground">
-              Ningún estudiante registrado coincide. Escribe sus datos abajo: quedará registrado al
-              iniciar.
-            </li>
+            <li className="px-3 py-2.5 text-sm text-muted-foreground">{mensajeVacio}</li>
           ) : (
             resultados.map((estudiante, i) => (
               <li

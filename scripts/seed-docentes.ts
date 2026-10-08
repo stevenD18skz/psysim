@@ -3,6 +3,8 @@
  *
  * - Crea cada cuenta en Supabase Auth (correo confirmado, sin enviar correos).
  * - Inserta/actualiza su perfil en `public.usuario` con el MISMO id de Auth.
+ * - Crea dos estudiantes de prueba con contraseña (los reales entran con Google). Usan el dominio
+ *   reservado `psysim.test`, que ninguna cuenta de Google puede tener.
  * - Crea además una cuenta SIN perfil, para probar la página de acceso denegado.
  *
  * Uso:  pnpm db:seed               → crea las cuentas que falten
@@ -20,8 +22,9 @@ import { type Database } from '../src/types/database.types.ts';
 interface CuentaSemilla {
   correo: string;
   nombre: string;
-  /** Sin código = cuenta sin perfil en `usuario` (no es docente). */
+  /** Sin código = cuenta sin perfil en `usuario` (sin acceso a la plataforma). */
   codigoInstitucional?: string;
+  rol?: 'docente' | 'estudiante';
 }
 
 const CUENTAS: CuentaSemilla[] = [
@@ -39,6 +42,18 @@ const CUENTAS: CuentaSemilla[] = [
     correo: 'docente3@psysim.test',
     nombre: 'Docente de Prueba Tres',
     codigoInstitucional: 'DOC-0003',
+  },
+  {
+    correo: 'estudiante1@psysim.test',
+    nombre: 'Estudiante de Prueba Uno',
+    codigoInstitucional: '209990001',
+    rol: 'estudiante',
+  },
+  {
+    correo: 'estudiante2@psysim.test',
+    nombre: 'Estudiante de Prueba Dos',
+    codigoInstitucional: '209990002',
+    rol: 'estudiante',
   },
   { correo: 'sin-rol@psysim.test', nombre: 'Usuario sin Rol' },
 ];
@@ -99,7 +114,7 @@ async function asegurarCuenta(cuenta: CuentaSemilla): Promise<string | null> {
       nombre: cuenta.nombre,
       correo,
       codigo_institucional: cuenta.codigoInstitucional,
-      rol: 'docente',
+      rol: cuenta.rol ?? 'docente',
     });
     if (error) throw error;
   } else {
@@ -113,7 +128,7 @@ async function asegurarCuenta(cuenta: CuentaSemilla): Promise<string | null> {
 let fallos = 0;
 
 for (const cuenta of CUENTAS) {
-  const tipo = cuenta.codigoInstitucional ? 'docente ' : 'sin rol ';
+  const tipo = cuenta.codigoInstitucional ? (cuenta.rol ?? 'docente').padEnd(10) : 'sin rol   ';
   try {
     const contrasena = await asegurarCuenta(cuenta);
     const detalle = contrasena

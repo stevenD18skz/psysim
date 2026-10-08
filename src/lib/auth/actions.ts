@@ -1,8 +1,15 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { ROL_PERMITIDO, RUTA_ACCESO_DENEGADO, rutaSiguienteSegura } from '@/lib/auth/routes';
+import { DOMINIO_ESTUDIANTES } from '@/lib/auth/google';
+import {
+  esRol,
+  PARAM_SIGUIENTE,
+  RUTA_ACCESO_DENEGADO,
+  rutaSiguienteSegura,
+} from '@/lib/auth/routes';
 import { createClient } from '@/lib/supabase/server';
 import { loginSchema } from '@/schemas/auth.schema';
 
@@ -15,10 +22,11 @@ const MENSAJE_LIMITE = 'Demasiados intentos de inicio de sesión. Espera unos mi
 const MENSAJE_GENERICO = 'No fue posible iniciar sesión. Inténtalo de nuevo.';
 
 /**
- * HU-02: inicia la sesión del docente con Supabase Auth.
+ * HU-02: inicia la sesión con correo y contraseña (docentes y cuentas de prueba).
  *
  * Supabase escribe el token de sesión en cookies (vía @supabase/ssr), por lo que la sesión
- * sobrevive a recargas y nuevas pestañas. Si tiene éxito, redirige y no devuelve nada.
+ * sobrevive a recargas y nuevas pestañas. Si tiene éxito, redirige a la ruta de inicio del rol
+ * y no devuelve nada.
  */
 export async function iniciarSesion(
   valores: unknown,
@@ -60,13 +68,51 @@ export async function iniciarSesion(
     return { error: MENSAJE_GENERICO };
   }
 
-  if (perfil?.rol !== ROL_PERMITIDO) {
-    // Credenciales válidas pero sin rol de docente: no se deja una sesión abierta.
+  if (!esRol(perfil?.rol)) {
+    // Credenciales válidas pero sin rol en la plataforma: no se deja una sesión abierta.
     await supabase.auth.signOut({ scope: 'local' });
     redirect(RUTA_ACCESO_DENEGADO);
   }
 
-  redirect(rutaSiguienteSegura(siguiente));
+  redirect(rutaSiguienteSegura(siguiente, perfil.rol));
+}
+
+/** Origen de la petición (p. ej. `https://psysim.vercel.app`), para la URL de retorno de OAuth. */
+async function origenDePeticion(): Promise<string> {
+  const encabezados = await headers();
+  const origen = encabezados.get('origin');
+  if (origen) return origen;
+  const host = encabezados.get('x-forwarded-host') ?? encabezados.get('host') ?? 'localhost:3000';
+  const protocolo = encabezados.get('x-forwarded-proto') ?? 'http';
+  return `${protocolo}://${host}`;
+}
+
+/**
+ * Inicio de sesión de los estudiantes con su cuenta de Google institucional.
+ *
+ * Supabase guarda el verificador PKCE en una cookie y devuelve la URL de Google; al volver, la
+ * ruta /auth/callback canjea el código por la sesión. `hd` sugiere a Google la cuenta
+ * @correounivalle.edu.co (la restricción real es que el docente haya registrado el correo).
+ */
+export async function iniciarSesionConGoogle(siguiente?: string | null): Promise<ResultadoLogin> {
+  const supabase = await createClient();
+  const retorno = new URL('/auth/callback', await origenDePeticion());
+  if (siguiente) retorno.searchParams.set(PARAM_SIGUIENTE, siguiente);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: retorno.toString(),
+      queryParams: { hd: DOMINIO_ESTUDIANTES, prompt: 'select_account' },
+    },
+  });
+
+  if (error || !data.url) {
+    console.error('[auth] No se pudo iniciar el acceso con Google:', error?.code ?? error?.status);
+    return { error: 'No fue posible conectar con Google. Inténtalo de nuevo.' };
+  }
+
+  redirect(data.url as never);
 }
 
 /**

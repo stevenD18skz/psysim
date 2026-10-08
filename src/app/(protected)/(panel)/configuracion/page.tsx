@@ -29,8 +29,8 @@ export default async function ConfiguracionPage({ searchParams }: PageProps<'/co
         <p className="text-sm font-medium tracking-wide text-primary uppercase">Nueva sesión</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Prepara la simulación</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Hola, {primerNombre}. Elige un escenario o un caso tuyo, ajusta al paciente virtual e
-          ingresa los datos del estudiante que va a practicar.
+          Hola, {primerNombre}. Elige un escenario o un caso tuyo, ajusta al paciente virtual y
+          genera un código de acceso para el estudiante: lo hará desde su equipo, con su cuenta.
         </p>
       </header>
 

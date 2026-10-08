@@ -14,11 +14,16 @@ export const TITULO_SITIO = 'PsySim: simulador de entrevista clínica con pacien
 export const DESCRIPCION_SITIO =
   'Plataforma web 3D de la Universidad del Valle donde estudiantes de psicología practican la entrevista clínica con pacientes virtuales guiados por inteligencia artificial.';
 
-/** Rutas privadas del docente: no deben indexarse ni rastrearse. */
+/** Rutas privadas del docente y del estudiante: no deben indexarse ni rastrearse. */
 export const RUTAS_PRIVADAS = [
   '/configuracion',
+  '/estudiantes',
+  '/sesiones',
+  '/practicas',
+  '/unirse',
   '/simulacion',
   '/laboratorio',
+  '/auth',
   '/acceso-denegado',
   '/dev',
   '/api',

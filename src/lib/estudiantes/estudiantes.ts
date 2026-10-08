@@ -69,3 +69,23 @@ const formatoDia = new Intl.DateTimeFormat('es-CO', {
 export function formatearDia(iso: string): string {
   return formatoDia.format(new Date(iso));
 }
+
+const formatoFechaHora = new Intl.DateTimeFormat('es-CO', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'America/Bogota',
+});
+
+/** Día y hora legibles en la hora de Colombia, p. ej. "7 de oct de 2026, 3:05 p. m.". */
+export function formatearFechaHora(iso: string): string {
+  return formatoFechaHora.format(new Date(iso));
+}
+
+/** Nota con un decimal y coma decimal: 4.5 → "4,5"; `null` → "—". */
+export function formatearNota(nota: number | null): string {
+  if (nota === null) return '—';
+  return nota.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
