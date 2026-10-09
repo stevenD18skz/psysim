@@ -4,8 +4,13 @@ import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { requerirDocente } from '@/lib/auth/dal';
 import { asegurarCuentaEstudiante } from '@/lib/estudiantes/cuentas';
 import { log } from '@/lib/log';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { actualizarEstudianteSchema, registrarEstudianteSchema } from '@/schemas/estudiante.schema';
+import {
+  actualizarEstudianteSchema,
+  eliminarEstudianteSchema,
+  registrarEstudianteSchema,
+} from '@/schemas/estudiante.schema';
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del estudiante.';
 const MENSAJE_GENERICO = 'No fue posible guardar al estudiante. Inténtalo de nuevo.';
@@ -112,4 +117,48 @@ export async function actualizarEstudiante(
   }
 
   return { ok: true, datos: { id } };
+}
+
+/**
+ * Elimina a un estudiante del docente con todo su historial: sesiones, conversaciones,
+ * retroalimentación y códigos de acceso (función `eliminar_estudiante`). Si ningún otro docente
+ * lo tiene registrado, también se elimina su cuenta: ya no podría hacer nada en PsySim.
+ */
+export async function eliminarEstudiante(
+  valores: unknown
+): Promise<ResultadoAccion<{ id: string }>> {
+  await requerirDocente();
+
+  const datos = eliminarEstudianteSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+  const { id } = datos.data;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('eliminar_estudiante', { p_estudiante_id: id });
+  const fila = Array.isArray(data) ? data[0] : null;
+  if (error || !fila?.eliminado) {
+    if (error) log.error('estudiante.no_eliminado', { codigo: error.code });
+    return { ok: false, error: 'Ese estudiante ya no está disponible. Recarga la página.' };
+  }
+
+  if (fila.usuario_id) await eliminarCuentaSinRegistros(fila.usuario_id);
+  return { ok: true, datos: { id } };
+}
+
+/** Borra la cuenta de un estudiante que ya no está registrado con ningún docente. */
+async function eliminarCuentaSinRegistros(usuarioId: string) {
+  const admin = createAdminClient();
+  const [{ count, error }, { data: cuenta }] = await Promise.all([
+    admin
+      .from('estudiante')
+      .select('id', { count: 'exact', head: true })
+      .eq('usuario_id', usuarioId),
+    admin.from('usuario').select('rol').eq('id', usuarioId).maybeSingle(),
+  ]);
+  if (error || count !== 0 || cuenta?.rol !== 'estudiante') return;
+
+  const { error: errorBorrado } = await admin.auth.admin.deleteUser(usuarioId);
+  if (errorBorrado) log.error('estudiante.cuenta_no_eliminada', { codigo: errorBorrado.code });
 }

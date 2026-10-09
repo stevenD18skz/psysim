@@ -28,3 +28,22 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.input<typeof loginSchema>;
 export type LoginData = z.output<typeof loginSchema>;
+
+/** El usuario cambia su contraseña (p. ej. la temporal que le dio el Administrador). */
+export const cambiarContrasenaSchema = z
+  .object({
+    nueva: z
+      .string()
+      .min(LONGITUD_MINIMA_CONTRASENA, `Usa al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.`)
+      .max(
+        LONGITUD_MAXIMA_CONTRASENA,
+        `La contraseña no puede superar los ${LONGITUD_MAXIMA_CONTRASENA} caracteres.`
+      ),
+    confirmacion: z.string().min(1, 'Repite la nueva contraseña.'),
+  })
+  .refine(datos => datos.nueva === datos.confirmacion, {
+    message: 'Las contraseñas no coinciden.',
+    path: ['confirmacion'],
+  });
+
+export type CambiarContrasenaInput = z.input<typeof cambiarContrasenaSchema>;

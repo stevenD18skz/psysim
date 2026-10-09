@@ -33,3 +33,6 @@ export const actualizarEstudianteSchema = registrarEstudianteSchema
   .extend({ id: z.uuid() });
 
 export type ActualizarEstudianteInput = z.input<typeof actualizarEstudianteSchema>;
+
+/** El docente elimina a un estudiante con todo su historial. */
+export const eliminarEstudianteSchema = z.object({ id: z.uuid() });

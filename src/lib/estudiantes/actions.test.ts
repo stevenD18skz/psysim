@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requerirDocente } from '@/lib/auth/dal';
 import { asegurarCuentaEstudiante } from '@/lib/estudiantes/cuentas';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
-import { actualizarEstudiante, registrarEstudiante } from './actions';
+import { actualizarEstudiante, eliminarEstudiante, registrarEstudiante } from './actions';
 
 vi.mock('@/lib/auth/dal', () => ({ requerirDocente: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/estudiantes/cuentas', () => ({ asegurarCuentaEstudiante: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 
@@ -21,10 +23,13 @@ const DATOS = {
 };
 
 let db: SupabaseFalso;
+let admin: SupabaseFalso;
 
 beforeEach(() => {
   db = crearSupabaseFalso();
+  admin = crearSupabaseFalso();
   vi.mocked(createClient).mockResolvedValue(db.cliente as never);
+  vi.mocked(createAdminClient).mockReturnValue(admin.cliente as never);
   vi.mocked(requerirDocente).mockResolvedValue({} as never);
   vi.mocked(asegurarCuentaEstudiante).mockResolvedValue({ ok: true, datos: { usuarioId: 'u1' } });
 });
@@ -132,5 +137,51 @@ describe('actualizarEstudiante', () => {
       ok: false,
       error: 'Ya registraste a otro estudiante con ese correo.',
     });
+  });
+});
+
+describe('eliminarEstudiante', () => {
+  const CUENTA = '66666666-6666-4666-8666-666666666666';
+
+  it('elimina al estudiante con su historial (función de la base de datos)', async () => {
+    db.responder('rpc:eliminar_estudiante', { data: [{ eliminado: true, usuario_id: null }] });
+
+    expect(await eliminarEstudiante({ id: ID })).toEqual({ ok: true, datos: { id: ID } });
+    expect(db.rpc).toHaveBeenCalledWith('eliminar_estudiante', { p_estudiante_id: ID });
+    expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('borra la cuenta si ningún otro docente lo tiene registrado', async () => {
+    db.responder('rpc:eliminar_estudiante', { data: [{ eliminado: true, usuario_id: CUENTA }] });
+    admin.responder('estudiante', { count: 0 });
+    admin.responder('usuario', { data: { rol: 'estudiante' } });
+
+    expect(await eliminarEstudiante({ id: ID })).toMatchObject({ ok: true });
+    expect(admin.auth.admin.deleteUser).toHaveBeenCalledWith(CUENTA);
+  });
+
+  it('conserva la cuenta si otro docente también lo registró', async () => {
+    db.responder('rpc:eliminar_estudiante', { data: [{ eliminado: true, usuario_id: CUENTA }] });
+    admin.responder('estudiante', { count: 1 });
+    admin.responder('usuario', { data: { rol: 'estudiante' } });
+
+    expect(await eliminarEstudiante({ id: ID })).toMatchObject({ ok: true });
+    expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no es suyo o ya no existe', { data: [{ eliminado: false, usuario_id: null }] }],
+    ['falla la base de datos', { error: { code: '500' } }],
+  ])('falla si %s', async (_, respuesta) => {
+    db.responder('rpc:eliminar_estudiante', respuesta);
+    expect(await eliminarEstudiante({ id: ID })).toEqual({
+      ok: false,
+      error: 'Ese estudiante ya no está disponible. Recarga la página.',
+    });
+  });
+
+  it('rechaza un id inválido sin consultar', async () => {
+    expect(await eliminarEstudiante({ id: 'x' })).toMatchObject({ ok: false });
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 });

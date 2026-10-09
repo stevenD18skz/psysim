@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AvisoContrasenaTemporal } from '@/components/layout/aviso-contrasena-temporal';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -19,7 +20,8 @@ const COOKIE_MENU = 'sidebar_state';
  */
 export default async function PanelLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const usuario = await obtenerSesionUsuario();
-  const esEstudiante = usuario.estado === 'autorizado' && usuario.perfil.rol === 'estudiante';
+  const perfil = usuario.estado === 'autorizado' ? usuario.perfil : null;
+  const esEstudiante = perfil?.rol === 'estudiante';
   const [almacen, sesionEnCurso] = await Promise.all([
     cookies(),
     // Solo el estudiante retoma sesiones. Si la consulta falla, el menú no lo ofrece.
@@ -46,6 +48,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
             <LogoUnivalle className="h-8" />
             <span className="font-heading text-lg font-semibold">PsySim</span>
           </header>
+          {perfil?.contrasenaTemporal && <AvisoContrasenaTemporal />}
           <div className="flex flex-1 flex-col">{children}</div>
           <PiePagina />
         </SidebarInset>

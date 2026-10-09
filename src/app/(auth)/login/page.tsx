@@ -57,9 +57,9 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               </p>
             </div>
 
-            <section aria-labelledby="acceso-estudiantes" className="flex flex-col gap-3 text-left">
-              <h2 id="acceso-estudiantes" className="text-sm font-medium text-muted-foreground">
-                Estudiantes
+            <section aria-labelledby="acceso-google" className="flex flex-col gap-3 text-left">
+              <h2 id="acceso-google" className="sr-only">
+                Con tu cuenta de Google
               </h2>
               {errorGoogle && (
                 <Alert variant="destructive" role="alert">
@@ -68,13 +68,14 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               )}
               <BotonGoogle siguiente={siguiente} />
               <p className="text-xs text-muted-foreground">
-                Usa tu correo @correounivalle.edu.co. Tu docente debe haberte registrado.
+                Estudiantes: usen su correo @correounivalle.edu.co (su docente debe haberlos
+                registrado). Docentes: el correo con el que el administrador creó su cuenta.
               </p>
             </section>
 
             <div className="flex items-center gap-3 text-xs tracking-wide text-muted-foreground uppercase">
               <span aria-hidden className="h-px flex-1 bg-border" />
-              Docentes
+              o con correo y contraseña
               <span aria-hidden className="h-px flex-1 bg-border" />
             </div>
 
@@ -82,8 +83,8 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 
             <div className="flex flex-col gap-3 border-t pt-6 text-sm text-muted-foreground">
               <p>
-                ¿No tienes cuenta o olvidaste tu contraseña? Las cuentas de los docentes las
-                gestiona el administrador; las de los estudiantes, su docente.
+                ¿No tienes cuenta u olvidaste tu contraseña? Las cuentas de los docentes las crea el
+                administrador de PsySim; las de los estudiantes, su docente.
               </p>
               <Link
                 href="/"

@@ -1,13 +1,17 @@
 import { redirect } from 'next/navigation';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { requerirUsuario } from '@/lib/auth/dal';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
-import { cerrarSesion, iniciarSesion, iniciarSesionConGoogle } from './actions';
+import { cambiarContrasena, cerrarSesion, iniciarSesion, iniciarSesionConGoogle } from './actions';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
+vi.mock('@/lib/auth/dal', () => ({ requerirUsuario: vi.fn() }));
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ origin: 'https://psysim.vercel.app' })),
 }));
@@ -123,7 +127,18 @@ describe('iniciarSesion (HU-02)', () => {
 });
 
 describe('iniciarSesionConGoogle', () => {
-  it('redirige a Google con la URL de retorno y el dominio institucional', async () => {
+  /** Respuesta de `/auth/v1/settings` de Supabase con el proveedor de Google activado o no. */
+  function ajustesAuth(google: boolean) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ external: { google, email: true } }))
+    );
+  }
+
+  beforeEach(() => ajustesAuth(true));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('redirige a Google con la URL de retorno (estudiantes y docentes)', async () => {
     await expect(iniciarSesionConGoogle('/unirse/abc-defg-hij')).rejects.toThrow(
       'NEXT_REDIRECT:https://accounts.google.com/o/oauth2'
     );
@@ -131,9 +146,28 @@ describe('iniciarSesionConGoogle', () => {
       provider: 'google',
       options: {
         redirectTo: 'https://psysim.vercel.app/auth/callback?siguiente=%2Funirse%2Fabc-defg-hij',
-        queryParams: { hd: 'correounivalle.edu.co', prompt: 'select_account' },
+        queryParams: { prompt: 'select_account' },
       },
     });
+  });
+
+  it('si Google no está habilitado en Supabase, lo explica sin redirigir', async () => {
+    ajustesAuth(false);
+    expect(await iniciarSesionConGoogle()).toEqual({
+      error: expect.stringContaining('aún no está habilitado'),
+    });
+    expect(db.auth.signInWithOAuth).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('si no se pueden leer los ajustes de Auth, lo intenta igual', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('sin red')))
+    );
+    await expect(iniciarSesionConGoogle()).rejects.toThrow(
+      'NEXT_REDIRECT:https://accounts.google.com'
+    );
   });
 
   it('si Supabase falla, muestra un error sin redirigir', async () => {
@@ -157,5 +191,55 @@ describe('cerrarSesion (HU-04)', () => {
   it('no lanza si falla la revocación remota (las cookies se borran igual)', async () => {
     db.auth.signOut.mockResolvedValueOnce({ error: { code: 'session_not_found' } });
     await expect(cerrarSesion()).resolves.toBeUndefined();
+  });
+});
+
+describe('cambiarContrasena', () => {
+  const NUEVA = { nueva: 'una-frase-segura', confirmacion: 'una-frase-segura' };
+  let admin: SupabaseFalso;
+
+  beforeEach(() => {
+    admin = crearSupabaseFalso();
+    vi.mocked(createAdminClient).mockReturnValue(admin.cliente as never);
+    vi.mocked(requerirUsuario).mockResolvedValue({
+      id: USUARIO.id,
+      contrasenaTemporal: true,
+    } as never);
+  });
+
+  it('cambia la contraseña y deja de pedir el cambio de la temporal', async () => {
+    expect(await cambiarContrasena(NUEVA)).toEqual({ ok: true, datos: null });
+    expect(db.auth.updateUser).toHaveBeenCalledWith({ password: NUEVA.nueva });
+    expect(admin.de('usuario')[0]).toMatchObject({
+      operacion: 'update',
+      valores: { contrasena_temporal: false },
+    });
+  });
+
+  it('sin contraseña temporal no toca el perfil', async () => {
+    vi.mocked(requerirUsuario).mockResolvedValueOnce({
+      id: USUARIO.id,
+      contrasenaTemporal: false,
+    } as never);
+    expect(await cambiarContrasena(NUEVA)).toMatchObject({ ok: true });
+    expect(admin.consultas).toHaveLength(0);
+  });
+
+  it.each([
+    [{ nueva: 'corta', confirmacion: 'corta' }, 'Usa al menos 8 caracteres.'],
+    [{ nueva: 'una-frase-segura', confirmacion: 'otra-frase' }, 'Las contraseñas no coinciden.'],
+  ])('valida la nueva contraseña (%o)', async (valores, error) => {
+    expect(await cambiarContrasena(valores)).toEqual({ ok: false, error });
+    expect(db.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['same_password', 'La nueva contraseña debe ser distinta de la actual.'],
+    ['weak_password', 'Esa contraseña es muy débil. Elige una más larga o variada.'],
+    ['unexpected_failure', 'No fue posible cambiar la contraseña. Inténtalo de nuevo.'],
+  ])('traduce el error %s de Supabase', async (code, error) => {
+    db.auth.updateUser.mockResolvedValueOnce({ data: {}, error: { code } });
+    expect(await cambiarContrasena(NUEVA)).toEqual({ ok: false, error });
+    expect(admin.consultas).toHaveLength(0);
   });
 });

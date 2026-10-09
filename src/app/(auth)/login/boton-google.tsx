@@ -31,7 +31,7 @@ function LogoGoogle() {
   );
 }
 
-/** Acceso de los estudiantes con su cuenta de Google institucional. */
+/** Acceso con Google: estudiantes con su correo institucional y docentes registrados. */
 export function BotonGoogle({ siguiente }: { siguiente: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [conectando, startTransition] = useTransition();

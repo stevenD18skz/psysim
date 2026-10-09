@@ -21,7 +21,15 @@ export const estudiante2 = {
   contrasena: process.env.E2E_ESTUDIANTE2_CONTRASENA ?? '',
 };
 
+/** Administrador de prueba (`pnpm db:seed` crea admin@psysim.test). */
+export const administrador = {
+  correo: process.env.E2E_ADMIN_CORREO ?? '',
+  contrasena: process.env.E2E_ADMIN_CONTRASENA ?? '',
+};
+
 export const hayCredenciales = Boolean(docente.correo && docente.contrasena);
+export const hayCredencialesAdmin = Boolean(administrador.correo && administrador.contrasena);
+export const MOTIVO_SIN_ADMIN = 'Define E2E_ADMIN_CORREO y E2E_ADMIN_CONTRASENA (pnpm db:seed)';
 
 /**
  * Los flujos del estudiante necesitan su cuenta de prueba (con contraseña: los reales entran con
@@ -43,6 +51,11 @@ export async function iniciarSesion(page: Page, correo: string, contrasena: stri
 export async function iniciarSesionComoDocente(page: Page) {
   await iniciarSesion(page, docente.correo, docente.contrasena);
   await expect(page).toHaveURL(/\/configuracion$/);
+}
+
+export async function iniciarSesionComoAdmin(page: Page) {
+  await iniciarSesion(page, administrador.correo, administrador.contrasena);
+  await expect(page).toHaveURL(/\/admin$/);
 }
 
 export async function iniciarSesionComoEstudiante(page: Page, cuenta = estudiante) {

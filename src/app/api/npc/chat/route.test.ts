@@ -84,6 +84,7 @@ describe('POST /api/npc/chat', () => {
         correo: 'ana.perez@correounivalle.edu.co',
         codigoInstitucional: '202012345',
         rol: 'estudiante',
+        contrasenaTemporal: false,
       },
     });
     vi.mocked(leerEscenarioDeSesion).mockResolvedValue(escenarioDeLaSesion);
@@ -168,6 +169,7 @@ describe('POST /api/npc/chat', () => {
         correo: 'docente@psysim.test',
         codigoInstitucional: 'DOC-1',
         rol: 'docente',
+        contrasenaTemporal: false,
       },
     });
     expect((await POST(peticion(cuerpoValido))).status).toBe(403);

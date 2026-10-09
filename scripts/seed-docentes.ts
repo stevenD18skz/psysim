@@ -3,6 +3,8 @@
  *
  * - Crea cada cuenta en Supabase Auth (correo confirmado, sin enviar correos).
  * - Inserta/actualiza su perfil en `public.usuario` con el MISMO id de Auth.
+ * - Crea un Administrador de prueba (admin@psysim.test): con él se crean desde /admin las cuentas
+ *   reales de los docentes y de los demás administradores.
  * - Crea dos estudiantes de prueba con contraseña (los reales entran con Google). Usan el dominio
  *   reservado `psysim.test`, que ninguna cuenta de Google puede tener.
  * - Crea además una cuenta SIN perfil, para probar la página de acceso denegado.
@@ -24,10 +26,16 @@ interface CuentaSemilla {
   nombre: string;
   /** Sin código = cuenta sin perfil en `usuario` (sin acceso a la plataforma). */
   codigoInstitucional?: string;
-  rol?: 'docente' | 'estudiante';
+  rol?: 'superadmin' | 'docente' | 'estudiante';
 }
 
 const CUENTAS: CuentaSemilla[] = [
+  {
+    correo: 'admin@psysim.test',
+    nombre: 'Administrador de Prueba',
+    codigoInstitucional: 'ADM-0001',
+    rol: 'superadmin',
+  },
   {
     correo: 'docente1@psysim.test',
     nombre: 'Docente de Prueba Uno',

@@ -1,4 +1,5 @@
 import { ArrowRight, FlaskConical, PersonStanding } from 'lucide-react';
+import { requerirSuperadmin } from '@/lib/auth/dal';
 import type { Metadata, Route } from 'next';
 import Link from 'next/link';
 
@@ -24,7 +25,9 @@ const EXPERIMENTOS: Experimento[] = [
   },
 ];
 
-export default function LaboratorioPage() {
+/** Herramienta de desarrollo: solo para el Administrador. */
+export default async function LaboratorioPage() {
+  await requerirSuperadmin();
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-2">

@@ -1,22 +1,38 @@
 import { expect, test } from '@playwright/test';
 
-import { hayCredenciales, iniciarSesionComoDocente } from './helpers';
+import {
+  hayCredenciales,
+  hayCredencialesAdmin,
+  iniciarSesionComoAdmin,
+  iniciarSesionComoDocente,
+  MOTIVO_SIN_ADMIN,
+} from './helpers';
 
-/** Laboratorio — visor de NPC en GLB con esqueleto y animaciones (/laboratorio/npc). */
+/**
+ * Laboratorio — visor de NPC en GLB con esqueleto y animaciones (/laboratorio/npc). Es una
+ * herramienta de desarrollo: solo la abre el Administrador.
+ */
 
-test('el laboratorio exige sesión de docente', async ({ page }) => {
+test('el laboratorio exige sesión', async ({ page }) => {
   await page.goto('/laboratorio/npc');
   await expect(page).toHaveURL(/\/login\?siguiente=%2Flaboratorio%2Fnpc/);
 });
 
-test.describe('NPC del laboratorio', () => {
+test('un docente no abre el laboratorio', async ({ page }) => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
+  await iniciarSesionComoDocente(page);
+  await page.goto('/laboratorio');
+  await expect(page).toHaveURL(/\/configuracion$/);
+});
+
+test.describe('NPC del laboratorio', () => {
+  test.skip(!hayCredencialesAdmin, MOTIVO_SIN_ADMIN);
 
   test('se controla con el panel, el teclado y la API pública', async ({ page }) => {
     const errores: string[] = [];
     page.on('pageerror', error => errores.push(error.message));
 
-    await iniciarSesionComoDocente(page);
+    await iniciarSesionComoAdmin(page);
     await page.goto('/laboratorio');
     await page.getByRole('link', { name: /NPC con esqueleto/ }).click();
     await expect(page.getByRole('img', { name: 'Vista 3D del NPC' })).toBeVisible();
@@ -80,7 +96,7 @@ test.describe('NPC del laboratorio', () => {
   });
 
   test('abre el NPC indicado en la URL y usa el predeterminado si no existe', async ({ page }) => {
-    await iniciarSesionComoDocente(page);
+    await iniciarSesionComoAdmin(page);
     await page.goto('/laboratorio/npc?npc=lucia');
     await expect(page.getByRole('radio', { name: 'Lucía' })).toBeChecked();
     await expect(page.getByRole('heading', { name: 'Lucía' })).toBeVisible({ timeout: 15_000 });
