@@ -65,6 +65,7 @@ describe.skipIf(!existe('src/app/api/metrics/save/route.ts'))(
           correo: 'ana.perez@correounivalle.edu.co',
           codigoInstitucional: '202012345',
           rol: 'estudiante',
+          contrasenaTemporal: false,
         },
       });
       vi.spyOn(console, 'error').mockImplementation(() => {});

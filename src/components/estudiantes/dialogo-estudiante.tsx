@@ -32,8 +32,11 @@ import { type EstudianteRegistrado } from '@/types';
 interface DialogoEstudianteProps {
   /** Con un estudiante, edita su nombre y correo (o agrega el correo a un registro antiguo). */
   estudiante?: Pick<EstudianteRegistrado, 'id' | 'codigo' | 'nombre' | 'correo'>;
-  /** Botón que abre el diálogo. */
-  disparador: React.ReactNode;
+  /** Botón que abre el diálogo (sin él, el diálogo se controla con `abierto`). */
+  disparador?: React.ReactNode;
+  /** Modo controlado, p. ej. para abrirlo desde un menú de acciones. */
+  abierto?: boolean;
+  onAbiertoCambia?: (abierto: boolean) => void;
   onGuardado?: (id: string) => void;
 }
 
@@ -41,8 +44,19 @@ interface DialogoEstudianteProps {
  * Registro de un estudiante (código, nombre y correo institucional). Al guardar se le crea la
  * cuenta: entra a PsySim con «Continuar con Google» usando ese correo, sin contraseña.
  */
-export function DialogoEstudiante({ estudiante, disparador, onGuardado }: DialogoEstudianteProps) {
-  const [abierto, setAbierto] = useState(false);
+export function DialogoEstudiante({
+  estudiante,
+  disparador,
+  abierto: abiertoControlado,
+  onAbiertoCambia,
+  onGuardado,
+}: DialogoEstudianteProps) {
+  const [abiertoInterno, setAbiertoInterno] = useState(false);
+  const abierto = abiertoControlado ?? abiertoInterno;
+  const setAbierto = (valor: boolean) => {
+    setAbiertoInterno(valor);
+    onAbiertoCambia?.(valor);
+  };
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
   const editando = estudiante !== undefined;
@@ -95,7 +109,7 @@ export function DialogoEstudiante({ estudiante, disparador, onGuardado }: Dialog
 
   return (
     <Dialog open={abierto} onOpenChange={cambiarAbierto}>
-      <DialogTrigger asChild>{disparador}</DialogTrigger>
+      {disparador && <DialogTrigger asChild>{disparador}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{editando ? 'Editar estudiante' : 'Registrar estudiante'}</DialogTitle>

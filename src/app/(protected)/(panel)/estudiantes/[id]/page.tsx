@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 
 import { ListaCodigos } from '@/components/asignaciones/lista-codigos';
+import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { EditarEstudiante } from '@/components/estudiantes/editar-estudiante';
 import { ListaSesiones } from '@/components/sesiones/lista-sesiones';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
@@ -99,6 +100,7 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
                 </Link>
               </Button>
             )}
+            <AccionesEstudiante estudiante={estudiante} enFicha />
           </div>
         </header>
       </div>

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { type EstudianteRegistrado } from '@/types';
 import { type Tables } from '@/types/database.types';
 
-const COLUMNAS_RESUMEN = `
+export const COLUMNAS_RESUMEN = `
   id, codigo, nombre, correo, cuenta_vinculada, creado_en, sesiones_total, sesiones_finalizadas,
   sesiones_en_curso, pendientes_retroalimentacion, nota_promedio, segundos_practica,
   casos_distintos, intervenciones, ultima_sesion, codigos_pendientes
@@ -33,7 +33,7 @@ type FilaResumen = Pick<
 >;
 
 /** Las columnas de una vista llegan como anulables en los tipos generados, aunque no lo sean. */
-function aEstudiante(fila: FilaResumen): EstudianteRegistrado | null {
+export function aEstudiante(fila: FilaResumen): EstudianteRegistrado | null {
   if (!fila.id || !fila.codigo || !fila.nombre || !fila.creado_en) return null;
   return {
     id: fila.id,

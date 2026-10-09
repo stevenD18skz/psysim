@@ -121,6 +121,32 @@ export interface PerfilUsuario {
   correo: string;
   codigoInstitucional: string;
   rol: RolUsuario;
+  /** Usa la contraseña temporal que generó el Administrador: se le pide cambiarla. */
+  contrasenaTemporal: boolean;
+}
+
+/** Cuenta del equipo docente (docente o Administrador) tal como la ve el Administrador. */
+export interface DocenteAdmin {
+  id: string;
+  nombre: string;
+  correo: string;
+  codigoInstitucional: string;
+  rol: RolUsuario;
+  activo: boolean;
+  /** Aún usa la contraseña temporal que le generó el Administrador. */
+  contrasenaTemporal: boolean;
+  /** Ya entró alguna vez con su cuenta de Google. */
+  conGoogle: boolean;
+  creadoEn: string;
+  ultimoAcceso: string | null;
+  metricas: {
+    estudiantes: number;
+    sesiones: number;
+    enCurso: number;
+    pendientesRetroalimentacion: number;
+    casosPropios: number;
+    ultimaSesion: string | null;
+  };
 }
 
 /** Estado de un código de acceso, derivado de sus fechas y de si ya se canjeó. */

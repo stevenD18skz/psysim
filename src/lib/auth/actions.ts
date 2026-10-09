@@ -3,15 +3,19 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { DOMINIO_ESTUDIANTES } from '@/lib/auth/google';
+import { type ResultadoAccion } from '@/lib/acciones';
+import { requerirUsuario } from '@/lib/auth/dal';
 import {
   esRol,
   PARAM_SIGUIENTE,
   RUTA_ACCESO_DENEGADO,
   rutaSiguienteSegura,
 } from '@/lib/auth/routes';
+import { publicEnv } from '@/lib/env/public';
+import { log } from '@/lib/log';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { loginSchema } from '@/schemas/auth.schema';
+import { cambiarContrasenaSchema, loginSchema } from '@/schemas/auth.schema';
 
 export interface ResultadoLogin {
   error: string;
@@ -88,13 +92,40 @@ async function origenDePeticion(): Promise<string> {
 }
 
 /**
- * Inicio de sesión de los estudiantes con su cuenta de Google institucional.
+ * ¿Está activado el proveedor de Google en Supabase Auth? Si no lo está, Supabase respondería con
+ * un JSON de error en lugar de la pantalla de Google. Ante cualquier duda se asume que sí.
+ */
+async function googleHabilitado(): Promise<boolean> {
+  try {
+    const respuesta = await fetch(`${publicEnv.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+      headers: { apikey: publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY },
+      signal: AbortSignal.timeout(4000),
+      cache: 'no-store',
+    });
+    if (!respuesta.ok) return true;
+    const ajustes = (await respuesta.json()) as { external?: { google?: boolean } };
+    return ajustes.external?.google !== false;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Inicio de sesión con Google: estudiantes con su correo institucional y docentes cuya cuenta
+ * creó el Administrador con su correo de Google.
  *
  * Supabase guarda el verificador PKCE en una cookie y devuelve la URL de Google; al volver, la
- * ruta /auth/callback canjea el código por la sesión. `hd` sugiere a Google la cuenta
- * @correounivalle.edu.co (la restricción real es que el docente haya registrado el correo).
+ * ruta /auth/callback canjea el código por la sesión. Solo entran los correos registrados: la
+ * plataforma no admite registros abiertos.
  */
 export async function iniciarSesionConGoogle(siguiente?: string | null): Promise<ResultadoLogin> {
+  if (!(await googleHabilitado())) {
+    return {
+      error:
+        'El acceso con Google aún no está habilitado. Entra con correo y contraseña o avisa al administrador de PsySim.',
+    };
+  }
+
   const supabase = await createClient();
   const retorno = new URL('/auth/callback', await origenDePeticion());
   if (siguiente) retorno.searchParams.set(PARAM_SIGUIENTE, siguiente);
@@ -103,7 +134,7 @@ export async function iniciarSesionConGoogle(siguiente?: string | null): Promise
     provider: 'google',
     options: {
       redirectTo: retorno.toString(),
-      queryParams: { hd: DOMINIO_ESTUDIANTES, prompt: 'select_account' },
+      queryParams: { prompt: 'select_account' },
     },
   });
 
@@ -113,6 +144,43 @@ export async function iniciarSesionConGoogle(siguiente?: string | null): Promise
   }
 
   redirect(data.url as never);
+}
+
+/**
+ * El usuario cambia su contraseña (con la sesión abierta). Si usaba la temporal que le generó el
+ * Administrador, deja de pedírsele el cambio. Quien entra con Google también puede crearse una,
+ * para entrar con correo y contraseña.
+ */
+export async function cambiarContrasena(valores: unknown): Promise<ResultadoAccion<null>> {
+  const perfil = await requerirUsuario();
+
+  const datos = cambiarContrasenaSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: datos.error.issues[0]?.message ?? 'Revisa la nueva contraseña.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password: datos.data.nueva });
+  if (error) {
+    if (error.code === 'same_password') {
+      return { ok: false, error: 'La nueva contraseña debe ser distinta de la actual.' };
+    }
+    if (error.code === 'weak_password') {
+      return { ok: false, error: 'Esa contraseña es muy débil. Elige una más larga o variada.' };
+    }
+    log.error('auth.contrasena_no_cambiada', { codigo: error.code ?? error.status });
+    return { ok: false, error: 'No fue posible cambiar la contraseña. Inténtalo de nuevo.' };
+  }
+
+  if (perfil.contrasenaTemporal) {
+    const { error: errorMarca } = await createAdminClient()
+      .from('usuario')
+      .update({ contrasena_temporal: false })
+      .eq('id', perfil.id);
+    if (errorMarca) log.error('auth.marca_temporal_no_quitada', { codigo: errorMarca.code });
+  }
+
+  return { ok: true, datos: null };
 }
 
 /**

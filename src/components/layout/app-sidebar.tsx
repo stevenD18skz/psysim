@@ -7,20 +7,23 @@ import {
   GraduationCap,
   FlaskConical,
   Globe,
+  KeyRound,
   Loader2,
   LogOut,
   type LucideIcon,
   MonitorPlay,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
   UsersRound,
 } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
+import { DialogoCambiarContrasena } from '@/components/layout/dialogo-cambiar-contrasena';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
-import { RUTA_INICIO } from '@/lib/auth/routes';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import {
   DropdownMenu,
@@ -44,6 +47,8 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { ETIQUETA_ROL, RUTA_INICIO } from '@/lib/auth/routes';
+import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 
@@ -89,6 +94,13 @@ const ENLACE_PRACTICAS: Enlace = {
   icono: GraduationCap,
 };
 
+const ENLACE_DOCENTES: Enlace = {
+  href: '/admin',
+  etiqueta: 'Docentes',
+  descripcion: 'Cuentas y actividad',
+  icono: ShieldCheck,
+};
+
 const ENLACE_LABORATORIO: Enlace = {
   href: '/laboratorio',
   etiqueta: 'Laboratorio',
@@ -96,13 +108,21 @@ const ENLACE_LABORATORIO: Enlace = {
   icono: FlaskConical,
 };
 
-/** Iniciales para el avatar del usuario ("Ana María Gómez" → "AG"). */
-function iniciales(nombre: string) {
-  const partes = nombre.trim().split(/\s+/);
-  const primera = partes[0]?.[0] ?? '';
-  const ultima = partes.length > 1 ? (partes.at(-1)?.[0] ?? '') : '';
-  return (primera + ultima).toUpperCase();
+interface Seccion {
+  titulo: string;
+  enlaces: Enlace[];
 }
+
+const SECCIONES_DOCENTE: Seccion[] = [
+  { titulo: 'Simulación', enlaces: [ENLACE_NUEVA_SESION, ENLACE_NUEVO_CASO] },
+  { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
+];
+
+/** El Administrador trabaja como docente y, además, gestiona la plataforma. */
+const SECCIONES_ADMIN: Seccion[] = [
+  ...SECCIONES_DOCENTE,
+  { titulo: 'Administración', enlaces: [ENLACE_DOCENTES, ENLACE_LABORATORIO] },
+];
 
 /**
  * ¿La ruta actual pertenece al enlace? `/configuracion` solo coincide con su propia página, no
@@ -119,9 +139,9 @@ function estaActivo(pathname: string, href: string) {
  *
  * - Cabecera con el logo de la Universidad del Valle y el botón para contraer el menú.
  * - Enlaces según el rol, con estado activo claro. El estudiante ve "Sesión en curso" solo si
- *   tiene una que retomar.
- * - Al pie, el usuario: su menú agrupa la cuenta y el cierre de sesión, así no se sale por
- *   accidente con un clic.
+ *   tiene una que retomar; el Administrador ve además la sección "Administración".
+ * - Al pie, el usuario: su menú agrupa la cuenta, el cambio de contraseña y el cierre de sesión,
+ *   así no se sale por accidente con un clic.
  * - Contraído queda una columna de íconos con tooltips; en móvil es un panel deslizable.
  */
 export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) {
@@ -132,9 +152,10 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
   const { salir, cerrando } = useCerrarSesion();
   const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
   const contraido = state === 'collapsed' && !isMobile;
+  const [cambiandoContrasena, setCambiandoContrasena] = useState(false);
 
   const rol = perfil?.rol ?? 'docente';
-  const secciones: { titulo: string; enlaces: Enlace[] }[] =
+  const secciones: Seccion[] =
     rol === 'estudiante'
       ? [
           {
@@ -145,13 +166,10 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
                 : [ENLACE_PRACTICAS],
           },
         ]
-      : [
-          { titulo: 'Simulación', enlaces: [ENLACE_NUEVA_SESION] },
-          { titulo: 'Mis casos', enlaces: [ENLACE_NUEVO_CASO] },
-          { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
-          { titulo: 'Herramientas', enlaces: [ENLACE_LABORATORIO] },
-        ];
-  const etiquetaRol = rol === 'estudiante' ? 'Estudiante' : 'Docente';
+      : rol === 'superadmin'
+        ? SECCIONES_ADMIN
+        : SECCIONES_DOCENTE;
+  const etiquetaRol = ETIQUETA_ROL[rol];
 
   // En móvil el menú es un panel superpuesto: se cierra al navegar.
   const alNavegar = () => {
@@ -278,6 +296,11 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
                       Ir a la página de inicio
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setCambiandoContrasena(true)}>
+                    <KeyRound aria-hidden />
+                    Cambiar contraseña
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
                     disabled={cerrando}
@@ -301,6 +324,10 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
       )}
 
       <SidebarRail />
+      <DialogoCambiarContrasena
+        abierto={cambiandoContrasena}
+        onAbiertoCambia={setCambiandoContrasena}
+      />
     </Sidebar>
   );
 }

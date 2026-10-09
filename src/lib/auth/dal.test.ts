@@ -4,7 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
-import { obtenerSesionUsuario, requerirDocente, requerirEstudiante, requerirUsuario } from './dal';
+import {
+  obtenerSesionUsuario,
+  requerirDocente,
+  requerirEstudiante,
+  requerirSuperadmin,
+  requerirUsuario,
+} from './dal';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -20,6 +26,8 @@ const PERFIL = {
   correo: 'ana@correounivalle.edu.co',
   codigo_institucional: 'DOC-1',
   rol: 'docente',
+  activo: true,
+  contrasena_temporal: false,
 };
 
 let db: SupabaseFalso;
@@ -51,7 +59,16 @@ describe('obtenerSesionUsuario (DAL)', () => {
         correo: 'ana@correounivalle.edu.co',
         codigoInstitucional: 'DOC-1',
         rol: 'docente',
+        contrasenaTemporal: false,
       },
+    });
+  });
+
+  it('informa si la cuenta usa una contraseña temporal', async () => {
+    conUsuario();
+    db.responder('usuario', { data: { ...PERFIL, contrasena_temporal: true } });
+    expect(await obtenerSesionUsuario()).toMatchObject({
+      perfil: { contrasenaTemporal: true },
     });
   });
 
@@ -67,6 +84,7 @@ describe('obtenerSesionUsuario (DAL)', () => {
   it.each([
     ['sin perfil', null],
     ['con un rol desconocido', { ...PERFIL, rol: 'administrador' }],
+    ['con la cuenta desactivada por el Administrador', { ...PERFIL, activo: false }],
   ])('%s es sin-permiso', async (_, perfil) => {
     conUsuario();
     db.responder('usuario', { data: perfil });
@@ -101,6 +119,29 @@ describe('requerirDocente', () => {
     conUsuario();
     db.responder('usuario', { data: { ...PERFIL, rol: 'estudiante' } });
     await expect(requerirDocente()).rejects.toThrow('NEXT_REDIRECT:/practicas');
+  });
+
+  it('el Administrador también trabaja como docente', async () => {
+    conUsuario();
+    db.responder('usuario', { data: { ...PERFIL, rol: 'superadmin' } });
+    expect(await requerirDocente()).toMatchObject({ rol: 'superadmin' });
+  });
+});
+
+describe('requerirSuperadmin', () => {
+  it('devuelve el perfil del Administrador', async () => {
+    conUsuario();
+    db.responder('usuario', { data: { ...PERFIL, rol: 'superadmin' } });
+    expect(await requerirSuperadmin()).toMatchObject({ rol: 'superadmin' });
+  });
+
+  it.each([
+    ['docente', '/configuracion'],
+    ['estudiante', '/practicas'],
+  ])('un %s va a su ruta de inicio', async (rol, ruta) => {
+    conUsuario();
+    db.responder('usuario', { data: { ...PERFIL, rol } });
+    await expect(requerirSuperadmin()).rejects.toThrow(`NEXT_REDIRECT:${ruta}`);
   });
 });
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 
+import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
@@ -138,7 +139,7 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                     {metricas.ultimaSesion ? formatearDia(metricas.ultimaSesion) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1.5">
                       {cuentaVinculada ? (
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/configuracion?estudiante=${codigo}`}>
@@ -158,6 +159,7 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                           }
                         />
                       )}
+                      <AccionesEstudiante estudiante={estudiante} />
                     </div>
                   </td>
                 </tr>

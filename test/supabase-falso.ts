@@ -1,8 +1,9 @@
 import { vi } from 'vitest';
 
-/** Lo que devuelve una consulta de Supabase: `{ data, error }`. */
+/** Lo que devuelve una consulta de Supabase: `{ data, error }` (y `count` si se pidió). */
 export interface Respuesta {
   data?: unknown;
+  count?: number | null;
   error?: { code?: string; message?: string; status?: number } | null;
 }
 
@@ -67,8 +68,8 @@ export function crearSupabaseFalso() {
         consultas.push(consulta);
         registrada = true;
       }
-      const { data = null, error = null } = siguiente(tabla);
-      return Promise.resolve({ data, error });
+      const { data = null, error = null, count = null } = siguiente(tabla);
+      return Promise.resolve({ data, error, count });
     };
 
     const encadenable: Record<string, unknown> = {
@@ -117,9 +118,11 @@ export function crearSupabaseFalso() {
     ),
     exchangeCodeForSession: vi.fn(async () => ({ data: { user: null }, error: null }) as unknown),
     signOut: vi.fn(async () => ({ error: null }) as unknown),
+    updateUser: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     /** API de administración (solo con la clave secreta). */
     admin: {
       createUser: vi.fn(async () => ({ data: { user: { id: 'nuevo' } }, error: null }) as unknown),
+      updateUserById: vi.fn(async () => ({ data: {}, error: null }) as unknown),
       deleteUser: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     },
   };

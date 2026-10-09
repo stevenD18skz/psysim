@@ -1,6 +1,7 @@
 import { ClipboardCheck, MonitorPlay, Radio, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { Indicadores } from '@/components/comun/indicadores';
 import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
 import { ListaEstudiantes } from '@/components/estudiantes/lista-estudiantes';
 import { requerirDocente } from '@/lib/auth/dal';
@@ -65,22 +66,7 @@ export default async function EstudiantesPage() {
         </div>
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {indicadores.map(({ icono: Icono, etiqueta, valor }) => (
-              <div
-                key={etiqueta}
-                className="flex flex-col gap-1 rounded-2xl border bg-card p-4 shadow-xs"
-              >
-                <dt className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  <Icono className="size-4 text-primary" aria-hidden />
-                  {etiqueta}
-                </dt>
-                <dd className="font-heading text-2xl font-semibold tabular-nums">
-                  {valor.toLocaleString('es-CO')}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <Indicadores indicadores={indicadores} />
           <ListaEstudiantes estudiantes={estudiantes} />
         </>
       )}

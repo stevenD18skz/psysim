@@ -432,7 +432,9 @@ export type Database = {
       };
       usuario: {
         Row: {
+          activo: boolean;
           codigo_institucional: string;
+          contrasena_temporal: boolean;
           correo: string;
           creado_en: string;
           id: string;
@@ -440,7 +442,9 @@ export type Database = {
           rol: Database['public']['Enums']['rol_usuario'];
         };
         Insert: {
+          activo?: boolean;
           codigo_institucional: string;
+          contrasena_temporal?: boolean;
           correo: string;
           creado_en?: string;
           id: string;
@@ -448,7 +452,9 @@ export type Database = {
           rol: Database['public']['Enums']['rol_usuario'];
         };
         Update: {
+          activo?: boolean;
           codigo_institucional?: string;
+          contrasena_temporal?: boolean;
           correo?: string;
           creado_en?: string;
           id?: string;
@@ -482,6 +488,27 @@ export type Database = {
       };
     };
     Functions: {
+      admin_docentes: {
+        Args: never;
+        Returns: {
+          activo: boolean;
+          casos_propios: number;
+          codigo_institucional: string;
+          contrasena_temporal: boolean;
+          correo: string;
+          creado_en: string;
+          estudiantes: number;
+          id: string;
+          nombre: string;
+          pendientes_retroalimentacion: number;
+          proveedores: string[];
+          rol: Database['public']['Enums']['rol_usuario'];
+          sesiones: number;
+          sesiones_en_curso: number;
+          ultima_sesion: string;
+          ultimo_acceso: string;
+        }[];
+      };
       canjear_codigo: {
         Args: { p_codigo: string };
         Returns: {
@@ -491,8 +518,16 @@ export type Database = {
       };
       cerrar_sesiones_inactivas: { Args: never; Returns: number };
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
+      eliminar_estudiante: {
+        Args: { p_estudiante_id: string };
+        Returns: {
+          eliminado: boolean;
+          usuario_id: string;
+        }[];
+      };
       es_docente: { Args: never; Returns: boolean };
       es_estudiante: { Args: never; Returns: boolean };
+      es_superadmin: { Args: never; Returns: boolean };
       id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
       registrar_actividad_sesion: {
         Args: { p_sesion_id: string };
@@ -505,7 +540,7 @@ export type Database = {
       dificultad_escenario: 'basico' | 'intermedio' | 'avanzado';
       estado_sesion: 'en_curso' | 'finalizada' | 'interrumpida';
       remitente_mensaje: 'estudiante' | 'npc';
-      rol_usuario: 'docente' | 'estudiante';
+      rol_usuario: 'docente' | 'estudiante' | 'superadmin';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -631,7 +666,7 @@ export const Constants = {
       dificultad_escenario: ['basico', 'intermedio', 'avanzado'],
       estado_sesion: ['en_curso', 'finalizada', 'interrumpida'],
       remitente_mensaje: ['estudiante', 'npc'],
-      rol_usuario: ['docente', 'estudiante'],
+      rol_usuario: ['docente', 'estudiante', 'superadmin'],
     },
   },
 } as const;
