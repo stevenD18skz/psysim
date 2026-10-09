@@ -24,12 +24,15 @@ import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
+import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
 import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
+import { useInactividad } from '@/components/simulacion/use-inactividad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
@@ -60,7 +63,7 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
 
   // Tras una recarga o al abrir la URL directamente, el store está vacío. En todos los casos se
-  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del docente), con la
+  // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del estudiante), con la
   // hora de inicio de la base de datos y la conversación guardada.
   useEffect(() => {
     iniciarSesion(sesion, historial);
@@ -116,11 +119,17 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const estadoNpc = useAppStore(state => state.npc.estado);
   const cerca = useInteraccion(interaccion => interaccion.cerca);
   const apuntando = useInteraccion(interaccion => interaccion.apuntando);
-  const { finalizar, finalizando, resumen } = useFinalizarSesion();
+  const { finalizar, finalizando, resumen, motivo, cerrarPorInactividad } = useFinalizarSesion();
 
   useAtajosConversacion();
 
   const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
+  const segundosParaCierre = useInactividad({
+    sesionId: sesion.id,
+    activo: lista && !resumen && !finalizando,
+    alVencer: cerrarPorInactividad,
+  });
   // HU-23: hasta que el estudiante confirme las instrucciones, la escena se ve pero no se usa.
   const comenzada = sesion.comenzada;
   const conversando = estaConversando(estadoNpc);
@@ -152,15 +161,23 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
           <div className="flex items-start gap-2">
             {depuracion && <IndicadorFps />}
             <BotonSonido motor={motorAudio} />
+            {lista && comenzada && !resumen && (
+              <BotonFinalizar
+                onFinalizar={finalizar}
+                finalizando={finalizando}
+                // Nunca con una respuesta de la IA en camino (evita cierres a medias).
+                deshabilitado={estadoNpc === 'procesando'}
+              />
+            )}
             {/* Sin menú en la simulación: salida discreta al panel. La sesión sigue en curso y
-                se retoma desde "Sesión en curso". */}
+                se retoma desde "Mis prácticas". */}
             <Button
               asChild
               variant="outline"
               size="sm"
               className="pointer-events-auto bg-card/90 backdrop-blur"
             >
-              <Link href="/configuracion">
+              <Link href="/practicas">
                 <ArrowLeft aria-hidden />
                 Salir al panel
               </Link>
@@ -183,7 +200,10 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
       )}
       {lista && !comenzada && <InstruccionesCaso sesion={sesion} />}
-      {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} />}
+      {segundosParaCierre !== null && !resumen && (
+        <AvisoInactividad segundosRestantes={segundosParaCierre} />
+      )}
+      {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}
 
       {estado.estado === 'error' && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
@@ -193,8 +213,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
             </span>
             <h2 className="text-xl font-semibold">{estado.mensaje}</h2>
             <p className="text-sm text-muted-foreground">
-              Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, vuelve a la
-              configuración y selecciona otro escenario.
+              Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, vuelve a tus
+              prácticas y avísale a tu docente.
             </p>
             <div className="flex gap-2">
               <Button onClick={reintentar}>
@@ -202,7 +222,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
                 Reintentar
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/configuracion">Volver a configuración</Link>
+                <Link href="/practicas">Volver a mis prácticas</Link>
               </Button>
             </div>
           </div>

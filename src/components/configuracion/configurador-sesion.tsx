@@ -3,19 +3,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertCircle,
-  ArrowRight,
   Bookmark,
   Check,
   CheckCircle2,
   FilePlus2,
+  KeyRound,
   Loader2,
   LockKeyhole,
   type LucideIcon,
+  Mail,
   Plus,
   Repeat2,
   RotateCcw,
   Target,
+  UserPlus,
   Wand2,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,31 +28,31 @@ import { useForm, useWatch } from 'react-hook-form';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
+import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
-import { EstadoEstudiante } from '@/components/configuracion/estado-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
+import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { iniciarSimulacion } from '@/lib/escenarios/actions';
+import { generarAsignacion } from '@/lib/asignaciones/actions';
+import { textoDias } from '@/lib/asignaciones/codigo';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
-import { buscarPorCodigo } from '@/lib/estudiantes/estudiantes';
+import { contarSesiones } from '@/lib/estudiantes/estudiantes';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
-import { promptSchema } from '@/schemas/configuracion.schema';
 import {
-  codigoEstudianteSchema,
-  nombreEstudianteSchema,
-  type IniciarSimulacionData,
-  type IniciarSimulacionInput,
-  iniciarSimulacionSchema,
+  type GenerarAsignacionData,
+  type GenerarAsignacionInput,
+  generarAsignacionSchema,
   LIMITES,
+  promptSchema,
+  VIGENCIA_POR_DEFECTO,
+  VIGENCIAS_DIAS,
 } from '@/schemas/configuracion.schema';
-import { useAppStore } from '@/store/app-store-provider';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 
 interface ConfiguradorSesionProps {
@@ -57,7 +60,7 @@ interface ConfiguradorSesionProps {
   escenarios: EscenarioCatalogo[];
   /** Caso que llega preseleccionado (p. ej. recién guardado desde el constructor). */
   casoInicialId?: string | null;
-  /** Estudiantes registrados por el docente, para elegirlos en lugar de escribirlos. */
+  /** Estudiantes registrados por el docente (solo los que tienen cuenta reciben códigos). */
   estudiantes?: EstudianteRegistrado[];
   /** Estudiante que llega preseleccionado (p. ej. desde la página de estudiantes). */
   estudianteInicial?: EstudianteRegistrado | null;
@@ -68,8 +71,9 @@ interface ConfiguradorSesionProps {
  *
  * 1. El docente elige un caso: uno predefinido o uno de "Mis casos" (un solo caso a la vez).
  * 2. Revisa el perfil del paciente virtual y ajusta su comportamiento (prompt del sistema).
- * 3. Elige a un estudiante registrado o escribe sus datos (si es nuevo, queda registrado al
- *    iniciar) e inicia la sesión, o guarda el ajuste como caso propio.
+ * 3. Asigna la simulación a uno de sus estudiantes y elige la vigencia del código. Al generar
+ *    el código se lo envía; el estudiante la hace desde su propio equipo. También puede guardar
+ *    el ajuste como caso propio.
  */
 export function ConfiguradorSesion({
   escenarios,
@@ -78,7 +82,6 @@ export function ConfiguradorSesion({
   estudianteInicial = null,
 }: ConfiguradorSesionProps) {
   const router = useRouter();
-  const iniciarSesionEnStore = useAppStore(state => state.sesion.iniciar);
   const idGrupo = useId();
 
   const oficiales = escenarios.filter(e => !e.propio);
@@ -86,9 +89,11 @@ export function ConfiguradorSesion({
     .filter(e => e.propio)
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
   const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
+  const conCuenta = estudiantes.filter(e => e.cuentaVinculada);
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
-  const [iniciando, startTransition] = useTransition();
+  const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
+  const [generando, startTransition] = useTransition();
 
   const {
     register,
@@ -96,36 +101,33 @@ export function ConfiguradorSesion({
     setValue,
     control,
     formState: { errors, isSubmitted },
-  } = useForm<IniciarSimulacionInput, unknown, IniciarSimulacionData>({
-    resolver: zodResolver(iniciarSimulacionSchema),
+  } = useForm<GenerarAsignacionInput, unknown, GenerarAsignacionData>({
+    resolver: zodResolver(generarAsignacionSchema),
     mode: 'onTouched',
     defaultValues: {
       escenarioId: casoInicial?.id ?? '',
       promptSistema: casoInicial?.npc.promptSistema ?? '',
-      codigoEstudiante: estudianteInicial?.codigo ?? '',
-      nombreEstudiante: estudianteInicial?.nombre ?? '',
+      estudianteId: estudianteInicial?.cuentaVinculada ? estudianteInicial.id : '',
+      vigenciaDias: VIGENCIA_POR_DEFECTO,
     },
   });
 
-  const [escenarioId, promptSistema, codigoEstudiante, nombreEstudiante] = useWatch({
+  const [escenarioId, promptSistema, estudianteId, vigenciaDias] = useWatch({
     control,
-    name: ['escenarioId', 'promptSistema', 'codigoEstudiante', 'nombreEstudiante'],
+    name: ['escenarioId', 'promptSistema', 'estudianteId', 'vigenciaDias'],
   });
   const escenario = escenarios.find(e => e.id === escenarioId) ?? null;
   const promptPersonalizado = escenario !== null && promptSistema !== escenario.npc.promptSistema;
+  const estudiante = conCuenta.find(e => e.id === estudianteId) ?? null;
 
   // Estado de cada paso: completado (✓), actual (el primero pendiente) o pendiente.
-  const codigoValido = codigoEstudianteSchema.safeParse(codigoEstudiante).success;
-  const estudianteValido =
-    codigoValido && nombreEstudianteSchema.safeParse(nombreEstudiante).success;
-  const registrado = buscarPorCodigo(estudiantes, codigoEstudiante);
   const estadoPaso1: EstadoPaso = escenario ? 'completado' : 'actual';
   const estadoPaso2: EstadoPaso = !escenario
     ? 'pendiente'
     : promptSchema.safeParse(promptSistema).success
       ? 'completado'
       : 'actual';
-  const estadoPaso3: EstadoPaso = estudianteValido
+  const estadoPaso3: EstadoPaso = estudiante
     ? 'completado'
     : estadoPaso2 === 'completado'
       ? 'actual'
@@ -158,9 +160,14 @@ export function ConfiguradorSesion({
   };
 
   const opcionesEstudiante = { shouldDirty: true, shouldValidate: true } as const;
-  const elegirEstudiante = (estudiante: EstudianteRegistrado) => {
-    setValue('codigoEstudiante', estudiante.codigo, opcionesEstudiante);
-    setValue('nombreEstudiante', estudiante.nombre, opcionesEstudiante);
+  const elegirEstudiante = (elegido: EstudianteRegistrado) =>
+    setValue('estudianteId', elegido.id, opcionesEstudiante);
+  const quitarEstudiante = () => setValue('estudianteId', '', { shouldDirty: true });
+
+  // Un estudiante recién registrado aparece al recargar los datos del servidor; queda elegido.
+  const onEstudianteRegistrado = (id: string) => {
+    setValue('estudianteId', id, { shouldDirty: true });
+    router.refresh();
   };
 
   const restablecerPrompt = () => {
@@ -171,44 +178,27 @@ export function ConfiguradorSesion({
     });
   };
 
-  const onSubmit = (datos: IniciarSimulacionData) => {
+  const onSubmit = (datos: GenerarAsignacionData) => {
     const seleccionado = escenarios.find(e => e.id === datos.escenarioId);
-    if (!seleccionado) return;
+    const destinatario = conCuenta.find(e => e.id === datos.estudianteId);
+    if (!seleccionado || !destinatario) return;
 
     setErrorServidor(null);
     startTransition(async () => {
-      const resultado = await iniciarSimulacion(datos);
+      const resultado = await generarAsignacion(datos);
       if (!resultado.ok) {
         setErrorServidor(resultado.error);
         return;
       }
-
-      const { sesionId } = resultado.datos;
-      iniciarSesionEnStore({
-        id: sesionId,
-        // Provisional: el inicio real lo fija la base de datos cuando el estudiante confirma las
-        // instrucciones del caso (HU-23); el servidor vuelve a sincronizarlo en /simulacion.
-        inicio: new Date().toISOString(),
-        comenzada: false,
-        estudiante: { codigo: datos.codigoEstudiante, nombre: datos.nombreEstudiante },
-        escenario: {
-          id: seleccionado.id,
-          codigo: seleccionado.codigo,
-          titulo: seleccionado.titulo,
-          descripcion: seleccionado.descripcion,
-          categoria: seleccionado.categoria,
-          dificultad: seleccionado.dificultad,
-          competenciaCentral: seleccionado.competenciaCentral,
-          configuracion3d: seleccionado.configuracion3d,
-        },
-        npc: {
-          id: seleccionado.npc.id,
-          nombre: seleccionado.npc.nombre,
-          edad: seleccionado.npc.edad,
-          perfilClinico: seleccionado.npc.perfilClinico,
-        },
+      setCodigoGenerado({
+        codigo: resultado.datos.codigo,
+        expiraEn: resultado.datos.expiraEn,
+        estudiante: { id: destinatario.id, nombre: destinatario.nombre },
+        caso: seleccionado.titulo,
       });
-      router.push(`/simulacion?sesion=${sesionId}`);
+      // El caso queda elegido para asignárselo enseguida a otro estudiante.
+      quitarEstudiante();
+      router.refresh();
     });
   };
 
@@ -386,7 +376,7 @@ export function ConfiguradorSesion({
                     aria-describedby={
                       errors.promptSistema ? 'promptSistema-error' : 'promptSistema-ayuda'
                     }
-                    disabled={iniciando}
+                    disabled={generando}
                     {...register('promptSistema')}
                   />
                   <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
@@ -416,68 +406,128 @@ export function ConfiguradorSesion({
           )}
         </Paso>
 
-        {/* Paso 3 — Estudiante */}
+        {/* Paso 3 — Estudiante y código de acceso */}
         <Paso
           numero={3}
           id="paso-estudiante-titulo"
-          titulo="Datos del estudiante"
+          titulo="Asigna la simulación"
           estado={estadoPaso3}
           ultimo
-          descripcion="Elige a un estudiante que ya practicó o escribe sus datos: queda registrado para el seguimiento de su desempeño."
+          descripcion="Elige al estudiante y cuánto tiempo será válido el código. Él entra con su correo institucional y hace la simulación desde su equipo."
         >
-          <div className="grid gap-4 rounded-2xl border bg-card p-5 shadow-xs sm:grid-cols-2">
-            {estudiantes.length > 0 && (
-              <div className="border-b border-dashed pb-4 sm:col-span-2">
-                <BuscadorEstudiante
-                  estudiantes={estudiantes}
-                  onSeleccionar={elegirEstudiante}
-                  deshabilitado={iniciando}
+          <div className="flex flex-col gap-5 rounded-2xl border bg-card p-5 shadow-xs">
+            {errors.estudianteId && (
+              <p id="estudiante-error" role="alert" className="text-sm text-destructive">
+                {errors.estudianteId.message}
+              </p>
+            )}
+
+            {estudiante ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-accent/30 p-3">
+                <span
+                  aria-hidden
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                >
+                  {iniciales(estudiante.nombre)}
+                </span>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="truncate font-medium" data-testid="estudiante-elegido">
+                    {estudiante.nombre}
+                  </p>
+                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <span className="font-mono">{estudiante.codigo}</span>
+                    <span className="flex items-center gap-1">
+                      <Mail className="size-3" aria-hidden />
+                      {estudiante.correo}
+                    </span>
+                    <span>· {contarSesiones(estudiante.metricas.sesiones)}</span>
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={quitarEstudiante}
+                  disabled={generando}
+                >
+                  <X aria-hidden />
+                  Cambiar
+                </Button>
+              </div>
+            ) : conCuenta.length > 0 ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <BuscadorEstudiante
+                    estudiantes={conCuenta}
+                    onSeleccionar={elegirEstudiante}
+                    deshabilitado={generando}
+                    mensajeVacio="Ningún estudiante con cuenta coincide. Regístralo con su correo institucional."
+                  />
+                </div>
+                <DialogoEstudiante
+                  onGuardado={onEstudianteRegistrado}
+                  disparador={
+                    <Button type="button" variant="outline" size="lg" disabled={generando}>
+                      <UserPlus aria-hidden />
+                      Registrar estudiante
+                    </Button>
+                  }
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm sm:flex-row sm:items-center">
+                <UserPlus className="size-5 shrink-0 text-primary" aria-hidden />
+                <p className="flex-1 text-muted-foreground">
+                  Aún no tienes estudiantes con cuenta. Regístralos con su correo institucional para
+                  enviarles códigos de acceso.
+                </p>
+                <DialogoEstudiante
+                  onGuardado={onEstudianteRegistrado}
+                  disparador={
+                    <Button type="button" disabled={generando}>
+                      <UserPlus aria-hidden />
+                      Registrar estudiante
+                    </Button>
+                  }
                 />
               </div>
             )}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="codigoEstudiante">Código institucional</Label>
-              <Input
-                id="codigoEstudiante"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="Ej.: 202012345"
-                maxLength={LIMITES.codigoEstudiante.max + 4}
-                aria-invalid={errors.codigoEstudiante ? true : undefined}
-                aria-describedby={errors.codigoEstudiante ? 'codigoEstudiante-error' : undefined}
-                disabled={iniciando}
-                {...register('codigoEstudiante')}
-              />
-              {errors.codigoEstudiante && (
-                <p id="codigoEstudiante-error" className="text-sm text-destructive">
-                  {errors.codigoEstudiante.message}
-                </p>
-              )}
+
+            <div
+              role="radiogroup"
+              aria-labelledby="vigencia-titulo"
+              className="flex flex-col gap-2 border-t border-dashed pt-4"
+            >
+              <p id="vigencia-titulo" className="text-sm font-medium">
+                Vigencia del código
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {VIGENCIAS_DIAS.map(dias => (
+                  <label
+                    key={dias}
+                    className={cn(
+                      'flex cursor-pointer items-center rounded-full border px-3.5 py-1.5 text-sm transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+                      vigenciaDias === dias
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="vigenciaDias"
+                      checked={vigenciaDias === dias}
+                      onChange={() => setValue('vigenciaDias', dias, { shouldDirty: true })}
+                      disabled={generando}
+                    />
+                    {textoDias(dias)}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha.
+              </p>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="nombreEstudiante">Nombre completo</Label>
-              <Input
-                id="nombreEstudiante"
-                autoComplete="off"
-                placeholder="Ej.: Ana María Pérez"
-                maxLength={LIMITES.nombreEstudiante.max + 10}
-                aria-invalid={errors.nombreEstudiante ? true : undefined}
-                aria-describedby={errors.nombreEstudiante ? 'nombreEstudiante-error' : undefined}
-                disabled={iniciando}
-                {...register('nombreEstudiante')}
-              />
-              {errors.nombreEstudiante && (
-                <p id="nombreEstudiante-error" className="text-sm text-destructive">
-                  {errors.nombreEstudiante.message}
-                </p>
-              )}
-            </div>
-            <EstadoEstudiante
-              registrado={registrado}
-              nombre={nombreEstudiante}
-              codigoValido={codigoValido}
-              onUsarNombre={nombre => setValue('nombreEstudiante', nombre, opcionesEstudiante)}
-            />
           </div>
         </Paso>
 
@@ -494,7 +544,7 @@ export function ConfiguradorSesion({
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
             promptActual={promptSistema}
-            deshabilitado={iniciando}
+            deshabilitado={generando}
             onGuardado={onGuardadaComoCaso}
           />
           <p
@@ -503,24 +553,29 @@ export function ConfiguradorSesion({
           >
             {!escenario ? (
               'Elige un caso para comenzar'
-            ) : !estudianteValido ? (
-              <>Completa los datos del estudiante</>
+            ) : !estudiante ? (
+              <>Elige al estudiante</>
             ) : (
               <>
                 <CheckCircle2 className="size-4 text-success" aria-hidden />
                 <span>
-                  Listo para <span className="font-medium text-foreground">{escenario.titulo}</span>
+                  <span className="font-medium text-foreground">{escenario.titulo}</span> para{' '}
+                  <span className="font-medium text-foreground">{estudiante.nombre}</span>
                 </span>
               </>
             )}
           </p>
-          <Button type="submit" size="lg" disabled={iniciando} aria-busy={iniciando}>
-            {iniciando ? <Loader2 className="animate-spin" aria-hidden /> : null}
-            {iniciando ? 'Iniciando…' : 'Iniciar simulación'}
-            {!iniciando && <ArrowRight aria-hidden />}
+          <Button type="submit" size="lg" disabled={generando} aria-busy={generando}>
+            {generando ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <KeyRound aria-hidden />
+            )}
+            {generando ? 'Generando…' : 'Generar código de acceso'}
           </Button>
         </div>
       </form>
+      <CodigoGenerado datos={codigoGenerado} onCerrar={() => setCodigoGenerado(null)} />
     </div>
   );
 }
@@ -679,4 +734,14 @@ function Paso({
       </div>
     </section>
   );
+}
+
+/** Iniciales para el avatar del estudiante ("Ana María Pérez" → "AM"). */
+function iniciales(nombre: string) {
+  return nombre
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(parte => parte[0] ?? '')
+    .join('')
+    .toUpperCase();
 }

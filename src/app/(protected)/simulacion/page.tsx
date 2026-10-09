@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import { SimulacionCliente } from '@/components/simulacion/simulacion-cliente';
 import { Button } from '@/components/ui/button';
-import { requerirDocente } from '@/lib/auth/dal';
+import { requerirEstudiante } from '@/lib/auth/dal';
 import {
   obtenerIdUltimaSesionEnCurso,
   obtenerMensajesSesion,
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const idSesionSchema = z.uuid();
 
 export default async function SimulacionPage({ searchParams }: PageProps<'/simulacion'>) {
-  await requerirDocente();
+  await requerirEstudiante();
 
   const { sesion: parametro } = await searchParams;
 
@@ -31,7 +31,7 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
     return (
       <EstadoVacio
         titulo="No hay ninguna simulación en curso"
-        descripcion="Prepara una sesión eligiendo un escenario e ingresando los datos del estudiante."
+        descripcion="Para empezar una, escribe en Mis prácticas el código que te envió tu docente."
       />
     );
   }
@@ -43,7 +43,7 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
     return (
       <EstadoVacio
         titulo="Esta sesión no está disponible"
-        descripcion="Puede que ya haya finalizado o que el enlace no sea correcto. Prepara una nueva sesión para continuar."
+        descripcion="Puede que ya haya finalizado o que el enlace no sea correcto. Revisa tus prácticas o pide un código nuevo a tu docente."
       />
     );
   }
@@ -66,8 +66,8 @@ function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: str
           <p className="text-muted-foreground">{descripcion}</p>
         </div>
         <Button asChild size="lg">
-          <Link href="/configuracion">
-            Preparar una sesión
+          <Link href="/practicas">
+            Ir a mis prácticas
             <ArrowRight aria-hidden />
           </Link>
         </Button>

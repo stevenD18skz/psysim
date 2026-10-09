@@ -29,14 +29,15 @@ export default function AccesoDenegadoPage() {
             <h1 className="text-xl">Acceso denegado</h1>
           </CardTitle>
           <CardDescription>
-            PsySim está disponible exclusivamente para docentes. Tu cuenta no tiene las credenciales
-            necesarias para acceder a la plataforma.
+            Tu cuenta no está registrada en PsySim. Las cuentas de los estudiantes las crea su
+            docente con el correo institucional.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Si crees que se trata de un error, contacta al administrador del sistema para que
-            habilite tu acceso.
+            Si eres estudiante, pide a tu docente que te registre con tu correo
+            @correounivalle.edu.co y vuelve a entrar con Google. Si eres docente, contacta al
+            administrador de la plataforma.
           </p>
           <form action={volverAlLogin}>
             <Button type="submit" variant="outline" className="w-full">

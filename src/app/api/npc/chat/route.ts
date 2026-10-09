@@ -1,6 +1,7 @@
-import { obtenerSesionDocente } from '@/lib/auth/dal';
+import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
 import { log } from '@/lib/log';
+import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 import {
   type NpcChatError,
@@ -36,22 +37,22 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
 /**
  * HU-12 — Route Handler del paciente virtual.
  *
- * 1. Verifica la sesión del docente (401/403).
+ * 1. Verifica la sesión del estudiante (401/403): solo él conversa con el paciente.
  * 2. Valida el cuerpo con Zod (400 con el detalle por campo).
- * 3. Carga la sesión de simulación con RLS: debe ser del docente (404), seguir en curso (409)
- *    y corresponder al NPC indicado (404). El prompt del sistema es el de la sesión (el del NPC,
- *    o el personalizado por el docente al configurarla).
+ * 3. Carga la sesión de simulación con RLS: debe ser del estudiante (404), seguir en curso (409)
+ *    y corresponder al NPC indicado (404). El prompt del sistema es el que configuró el docente
+ *    al generar el código; se lee con la clave secreta porque el estudiante no puede verlo.
  * 4. Llama a la IA con el prompt, el historial y el mensaje (504/502/503 si falla).
  * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con su emoción (para el
  *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
 export async function POST(request: Request): Promise<Response> {
-  const docente = await obtenerSesionDocente();
-  if (docente.estado === 'sin-sesion') {
+  const usuario = await obtenerSesionUsuario();
+  if (usuario.estado === 'sin-sesion') {
     return responderError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
   }
-  if (docente.estado === 'sin-permiso') {
-    return responderError(403, 'No tienes permiso para usar el simulador.');
+  if (usuario.estado === 'sin-permiso' || usuario.perfil.rol !== 'estudiante') {
+    return responderError(403, 'Solo el estudiante de la sesión puede conversar con el paciente.');
   }
 
   let cuerpo: unknown;
@@ -71,7 +72,7 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = await createClient();
   const { data: sesion, error: errorSesion } = await supabase
     .from('sesion')
-    .select('estado, comenzada, prompt_sistema, escenario ( npc ( id, nombre ) )')
+    .select('estado, comenzada, escenario_id')
     .eq('id', sesion_id)
     .maybeSingle();
 
@@ -89,8 +90,22 @@ export async function POST(request: Request): Promise<Response> {
   if (!sesion.comenzada) {
     return responderError(409, 'La simulación aún no ha comenzado.');
   }
-  const npc = sesion.escenario?.npc;
-  if (!npc || npc.id !== npc_id) {
+
+  let npc: { id: string; nombre: string } | undefined;
+  let promptSistema: string | null;
+  try {
+    // RLS ya verificó que la sesión es del estudiante: el caso y el prompt se leen con la clave secreta.
+    const [escenario, prompt] = await Promise.all([
+      leerEscenarioDeSesion(sesion.escenario_id),
+      leerPromptDeSesion(sesion_id),
+    ]);
+    npc = escenario?.npc;
+    promptSistema = prompt;
+  } catch {
+    log.error('npc_chat.caso_no_leido', { sesion_id });
+    return responderError(500, 'No fue posible cargar la sesión.');
+  }
+  if (!npc || npc.id !== npc_id || !promptSistema) {
     return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
   }
 
@@ -98,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
   let respuesta: Awaited<ReturnType<typeof generarRespuestaPaciente>>;
   try {
     respuesta = await generarRespuestaPaciente({
-      promptSistema: sesion.prompt_sistema,
+      promptSistema,
       historial,
       mensaje: mensaje_usuario,
       nombrePaciente: npc.nombre,

@@ -46,11 +46,31 @@ describe('proxy', () => {
     expect(destino.searchParams.get('siguiente')).toBe('/simulacion/sesion?x=1');
   });
 
-  it('redirige a /acceso-denegado si el rol no es docente', async () => {
+  it('redirige a /acceso-denegado si el JWT no trae un rol de la plataforma', async () => {
     conSesion({ sub: 'u1', rol_usuario: undefined });
     const res = await proxy(peticion('/configuracion'));
 
     expect(new URL(res.headers.get('location')!).pathname).toBe('/acceso-denegado');
+  });
+
+  it.each([
+    ['un estudiante abre una ruta del docente', 'estudiante', '/sesiones/abc', '/practicas'],
+    [
+      'un docente abre una ruta del estudiante',
+      'docente',
+      '/simulacion?sesion=1',
+      '/configuracion',
+    ],
+  ])('si %s, lo lleva a su ruta de inicio', async (_, rol, ruta, destino) => {
+    conSesion({ sub: 'u1', rol_usuario: rol });
+    const res = await proxy(peticion(ruta));
+    expect(new URL(res.headers.get('location')!).pathname).toBe(destino);
+  });
+
+  it('permite el acceso de un estudiante a sus rutas', async () => {
+    const response = conSesion({ sub: 'u1', rol_usuario: 'estudiante' });
+    expect(await proxy(peticion('/practicas'))).toBe(response);
+    expect(await proxy(peticion('/unirse/abc-defg-hij'))).toBe(response);
   });
 
   it('permite el acceso a un docente', async () => {

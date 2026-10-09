@@ -1,67 +1,48 @@
-import { createClient } from '@supabase/supabase-js';
 import { expect, type Page, test } from '@playwright/test';
 
-import { docente, hayCredenciales, iniciarSesionComoDocente } from './helpers';
+import {
+  clienteAdmin as clienteAdminOpcional,
+  crearSesionEstudiante,
+  limpiarCodigos,
+} from './flujos';
+import {
+  hayCredenciales,
+  hayCredencialesEstudiante,
+  iniciarSesionComoDocente,
+  iniciarSesionComoEstudiante,
+  MOTIVO_SIN_ESTUDIANTE,
+} from './helpers';
 
 /**
  * Sprint 3 — HU-11 a HU-16: acercarse al paciente, conversar con la IA real (Gemini), manejo de
- * errores, persistencia de la conversación y cierre de la sesión.
- * Registro en docs/pruebas/sprint-3.md.
+ * errores, persistencia de la conversación y cierre de la sesión. La simulación corre en la
+ * sesión del estudiante (cuenta de prueba). Registro en docs/pruebas/sprint-3.md.
  */
 
 /**
- * Código reservado de este archivo. Distinto del de configuracion.spec.ts (2099000): los archivos
- * corren en paralelo y la limpieza de uno borraría las sesiones del otro a mitad de un test.
+ * Prefijo de los códigos de acceso de este archivo. Distinto del de los demás: los archivos corren
+ * en paralelo y la limpieza de uno borraría las sesiones del otro a mitad de un test.
  */
-const CODIGO_PRUEBAS = '2099010';
+const PREFIJO_CODIGOS = 'cnv';
 const PROMPT_BREVE =
   'Eres Marta Lucía, una mujer de 58 años que perdió a su esposo hace cuatro meses. ' +
   'Responde siempre en español, con una sola oración corta y en primera persona.';
 
 function clienteAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const clave = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !clave) throw new Error('Faltan variables de Supabase para las pruebas.');
-  return createClient(url, clave, { auth: { persistSession: false } });
+  const cliente = clienteAdminOpcional();
+  if (!cliente) throw new Error('Faltan variables de Supabase para las pruebas.');
+  return cliente;
 }
 
-/** Crea una sesión en curso del escenario E-01 para el docente de prueba. */
-async function crearSesion(sufijo: string): Promise<string> {
-  const admin = clienteAdmin();
-  const { data: usuario } = await admin
-    .from('usuario')
-    .select('id')
-    .eq('correo', docente.correo.toLowerCase())
-    .single();
-  const { data: escenario } = await admin
-    .from('escenario')
-    .select('id')
-    .eq('codigo', 'E-01')
-    .single();
-  const { data, error } = await admin
-    .from('sesion')
-    .insert({
-      usuario_id: usuario!.id,
-      escenario_id: escenario!.id,
-      codigo_estudiante: `${CODIGO_PRUEBAS}${sufijo}`,
-      nombre_estudiante: 'Estudiante de Prueba Conversacion',
-      prompt_sistema: PROMPT_BREVE,
-      // El estudiante ya confirmó las instrucciones del caso (HU-23): se va directo a conversar.
-      comenzada: true,
-    })
-    .select('id')
-    .single();
-  if (error) throw error;
-  return data.id;
+/**
+ * Crea una sesión en curso del escenario E-01 para el estudiante de prueba, que ya confirmó las
+ * instrucciones del caso (HU-23): se va directo a conversar.
+ */
+function crearSesion(): Promise<string> {
+  return crearSesionEstudiante(PREFIJO_CODIGOS, { prompt: PROMPT_BREVE });
 }
 
-async function limpiar() {
-  if (!process.env.SUPABASE_SECRET_KEY) return;
-  const admin = clienteAdmin();
-  await admin.from('sesion').delete().like('codigo_estudiante', `${CODIGO_PRUEBAS}%`);
-  // Cada sesión registra a su estudiante: se borra después (las sesiones lo referencian).
-  await admin.from('estudiante').delete().like('codigo', `${CODIGO_PRUEBAS}%`);
-}
+const limpiar = () => limpiarCodigos(PREFIJO_CODIGOS);
 
 /** Abre la simulación y camina hacia el paciente hasta poder conversar. */
 async function acercarseAlPaciente(page: Page, sesionId: string) {
@@ -91,7 +72,7 @@ async function iniciarConversacion(page: Page, sesionId: string) {
 }
 
 test.describe('conversación con el paciente virtual (Sprint 3)', () => {
-  test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
+  test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
   test.describe.configure({ mode: 'serial' });
   test.slow();
 
@@ -99,13 +80,13 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
   test.afterAll(limpiar);
 
   test.beforeEach(async ({ page }) => {
-    await iniciarSesionComoDocente(page);
+    await iniciarSesionComoEstudiante(page);
   });
 
   test('HU-13 · T01: al acercarse puede iniciar la conversación y la cámara se fija', async ({
     page,
   }) => {
-    const sesionId = await crearSesion('11');
+    const sesionId = await crearSesion();
     const conversar = await acercarseAlPaciente(page, sesionId);
     await expect(page.getByText(/Estás frente a Marta/)).toBeVisible();
 
@@ -122,7 +103,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
   });
 
   test('HU-12/13/14: conversa con la IA real y guarda el intercambio', async ({ page }) => {
-    const sesionId = await crearSesion('12');
+    const sesionId = await crearSesion();
     const panel = await iniciarConversacion(page, sesionId);
     const campo = panel.getByLabel('Tu intervención para Marta Lucía');
 
@@ -175,7 +156,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
   test('HU-16: un error de la IA muestra el aviso, conserva el historial y permite reintentar', async ({
     page,
   }) => {
-    const sesionId = await crearSesion('13');
+    const sesionId = await crearSesion();
     const panel = await iniciarConversacion(page, sesionId);
 
     // La primera petición falla con un 504 simulado; el reintento llega a la IA real.
@@ -210,7 +191,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
   });
 
   test('HU-16 · T02: finalizar la sesión desde el aviso de error', async ({ page }) => {
-    const sesionId = await crearSesion('14');
+    const sesionId = await crearSesion();
     const panel = await iniciarConversacion(page, sesionId);
     await page.route('**/api/npc/chat', ruta =>
       ruta.fulfill({ status: 502, json: { error: 'El servicio de IA no está disponible.' } })
@@ -237,8 +218,9 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     expect(data?.estado).toBe('finalizada');
     expect(data?.fin).not.toBeNull();
 
-    await cierre.getByRole('button', { name: 'Preparar una nueva sesión' }).click();
-    await expect(page).toHaveURL(/\/configuracion$/);
+    await cierre.getByRole('button', { name: 'Ver mi práctica' }).click();
+    await expect(page).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
+    await expect(page.getByText('Pendiente de retroalimentación.')).toBeVisible();
   });
 });
 
@@ -250,11 +232,18 @@ test.describe('Route Handler /api/npc/chat', () => {
     await anonimo.dispose();
   });
 
+  test('HU-12: el docente ya no conversa con el paciente (403)', async ({ page }) => {
+    test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
+    await iniciarSesionComoDocente(page);
+    const respuesta = await page.request.post('/api/npc/chat', { data: {} });
+    expect(respuesta.status()).toBe(403);
+  });
+
   test('HU-12 · T02: con sesión y cuerpo inválido responde 400 con el detalle', async ({
     page,
   }) => {
-    test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
-    await iniciarSesionComoDocente(page);
+    test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
+    await iniciarSesionComoEstudiante(page);
     const respuesta = await page.request.post('/api/npc/chat', {
       data: { sesion_id: 'x', npc_id: 'y', mensaje_usuario: '', historial: [] },
     });

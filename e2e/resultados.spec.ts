@@ -5,13 +5,17 @@ import {
   comenzarSimulacion,
   conversar,
   finalizarDesdeHud,
-  limpiarPorCodigo,
+  limpiarCodigos,
   MOTIVO_SPRINT_4,
   prepararSesion,
   SPRINT_4_LISTO,
   TARJETAS_RESULTADOS,
 } from './flujos';
-import { hayCredenciales, iniciarSesionComoDocente } from './helpers';
+import {
+  hayCredencialesEstudiante,
+  iniciarSesionComoEstudiante,
+  MOTIVO_SIN_ESTUDIANTE,
+} from './helpers';
 
 /**
  * HU-27 · T04 (Sprint 6) — Pantalla de resultados del Sprint 4 (HU-21).
@@ -22,13 +26,16 @@ import { hayCredenciales, iniciarSesionComoDocente } from './helpers';
  *   (`TARJETAS_RESULTADOS`), con un valor visible.
  * - El historial de la conversación (`[data-remitente]`, como en el panel de la simulación).
  * - "Nueva sesión" lleva a /configuracion con el formulario limpio; "Cerrar" cierra la sesión.
+ *
+ * Desde los códigos de acceso la simulación la hace el estudiante en su cuenta: al implementar
+ * el Sprint 4, revisar qué ve él en /resultados y qué ve el docente en /sesiones/[id].
  */
 
-const CODIGO_PRUEBAS = '2099200';
-const ESTUDIANTE = { codigo: `${CODIGO_PRUEBAS}01`, nombre: 'Estudiante Resultados' };
+const PREFIJO_CODIGOS = 'res';
+const ESTUDIANTE = { codigo: '209990001', nombre: 'Estudiante de Prueba Uno' };
 
 test.describe('pantalla de resultados (HU-27 · T04)', () => {
-  test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
+  test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
   test.skip(!SPRINT_4_LISTO, MOTIVO_SPRINT_4);
   test.describe.configure({ mode: 'serial' });
 
@@ -36,12 +43,12 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
-    await limpiarPorCodigo(CODIGO_PRUEBAS);
+    await limpiarCodigos(PREFIJO_CODIGOS);
 
     // Una sesión completada desde la interfaz, con una intervención y su respuesta.
     const page = await browser.newPage();
-    await iniciarSesionComoDocente(page);
-    sesionId = await prepararSesion(page, { escenario: 'E-01', estudiante: ESTUDIANTE });
+    await iniciarSesionComoEstudiante(page);
+    sesionId = await prepararSesion(page, PREFIJO_CODIGOS);
     await comenzarSimulacion(page, /Duelo y pérdida/);
     const panel = await abrirConversacion(page, 'Marta', 'Marta Lucía');
     await conversar(panel, 'Marta Lucía', 'Hola, Marta. ¿Cómo ha estado?');
@@ -50,10 +57,10 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     await page.close();
   });
 
-  test.afterAll(() => limpiarPorCodigo(CODIGO_PRUEBAS));
+  test.afterAll(() => limpiarCodigos(PREFIJO_CODIGOS));
 
   async function abrirResultados(page: Page) {
-    await iniciarSesionComoDocente(page);
+    await iniciarSesionComoEstudiante(page);
     await page.goto(`/resultados?sesion=${sesionId}`);
   }
 
@@ -90,7 +97,9 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     await expect(page).toHaveURL(/\/configuracion$/);
     await expect(page.getByLabel('Código institucional')).toHaveValue('');
     await expect(page.getByLabel('Nombre completo')).toHaveValue('');
-    await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('radiogroup', { name: /Elige el caso/ }).getByRole('radio', { checked: true })
+    ).toHaveCount(0);
     // La sesión finalizada ya no se retoma desde /simulacion.
     await page.goto('/simulacion');
     await expect(page).not.toHaveURL(new RegExp(sesionId));
@@ -103,7 +112,7 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
   });
 
   test('una sesión ajena o inexistente redirige a /configuracion', async ({ page }) => {
-    await iniciarSesionComoDocente(page);
+    await iniciarSesionComoEstudiante(page);
     await page.goto('/resultados?sesion=00000000-0000-4000-8000-000000000000');
     await expect(page).toHaveURL(/\/configuracion/);
   });

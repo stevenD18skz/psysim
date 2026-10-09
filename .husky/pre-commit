@@ -1,2 +1,4 @@
-pnpm exec lint-staged
+# Fragmentos de 4000 caracteres: en Windows, los shims .cmd (eslint, prettier) vuelven a expandir el
+# comando y superan el límite de cmd.exe (8191) con muchos archivos preparados.
+pnpm exec lint-staged --max-arg-length 4000
 pnpm typecheck

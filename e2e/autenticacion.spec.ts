@@ -4,15 +4,15 @@ import {
   cookiesDeSesion,
   docente,
   hayCredenciales,
+  hayCredencialesEstudiante,
   iniciarSesion,
   iniciarSesionComoDocente,
+  iniciarSesionComoEstudiante,
   leerSesion,
+  MOTIVO_SIN_ESTUDIANTE,
   sinRol,
 } from './helpers';
 import { clienteAdmin } from './flujos';
-
-/** /simulacion, o la sesión en curso a la que redirige si el docente tiene una. */
-const RUTA_SIMULACION = /\/simulacion(\?sesion=[0-9a-f-]{36})?$/;
 
 /**
  * Sprint 1 — HU-02 (login), HU-03 (rutas protegidas) y HU-04 (logout).
@@ -20,7 +20,14 @@ const RUTA_SIMULACION = /\/simulacion(\?sesion=[0-9a-f-]{36})?$/;
  */
 
 test.describe('rutas protegidas sin sesión (HU-03)', () => {
-  for (const ruta of ['/configuracion', '/simulacion', '/simulacion/sesion', '/estudiantes']) {
+  for (const ruta of [
+    '/configuracion',
+    '/simulacion',
+    '/simulacion/sesion',
+    '/estudiantes',
+    '/practicas',
+    '/unirse/abc-defg-hij',
+  ]) {
     test(`${ruta} redirige a /login`, async ({ page }) => {
       await page.goto(ruta);
       await expect(page).toHaveURL(`/login?siguiente=${encodeURIComponent(ruta)}`);
@@ -61,10 +68,9 @@ test.describe('con credenciales de prueba', () => {
 
     // Nueva pestaña.
     const pestana = await context.newPage();
-    await pestana.goto('/simulacion');
-    // Sin sesión en curso muestra el estado vacío; con una, redirige a ella (Sprint 2).
-    await expect(pestana).toHaveURL(RUTA_SIMULACION);
-    await expect(pestana).toHaveTitle(/^Simulación · PsySim$/);
+    await pestana.goto('/estudiantes');
+    await expect(pestana).toHaveURL(/\/estudiantes$/);
+    await expect(pestana).toHaveTitle(/^Estudiantes · PsySim$/);
 
     // Con sesión activa, /login redirige a /configuracion sin mostrar el formulario.
     await page.goto('/login');
@@ -72,12 +78,31 @@ test.describe('con credenciales de prueba', () => {
   });
 
   test('HU-02: tras el login vuelve a la ruta solicitada originalmente', async ({ page }) => {
-    await page.goto('/simulacion');
-    await expect(page).toHaveURL(/\/login\?siguiente=%2Fsimulacion/);
+    await page.goto('/estudiantes');
+    await expect(page).toHaveURL(/\/login\?siguiente=%2Festudiantes/);
     await page.getByLabel('Correo institucional').fill(docente.correo);
     await page.getByLabel('Contraseña', { exact: true }).fill(docente.contrasena);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await expect(page).toHaveURL(RUTA_SIMULACION);
+    await expect(page).toHaveURL(/\/estudiantes$/);
+  });
+
+  test('el estudiante entra a sus prácticas y no ve el panel del docente', async ({ page }) => {
+    test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
+    await iniciarSesionComoEstudiante(page);
+    await expect(page.getByRole('heading', { name: 'Mis prácticas', level: 1 })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Nueva sesión/ })).toHaveCount(0);
+
+    // Una ruta del docente lo devuelve a su panel; con sesión, /login también.
+    await page.goto('/configuracion');
+    await expect(page).toHaveURL(/\/practicas$/);
+    await page.goto('/login');
+    await expect(page).toHaveURL(/\/practicas$/);
+  });
+
+  test('la página de inicio de sesión ofrece Google a los estudiantes', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.getByRole('button', { name: 'Continuar con Google' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
   });
 
   test('HU-03: un token manipulado redirige a /login', async ({ page, context }) => {

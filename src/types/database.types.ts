@@ -8,6 +8,129 @@ export type Database = {
   };
   public: {
     Tables: {
+      anotacion: {
+        Row: {
+          comentario: string;
+          creado_en: string;
+          fin: number;
+          fragmento: string;
+          id: string;
+          inicio: number;
+          mensaje_id: string;
+          sesion_id: string;
+        };
+        Insert: {
+          comentario: string;
+          creado_en?: string;
+          fin: number;
+          fragmento?: string;
+          id?: string;
+          inicio: number;
+          mensaje_id: string;
+          sesion_id: string;
+        };
+        Update: {
+          comentario?: string;
+          creado_en?: string;
+          fin?: number;
+          fragmento?: string;
+          id?: string;
+          inicio?: number;
+          mensaje_id?: string;
+          sesion_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'anotacion_mensaje_id_fkey';
+            columns: ['mensaje_id'];
+            isOneToOne: false;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'anotacion_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'retroalimentacion';
+            referencedColumns: ['sesion_id'];
+          },
+        ];
+      };
+      asignacion: {
+        Row: {
+          anulada_en: string | null;
+          codigo: string;
+          creado_en: string;
+          docente_id: string;
+          escenario_id: string;
+          estudiante_id: string;
+          expira_en: string;
+          id: string;
+          prompt_sistema: string;
+          sesion_id: string | null;
+        };
+        Insert: {
+          anulada_en?: string | null;
+          codigo: string;
+          creado_en?: string;
+          docente_id?: string;
+          escenario_id: string;
+          estudiante_id: string;
+          expira_en: string;
+          id?: string;
+          prompt_sistema: string;
+          sesion_id?: string | null;
+        };
+        Update: {
+          anulada_en?: string | null;
+          codigo?: string;
+          creado_en?: string;
+          docente_id?: string;
+          escenario_id?: string;
+          estudiante_id?: string;
+          expira_en?: string;
+          id?: string;
+          prompt_sistema?: string;
+          sesion_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'asignacion_docente_id_fkey';
+            columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asignacion_escenario_id_fkey';
+            columns: ['escenario_id'];
+            isOneToOne: false;
+            referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asignacion_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asignacion_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiante_resumen';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'asignacion_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       escenario: {
         Row: {
           activo: boolean;
@@ -65,31 +188,44 @@ export type Database = {
         Row: {
           actualizado_en: string;
           codigo: string;
+          correo: string | null;
           creado_en: string;
           docente_id: string;
           id: string;
           nombre: string;
+          usuario_id: string | null;
         };
         Insert: {
           actualizado_en?: string;
           codigo: string;
+          correo?: string | null;
           creado_en?: string;
           docente_id?: string;
           id?: string;
           nombre: string;
+          usuario_id?: string | null;
         };
         Update: {
           actualizado_en?: string;
           codigo?: string;
+          correo?: string | null;
           creado_en?: string;
           docente_id?: string;
           id?: string;
           nombre?: string;
+          usuario_id?: string | null;
         };
         Relationships: [
           {
             foreignKeyName: 'estudiante_docente_id_fkey';
             columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'estudiante_usuario_id_fkey';
+            columns: ['usuario_id'];
             isOneToOne: false;
             referencedRelation: 'usuario';
             referencedColumns: ['id'];
@@ -175,6 +311,51 @@ export type Database = {
           },
         ];
       };
+      retroalimentacion: {
+        Row: {
+          actualizado_en: string;
+          comentario_general: string;
+          creado_en: string;
+          docente_id: string;
+          nota: number | null;
+          publicada_en: string | null;
+          sesion_id: string;
+        };
+        Insert: {
+          actualizado_en?: string;
+          comentario_general?: string;
+          creado_en?: string;
+          docente_id?: string;
+          nota?: number | null;
+          publicada_en?: string | null;
+          sesion_id: string;
+        };
+        Update: {
+          actualizado_en?: string;
+          comentario_general?: string;
+          creado_en?: string;
+          docente_id?: string;
+          nota?: number | null;
+          publicada_en?: string | null;
+          sesion_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'retroalimentacion_docente_id_fkey';
+            columns: ['docente_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'retroalimentacion_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       sesion: {
         Row: {
           codigo_estudiante: string;
@@ -187,6 +368,7 @@ export type Database = {
           inicio: string;
           nombre_estudiante: string;
           prompt_sistema: string;
+          ultima_actividad: string;
           usuario_id: string;
         };
         Insert: {
@@ -200,6 +382,7 @@ export type Database = {
           inicio?: string;
           nombre_estudiante: string;
           prompt_sistema: string;
+          ultima_actividad?: string;
           usuario_id?: string;
         };
         Update: {
@@ -213,6 +396,7 @@ export type Database = {
           inicio?: string;
           nombre_estudiante?: string;
           prompt_sistema?: string;
+          ultima_actividad?: string;
           usuario_id?: string;
         };
         Relationships: [
@@ -279,11 +463,17 @@ export type Database = {
         Row: {
           casos_distintos: number | null;
           codigo: string | null;
+          codigos_pendientes: number | null;
+          correo: string | null;
           creado_en: string | null;
+          cuenta_vinculada: boolean | null;
           id: string | null;
           intervenciones: number | null;
           nombre: string | null;
+          nota_promedio: number | null;
+          pendientes_retroalimentacion: number | null;
           segundos_practica: number | null;
+          sesiones_en_curso: number | null;
           sesiones_finalizadas: number | null;
           sesiones_total: number | null;
           ultima_sesion: string | null;
@@ -292,15 +482,30 @@ export type Database = {
       };
     };
     Functions: {
+      canjear_codigo: {
+        Args: { p_codigo: string };
+        Returns: {
+          resultado: string;
+          sesion_id: string;
+        }[];
+      };
+      cerrar_sesiones_inactivas: { Args: never; Returns: number };
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
       es_docente: { Args: never; Returns: boolean };
+      es_estudiante: { Args: never; Returns: boolean };
+      id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
+      registrar_actividad_sesion: {
+        Args: { p_sesion_id: string };
+        Returns: boolean;
+      };
+      sesion_limite_inactividad: { Args: never; Returns: string };
     };
     Enums: {
       categoria_escenario: 'clinico' | 'cotidiano';
       dificultad_escenario: 'basico' | 'intermedio' | 'avanzado';
       estado_sesion: 'en_curso' | 'finalizada' | 'interrumpida';
       remitente_mensaje: 'estudiante' | 'npc';
-      rol_usuario: 'docente';
+      rol_usuario: 'docente' | 'estudiante';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -426,7 +631,7 @@ export const Constants = {
       dificultad_escenario: ['basico', 'intermedio', 'avanzado'],
       estado_sesion: ['en_curso', 'finalizada', 'interrumpida'],
       remitente_mensaje: ['estudiante', 'npc'],
-      rol_usuario: ['docente'],
+      rol_usuario: ['docente', 'estudiante'],
     },
   },
 } as const;

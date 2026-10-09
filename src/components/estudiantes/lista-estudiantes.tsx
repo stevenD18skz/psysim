@@ -1,22 +1,26 @@
 'use client';
 
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, KeyRound, MailPlus, Search } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 
+import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
+import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   contarSesiones,
   filtrarEstudiantes,
   formatearDia,
-  formatearTiempoPractica,
+  formatearNota,
 } from '@/lib/estudiantes/estudiantes';
 import { type EstudianteRegistrado } from '@/types';
 
 /** Tabla de estudiantes con búsqueda por código o nombre. */
 export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegistrado[] }) {
   const id = useId();
+  const router = useRouter();
   const [termino, setTermino] = useState('');
   const visibles = filtrarEstudiantes(estudiantes, termino, Infinity);
 
@@ -49,7 +53,7 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
       <div className="overflow-x-auto rounded-2xl border bg-card shadow-xs">
         <table className="w-full text-sm">
           <caption className="sr-only">
-            Estudiantes registrados con sus sesiones y tiempo de práctica
+            Estudiantes registrados con sus sesiones y retroalimentación
           </caption>
           <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
             <tr>
@@ -60,13 +64,10 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                 Sesiones
               </th>
               <th scope="col" className="hidden px-4 py-3 font-medium md:table-cell">
-                Práctica
+                Retroalimentación
               </th>
               <th scope="col" className="hidden px-4 py-3 font-medium lg:table-cell">
-                Casos
-              </th>
-              <th scope="col" className="hidden px-4 py-3 font-medium lg:table-cell">
-                Intervenciones
+                Nota promedio
               </th>
               <th scope="col" className="hidden px-4 py-3 font-medium sm:table-cell">
                 Última sesión
@@ -77,44 +78,94 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
             </tr>
           </thead>
           <tbody className="divide-y">
-            {visibles.map(({ id: estudianteId, codigo, nombre, metricas }) => (
-              <tr key={estudianteId} className="align-middle">
-                <th scope="row" className="px-4 py-3 text-left font-normal">
-                  <span className="block font-medium">{nombre}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
-                </th>
-                <td className="px-4 py-3 tabular-nums">
-                  {contarSesiones(metricas.sesiones)}
-                  {metricas.finalizadas > 0 && (
-                    <span className="block text-xs text-muted-foreground">
-                      {metricas.finalizadas}{' '}
-                      {metricas.finalizadas === 1 ? 'finalizada' : 'finalizadas'}
-                    </span>
-                  )}
-                </td>
-                <td className="hidden px-4 py-3 tabular-nums md:table-cell">
-                  {formatearTiempoPractica(metricas.segundosPractica)}
-                </td>
-                <td className="hidden px-4 py-3 tabular-nums lg:table-cell">{metricas.casos}</td>
-                <td className="hidden px-4 py-3 tabular-nums lg:table-cell">
-                  {metricas.intervenciones.toLocaleString('es-CO')}
-                </td>
-                <td className="hidden px-4 py-3 sm:table-cell">
-                  {metricas.ultimaSesion ? formatearDia(metricas.ultimaSesion) : '—'}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/configuracion?estudiante=${codigo}`}>
-                      Nueva sesión
-                      <ArrowRight aria-hidden />
+            {visibles.map(estudiante => {
+              const {
+                id: estudianteId,
+                codigo,
+                nombre,
+                correo,
+                cuentaVinculada,
+                metricas,
+              } = estudiante;
+              return (
+                <tr key={estudianteId} className="align-middle">
+                  <th scope="row" className="px-4 py-3 text-left font-normal">
+                    <Link
+                      href={`/estudiantes/${estudianteId}`}
+                      className="block font-medium underline-offset-4 hover:underline"
+                    >
+                      {nombre}
                     </Link>
-                  </Button>
-                </td>
-              </tr>
-            ))}
+                    <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {correo ?? 'Sin correo: no puede recibir códigos'}
+                    </span>
+                  </th>
+                  <td className="px-4 py-3 tabular-nums">
+                    {contarSesiones(metricas.sesiones)}
+                    {metricas.enCurso > 0 && (
+                      <InsigniaEstado
+                        className="mt-1"
+                        estado={{ texto: 'En progreso', tono: 'en-curso' }}
+                      />
+                    )}
+                    {metricas.codigosPendientes > 0 && (
+                      <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <KeyRound className="size-3" aria-hidden />
+                        {metricas.codigosPendientes}{' '}
+                        {metricas.codigosPendientes === 1 ? 'código sin usar' : 'códigos sin usar'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden px-4 py-3 md:table-cell">
+                    {metricas.pendientesRetroalimentacion > 0 ? (
+                      <InsigniaEstado
+                        estado={{
+                          texto: `${metricas.pendientesRetroalimentacion} por revisar`,
+                          tono: 'pendiente',
+                        }}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {metricas.sesiones > metricas.enCurso ? 'Al día' : '—'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden px-4 py-3 font-medium tabular-nums lg:table-cell">
+                    {formatearNota(metricas.notaPromedio)}
+                  </td>
+                  <td className="hidden px-4 py-3 sm:table-cell">
+                    {metricas.ultimaSesion ? formatearDia(metricas.ultimaSesion) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      {cuentaVinculada ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/configuracion?estudiante=${codigo}`}>
+                            Asignar
+                            <ArrowRight aria-hidden />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <DialogoEstudiante
+                          estudiante={estudiante}
+                          onGuardado={() => router.refresh()}
+                          disparador={
+                            <Button size="sm" variant="outline">
+                              <MailPlus aria-hidden />
+                              Agregar correo
+                            </Button>
+                          }
+                        />
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {visibles.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   Ningún estudiante coincide con «{termino.trim()}».
                 </td>
               </tr>

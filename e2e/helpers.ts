@@ -10,7 +10,28 @@ export const sinRol = {
   contrasena: process.env.E2E_SIN_ROL_CONTRASENA ?? '',
 };
 
+export const estudiante = {
+  correo: process.env.E2E_ESTUDIANTE_CORREO ?? '',
+  contrasena: process.env.E2E_ESTUDIANTE_CONTRASENA ?? '',
+};
+
+/** Otro estudiante, para comprobar que un código ajeno no sirve. */
+export const estudiante2 = {
+  correo: process.env.E2E_ESTUDIANTE2_CORREO ?? '',
+  contrasena: process.env.E2E_ESTUDIANTE2_CONTRASENA ?? '',
+};
+
 export const hayCredenciales = Boolean(docente.correo && docente.contrasena);
+
+/**
+ * Los flujos del estudiante necesitan su cuenta de prueba (con contraseña: los reales entran con
+ * Google, que no se puede automatizar) y la clave secreta para preparar datos.
+ */
+export const hayCredencialesEstudiante = Boolean(
+  hayCredenciales && estudiante.correo && estudiante.contrasena && process.env.SUPABASE_SECRET_KEY
+);
+export const MOTIVO_SIN_ESTUDIANTE =
+  'Define E2E_ESTUDIANTE_CORREO, E2E_ESTUDIANTE_CONTRASENA y SUPABASE_SECRET_KEY (pnpm db:seed)';
 
 export async function iniciarSesion(page: Page, correo: string, contrasena: string) {
   await page.goto('/login');
@@ -22,6 +43,11 @@ export async function iniciarSesion(page: Page, correo: string, contrasena: stri
 export async function iniciarSesionComoDocente(page: Page) {
   await iniciarSesion(page, docente.correo, docente.contrasena);
   await expect(page).toHaveURL(/\/configuracion$/);
+}
+
+export async function iniciarSesionComoEstudiante(page: Page, cuenta = estudiante) {
+  await iniciarSesion(page, cuenta.correo, cuenta.contrasena);
+  await expect(page).toHaveURL(/\/practicas$/);
 }
 
 /** Cookies de sesión de Supabase (`sb-<ref>-auth-token`, posiblemente en fragmentos). */

@@ -1,7 +1,7 @@
 'use server';
 
 import { requerirDocente } from '@/lib/auth/dal';
-import { type ResultadoAccion } from '@/lib/escenarios/actions';
+import { type ResultadoAccion } from '@/lib/acciones';
 import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
 import { log } from '@/lib/log';
 import { createClient } from '@/lib/supabase/server';

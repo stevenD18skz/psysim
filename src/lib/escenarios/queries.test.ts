@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { leerEscenarioDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
@@ -12,6 +13,7 @@ import {
 } from './queries';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/sesiones/datos-privados', () => ({ leerEscenarioDeSesion: vi.fn() }));
 
 const NPC = {
   id: 'n1',
@@ -103,14 +105,25 @@ describe('obtenerSesionEnCurso', () => {
     id: 's1',
     inicio: '2026-10-06T15:00:00.000Z',
     comenzada: true,
-    estado: 'en_curso',
     codigo_estudiante: '202012345',
     nombre_estudiante: 'Ana María',
-    escenario: { ...FILA_ESCENARIO, npc: { ...NPC, prompt_sistema: undefined } },
+    escenario_id: 'e1',
+  };
+  const ESCENARIO = {
+    id: 'e1',
+    codigo: 'E-01',
+    titulo: 'Duelo y pérdida',
+    descripcion: 'Duelo reciente.',
+    categoria: 'clinico' as const,
+    dificultad: 'basico' as const,
+    competenciaCentral: 'Empatía',
+    configuracion3d: 'scenes/e-01.json',
+    npc: { id: 'n1', nombre: 'Marta Lucía', edad: 58, perfilClinico: 'Viuda reciente.' },
   };
 
   it('devuelve la sesión con el estudiante, el escenario y el paciente', async () => {
     db.responder('sesion', { data: FILA_SESION });
+    vi.mocked(leerEscenarioDeSesion).mockResolvedValueOnce(ESCENARIO);
 
     const sesion = await obtenerSesionEnCurso('s1');
 
@@ -121,18 +134,26 @@ describe('obtenerSesionEnCurso', () => {
       escenario: { codigo: 'E-01', configuracion3d: 'scenes/e-01.json' },
       npc: { id: 'n1', nombre: 'Marta Lucía', edad: 58, perfilClinico: 'Viuda reciente.' },
     });
-    // El prompt del paciente nunca viaja al cliente.
+    // El caso se lee aparte (el estudiante no tiene acceso a `escenario`) y sin el prompt.
+    expect(leerEscenarioDeSesion).toHaveBeenCalledWith('e1');
     expect(sesion?.npc).not.toHaveProperty('promptSistema');
+    expect(db.de('sesion')[0]!.columnas).not.toContain('prompt_sistema');
     expect(db.de('sesion')[0]!.filtros).toEqual([
       ['eq', 'id', 's1'],
       ['eq', 'estado', 'en_curso'],
     ]);
   });
 
-  it('es null si no existe, no es del docente, ya terminó o le falta el paciente', async () => {
-    db.responder('sesion', { data: null }, { data: { ...FILA_SESION, escenario: null } });
+  it('es null si no existe, no es del estudiante o ya terminó, sin leer el caso', async () => {
+    db.responder('sesion', { data: null });
     expect(await obtenerSesionEnCurso('s1')).toBeNull();
-    expect(await obtenerSesionEnCurso('s1')).toBeNull();
+    expect(leerEscenarioDeSesion).not.toHaveBeenCalled();
+  });
+
+  it('es null si al caso le falta el paciente', async () => {
+    db.responder('sesion', { data: FILA_SESION });
+    vi.mocked(leerEscenarioDeSesion).mockResolvedValueOnce(null);
+    expect(await obtenerSesionEnCurso('s2')).toBeNull();
   });
 
   it('propaga los errores de la base de datos', async () => {

@@ -1,33 +1,39 @@
 'use client';
 
-import { CheckCircle2, Clock, MessageSquare, Timer } from 'lucide-react';
+import { CheckCircle2, Clock, Hourglass, MessageSquare, Timer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
+import { type MotivoCierre } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
 import { formatearDuracion, type ResumenSesion } from '@/lib/conversacion/resumen';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
 
 /**
- * Cierre de la sesión (versión mínima del Sprint 3). El Sprint 4 (HU-21) la reemplaza por la
- * pantalla /resultados con las métricas persistidas y el historial completo.
+ * Cierre de la sesión (versión mínima del Sprint 3). El estudiante pasa a su práctica, donde
+ * relee la conversación y, cuando el docente la publique, ve la retroalimentación. El Sprint 4
+ * (HU-21) añade las métricas persistidas. Si se cerró por inactividad, lo explica: la duración
+ * llega hasta la última actividad.
  */
 export function SesionFinalizada({
   resumen,
   sesion,
+  motivo = 'finalizada',
 }: {
   resumen: ResumenSesion;
   sesion: SesionActiva;
+  motivo?: MotivoCierre;
 }) {
+  const porInactividad = motivo === 'inactividad';
   const router = useRouter();
   const limpiarSesion = useAppStore(state => state.sesion.limpiar);
   const [navegando, startTransition] = useTransition();
 
-  const nuevaSesion = () =>
+  const verPractica = () =>
     startTransition(() => {
       limpiarSesion();
-      router.push('/configuracion');
+      router.push(`/practicas/${sesion.id}`);
     });
 
   const indicadores = [
@@ -51,15 +57,26 @@ export function SesionFinalizada({
         aria-labelledby="sesion-finalizada-titulo"
         className="flex w-full max-w-md flex-col items-center gap-6 rounded-3xl border bg-card p-8 text-center shadow-2xl"
       >
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-sage text-sage-foreground">
-          <CheckCircle2 className="size-7" aria-hidden />
-        </span>
+        {porInactividad ? (
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+            <Hourglass className="size-7" aria-hidden />
+          </span>
+        ) : (
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-sage text-sage-foreground">
+            <CheckCircle2 className="size-7" aria-hidden />
+          </span>
+        )}
         <div className="flex flex-col gap-1">
           <h2 id="sesion-finalizada-titulo" className="text-2xl font-semibold tracking-tight">
-            Sesión finalizada
+            {porInactividad ? 'Sesión cerrada por inactividad' : 'Sesión finalizada'}
           </h2>
           <p className="text-sm text-muted-foreground">
             {sesion.estudiante.nombre} · {sesion.escenario.codigo} {sesion.escenario.titulo}
+          </p>
+          <p className="mt-2 text-sm">
+            {porInactividad
+              ? 'Pasaron 10 minutos sin actividad. Tu docente igual revisará lo que alcanzaste a conversar y te dejará su retroalimentación.'
+              : 'Tu docente revisará la conversación y te dejará su retroalimentación.'}
           </p>
         </div>
         <dl className="grid w-full grid-cols-3 gap-3">
@@ -74,8 +91,8 @@ export function SesionFinalizada({
             </div>
           ))}
         </dl>
-        <Button size="lg" onClick={nuevaSesion} disabled={navegando} autoFocus>
-          Preparar una nueva sesión
+        <Button size="lg" onClick={verPractica} disabled={navegando} autoFocus>
+          Ver mi práctica
         </Button>
       </section>
     </div>

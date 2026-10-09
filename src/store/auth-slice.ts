@@ -1,16 +1,16 @@
 import { type StateCreator } from 'zustand';
 
-import { type PerfilDocente } from '@/types';
+import { type PerfilUsuario } from '@/types';
 
 import { type AppState } from './app-store';
 
 export interface AuthState {
-  perfil: PerfilDocente | null;
+  perfil: PerfilUsuario | null;
 }
 
 export interface AuthSlice {
   auth: AuthState & {
-    establecerPerfil: (perfil: PerfilDocente) => void;
+    establecerPerfil: (perfil: PerfilUsuario) => void;
     limpiar: () => void;
   };
 }

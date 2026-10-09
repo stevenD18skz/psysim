@@ -171,7 +171,10 @@ enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
-# Las cuentas de docente se crean solo por un administrador (scripts/seed-docentes.ts).
+# No hay registro abierto: las cuentas de docente las crea un administrador
+# (scripts/seed-docentes.ts) y las de estudiante, su docente al registrarlo. Con el registro
+# desactivado, el acceso con Google solo funciona para correos que ya tienen cuenta (Supabase enlaza
+# la identidad de Google a la cuenta existente por el correo).
 # Allow/disallow new user signups to your project.
 enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
@@ -320,6 +323,18 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+# Estudiantes: "Continuar con Google" con su cuenta @correounivalle.edu.co. Credenciales del cliente
+# OAuth de Google Cloud (URI de redirección: <url de Supabase>/auth/v1/callback).
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+# Necesario para iniciar sesión con Google en el Supabase local.
+skip_nonce_check = true
+email_optional = false
+
 [auth.external.apple]
 enabled = false
 client_id = ""

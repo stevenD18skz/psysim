@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { type PerfilDocente, type SesionActiva } from '@/types';
+import { type PerfilUsuario, type SesionActiva } from '@/types';
 
 import { crearAppStore } from './app-store';
 
-const perfil: PerfilDocente = {
+const perfil: PerfilUsuario = {
   id: '8d519f8f-cfb6-4da4-a3f9-1f1467535735',
   nombre: 'Docente de Prueba',
   correo: 'docente@psysim.test',

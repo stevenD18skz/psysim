@@ -4,6 +4,7 @@ import {
   ChevronsUpDown,
   ClipboardPlus,
   FilePlus2,
+  GraduationCap,
   FlaskConical,
   Globe,
   Loader2,
@@ -19,6 +20,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
+import { RUTA_INICIO } from '@/lib/auth/routes';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import {
   DropdownMenu,
@@ -55,7 +57,7 @@ interface Enlace {
 const ENLACE_NUEVA_SESION: Enlace = {
   href: '/configuracion',
   etiqueta: 'Nueva sesión',
-  descripcion: 'Escenario y datos del estudiante',
+  descripcion: 'Caso, paciente y código de acceso',
   icono: ClipboardPlus,
 };
 
@@ -76,8 +78,15 @@ const ENLACE_NUEVO_CASO: Enlace = {
 const ENLACE_ESTUDIANTES: Enlace = {
   href: '/estudiantes',
   etiqueta: 'Estudiantes',
-  descripcion: 'Registro y sesiones',
+  descripcion: 'Sesiones y retroalimentación',
   icono: UsersRound,
+};
+
+const ENLACE_PRACTICAS: Enlace = {
+  href: '/practicas',
+  etiqueta: 'Mis prácticas',
+  descripcion: 'Código de acceso e historial',
+  icono: GraduationCap,
 };
 
 const ENLACE_LABORATORIO: Enlace = {
@@ -87,7 +96,7 @@ const ENLACE_LABORATORIO: Enlace = {
   icono: FlaskConical,
 };
 
-/** Iniciales para el avatar del docente ("Ana María Gómez" → "AG"). */
+/** Iniciales para el avatar del usuario ("Ana María Gómez" → "AG"). */
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/);
   const primera = partes[0]?.[0] ?? '';
@@ -106,15 +115,16 @@ function estaActivo(pathname: string, href: string) {
 }
 
 /**
- * Menú lateral del panel del docente (HU-22 · T02/T03).
+ * Menú lateral de los paneles del docente y del estudiante (HU-22 · T02/T03).
  *
  * - Cabecera con el logo de la Universidad del Valle y el botón para contraer el menú.
- * - Enlaces con estado activo claro; "Sesión en curso" solo aparece si hay una que retomar.
- * - Al pie, el docente: su menú agrupa la cuenta y el cierre de sesión, así no se sale por
+ * - Enlaces según el rol, con estado activo claro. El estudiante ve "Sesión en curso" solo si
+ *   tiene una que retomar.
+ * - Al pie, el usuario: su menú agrupa la cuenta y el cierre de sesión, así no se sale por
  *   accidente con un clic.
  * - Contraído queda una columna de íconos con tooltips; en móvil es un panel deslizable.
  */
-export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
+export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) {
   const pathname = usePathname();
   const perfil = useAppStore(state => state.auth.perfil);
   // La sesión activa del store cubre el caso de venir de /simulacion sin recargar.
@@ -123,18 +133,25 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
   const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
   const contraido = state === 'collapsed' && !isMobile;
 
-  const secciones: { titulo: string; enlaces: Enlace[] }[] = [
-    {
-      titulo: 'Simulación',
-      enlaces:
-        sesionEnCurso || hayActiva
-          ? [ENLACE_NUEVA_SESION, ENLACE_SESION_EN_CURSO]
-          : [ENLACE_NUEVA_SESION],
-    },
-    { titulo: 'Mis casos', enlaces: [ENLACE_NUEVO_CASO] },
-    { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
-    { titulo: 'Herramientas', enlaces: [ENLACE_LABORATORIO] },
-  ];
+  const rol = perfil?.rol ?? 'docente';
+  const secciones: { titulo: string; enlaces: Enlace[] }[] =
+    rol === 'estudiante'
+      ? [
+          {
+            titulo: 'Práctica',
+            enlaces:
+              sesionEnCurso || hayActiva
+                ? [ENLACE_PRACTICAS, ENLACE_SESION_EN_CURSO]
+                : [ENLACE_PRACTICAS],
+          },
+        ]
+      : [
+          { titulo: 'Simulación', enlaces: [ENLACE_NUEVA_SESION] },
+          { titulo: 'Mis casos', enlaces: [ENLACE_NUEVO_CASO] },
+          { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
+          { titulo: 'Herramientas', enlaces: [ENLACE_LABORATORIO] },
+        ];
+  const etiquetaRol = rol === 'estudiante' ? 'Estudiante' : 'Docente';
 
   // En móvil el menú es un panel superpuesto: se cierra al navegar.
   const alNavegar = () => {
@@ -149,7 +166,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
       <SidebarHeader className="px-3 pt-4 pb-3 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-3">
           <Link
-            href="/configuracion"
+            href={RUTA_INICIO[rol]}
             onClick={alNavegar}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none group-data-[collapsible=icon]:justify-center focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
@@ -231,7 +248,9 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
                     </span>
                     <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                       <span className="truncate font-medium">{perfil.nombre}</span>
-                      <span className="truncate text-xs text-sidebar-foreground/65">Docente</span>
+                      <span className="truncate text-xs text-sidebar-foreground/65">
+                        {etiquetaRol}
+                      </span>
                     </span>
                     <ChevronsUpDown
                       className="ml-auto text-sidebar-foreground/65 group-data-[collapsible=icon]:hidden"
@@ -249,7 +268,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: boolean }) {
                     <span className="truncate font-medium text-foreground">{perfil.nombre}</span>
                     <span className="truncate text-xs text-muted-foreground">{perfil.correo}</span>
                     <span className="text-xs text-muted-foreground">
-                      Docente · Código {perfil.codigoInstitucional}
+                      {etiquetaRol} · Código {perfil.codigoInstitucional}
                     </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

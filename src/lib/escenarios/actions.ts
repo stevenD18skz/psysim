@@ -1,64 +1,23 @@
 'use server';
 
-import { requerirDocente } from '@/lib/auth/dal';
+import { type ResultadoAccion } from '@/lib/acciones';
+import { requerirEstudiante } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
-import { type TablesInsert } from '@/types/database.types';
 import {
+  actividadSesionSchema,
   comenzarSesionSchema,
   finalizarSesionSchema,
-  iniciarSimulacionSchema,
 } from '@/schemas/configuracion.schema';
+import { type EstadoSesion } from '@/types';
 
-export type ResultadoAccion<T> = { ok: true; datos: T } | { ok: false; error: string };
+export type { ResultadoAccion } from '@/lib/acciones';
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del formulario.';
 
-/** Código de PostgreSQL para violaciones de clave foránea (p. ej. escenario inexistente). */
-const FOREIGN_KEY_VIOLATION = '23503';
-
-/**
- * HU-06 · T04 — Crea el registro de la sesión de simulación (`estado = en_curso`). Si el
- * estudiante es nuevo, queda registrado; si ya existía, la sesión se suma a su historial.
- *
- * El `usuario_id` lo asigna la base de datos (`default auth.uid()`) y RLS impide crear
- * sesiones a nombre de otro docente. El prompt enviado se guarda como copia en la sesión.
+/*
+ * Acciones del estudiante durante la simulación. La sesión la crea el canje del código de acceso
+ * (src/lib/asignaciones/actions.ts); RLS solo deja al estudiante dueño comenzarla y finalizarla.
  */
-export async function iniciarSimulacion(
-  valores: unknown
-): Promise<ResultadoAccion<{ sesionId: string }>> {
-  await requerirDocente();
-
-  const datos = iniciarSimulacionSchema.safeParse(valores);
-  if (!datos.success) {
-    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
-  }
-
-  // `estudiante_id` no se envía: el trigger `sesion_registrar_estudiante` registra (o reconoce)
-  // al estudiante por su código y enlaza la sesión en la misma inserción.
-  const fila: Omit<TablesInsert<'sesion'>, 'estudiante_id'> = {
-    escenario_id: datos.data.escenarioId,
-    codigo_estudiante: datos.data.codigoEstudiante,
-    nombre_estudiante: datos.data.nombreEstudiante,
-    prompt_sistema: datos.data.promptSistema,
-  };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('sesion')
-    .insert(fila as TablesInsert<'sesion'>)
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('[sesion] No se pudo crear la sesión:', error.code);
-    if (error.code === FOREIGN_KEY_VIOLATION) {
-      return { ok: false, error: 'El escenario seleccionado ya no está disponible.' };
-    }
-    return { ok: false, error: 'No fue posible iniciar la simulación. Inténtalo de nuevo.' };
-  }
-
-  return { ok: true, datos: { sesionId: data.id } };
-}
 
 /**
  * HU-16 · T02 — Cierra una sesión en curso (`estado = finalizada`). La hora de fin la asigna la
@@ -68,7 +27,7 @@ export async function iniciarSimulacion(
 export async function finalizarSesion(
   valores: unknown
 ): Promise<ResultadoAccion<{ inicio: string; fin: string }>> {
-  await requerirDocente();
+  await requerirEstudiante();
 
   const datos = finalizarSesionSchema.safeParse(valores);
   if (!datos.success) {
@@ -100,7 +59,7 @@ export async function finalizarSesion(
 export async function comenzarSesion(
   valores: unknown
 ): Promise<ResultadoAccion<{ inicio: string }>> {
-  await requerirDocente();
+  await requerirEstudiante();
 
   const datos = comenzarSesionSchema.safeParse(valores);
   if (!datos.success) {
@@ -122,4 +81,74 @@ export async function comenzarSesion(
   }
 
   return { ok: true, datos: { inicio: data.inicio } };
+}
+
+/**
+ * Latido de la simulación: el estudiante sigue interactuando. La base de datos actualiza
+ * `ultima_actividad` con su propia hora; si la sesión ya llevaba 10 minutos inactiva, la
+ * interrumpe en ese momento. `enCurso: false` indica que la sesión ya terminó.
+ */
+export async function registrarActividad(
+  valores: unknown
+): Promise<ResultadoAccion<{ enCurso: boolean }>> {
+  await requerirEstudiante();
+
+  const datos = actividadSesionSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('registrar_actividad_sesion', {
+    p_sesion_id: datos.data.sesionId,
+  });
+
+  if (error) {
+    console.error('[sesion] No se pudo registrar la actividad:', error.code);
+    return { ok: false, error: 'No fue posible registrar la actividad.' };
+  }
+  return { ok: true, datos: { enCurso: data === true } };
+}
+
+/**
+ * La simulación lleva 10 minutos sin interacción: la sesión pasa a `interrumpida` y su hora de
+ * fin es la de la última actividad (trigger `sesion_asignar_fin`). Si el barrido de la base de
+ * datos ya la había cerrado, devuelve igualmente sus horas para mostrar el resumen.
+ */
+export async function cerrarSesionPorInactividad(
+  valores: unknown
+): Promise<ResultadoAccion<{ inicio: string; fin: string; estado: EstadoSesion }>> {
+  await requerirEstudiante();
+
+  const datos = actividadSesionSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data: cerrada, error } = await supabase
+    .from('sesion')
+    .update({ estado: 'interrumpida' })
+    .eq('id', datos.data.sesionId)
+    .eq('estado', 'en_curso')
+    .select('inicio, fin, estado')
+    .maybeSingle();
+
+  let sesion = cerrada;
+  if (!error && !sesion) {
+    const { data: yaCerrada } = await supabase
+      .from('sesion')
+      .select('inicio, fin, estado')
+      .eq('id', datos.data.sesionId)
+      .neq('estado', 'en_curso')
+      .maybeSingle();
+    sesion = yaCerrada;
+  }
+
+  if (error || !sesion?.fin) {
+    if (error) console.error('[sesion] No se pudo cerrar por inactividad:', error.code);
+    return { ok: false, error: 'No fue posible cerrar la sesión. Inténtalo de nuevo.' };
+  }
+
+  return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };
 }

@@ -1,11 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { guardarVariante } from '@/lib/casos/actions';
-import { iniciarSimulacion } from '@/lib/escenarios/actions';
-import { AppStoreProvider, useAppStore } from '@/store/app-store-provider';
+import { AppStoreProvider } from '@/store/app-store-provider';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 
 import { ConfiguradorSesion } from './configurador-sesion';
@@ -14,7 +13,11 @@ const push = vi.fn();
 const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
-vi.mock('@/lib/escenarios/actions', () => ({ iniciarSimulacion: vi.fn() }));
+vi.mock('@/lib/asignaciones/actions', () => ({ generarAsignacion: vi.fn() }));
+vi.mock('@/lib/estudiantes/actions', () => ({
+  registrarEstudiante: vi.fn(),
+  actualizarEstudiante: vi.fn(),
+}));
 vi.mock('@/lib/casos/actions', () => ({
   guardarVariante: vi.fn(),
   archivarCaso: vi.fn(),
@@ -23,7 +26,7 @@ vi.mock('@/lib/casos/actions', () => ({
   probarPaciente: vi.fn(),
 }));
 
-const mockIniciar = vi.mocked(iniciarSimulacion);
+const mockGenerar = vi.mocked(generarAsignacion);
 const mockGuardar = vi.mocked(guardarVariante);
 
 function escenario(
@@ -73,30 +76,42 @@ const PROPIO = escenario(
   }
 );
 
-/** Expone el slice `sesion` del store para las aserciones. */
-const espia: { sesion: unknown } = { sesion: null };
-function EspiaStore() {
-  const activa = useAppStore(state => state.sesion.activa);
-  useEffect(() => {
-    espia.sesion = activa;
-  }, [activa]);
-  return null;
+function estudiante(
+  datos: Partial<EstudianteRegistrado> & Pick<EstudianteRegistrado, 'id' | 'codigo' | 'nombre'>
+): EstudianteRegistrado {
+  return {
+    correo: `${datos.codigo}@correounivalle.edu.co`,
+    cuentaVinculada: true,
+    creadoEn: '2026-10-01T15:00:00.000Z',
+    metricas: {
+      sesiones: 3,
+      finalizadas: 2,
+      enCurso: 0,
+      pendientesRetroalimentacion: 0,
+      notaPromedio: 4.2,
+      codigosPendientes: 0,
+      segundosPractica: 80 * 60,
+      casos: 2,
+      intervenciones: 24,
+      ultimaSesion: '2026-10-05T15:00:00.000Z',
+    },
+    ...datos,
+  };
 }
 
-const ANA: EstudianteRegistrado = {
+const ANA = estudiante({
   id: '55555555-5555-4555-8555-555555555555',
   codigo: '202012345',
   nombre: 'Ana María Pérez',
-  creadoEn: '2026-10-01T15:00:00.000Z',
-  metricas: {
-    sesiones: 3,
-    finalizadas: 2,
-    segundosPractica: 80 * 60,
-    casos: 2,
-    intervenciones: 24,
-    ultimaSesion: '2026-10-05T15:00:00.000Z',
-  },
-};
+});
+/** Registro antiguo (sin correo): aún no puede recibir códigos. */
+const SIN_CUENTA = estudiante({
+  id: '66666666-6666-4666-8666-666666666666',
+  codigo: '201911111',
+  nombre: 'Pedro Sin Cuenta',
+  correo: null,
+  cuentaVinculada: false,
+});
 
 function renderizar(
   escenarios: EscenarioCatalogo[] = [E01, E02],
@@ -112,7 +127,6 @@ function renderizar(
         estudiantes={estudiantes}
         estudianteInicial={estudianteInicial}
       />
-      <EspiaStore />
     </AppStoreProvider>
   );
 }
@@ -121,16 +135,16 @@ describe('ConfiguradorSesion', () => {
   beforeEach(() => {
     push.mockReset();
     refresh.mockReset();
-    mockIniciar.mockReset();
+    mockGenerar.mockReset();
     mockGuardar.mockReset();
-    espia.sesion = null;
   });
 
   it('muestra los escenarios y expande el perfil del NPC al seleccionar uno (HU-06 · T02)', async () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    const casos = within(screen.getByRole('radiogroup', { name: /Elige el caso/ }));
+    expect(casos.getAllByRole('radio')).toHaveLength(2);
     expect(screen.queryByLabelText('Comportamiento del paciente')).not.toBeInTheDocument();
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
@@ -145,59 +159,73 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(E02.npc.promptSistema);
   });
 
-  it('muestra errores inline si se intenta iniciar sin completar el formulario (HU-06 · T03)', async () => {
+  it('muestra errores inline si se intenta generar el código sin completar el formulario (HU-06 · T03)', async () => {
     const usuario = userEvent.setup();
-    renderizar();
+    renderizar([E01, E02], undefined, [ANA]);
 
-    await usuario.click(screen.getByRole('button', { name: /Iniciar simulación/ }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
 
     expect(await screen.findByText('Selecciona un escenario para continuar.')).toBeVisible();
-    expect(screen.getByText('Ingresa el código institucional del estudiante.')).toBeVisible();
-    expect(screen.getByText('Ingresa el nombre completo del estudiante.')).toBeVisible();
-    expect(mockIniciar).not.toHaveBeenCalled();
+    expect(screen.getByText('Elige al estudiante que va a practicar.')).toBeVisible();
+    expect(mockGenerar).not.toHaveBeenCalled();
   });
 
-  it('crea la sesión, la guarda en el store y redirige a /simulacion (HU-06 · T04)', async () => {
-    mockIniciar.mockResolvedValue({
+  it('asigna el caso al estudiante y muestra el código para enviárselo', async () => {
+    mockGenerar.mockResolvedValue({
       ok: true,
-      datos: { sesionId: '44444444-4444-4444-8444-444444444444' },
+      datos: {
+        id: '77777777-7777-4777-8777-777777777777',
+        codigo: 'abc-defg-hij',
+        expiraEn: '2026-10-14T20:00:00.000Z',
+      },
     });
     const usuario = userEvent.setup();
-    renderizar();
+    renderizar([E01, E02], undefined, [ANA]);
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
-    await usuario.type(screen.getByLabelText('Código institucional'), '202012345');
-    await usuario.type(screen.getByLabelText('Nombre completo'), '  Ana  María ');
-    await usuario.click(screen.getByRole('button', { name: /Iniciar simulación/ }));
+    await usuario.type(screen.getByRole('combobox'), 'perez');
+    await usuario.click(screen.getByRole('option', { name: /Ana María Pérez/ }));
+    expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
 
-    expect(mockIniciar).toHaveBeenCalledWith({
+    await usuario.click(screen.getByRole('radio', { name: '3 días' }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+
+    expect(mockGenerar).toHaveBeenCalledWith({
       escenarioId: E01.id,
       promptSistema: E01.npc.promptSistema,
-      codigoEstudiante: '202012345',
-      nombreEstudiante: 'Ana María',
+      estudianteId: ANA.id,
+      vigenciaDias: 3,
     });
-    expect(push).toHaveBeenCalledWith('/simulacion?sesion=44444444-4444-4444-8444-444444444444');
-    expect(espia.sesion).toMatchObject({
-      id: '44444444-4444-4444-8444-444444444444',
-      escenario: { id: E01.id, configuracion3d: 'scenes/e-01.json' },
-      estudiante: { codigo: '202012345', nombre: 'Ana María' },
-    });
+    const dialogo = await screen.findByRole('dialog', { name: 'Código de acceso listo' });
+    expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
+    expect(within(dialogo).getByText(/\/unirse\/abc-defg-hij$/)).toBeVisible();
+    expect(within(dialogo).getByRole('link', { name: /Ver al estudiante/ })).toHaveAttribute(
+      'href',
+      `/estudiantes/${ANA.id}`
+    );
+    // La simulación ya no se abre en el equipo del docente.
+    expect(push).not.toHaveBeenCalled();
   });
 
-  it('muestra el error del servidor sin redirigir si la inserción falla', async () => {
-    mockIniciar.mockResolvedValue({ ok: false, error: 'No fue posible iniciar la simulación.' });
+  it('la vigencia por defecto es de 7 días', async () => {
+    mockGenerar.mockResolvedValue({ ok: false, error: 'x' });
     const usuario = userEvent.setup();
-    renderizar();
+    renderizar([E01], E01.id, [ANA], ANA);
 
-    await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
-    await usuario.type(screen.getByLabelText('Código institucional'), '202012345');
-    await usuario.type(screen.getByLabelText('Nombre completo'), 'Ana María');
-    await usuario.click(screen.getByRole('button', { name: /Iniciar simulación/ }));
+    expect(screen.getByRole('radio', { name: '7 días' })).toBeChecked();
+    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+    expect(mockGenerar).toHaveBeenCalledWith(expect.objectContaining({ vigenciaDias: 7 }));
+  });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'No fue posible iniciar la simulación.'
-    );
-    expect(push).not.toHaveBeenCalled();
+  it('muestra el error del servidor si no se pudo generar el código', async () => {
+    mockGenerar.mockResolvedValue({ ok: false, error: 'No fue posible generar el código.' });
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id, [ANA], ANA);
+
+    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No fue posible generar el código.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('permite deseleccionar el caso pulsándolo de nuevo y oculta el paso del paciente', async () => {
@@ -306,28 +334,22 @@ describe('ConfiguradorSesion', () => {
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
-  describe('estudiantes registrados', () => {
-    it('sin estudiantes registrados no muestra el buscador y avisa que se registrará', async () => {
-      const usuario = userEvent.setup();
-      renderizar();
+  describe('estudiantes', () => {
+    it('sin estudiantes con cuenta invita a registrarlos', () => {
+      renderizar([E01, E02], undefined, [SIN_CUENTA]);
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-      await usuario.type(screen.getByLabelText('Código institucional'), '202099999');
-      expect(screen.getByText(/Estudiante nuevo: quedará registrado/)).toBeVisible();
+      expect(screen.getByText(/Aún no tienes estudiantes con cuenta/)).toBeVisible();
+      expect(screen.getByRole('button', { name: /Registrar estudiante/ })).toBeVisible();
     });
 
-    it('busca por nombre y, al elegirlo, llena código y nombre con su historial', async () => {
+    it('el buscador solo ofrece a los estudiantes con cuenta', async () => {
       const usuario = userEvent.setup();
-      renderizar([E01, E02], undefined, [ANA]);
+      renderizar([E01, E02], undefined, [ANA, SIN_CUENTA]);
 
-      await usuario.type(screen.getByRole('combobox'), 'perez');
-      await usuario.click(screen.getByRole('option', { name: /Ana María Pérez/ }));
-
-      expect(screen.getByLabelText('Código institucional')).toHaveValue('202012345');
-      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
-      expect(screen.getByText('Estudiante registrado')).toBeVisible();
-      expect(screen.getByText('3 sesiones')).toBeVisible();
-      expect(screen.getByText('1 h 20 min de práctica')).toBeVisible();
+      await usuario.click(screen.getByRole('combobox'));
+      expect(screen.getByRole('option', { name: /Ana María Pérez/ })).toBeVisible();
+      expect(screen.queryByRole('option', { name: /Pedro Sin Cuenta/ })).not.toBeInTheDocument();
     });
 
     it('se elige con el teclado: flechas y Enter (sin enviar el formulario)', async () => {
@@ -337,27 +359,23 @@ describe('ConfiguradorSesion', () => {
       await usuario.click(screen.getByRole('combobox'));
       await usuario.keyboard('2020{ArrowDown}{Enter}');
 
-      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
-      expect(mockIniciar).not.toHaveBeenCalled();
+      expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
+      expect(mockGenerar).not.toHaveBeenCalled();
     });
 
-    it('si el código ya existe con otro nombre, ofrece usar el registrado', async () => {
+    it('"Cambiar" quita al estudiante elegido', async () => {
       const usuario = userEvent.setup();
-      renderizar([E01, E02], undefined, [ANA]);
-
-      await usuario.type(screen.getByLabelText('Código institucional'), '202012345');
-      await usuario.type(screen.getByLabelText('Nombre completo'), 'Ana Perez');
-      expect(screen.getByText(/se corregirá el nombre registrado/)).toBeVisible();
-
-      await usuario.click(screen.getByRole('button', { name: /Usar «Ana María Pérez»/ }));
-      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
-    });
-
-    it('llega con un estudiante preseleccionado desde la página de estudiantes', () => {
       renderizar([E01, E02], undefined, [ANA], ANA);
 
-      expect(screen.getByLabelText('Código institucional')).toHaveValue('202012345');
-      expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana María Pérez');
+      expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
+      await usuario.click(screen.getByRole('button', { name: /Cambiar/ }));
+      expect(screen.queryByTestId('estudiante-elegido')).not.toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toBeVisible();
+    });
+
+    it('un estudiante preseleccionado sin cuenta no queda elegido', () => {
+      renderizar([E01, E02], undefined, [ANA, SIN_CUENTA], SIN_CUENTA);
+      expect(screen.queryByTestId('estudiante-elegido')).not.toBeInTheDocument();
     });
   });
 });
