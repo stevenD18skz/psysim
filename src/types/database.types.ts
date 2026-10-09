@@ -368,6 +368,7 @@ export type Database = {
           inicio: string;
           nombre_estudiante: string;
           prompt_sistema: string;
+          ultima_actividad: string;
           usuario_id: string;
         };
         Insert: {
@@ -381,6 +382,7 @@ export type Database = {
           inicio?: string;
           nombre_estudiante: string;
           prompt_sistema: string;
+          ultima_actividad?: string;
           usuario_id?: string;
         };
         Update: {
@@ -394,6 +396,7 @@ export type Database = {
           inicio?: string;
           nombre_estudiante?: string;
           prompt_sistema?: string;
+          ultima_actividad?: string;
           usuario_id?: string;
         };
         Relationships: [
@@ -486,10 +489,16 @@ export type Database = {
           sesion_id: string;
         }[];
       };
+      cerrar_sesiones_inactivas: { Args: never; Returns: number };
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
       es_docente: { Args: never; Returns: boolean };
       es_estudiante: { Args: never; Returns: boolean };
       id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
+      registrar_actividad_sesion: {
+        Args: { p_sesion_id: string };
+        Returns: boolean;
+      };
+      sesion_limite_inactividad: { Args: never; Returns: string };
     };
     Enums: {
       categoria_escenario: 'clinico' | 'cotidiano';

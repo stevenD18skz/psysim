@@ -24,6 +24,7 @@ import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
@@ -31,6 +32,7 @@ import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
 import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
+import { useInactividad } from '@/components/simulacion/use-inactividad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
@@ -117,11 +119,17 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const estadoNpc = useAppStore(state => state.npc.estado);
   const cerca = useInteraccion(interaccion => interaccion.cerca);
   const apuntando = useInteraccion(interaccion => interaccion.apuntando);
-  const { finalizar, finalizando, resumen } = useFinalizarSesion();
+  const { finalizar, finalizando, resumen, motivo, cerrarPorInactividad } = useFinalizarSesion();
 
   useAtajosConversacion();
 
   const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
+  const segundosParaCierre = useInactividad({
+    sesionId: sesion.id,
+    activo: lista && !resumen && !finalizando,
+    alVencer: cerrarPorInactividad,
+  });
   // HU-23: hasta que el estudiante confirme las instrucciones, la escena se ve pero no se usa.
   const comenzada = sesion.comenzada;
   const conversando = estaConversando(estadoNpc);
@@ -192,7 +200,10 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
       )}
       {lista && !comenzada && <InstruccionesCaso sesion={sesion} />}
-      {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} />}
+      {segundosParaCierre !== null && !resumen && (
+        <AvisoInactividad segundosRestantes={segundosParaCierre} />
+      )}
+      {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}
 
       {estado.estado === 'error' && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">

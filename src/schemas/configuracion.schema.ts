@@ -83,3 +83,6 @@ export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
 
 /** HU-23: el estudiante confirma las instrucciones y comienza la simulación. */
 export const comenzarSesionSchema = z.object({ sesionId: z.uuid() });
+
+/** Latido de la simulación y cierre por inactividad (10 minutos sin interactuar). */
+export const actividadSesionSchema = z.object({ sesionId: z.uuid() });
