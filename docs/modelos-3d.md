@@ -122,6 +122,27 @@ se muestra como texto: leerla es parte de la práctica. Para revisarlas sin conv
 <http://localhost:3000/dev/escena/e-01?estado=procesando&emocion=abrumado> (también con los
 selectores de la esquina).
 
+**Rostro** (`src/lib/npc/rostro.ts`). Los GLB traen ojos con hueso y una boca fija, sin cejas.
+Sobre ellos se construye, sin tocar el GLB, una cara que cuelga del hueso `head`: cejas, párpados
+(casquetes del color de la piel), una boca que se curva y se abre, brillo en los ojos y el rubor
+de las mejillas. La boca original se esconde en una copia de la geometría. Los gestos siguen las
+unidades de acción de FACS (`POR_EMOCION` en `comportamiento.ts`):
+
+| Emoción   | Rostro                                                                              |
+| --------- | ----------------------------------------------------------------------------------- |
+| Triste    | Extremo interno de las cejas arriba, párpados caídos, comisuras abajo, ojos húmedos |
+| Ansioso   | Cejas levantadas y juntas, ojos muy abiertos, labios estirados                      |
+| Abrumado  | Cejas de preocupación, párpados a media asta, boca entreabierta                     |
+| Molesto   | Ceño (cejas bajas y juntas), mirada dura, labios apretados, mejillas enrojecidas    |
+| Tranquilo | Sonrisa suave, párpados relajados                                                   |
+| Aliviado  | Sonrisa, cejas algo levantadas                                                      |
+
+Además: al responder, la boca se abre con la forma de cada vocal siguiendo el mismo plan de
+sílabas de la voz inventada (`formaHabla`); al pensar levanta una ceja y tuerce la boca; los
+ojos se adelantan a la cabeza y hacen microsacadas; mientras escucha levanta las cejas de vez en
+cuando (señal de atención). Si un personaje no tiene la cara esperada, conserva el parpadeo
+anterior (escala de los ojos).
+
 **Añadir un personaje:** exporta el GLB con los mismos nombres de huesos y clips, cópialo a
 `public/models/personajes/` y agrégalo a `CATALOGO_NPC` (`npc.test.ts` verifica esqueleto y
 clips). Si cambia el rostro de un paciente, regenera su avatar con
@@ -147,6 +168,11 @@ exactamente como la describe su JSON; los cambios tardan unos segundos en asenta
 
 - Luz y fondo: `Iluminacion`; niebla y partículas: `AmbienteDinamico`; viñeta: `VeloEmocional`
   (CSS sobre el canvas, sin coste de GPU; no late con "reducir movimiento").
+- Ventanas: `VistaExterior` dibuja la calle vista desde un segundo piso con un shader de falso
+  exterior (la idea del _interior mapping_): cada píxel del cristal lanza un rayo contra planos
+  imaginarios detrás de la pared (calle, árboles, edificios, colinas, nubes), así hay paralaje real
+  al caminar, sin geometría ni texturas. El tiempo sigue el clima: despejado con la calma, nublado
+  con lluvia con la pesadumbre, tormenta con relámpagos con la tensión.
 - Sonido: `src/lib/audio/motor-audio.ts`, sintetizado con la Web Audio API (sin archivos). Incluye
   el murmullo de la sala, el tic del reloj, efectos al iniciar, enviar y finalizar, y la **voz
   inventada** del paciente (`src/lib/audio/voz.ts`): sílabas con la entonación de la frase,
