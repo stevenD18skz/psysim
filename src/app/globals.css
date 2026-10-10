@@ -193,6 +193,11 @@
   }
 }
 
+/* Frase que el docente está comentando: se resalta sin tocar el DOM (CSS Custom Highlight API). */
+::highlight(comentario-borrador) {
+  background-color: oklch(87.9% 0.169 91.605 / 0.7);
+}
+
 /* Preguntas frecuentes (<details>): despliegue suave de la altura donde el navegador lo admite. */
 @supports (interpolate-size: allow-keywords) {
   :root {

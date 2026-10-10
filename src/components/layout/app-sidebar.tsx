@@ -182,36 +182,50 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
       <div aria-hidden className="h-1 shrink-0 bg-marca" />
 
       <SidebarHeader className="px-3 pt-4 pb-3 group-data-[collapsible=icon]:px-2">
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-3">
-          <Link
-            href={RUTA_INICIO[rol]}
-            onClick={alNavegar}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none group-data-[collapsible=icon]:justify-center focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        {contraido ? (
+          // Contraído, el logo es el botón de expandir: al pasar el ratón (o con el foco) se
+          // convierte en el ícono del panel.
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Expandir menú"
+            title="Expandir menú (Ctrl + B)"
+            className="group/expandir relative mx-auto flex size-11 items-center justify-center rounded-lg text-sidebar-foreground/75 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <LogoUnivalle className="h-11" />
-            <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-              <span className="font-heading text-xl font-semibold tracking-tight">PsySim</span>
-              <span className="truncate text-xs text-sidebar-foreground/65">
-                Simulador clínico · Psicología
-              </span>
-            </span>
-          </Link>
-          {!isMobile && (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-label={contraido ? 'Expandir menú' : 'Contraer menú'}
-              title={contraido ? 'Expandir menú (Ctrl + B)' : 'Contraer menú (Ctrl + B)'}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/65 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            <LogoUnivalle className="h-11 transition-opacity duration-150 group-hover/expandir:opacity-0 group-focus-visible/expandir:opacity-0" />
+            <PanelLeftOpen
+              className="absolute size-5 opacity-0 transition-opacity duration-150 group-hover/expandir:opacity-100 group-focus-visible/expandir:opacity-100"
+              aria-hidden
+            />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              href={RUTA_INICIO[rol]}
+              onClick={alNavegar}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
-              {contraido ? (
-                <PanelLeftOpen className="size-4" aria-hidden />
-              ) : (
+              <LogoUnivalle className="h-11" />
+              <span className="grid min-w-0 leading-tight">
+                <span className="font-heading text-xl font-semibold tracking-tight">PsySim</span>
+                <span className="truncate text-xs text-sidebar-foreground/65">
+                  Simulador clínico · Psicología
+                </span>
+              </span>
+            </Link>
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                aria-label="Contraer menú"
+                title="Contraer menú (Ctrl + B)"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/65 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
                 <PanelLeftClose className="size-4" aria-hidden />
-              )}
-            </button>
-          )}
-        </div>
+              </button>
+            )}
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent className="gap-1 px-1">

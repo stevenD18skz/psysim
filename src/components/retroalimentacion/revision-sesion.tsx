@@ -1,13 +1,26 @@
 'use client';
 
-import { Highlighter, Loader2, MessageSquarePlus, Pencil, Trash2, X } from 'lucide-react';
+import { Highlighter, Loader2, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import {
+  ABRE_ANOTACION,
+  abreOtraAnotacion,
+  type Ancla,
+  anclaDeMarca,
+  anclaDeRango,
+  irAMarca,
+} from '@/components/retroalimentacion/ancla';
 import { FormularioRetroalimentacion } from '@/components/retroalimentacion/formulario-retroalimentacion';
-import { numerarAnotaciones, TextoAnotado } from '@/components/retroalimentacion/texto-anotado';
+import {
+  numerarAnotaciones,
+  NumeroAnotacion,
+  TextoAnotado,
+} from '@/components/retroalimentacion/texto-anotado';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import {
   actualizarAnotacion,
@@ -31,7 +44,18 @@ interface Seleccion {
   fragmento: string;
   /** Se cruza con un comentario existente: no se puede comentar. */
   solapada: boolean;
+  /** Copia del rango seleccionado: resalta la frase mientras se escribe el comentario. */
+  rango: Range;
+  ancla: Ancla;
 }
+
+/** Globo flotante abierto sobre la conversación. */
+type Burbuja =
+  | { tipo: 'nueva'; seleccion: Seleccion; ancla: Ancla }
+  | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
+
+/** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
+const RESALTADO_BORRADOR = 'comentario-borrador';
 
 const formatoHora = new Intl.DateTimeFormat('es-CO', {
   hour: 'numeric',
@@ -76,6 +100,7 @@ function leerSeleccion(
   );
   if (!recorte) return null;
 
+  const copia = rango.cloneRange();
   return {
     mensajeId: mensaje.id,
     ...recorte,
@@ -85,6 +110,8 @@ function leerSeleccion(
       recorte.inicio,
       recorte.fin
     ),
+    rango: copia,
+    ancla: anclaDeRango(copia, elemento),
   };
 }
 
@@ -92,8 +119,9 @@ function leerSeleccion(
  * HU de retroalimentación — Revisión de una sesión terminada por el docente.
  *
  * A la izquierda, la conversación: el docente selecciona una frase de una intervención del
- * estudiante y la comenta ("aquí hablaste muy duro"). A la derecha, la retroalimentación general
- * con la nota y la lista numerada de comentarios, enlazada con los subrayados.
+ * estudiante y la comenta ("aquí hablaste muy duro") en un globo flotante sobre el chat, sin mover
+ * el resto de la página. A la derecha, la retroalimentación general con la nota y la lista
+ * numerada de comentarios, enlazada con los subrayados.
  */
 export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
   const router = useRouter();
@@ -103,14 +131,21 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
     sesion.retroalimentacion?.anotaciones ?? []
   );
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
-  const [borrador, setBorrador] = useState<Seleccion | null>(null);
-  const [activa, setActiva] = useState<string | null>(null);
+  /** Botón del ratón presionado sobre el chat: la barra espera a que termine de seleccionar. */
+  const [arrastrando, setArrastrando] = useState(false);
+  const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
+  const [quitando, setQuitando] = useState<string | null>(null);
 
   const numeros = numerarAnotaciones(sesion.mensajes, anotaciones);
   const ordenadas = [...anotaciones].sort(
     (a, b) => (numeros.get(a.id) ?? 0) - (numeros.get(b.id) ?? 0)
   );
   const nombreEstudiante = sesion.estudiante.nombre.split(' ')[0];
+  const existente =
+    burbuja?.tipo === 'existente'
+      ? (anotaciones.find(a => a.id === burbuja.anotacionId) ?? null)
+      : null;
+  const mostrarBarra = seleccion !== null && !arrastrando && burbuja === null;
 
   // La selección del texto (con ratón o teclado) se sigue en vivo; al pulsar "Comentar" se fija.
   useEffect(() => {
@@ -124,22 +159,69 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
     return () => document.removeEventListener('selectionchange', alCambiar);
   }, [sesion.mensajes, anotaciones]);
 
+  useEffect(() => {
+    const alPresionar = (evento: PointerEvent) => {
+      if (raiz.current?.contains(evento.target as Node)) setArrastrando(true);
+    };
+    const alSoltar = () => setArrastrando(false);
+    document.addEventListener('pointerdown', alPresionar);
+    document.addEventListener('pointerup', alSoltar);
+    document.addEventListener('pointercancel', alSoltar);
+    window.addEventListener('blur', alSoltar);
+    return () => {
+      document.removeEventListener('pointerdown', alPresionar);
+      document.removeEventListener('pointerup', alSoltar);
+      document.removeEventListener('pointercancel', alSoltar);
+      window.removeEventListener('blur', alSoltar);
+    };
+  }, []);
+
+  // Mientras se escribe el comentario, la frase sigue resaltada aunque ya no esté seleccionada.
+  const rangoBorrador = burbuja?.tipo === 'nueva' ? burbuja.seleccion.rango : null;
+  useEffect(() => {
+    if (!rangoBorrador || typeof CSS === 'undefined' || !('highlights' in CSS)) return;
+    CSS.highlights.set(RESALTADO_BORRADOR, new Highlight(rangoBorrador));
+    return () => {
+      CSS.highlights.delete(RESALTADO_BORRADOR);
+    };
+  }, [rangoBorrador]);
+
   const empezarComentario = () => {
     if (!seleccion || seleccion.solapada) return;
-    setBorrador(seleccion);
+    setBurbuja({ tipo: 'nueva', seleccion, ancla: seleccion.ancla });
     window.getSelection()?.removeAllRanges();
+  };
+
+  const abrir = (id: string, editando = false) => {
+    irAMarca(id);
+    setBurbuja({
+      tipo: 'existente',
+      anotacionId: id,
+      editando,
+      ancla: anclaDeMarca(id, raiz.current),
+    });
   };
 
   const alCrear = (anotacion: Anotacion) => {
     setAnotaciones(actuales => [...actuales, anotacion]);
-    setBorrador(null);
-    setActiva(anotacion.id);
+    setBurbuja(null);
     router.refresh();
   };
 
-  const irA = (id: string) => {
-    setActiva(id);
-    document.getElementById(`marca-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const quitar = async (id: string) => {
+    setQuitando(id);
+    const resultado = await eliminarAnotacion({ id });
+    setQuitando(null);
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return;
+    }
+    toast.success('Comentario quitado.');
+    setAnotaciones(actuales => actuales.filter(a => a.id !== id));
+    setBurbuja(actual =>
+      actual?.tipo === 'existente' && actual.anotacionId === id ? null : actual
+    );
+    router.refresh();
   };
 
   return (
@@ -150,8 +232,9 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
             Conversación
           </h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Highlighter className="size-4 text-amber-600" aria-hidden />
-            Selecciona una frase de {nombreEstudiante} para comentarla.
+            <Highlighter className="size-4 shrink-0 text-amber-600" aria-hidden />
+            Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
+            verlo o editarlo.
           </p>
         </div>
 
@@ -196,37 +279,39 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
                       contenido={mensaje.contenido}
                       anotaciones={propias}
                       numeros={numeros}
-                      activa={activa}
+                      activa={existente?.id ?? null}
+                      onAbrir={id => abrir(id)}
                     />
                   </p>
-                  {borrador?.mensajeId === mensaje.id && (
-                    <NuevaAnotacion
-                      sesionId={sesion.id}
-                      seleccion={borrador}
-                      onCreada={alCrear}
-                      onCancelar={() => setBorrador(null)}
-                    />
-                  )}
                 </li>
               );
             })}
           </ol>
         )}
 
-        {/* Barra fija mientras hay texto seleccionado: también sirve con el teclado (Mayús + flechas). */}
-        {seleccion && !borrador && (
-          <div
-            role="status"
-            className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-2xl border bg-card/95 p-3 shadow-lg backdrop-blur"
+        {/* Barra flotante sobre la frase seleccionada (con ratón o con Mayús + flechas). Sin
+            portal: queda justo después del chat en el orden de tabulación. */}
+        <Popover open={mostrarBarra}>
+          {seleccion && <PopoverAnchor virtualRef={{ current: seleccion.ancla }} />}
+          <PopoverContent
+            portal={false}
+            side="top"
+            sideOffset={8}
+            hideWhenDetached
+            onOpenAutoFocus={evento => evento.preventDefault()}
+            onCloseAutoFocus={evento => evento.preventDefault()}
+            onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
+            aria-label="Acciones sobre la selección"
+            className="w-auto rounded-full p-1"
           >
-            <p className="min-w-0 flex-1 truncate text-sm">
-              <span className="text-muted-foreground">Seleccionado: </span>«{seleccion.fragmento}»
-            </p>
-            {seleccion.solapada ? (
-              <p className="text-sm text-destructive">Se cruza con otro comentario.</p>
+            {seleccion?.solapada ? (
+              <p className="px-3 py-1 text-xs font-medium text-destructive">
+                Se cruza con otro comentario
+              </p>
             ) : (
               <Button
                 size="sm"
+                className="rounded-full"
                 // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
                 onMouseDown={evento => evento.preventDefault()}
                 onClick={empezarComentario}
@@ -235,8 +320,37 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
                 Comentar selección
               </Button>
             )}
-          </div>
-        )}
+          </PopoverContent>
+        </Popover>
+
+        {/* Globo del comentario: uno nuevo, o el de un subrayado (verlo, editarlo o quitarlo). */}
+        <Popover open={burbuja !== null} onOpenChange={abierto => !abierto && setBurbuja(null)}>
+          {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
+          {burbuja?.tipo === 'nueva' && (
+            <NuevaAnotacion
+              sesionId={sesion.id}
+              seleccion={burbuja.seleccion}
+              onCreada={alCrear}
+              onCancelar={() => setBurbuja(null)}
+            />
+          )}
+          {burbuja?.tipo === 'existente' && existente && (
+            <DetalleAnotacion
+              key={existente.id}
+              anotacion={existente}
+              numero={numeros.get(existente.id) ?? 0}
+              editando={burbuja.editando}
+              quitando={quitando === existente.id}
+              onEditar={editando => setBurbuja({ ...burbuja, editando })}
+              onActualizada={comentario =>
+                setAnotaciones(actuales =>
+                  actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
+                )
+              }
+              onQuitar={() => quitar(existente.id)}
+            />
+          )}
+        </Popover>
       </section>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
@@ -263,21 +377,15 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
           ) : (
             <ol className="flex flex-col gap-2">
               {ordenadas.map(anotacion => (
-                <ComentarioAnotacion
+                <ComentarioEnLista
                   key={anotacion.id}
                   anotacion={anotacion}
                   numero={numeros.get(anotacion.id) ?? 0}
-                  activa={activa === anotacion.id}
-                  onIr={() => irA(anotacion.id)}
-                  onActualizada={comentario =>
-                    setAnotaciones(actuales =>
-                      actuales.map(a => (a.id === anotacion.id ? { ...a, comentario } : a))
-                    )
-                  }
-                  onEliminada={() => {
-                    setAnotaciones(actuales => actuales.filter(a => a.id !== anotacion.id));
-                    router.refresh();
-                  }}
+                  activa={existente?.id === anotacion.id}
+                  quitando={quitando === anotacion.id}
+                  onIr={() => abrir(anotacion.id)}
+                  onEditar={() => abrir(anotacion.id, true)}
+                  onQuitar={() => quitar(anotacion.id)}
                 />
               ))}
             </ol>
@@ -288,6 +396,7 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
   );
 }
 
+/** Globo para escribir el comentario de la frase recién seleccionada. */
 function NuevaAnotacion({
   sesionId,
   seleccion,
@@ -304,7 +413,8 @@ function NuevaAnotacion({
   const [error, setError] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
 
-  const guardar = () =>
+  const guardar = () => {
+    if (!comentario.trim()) return;
     startTransition(async () => {
       const resultado = await crearAnotacion({
         sesionId,
@@ -320,11 +430,23 @@ function NuevaAnotacion({
       toast.success('Comentario agregado.');
       onCreada(resultado.datos);
     });
+  };
 
   return (
-    <div className="mt-1 flex w-full min-w-72 flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
-      <p className="text-xs text-muted-foreground">
-        Sobre: <span className="font-medium text-foreground">«{seleccion.fragmento}»</span>
+    <PopoverContent
+      portal={false}
+      side="bottom"
+      align="end"
+      hideWhenDetached
+      aria-label="Nuevo comentario"
+      // Un clic fuera no descarta lo que ya se escribió.
+      onInteractOutside={evento => {
+        if (comentario.trim() || abreOtraAnotacion(evento.target)) evento.preventDefault();
+      }}
+      className="flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2.5"
+    >
+      <p className="line-clamp-2 border-l-2 border-amber-400 pl-2 text-xs text-muted-foreground italic">
+        «{seleccion.fragmento}»
       </p>
       <label htmlFor={id} className="sr-only">
         Comentario sobre la frase seleccionada
@@ -335,12 +457,11 @@ function NuevaAnotacion({
         value={comentario}
         onChange={evento => setComentario(evento.target.value)}
         onKeyDown={evento => {
-          if (evento.key === 'Escape') onCancelar();
           if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
         }}
         placeholder="Ej.: Aquí sonaste muy directo; valida primero lo que siente."
         maxLength={LIMITES_RETROALIMENTACION.comentario}
-        className="min-h-20 bg-background"
+        className="min-h-24 resize-none"
         aria-invalid={error ? true : undefined}
         disabled={guardando}
       />
@@ -349,7 +470,10 @@ function NuevaAnotacion({
           {error}
         </p>
       )}
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center gap-2">
+        <span className="mr-auto hidden text-[11px] text-muted-foreground sm:inline">
+          Ctrl + Enter para guardar
+        </span>
         <Button size="sm" variant="ghost" onClick={onCancelar} disabled={guardando}>
           Cancelar
         </Button>
@@ -358,30 +482,35 @@ function NuevaAnotacion({
           Guardar comentario
         </Button>
       </div>
-    </div>
+    </PopoverContent>
   );
 }
 
-function ComentarioAnotacion({
+/** Globo de un subrayado ya comentado: muestra el comentario y permite editarlo o quitarlo. */
+function DetalleAnotacion({
   anotacion,
   numero,
-  activa,
-  onIr,
+  editando,
+  quitando,
+  onEditar,
   onActualizada,
-  onEliminada,
+  onQuitar,
 }: {
   anotacion: Anotacion;
   numero: number;
-  activa: boolean;
-  onIr: () => void;
+  editando: boolean;
+  quitando: boolean;
+  onEditar: (editando: boolean) => void;
   onActualizada: (comentario: string) => void;
-  onEliminada: () => void;
+  onQuitar: () => void;
 }) {
-  const [editando, setEditando] = useState(false);
+  const id = useId();
   const [texto, setTexto] = useState(anotacion.comentario);
-  const [pendiente, startTransition] = useTransition();
+  const [guardando, startTransition] = useTransition();
+  const cambiado = editando && texto.trim() !== anotacion.comentario;
 
-  const guardar = () =>
+  const guardar = () => {
+    if (!texto.trim()) return;
     startTransition(async () => {
       const resultado = await actualizarAnotacion({ id: anotacion.id, comentario: texto });
       if (!resultado.ok) {
@@ -389,94 +518,146 @@ function ComentarioAnotacion({
         return;
       }
       onActualizada(texto.trim());
-      setEditando(false);
+      onEditar(false);
+      toast.success('Comentario actualizado.');
     });
+  };
 
-  const eliminar = () =>
-    startTransition(async () => {
-      const resultado = await eliminarAnotacion({ id: anotacion.id });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      toast.success('Comentario quitado.');
-      onEliminada();
-    });
+  const cancelar = () => {
+    setTexto(anotacion.comentario);
+    onEditar(false);
+  };
 
   return (
-    <li
-      id={`anotacion-${anotacion.id}`}
-      className={cn(
-        'flex flex-col gap-2 rounded-xl border p-3 text-sm transition-colors',
-        activa ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10' : 'bg-background'
-      )}
+    <PopoverContent
+      portal={false}
+      side="bottom"
+      align="center"
+      hideWhenDetached
+      aria-label={`Comentario ${numero}`}
+      onInteractOutside={evento => {
+        if (cambiado || abreOtraAnotacion(evento.target)) evento.preventDefault();
+      }}
+      className="flex w-80 flex-col gap-2.5"
     >
-      <button
-        type="button"
-        onClick={onIr}
-        className="flex items-start gap-2 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[11px] font-semibold text-amber-900">
-          {numero}
-        </span>
-        <span className="line-clamp-2 text-muted-foreground italic">«{anotacion.fragmento}»</span>
-      </button>
+      <div className="flex items-start gap-2">
+        <NumeroAnotacion numero={numero} />
+        <p className="line-clamp-2 text-xs text-muted-foreground italic">«{anotacion.fragmento}»</p>
+      </div>
       {editando ? (
-        <div className="flex flex-col gap-2">
-          <label htmlFor={`editar-${anotacion.id}`} className="sr-only">
+        <>
+          <label htmlFor={id} className="sr-only">
             Editar el comentario {numero}
           </label>
           <Textarea
-            id={`editar-${anotacion.id}`}
+            id={id}
+            autoFocus
             value={texto}
             onChange={evento => setTexto(evento.target.value)}
+            onKeyDown={evento => {
+              if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
+            }}
             maxLength={LIMITES_RETROALIMENTACION.comentario}
-            className="min-h-16"
-            disabled={pendiente}
+            className="min-h-24 resize-none"
+            disabled={guardando}
           />
           <div className="flex justify-end gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setTexto(anotacion.comentario);
-                setEditando(false);
-              }}
-              disabled={pendiente}
-            >
-              <X aria-hidden />
+            <Button size="sm" variant="ghost" onClick={cancelar} disabled={guardando}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={guardar} disabled={pendiente || !texto.trim()}>
-              {pendiente && <Loader2 className="animate-spin" aria-hidden />}
+            <Button size="sm" onClick={guardar} disabled={guardando || !texto.trim()}>
+              {guardando && <Loader2 className="animate-spin" aria-hidden />}
               Guardar
             </Button>
           </div>
-        </div>
+        </>
       ) : (
         <>
-          <p className="whitespace-pre-wrap">{anotacion.comentario}</p>
-          <div className="flex justify-end gap-1">
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setEditando(true)}
-              disabled={pendiente}
-            >
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{anotacion.comentario}</p>
+          <div className="flex justify-end gap-1 border-t pt-2">
+            <Button size="xs" variant="ghost" onClick={() => onEditar(true)} disabled={quitando}>
               <Pencil aria-hidden />
               Editar
             </Button>
-            <Button size="xs" variant="ghost" onClick={eliminar} disabled={pendiente}>
-              {pendiente ? (
-                <Loader2 className="animate-spin" aria-hidden />
-              ) : (
-                <Trash2 aria-hidden />
-              )}
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={onQuitar}
+              disabled={quitando}
+              className="text-destructive hover:text-destructive"
+            >
+              {quitando ? <Loader2 className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
               Quitar
             </Button>
           </div>
         </>
       )}
+    </PopoverContent>
+  );
+}
+
+/** Comentario en la lista lateral: al pulsarlo, lleva a su subrayado y abre su globo. */
+function ComentarioEnLista({
+  anotacion,
+  numero,
+  activa,
+  quitando,
+  onIr,
+  onEditar,
+  onQuitar,
+}: {
+  anotacion: Anotacion;
+  numero: number;
+  activa: boolean;
+  quitando: boolean;
+  onIr: () => void;
+  onEditar: () => void;
+  onQuitar: () => void;
+}) {
+  return (
+    <li
+      id={`anotacion-${anotacion.id}`}
+      className={cn(
+        'group relative rounded-xl border text-sm transition-colors',
+        activa
+          ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10'
+          : 'bg-background hover:border-amber-300'
+      )}
+    >
+      <button
+        type="button"
+        {...ABRE_ANOTACION}
+        onClick={onIr}
+        className="flex w-full flex-col gap-1.5 rounded-xl p-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <span className="flex items-start gap-2">
+          <NumeroAnotacion numero={numero} />
+          <span className="line-clamp-2 text-muted-foreground italic">«{anotacion.fragmento}»</span>
+        </span>
+        <span className="line-clamp-3 pl-7 whitespace-pre-wrap">{anotacion.comentario}</span>
+      </button>
+      <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          {...ABRE_ANOTACION}
+          onClick={onEditar}
+          disabled={quitando}
+          aria-label={`Editar el comentario ${numero}`}
+        >
+          <Pencil aria-hidden />
+        </Button>
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          onClick={onQuitar}
+          disabled={quitando}
+          aria-label={`Quitar el comentario ${numero}`}
+          className="text-destructive hover:text-destructive"
+        >
+          {quitando ? <Loader2 className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
+        </Button>
+      </div>
     </li>
   );
 }
