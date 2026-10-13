@@ -4,6 +4,7 @@ import { RoundedBox } from '@react-three/drei';
 import { type ReactNode, useMemo } from 'react';
 import { Color, DoubleSide } from 'three';
 
+import { VistaExterior } from '@/components/3d/vista-exterior';
 import { type TipoMueble } from '@/schemas/escena.schema';
 
 /*
@@ -491,14 +492,13 @@ function Cuadro({ color = '#d9a066' }: { color?: string }) {
   );
 }
 
-function Ventana() {
+function Ventana({ semilla }: { semilla: string }) {
   return (
     <group>
-      {/* Cristal "iluminado" por el exterior */}
-      <mesh position-z={0.005}>
-        <planeGeometry args={[1.2, 1.1]} />
-        <meshStandardMaterial color="#e8f1f4" emissive="#fdf3dc" emissiveIntensity={0.85} />
-      </mesh>
+      {/* Cristal con la vista de la calle (falso exterior con paralaje) */}
+      <group position-z={0.005}>
+        <VistaExterior ancho={1.2} alto={1.1} semilla={semilla} />
+      </group>
       {/* Marco y parteluces */}
       {[
         { p: [0, 0.57, 0.03], s: [1.3, 0.06, 0.06] },
@@ -594,7 +594,7 @@ export function MuebleProcedural({ tipo, color, semilla }: MuebleProceduralProps
     case 'cuadro':
       return <Cuadro color={color} />;
     case 'ventana':
-      return <Ventana />;
+      return <Ventana semilla={semilla} />;
     case 'reloj':
       return <Reloj />;
     case 'decoracion':

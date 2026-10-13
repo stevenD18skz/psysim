@@ -11,6 +11,7 @@ import {
   Vector3,
 } from 'three';
 
+import { type Silaba } from '@/lib/audio/voz';
 import { type EmocionNpc } from '@/lib/conversacion/emociones';
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
 
@@ -25,6 +26,7 @@ import {
 } from './comportamiento';
 import { adaptarClipSentado, clipSentado, type Piernas, type Postura } from './postura';
 import { RigNpc } from './rig';
+import { BOCA_CERRADA, type FormaHabla, formaHabla, RostroNpc } from './rostro';
 
 /** Clips que usa el paciente: dos bucles (reposo, pensar) y los gestos puntuales. */
 const ACCIONES_PACIENTE: readonly AccionNpc[] = ['idle', 'think', 'wave', 'yes', 'no', 'bow'];
@@ -45,6 +47,10 @@ const DISTANCIA_ATENCION = 4.5;
 /** Hacia dónde mira cuando evita el contacto visual: a un lado y un poco hacia abajo. */
 const MIRADA_DESVIADA = { giro: 0.5, cabeceo: -0.15 };
 const DURACION_PARPADEO_S = 0.16;
+/** Cuánto se desplazan los ojos dentro de la cara al mirar (m, en el espacio de la cabeza). */
+const RECORRIDO_OJOS = { x: 0.0065, y: 0.0045 };
+/** Duración de un levantamiento breve de cejas (señal de atención, al tomar la palabra) (s). */
+const DURACION_CEJAS_S = 0.55;
 const DURACION_SUSPIRO_S = 2.4;
 
 export interface OpcionesAnimador {
@@ -95,7 +101,14 @@ export class AnimadorPaciente {
   private readonly acciones = new Map<AccionNpc, AnimationAction>();
   private readonly postura: AnimationAction | null = null;
   private readonly huesos: HuesosExpresivos;
-  private readonly reposo: { hueso: Bone; rotacion: Quaternion; escala: Vector3 }[];
+  private readonly reposo: {
+    hueso: Bone;
+    rotacion: Quaternion;
+    escala: Vector3;
+    posicion: Vector3;
+  }[];
+  /** Cejas, párpados, boca y brillo de los ojos (si el personaje tiene la cara esperada). */
+  private readonly rostro: RostroNpc | null = null;
 
   private activa: AnimationAction | null = null;
   private bucle: AccionNpc = 'idle';
@@ -109,7 +122,18 @@ export class AnimadorPaciente {
   private proximoParpadeo = 1.5;
   private inicioParpadeo = -1;
   private inicioSuspiro = -Infinity;
+  private estado: EstadoNpc = 'inactivo';
   private readonly mirada = { giro: 0, cabeceo: 0 };
+  /** Mirada de los ojos dentro de la cara (-1–1) y la microsacada en curso. */
+  private readonly miradaOjos = { x: 0, y: 0 };
+  private readonly sacada = { x: 0, y: 0, proxima: 0.8 };
+  private inicioCejas = -Infinity;
+  private proximasCejas = 6;
+  /** Sílabas de la respuesta en curso (`planVoz`), para mover la boca al ritmo de la voz. */
+  private silabas: readonly Silaba[] = [];
+  private inicioHabla = 0;
+  /** Cuánto cubren los párpados los ojos en este fotograma (0–1). */
+  private cierre = 0;
   /** Lado hacia el que desvía la mirada (cada paciente tiene su costumbre). */
   private readonly ladoDesviado = Math.random() < 0.5 ? -1 : 1;
 
@@ -158,7 +182,19 @@ export class AnimadorPaciente {
     };
     this.reposo = Object.values(this.huesos)
       .filter((b): b is Bone => b !== undefined)
-      .map(b => ({ hueso: b, rotacion: b.quaternion.clone(), escala: b.scale.clone() }));
+      .map(b => ({
+        hueso: b,
+        rotacion: b.quaternion.clone(),
+        escala: b.scale.clone(),
+        posicion: b.position.clone(),
+      }));
+
+    try {
+      this.rostro = new RostroNpc(this.rig);
+    } catch {
+      // Un personaje con otra cara conserva el parpadeo y la mirada de la cabeza.
+      this.rostro = null;
+    }
 
     // Mide la postura base (con el primer fotograma de los clips) y vuelve a empezar.
     this.postura?.play();
@@ -180,10 +216,12 @@ export class AnimadorPaciente {
     this.activa = null;
     this.gesto = null;
     this.reproducir(this.bucle);
+    const desmontarRostro = this.rostro?.montar();
     return () => {
       this.mixer.removeEventListener('finished', this.alTerminarClip);
       this.mixer.stopAllAction();
       this.activa = null;
+      desmontarRostro?.();
       this.rig.liberar();
     };
   };
@@ -202,6 +240,8 @@ export class AnimadorPaciente {
     }
     this.emocion = emocion;
     this.objetivo = expresionPara(estado, emocion);
+    if (estado !== 'respondiendo') this.silabas = [];
+    this.estado = estado;
 
     const bucle = clipEnBucle(estado);
     if (bucle === this.bucle) return;
@@ -216,6 +256,22 @@ export class AnimadorPaciente {
     this.gesto = id;
     this.reproducir(id);
   };
+
+  /**
+   * Mueve la boca con el plan de sílabas de la voz inventada (el mismo que suena), desde ahora.
+   * Sin plan, mientras responde, la boca se mueve con un balbuceo genérico.
+   */
+  hablar = (silabas: readonly Silaba[]) => {
+    this.silabas = silabas;
+    this.inicioHabla = this.tiempo;
+    // Al tomar la palabra levanta un poco las cejas.
+    this.inicioCejas = this.tiempo;
+  };
+
+  /** Cuánto cubren los párpados los ojos (0–1), para pruebas y depuración. */
+  get cierreParpados(): number {
+    return this.cierre;
+  }
 
   /** Acción del mixer que se está mostrando (para pruebas y depuración). */
   get accionActual(): AccionNpc | null {
@@ -241,9 +297,10 @@ export class AnimadorPaciente {
   avanzar = (dt: number, camara: Vector3) => {
     this.tiempo += dt;
 
-    for (const { hueso, rotacion, escala } of this.reposo) {
+    for (const { hueso, rotacion, escala, posicion } of this.reposo) {
       hueso.quaternion.copy(rotacion);
       hueso.scale.copy(escala);
+      hueso.position.copy(posicion);
     }
     this.mixer.update(dt);
 
@@ -256,6 +313,7 @@ export class AnimadorPaciente {
     this.aplicarCuerpo(dt);
     this.aplicarMirada(dt, camara);
     this.aplicarOjos();
+    this.aplicarRostro();
   };
 
   /** Respiración, encorvamiento, inquietud y habla sobre la columna y la cabeza. */
@@ -328,6 +386,35 @@ export class AnimadorPaciente {
     }
     this.rotar(head, this.ejeY, this.mirada.giro * 0.65);
     this.rotar(head, this.ejeX, -this.mirada.cabeceo * 0.7);
+
+    this.moverOjos(dt, objetivoGiro * peso, objetivoCabeceo * peso, contacto);
+  }
+
+  /**
+   * Los ojos se adelantan a la cabeza (llegan primero al objetivo y la cabeza los alcanza) y nunca
+   * están quietos: hacen microsacadas, más pequeñas mientras sostiene el contacto visual.
+   */
+  private moverOjos(dt: number, giro: number, cabeceo: number, contacto: number) {
+    const { eye_L, eye_R } = this.huesos;
+    if (!eye_L || !eye_R) return;
+    const s = this.sacada;
+    if (this.tiempo >= s.proxima) {
+      const amplitud = 0.12 + 0.35 * (1 - contacto);
+      s.x = (Math.random() * 2 - 1) * amplitud;
+      s.y = (Math.random() * 2 - 1) * amplitud * 0.6;
+      s.proxima = this.tiempo + 0.5 + Math.random() * (contacto > 0.6 ? 1.6 : 1);
+    }
+    // Lo que la cabeza aún no giró lo hacen los ojos.
+    const x = MathUtils.clamp(giro * 0.5 + (giro - this.mirada.giro) * 1.4 + s.x, -1, 1);
+    const y = MathUtils.clamp(cabeceo * 0.6 + (cabeceo - this.mirada.cabeceo) * 1.4 + s.y, -1, 1);
+    // Las sacadas son rápidas: casi un salto.
+    const t = 1 - Math.exp(-22 * dt);
+    this.miradaOjos.x = aproximar(this.miradaOjos.x, x, t);
+    this.miradaOjos.y = aproximar(this.miradaOjos.y, y, t);
+    for (const ojo of [eye_L, eye_R]) {
+      ojo.position.x += this.miradaOjos.x * RECORRIDO_OJOS.x;
+      ojo.position.y += this.miradaOjos.y * RECORRIDO_OJOS.y;
+    }
   }
 
   /** Párpados según la emoción y parpadeo natural (más frecuente con ansiedad). */
@@ -342,10 +429,57 @@ export class AnimadorPaciente {
         this.tiempo + (ansioso ? 1 : 2.5) + Math.random() * (ansioso ? 1.5 : 3.5);
     }
     const p = (this.tiempo - this.inicioParpadeo) / DURACION_PARPADEO_S;
-    const parpadeo = p >= 0 && p < 1 ? 1 - 0.9 * Math.sin(Math.PI * p) : 1;
-    const apertura = this.expresion.apertura * parpadeo;
-    eye_L.scale.y *= apertura;
-    eye_R.scale.y *= apertura;
+    const apertura = this.expresion.apertura;
+    if (!this.rostro) {
+      const parpadeo = p >= 0 && p < 1 ? 1 - 0.9 * Math.sin(Math.PI * p) : 1;
+      eye_L.scale.y *= apertura * parpadeo;
+      eye_R.scale.y *= apertura * parpadeo;
+      return;
+    }
+    // Con rostro, los párpados cubren el ojo; la escala solo lo agranda (miedo) y acompaña el
+    // parpadeo para que las pestañas también se cierren.
+    const parpadeo = p >= 0 && p < 1 ? 1 - Math.sin(Math.PI * p) : 1;
+    this.cierre = 1 - MathUtils.clamp(apertura, 0, 1) * parpadeo;
+    const escala = Math.max(1, apertura) * (0.55 + 0.45 * parpadeo);
+    eye_L.scale.y *= escala;
+    eye_R.scale.y *= escala;
+  }
+
+  /** Cejas, párpados y boca según la expresión; la boca sigue la voz mientras responde. */
+  private aplicarRostro() {
+    if (!this.rostro) return;
+    const tiempo = this.tiempo;
+
+    // Mientras escucha, de vez en cuando levanta las cejas (señal de atención), salvo si está
+    // enojado.
+    if (this.estado === 'esperando_input' && tiempo >= this.proximasCejas) {
+      if (this.objetivo.cejaInclinacion > -0.3) this.inicioCejas = tiempo;
+      this.proximasCejas = tiempo + 5 + Math.random() * 5;
+    }
+    const c = (tiempo - this.inicioCejas) / DURACION_CEJAS_S;
+    const pulsoCejas = c >= 0 && c < 1 ? Math.sin(Math.PI * c) * 0.45 : 0;
+
+    let habla: FormaHabla = BOCA_CERRADA;
+    if (this.estado === 'respondiendo') {
+      if (this.silabas.length > 0) {
+        habla = formaHabla(this.silabas, tiempo - this.inicioHabla);
+      } else {
+        // Sin plan (vista previa sin conversación): balbuceo genérico.
+        const abre = Math.max(0, Math.sin(tiempo * 12.5)) ** 1.5;
+        habla = {
+          apertura: abre * (0.45 + 0.25 * Math.sin(tiempo * 3.1)),
+          ancho: 1,
+          redondez: Math.max(0, Math.sin(tiempo * 1.7)) * 0.6,
+        };
+      }
+    }
+
+    const e = this.expresion;
+    this.rostro.aplicar(
+      pulsoCejas > 0 ? { ...e, cejaAltura: e.cejaAltura + pulsoCejas } : e,
+      this.cierre,
+      habla
+    );
   }
 
   /** Rota un hueso sobre uno de sus ejes locales (después de lo que dejó el mixer). */

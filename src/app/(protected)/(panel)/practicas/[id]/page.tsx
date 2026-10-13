@@ -32,7 +32,7 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
   const totalComentarios = retro?.anotaciones.length ?? 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoSesion
         sesion={sesion}
         para="estudiante"

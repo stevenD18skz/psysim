@@ -1,4 +1,13 @@
-import { ArrowLeft, ArrowRight, Clock, Mail, MessageSquareText, Pencil, Star } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Clock,
+  Mail,
+  MessageSquareText,
+  Pencil,
+  Printer,
+  Star,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -57,7 +66,7 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <RefrescoAutomatico activo={metricas.enCurso > 0} />
 
       <div className="flex flex-col gap-4">
@@ -87,11 +96,18 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button asChild size="lg" variant="outline">
+              <Link href={`/estudiantes/${estudiante.id}/notas`} target="_blank">
+                <Printer aria-hidden />
+                Imprimir notas
+              </Link>
+            </Button>
             <EditarEstudiante
               estudiante={estudiante}
               etiqueta={estudiante.correo ? 'Editar' : 'Agregar correo'}
               icono={<Pencil aria-hidden />}
             />
+            <AccionesEstudiante estudiante={estudiante} enFicha />
             {estudiante.cuentaVinculada && (
               <Button asChild size="lg">
                 <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
@@ -100,7 +116,6 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
                 </Link>
               </Button>
             )}
-            <AccionesEstudiante estudiante={estudiante} enFicha />
           </div>
         </header>
       </div>

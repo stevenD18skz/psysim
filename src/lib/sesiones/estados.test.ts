@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { duracionSesion, estadoVisibleSesion } from './estados';
+import { duracionSesion, estadoCortoSesion, estadoVisibleSesion } from './estados';
 
 const base = { estado: 'finalizada' as const, comenzada: true, retroalimentacion: null };
 
@@ -53,5 +53,15 @@ describe('duracionSesion', () => {
       duracionSesion({ comenzada: false, inicio, fin: '2026-10-07T15:12:30.000Z' })
     ).toBeNull();
     expect(duracionSesion({ comenzada: true, inicio, fin: null })).toBeNull();
+  });
+});
+
+describe('estadoCortoSesion', () => {
+  it('nombra el estado en una palabra', () => {
+    expect(estadoCortoSesion({ estado: 'finalizada', comenzada: true })).toBe('Finalizada');
+    expect(estadoCortoSesion({ estado: 'interrumpida', comenzada: true })).toBe('Interrumpida');
+    expect(estadoCortoSesion({ estado: 'interrumpida', comenzada: false })).toBe('No comenzada');
+    expect(estadoCortoSesion({ estado: 'en_curso', comenzada: true })).toBe('En curso');
+    expect(estadoCortoSesion({ estado: 'en_curso', comenzada: false })).toBe('Sin comenzar');
   });
 });

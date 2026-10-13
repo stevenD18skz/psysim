@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { esEmocionNpc } from '@/lib/conversacion/emociones';
 import { leerEscenarioDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 import { borradorCasoSchema } from '@/schemas/caso.schema';
@@ -114,7 +115,7 @@ export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeCo
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('mensaje')
-    .select('id, remitente, contenido, creado_en, latencia_ms')
+    .select('id, remitente, contenido, creado_en, latencia_ms, emocion')
     .eq('sesion_id', sesionId)
     .order('creado_en')
     .order('remitente');
@@ -129,6 +130,8 @@ export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeCo
     contenido: fila.contenido,
     timestamp: fila.creado_en,
     ...(fila.latencia_ms !== null && { latencia_ms: fila.latencia_ms }),
+    // Al retomar la sesión, el paciente conserva el estado emocional en que quedó.
+    ...(fila.emocion !== null && esEmocionNpc(fila.emocion) && { emocion: fila.emocion }),
   }));
 }
 

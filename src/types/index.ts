@@ -177,6 +177,12 @@ export interface SesionHistorial {
   retroalimentacion: { publicada: boolean; nota: number | null } | null;
 }
 
+/** Sesión del historial con la observación general publicada, para el informe de notas. */
+export interface SesionInforme extends SesionHistorial {
+  /** Observación general del docente; `null` mientras la retroalimentación no esté publicada. */
+  comentarioGeneral: string | null;
+}
+
 /** Frase subrayada por el docente en una intervención del estudiante. */
 export interface Anotacion {
   id: string;

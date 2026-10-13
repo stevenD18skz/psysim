@@ -5,6 +5,8 @@ import { use, useEffect, useMemo, useState } from 'react';
 import { Vector3 } from 'three';
 
 import { medidasPacienteStore } from '@/components/3d/medidas-paciente';
+import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
+import { planVoz, type Voz } from '@/lib/audio/voz';
 import { emocionActual } from '@/lib/conversacion/emociones';
 import { AnimadorPaciente } from '@/lib/npc/animador-paciente';
 import { cargarGlb } from '@/lib/npc/cargar-glb';
@@ -23,9 +25,10 @@ function ultimaRespuesta({ conversacion }: AppState): string | undefined {
 /**
  * Conecta el animador con el store de Zustand sin re-renderizar React: en cada cambio del estado
  * del NPC o de la conversación ajusta el bucle y la expresión, y en cada transición decide el
- * gesto (saludar al llegar, asentir o negar al responder, despedirse al terminar).
+ * gesto (saludar al llegar, asentir o negar al responder, despedirse al terminar). Al empezar a
+ * responder, la boca sigue el mismo plan de sílabas que suena (`useSonidoSimulacion`).
  */
-function useConductaPaciente(animador: AnimadorPaciente) {
+function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
   const store = useAppStoreApi();
 
   useEffect(() => {
@@ -47,16 +50,21 @@ function useConductaPaciente(animador: AnimadorPaciente) {
         respuesta: ultimaRespuesta(actual),
       });
       if (gesto) animador.hacerGesto(gesto);
-      animador.actualizarConducta(hacia, emocionActual(mensajes));
+      const emocion = emocionActual(mensajes);
+      animador.actualizarConducta(hacia, emocion);
+      if (hacia === 'respondiendo' && desde !== hacia) {
+        const respuesta = ultimaRespuesta(actual) ?? '';
+        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)));
+      }
       previo = actual;
     });
-  }, [store, animador]);
+  }, [store, animador, voz]);
 }
 
 /**
  * Paciente virtual con un personaje del catálogo (GLB con esqueleto): se sienta en su silla (o
- * queda de pie), piensa mientras la IA responde, habla, saluda y expresa con el cuerpo la emoción
- * de su última respuesta. Suspende mientras descarga el GLB (va dentro de `<Suspense>`).
+ * queda de pie), piensa mientras la IA responde, habla, saluda y expresa con el cuerpo y el rostro
+ * la emoción de su última respuesta. Suspende mientras descarga el GLB (va dentro de `<Suspense>`).
  *
  * La mira apunta a una caja invisible con la forma de la postura base: es mucho más barato que
  * lanzar rayos contra las mallas con esqueleto.
@@ -83,7 +91,7 @@ export function PacientePersonaje({ npc, personaje }: { npc: ConfigNpc; personaj
     return () => medidasPacienteStore.setState({ alturaOjos: null });
   }, [animador, npc.posicion, npc.escala]);
 
-  useConductaPaciente(animador);
+  useConductaPaciente(animador, personaje.voz);
 
   useFrame(({ camera }, delta) => {
     animador.avanzar(Math.min(delta, 0.1), camera.getWorldPosition(camara));

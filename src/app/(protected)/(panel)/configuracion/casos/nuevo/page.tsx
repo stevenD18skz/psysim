@@ -12,7 +12,7 @@ export default async function NuevoCasoPage() {
   await requerirDocente();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
         sobretitulo="Mis casos"
         titulo="Crea un caso nuevo"

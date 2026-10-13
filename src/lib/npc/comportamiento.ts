@@ -10,7 +10,7 @@ import { type AccionNpc } from './acciones';
  *
  *   estado del NPC ─┐
  *                    ├─▶ clip en bucle (reposo / pensar) + gesto puntual (saludar, asentir…)
- *   emoción ─────────┘   + expresión (postura, mirada, respiración, inquietud, habla)
+ *   emoción ─────────┘   + expresión (postura, mirada, respiración, inquietud, habla, rostro)
  */
 
 /** Parámetros que la capa procedural aplica sobre los clips del GLB. */
@@ -33,6 +33,30 @@ export interface Expresion {
   contactoVisual: number;
   /** Cabeceos y balanceo al ritmo de la voz (0–1). */
   habla: number;
+
+  // ---------- Rostro (`rostro.ts`) ----------
+  /** Altura de las cejas (-1 bajas y tensas … 1 levantadas). */
+  cejaAltura: number;
+  /** Inclinación de las cejas (1 = extremos internos arriba, preocupación; -1 = ceño). */
+  cejaInclinacion: number;
+  /** Cuánto se juntan las cejas hacia el entrecejo (0–1). */
+  cejaJuntar: number;
+  /** Una ceja más alta que la otra (0–1): duda, desconcierto. */
+  cejaAsimetria: number;
+  /** Curva de la boca (-1 comisuras abajo … 1 sonrisa). */
+  sonrisa: number;
+  /** Apertura de la boca en reposo (0–1); al hablar se suma la de cada sílaba. */
+  bocaApertura: number;
+  /** Ancho de la boca (1 = normal; menos = labios apretados, más = estirados por el miedo). */
+  bocaAncho: number;
+  /** Boca torcida hacia un lado (-1–1), como al pensar. */
+  bocaLado: number;
+  /** Inclinación de los párpados (1 = caídos hacia fuera, tristeza; -1 = mirada dura). */
+  parpadoInclinacion: number;
+  /** Color de las mejillas (-1 pálidas … 1 enrojecidas). */
+  rubor: number;
+  /** Ojos húmedos, con más brillo (0–1). */
+  ojosHumedos: number;
 }
 
 export const EXPRESION_NEUTRA: Readonly<Expresion> = {
@@ -45,12 +69,35 @@ export const EXPRESION_NEUTRA: Readonly<Expresion> = {
   inquietud: 0,
   contactoVisual: 0.85,
   habla: 0,
+  cejaAltura: 0,
+  cejaInclinacion: 0,
+  cejaJuntar: 0,
+  cejaAsimetria: 0,
+  sonrisa: 0.05,
+  bocaApertura: 0,
+  bocaAncho: 1,
+  bocaLado: 0,
+  parpadoInclinacion: 0,
+  rubor: 0,
+  ojosHumedos: 0,
 };
 
-/** Cómo cambia el cuerpo con cada emoción (respecto a la expresión neutra). */
+/**
+ * Cómo cambian el cuerpo y el rostro con cada emoción (respecto a la expresión neutra). Los
+ * gestos faciales siguen las unidades de acción de FACS (Ekman): la tristeza levanta el extremo
+ * interno de las cejas y baja las comisuras; el miedo levanta y junta las cejas y estira los
+ * labios; el enojo baja y junta las cejas y aprieta los labios.
+ */
 const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
   neutral: {},
-  tranquilo: { encorvado: -0.03, periodoRespiracion: 5, contactoVisual: 1 },
+  tranquilo: {
+    encorvado: -0.03,
+    periodoRespiracion: 5,
+    contactoVisual: 1,
+    cejaAltura: 0.05,
+    sonrisa: 0.4,
+    apertura: 0.92,
+  },
   triste: {
     cabeceo: 0.14,
     ladeo: 0.06,
@@ -59,6 +106,13 @@ const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
     periodoRespiracion: 5.6,
     amplitudRespiracion: 0.028,
     contactoVisual: 0.35,
+    cejaInclinacion: 0.85,
+    cejaJuntar: 0.4,
+    sonrisa: -0.6,
+    bocaAncho: 0.9,
+    parpadoInclinacion: 0.6,
+    rubor: -0.4,
+    ojosHumedos: 0.8,
   },
   ansioso: {
     encorvado: 0.05,
@@ -67,6 +121,13 @@ const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
     amplitudRespiracion: 0.03,
     inquietud: 1,
     contactoVisual: 0.5,
+    cejaAltura: 0.55,
+    cejaInclinacion: 0.5,
+    cejaJuntar: 0.55,
+    sonrisa: -0.2,
+    bocaAncho: 1.15,
+    bocaApertura: 0.08,
+    rubor: 0.25,
   },
   abrumado: {
     cabeceo: 0.18,
@@ -77,6 +138,13 @@ const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
     amplitudRespiracion: 0.04,
     inquietud: 0.5,
     contactoVisual: 0.15,
+    cejaAltura: 0.25,
+    cejaInclinacion: 0.75,
+    cejaJuntar: 0.6,
+    sonrisa: -0.4,
+    bocaApertura: 0.22,
+    parpadoInclinacion: 0.4,
+    ojosHumedos: 1,
   },
   molesto: {
     cabeceo: -0.08,
@@ -84,6 +152,13 @@ const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
     apertura: 0.72,
     periodoRespiracion: 3.2,
     contactoVisual: 0.9,
+    cejaAltura: -0.6,
+    cejaInclinacion: -0.85,
+    cejaJuntar: 0.85,
+    sonrisa: -0.3,
+    bocaAncho: 0.78,
+    parpadoInclinacion: -0.5,
+    rubor: 0.7,
   },
   aliviado: {
     cabeceo: -0.03,
@@ -91,6 +166,11 @@ const POR_EMOCION: Readonly<Record<EmocionNpc, Partial<Expresion>>> = {
     periodoRespiracion: 5.2,
     amplitudRespiracion: 0.03,
     contactoVisual: 1,
+    cejaAltura: 0.15,
+    cejaInclinacion: 0.25,
+    sonrisa: 0.5,
+    bocaApertura: 0.06,
+    rubor: 0.15,
   },
 };
 
@@ -105,7 +185,7 @@ export const EMOCIONES_CON_SUSPIRO: ReadonlySet<EmocionNpc> = new Set([
  * Expresión del paciente para un estado de la conversación y una emoción. La emoción da la
  * postura de fondo; el estado ajusta la mirada y el habla:
  * - escuchando (`esperando_input`): busca el contacto visual;
- * - pensando (`procesando`): desvía la mirada y baja un poco la cabeza, como al recordar;
+ * - pensando (`procesando`): desvía la mirada, baja un poco la cabeza y tuerce la boca;
  * - respondiendo: habla mirando al estudiante en la medida en que la emoción lo permite;
  * - sin conexión: ladea la cabeza, desconcertado.
  */
@@ -116,11 +196,19 @@ export function expresionPara(estado: EstadoNpc, emocion: EmocionNpc): Expresion
     case 'sesion_finalizada':
       return { ...e, contactoVisual: Math.min(1, e.contactoVisual + 0.15) };
     case 'procesando':
-      return { ...e, contactoVisual: e.contactoVisual * 0.25, cabeceo: e.cabeceo + 0.06 };
+      // Piensa: una ceja se levanta y la boca se tuerce hacia un lado.
+      return {
+        ...e,
+        contactoVisual: e.contactoVisual * 0.25,
+        cabeceo: e.cabeceo + 0.06,
+        cejaAsimetria: 0.6,
+        bocaLado: 0.6,
+        bocaApertura: 0,
+      };
     case 'respondiendo':
       return { ...e, habla: 1, contactoVisual: 0.3 + 0.7 * e.contactoVisual };
     case 'error_comunicacion':
-      return { ...e, ladeo: e.ladeo + 0.1, contactoVisual: 0.5 };
+      return { ...e, ladeo: e.ladeo + 0.1, contactoVisual: 0.5, cejaAsimetria: 0.8 };
     case 'inactivo':
       return { ...e, contactoVisual: e.contactoVisual * 0.7 };
   }

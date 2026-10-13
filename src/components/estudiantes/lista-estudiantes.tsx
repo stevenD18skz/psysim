@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, KeyRound, MailPlus, Search } from 'lucide-react';
+import { ArrowRight, ChevronRight, KeyRound, MailPlus, Search } from 'lucide-react';
+import { type Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
@@ -24,6 +25,22 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
   const router = useRouter();
   const [termino, setTermino] = useState('');
   const visibles = filtrarEstudiantes(estudiantes, termino, Infinity);
+
+  /**
+   * Abre la ficha al pulsar en cualquier parte de la fila, salvo en sus botones y enlaces, en lo
+   * que renderizan por portal (menús y diálogos, cuyos eventos suben por el árbol de React) o al
+   * seleccionar texto. Con Ctrl/⌘ la abre en otra pestaña, como un enlace.
+   */
+  const abrirFicha = (evento: React.MouseEvent<HTMLTableRowElement>, ficha: Route) => {
+    const objetivo = evento.target as Node;
+    if (!evento.currentTarget.contains(objetivo)) return;
+    if (objetivo instanceof Element && objetivo.closest('a, button, input, [role="menuitem"]')) {
+      return;
+    }
+    if (window.getSelection()?.toString()) return;
+    if (evento.ctrlKey || evento.metaKey) window.open(ficha, '_blank');
+    else router.push(ficha);
+  };
 
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
@@ -88,12 +105,19 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                 cuentaVinculada,
                 metricas,
               } = estudiante;
+              const ficha = `/estudiantes/${estudianteId}` as const;
               return (
-                <tr key={estudianteId} className="align-middle">
+                <tr
+                  key={estudianteId}
+                  data-testid={`fila-${codigo}`}
+                  onClick={evento => abrirFicha(evento, ficha)}
+                  className="group/fila cursor-pointer align-middle transition-colors hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50"
+                >
                   <th scope="row" className="px-4 py-3 text-left font-normal">
+                    {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
                     <Link
-                      href={`/estudiantes/${estudianteId}`}
-                      className="block font-medium underline-offset-4 hover:underline"
+                      href={ficha}
+                      className="block rounded-sm font-medium outline-none group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {nombre}
                     </Link>
@@ -160,6 +184,10 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                         />
                       )}
                       <AccionesEstudiante estudiante={estudiante} />
+                      <ChevronRight
+                        className="size-4 text-muted-foreground transition-transform group-hover/fila:translate-x-0.5 group-hover/fila:text-foreground"
+                        aria-hidden
+                      />
                     </div>
                   </td>
                 </tr>

@@ -4,6 +4,7 @@ import { ArrowRight, KeyRound, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 
+import { BotonCompartir } from '@/components/asignaciones/boton-compartir';
 import { BotonCopiar } from '@/components/asignaciones/boton-copiar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +21,7 @@ import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 export interface CodigoParaEnviar {
   codigo: string;
   expiraEn: string;
-  estudiante: { id: string; nombre: string };
+  estudiante: { id: string; nombre: string; correo: string | null };
   caso: string;
 }
 
@@ -35,7 +36,7 @@ function useOrigen() {
   );
 }
 
-/** Mensaje listo para enviar por correo o chat. */
+/** Mensaje que se comparte por WhatsApp, correo u otra aplicación. */
 export function mensajeParaEstudiante(datos: CodigoParaEnviar, enlace: string): string {
   const nombre = datos.estudiante.nombre.split(' ')[0];
   return [
@@ -48,7 +49,7 @@ export function mensajeParaEstudiante(datos: CodigoParaEnviar, enlace: string): 
 
 /**
  * Resultado de configurar la sesión: el código de acceso para enviar al estudiante, con el
- * enlace directo y un mensaje listo para copiar.
+ * enlace directo, listos para copiar o compartir.
  */
 export function CodigoGenerado({
   datos,
@@ -98,7 +99,11 @@ export function CodigoGenerado({
         <div className="flex flex-wrap gap-2">
           <BotonCopiar texto={datos.codigo} etiqueta="Copiar código" variant="default" />
           <BotonCopiar texto={enlace} etiqueta="Copiar enlace" />
-          <BotonCopiar texto={mensajeParaEstudiante(datos, enlace)} etiqueta="Copiar mensaje" />
+          <BotonCompartir
+            asunto={`Tu simulación en PsySim: ${datos.caso}`}
+            mensaje={mensajeParaEstudiante(datos, enlace)}
+            correo={datos.estudiante.correo}
+          />
         </div>
 
         <DialogFooter>

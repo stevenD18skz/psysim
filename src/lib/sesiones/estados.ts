@@ -49,6 +49,13 @@ export function estadoVisibleSesion(
   };
 }
 
+/** Estado de la sesión en una palabra, para tablas e informes. */
+export function estadoCortoSesion(sesion: Pick<SesionHistorial, 'estado' | 'comenzada'>): string {
+  if (sesion.estado === 'finalizada') return 'Finalizada';
+  if (sesion.estado === 'interrumpida') return sesion.comenzada ? 'Interrumpida' : 'No comenzada';
+  return sesion.comenzada ? 'En curso' : 'Sin comenzar';
+}
+
 /** Duración en segundos de una sesión terminada que llegó a comenzar (o `null`). */
 export function duracionSesion(sesion: {
   comenzada: boolean;

@@ -135,6 +135,7 @@ export async function POST(request: Request): Promise<Response> {
       sesion_id,
       remitente: 'npc',
       contenido: respuesta.texto,
+      emocion: respuesta.emocion,
       latencia_ms: latenciaMs,
       tokens_entrada: respuesta.tokensEntrada,
       tokens_salida: respuesta.tokensSalida,

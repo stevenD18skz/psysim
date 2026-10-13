@@ -193,7 +193,11 @@ export function ConfiguradorSesion({
       setCodigoGenerado({
         codigo: resultado.datos.codigo,
         expiraEn: resultado.datos.expiraEn,
-        estudiante: { id: destinatario.id, nombre: destinatario.nombre },
+        estudiante: {
+          id: destinatario.id,
+          nombre: destinatario.nombre,
+          correo: destinatario.correo,
+        },
         caso: seleccionado.titulo,
       });
       // El caso queda elegido para asignárselo enseguida a otro estudiante.
