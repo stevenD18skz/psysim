@@ -32,7 +32,7 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
   const enCurso = sesion.estado === 'en_curso';
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <RefrescoAutomatico activo={enCurso} />
       <EncabezadoSesion
         sesion={sesion}

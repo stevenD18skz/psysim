@@ -236,6 +236,7 @@ export type Database = {
         Row: {
           contenido: string;
           creado_en: string;
+          emocion: string | null;
           id: string;
           latencia_ms: number | null;
           remitente: Database['public']['Enums']['remitente_mensaje'];
@@ -246,6 +247,7 @@ export type Database = {
         Insert: {
           contenido: string;
           creado_en?: string;
+          emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
           remitente: Database['public']['Enums']['remitente_mensaje'];
@@ -256,6 +258,7 @@ export type Database = {
         Update: {
           contenido?: string;
           creado_en?: string;
+          emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
           remitente?: Database['public']['Enums']['remitente_mensaje'];

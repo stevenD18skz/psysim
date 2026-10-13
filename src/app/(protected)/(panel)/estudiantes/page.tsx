@@ -33,11 +33,11 @@ export default async function EstudiantesPage() {
     { icono: UsersRound, etiqueta: 'Estudiantes', valor: estudiantes.length },
     { icono: Radio, etiqueta: 'En progreso ahora', valor: totales.enCurso },
     { icono: ClipboardCheck, etiqueta: 'Por revisar', valor: totales.pendientes },
-    { icono: MonitorPlay, etiqueta: 'Sesiones', valor: totales.sesiones },
+    { icono: MonitorPlay, etiqueta: 'Total de sesiones', valor: totales.sesiones },
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="flex flex-1 flex-col gap-2">
           <p className="text-sm font-medium tracking-wide text-primary uppercase">Seguimiento</p>

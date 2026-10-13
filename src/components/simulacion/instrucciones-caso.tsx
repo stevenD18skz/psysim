@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ChevronDown,
   ClipboardCheck,
   GraduationCap,
   Armchair,
@@ -8,7 +9,7 @@ import {
   MessageSquareText,
   Target,
 } from 'lucide-react';
-import { useRef, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
@@ -33,6 +34,25 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
 
+/** Marca que el estudiante ya confirmó unas instrucciones: la guía sale plegada desde entonces. */
+const CLAVE_GUIA_VISTA = 'psysim:guia-sesion-vista';
+
+function guiaYaVista(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_GUIA_VISTA) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function recordarGuiaVista() {
+  try {
+    localStorage.setItem(CLAVE_GUIA_VISTA, '1');
+  } catch {
+    // Sin almacenamiento: la guía simplemente vuelve a salir desplegada.
+  }
+}
+
 /** Pasos de la práctica que el estudiante debe conocer antes de empezar. */
 const DESARROLLO = [
   'Recorre el consultorio con W A S D (o las flechas) y mira con el ratón.',
@@ -53,6 +73,9 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
   const comenzarEnStore = useAppStore(state => state.sesion.comenzar);
   const [comenzando, startTransition] = useTransition();
   const contenido = useRef<HTMLDivElement>(null);
+  const idGuia = useId();
+  // La primera vez la guía sale desplegada; quien ya hizo una práctica la ve plegada.
+  const [guiaAbierta, setGuiaAbierta] = useState(() => !guiaYaVista());
   const { escenario, npc, estudiante } = sesion;
   const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
   const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
@@ -64,6 +87,7 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
         toast.error(resultado.error);
         return;
       }
+      recordarGuiaVista();
       comenzarEnStore(resultado.datos.inicio);
     });
 
@@ -175,8 +199,24 @@ export function InstruccionesCaso({ sesion }: { sesion: SesionActiva }) {
           </section>
 
           <section className="flex flex-col gap-2">
-            <TituloSeccion icono={ClipboardCheck}>Cómo se desarrolla la sesión</TituloSeccion>
-            <ol className="flex flex-col gap-2 text-sm">
+            <button
+              type="button"
+              aria-expanded={guiaAbierta}
+              aria-controls={idGuia}
+              onClick={() => setGuiaAbierta(abierta => !abierta)}
+              className="group -mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-left font-sans text-xs font-semibold tracking-wide text-muted-foreground uppercase transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <ClipboardCheck className="size-4" aria-hidden />
+              Cómo se desarrolla la sesión
+              <span className="ml-auto flex items-center gap-1 font-normal tracking-normal normal-case">
+                {guiaAbierta ? 'Ocultar' : 'Ver pasos'}
+                <ChevronDown
+                  className={cn('size-4 transition-transform', guiaAbierta && 'rotate-180')}
+                  aria-hidden
+                />
+              </span>
+            </button>
+            <ol id={idGuia} hidden={!guiaAbierta} className="flex flex-col gap-2 text-sm">
               {DESARROLLO.map((paso, i) => (
                 <li key={paso} className="flex gap-3">
                   <span

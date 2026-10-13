@@ -24,6 +24,7 @@ import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
@@ -199,6 +200,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {lista && conversando && (
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
       )}
+      {lista && comenzada && !resumen && <AvisoPantallaCompleta />}
       {lista && !comenzada && <InstruccionesCaso sesion={sesion} />}
       {segundosParaCierre !== null && !resumen && (
         <AvisoInactividad segundosRestantes={segundosParaCierre} />

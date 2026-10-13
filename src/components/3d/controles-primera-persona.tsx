@@ -2,7 +2,7 @@
 
 import { PointerLockControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { type ComponentRef, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { type PerspectiveCamera, Vector3 } from 'three';
 
 import { useRegistroColisiones } from '@/components/3d/registro-colisiones';
@@ -85,11 +85,27 @@ export function ControlesPrimeraPersona({
     camera.lookAt(...camara.mirarA);
   }, [obtenerEstado, camara]);
 
-  // Al empezar a conversar se libera el ratón para poder escribir y usar el panel.
+  const controles = useRef<ComponentRef<typeof PointerLockControls>>(null);
+  const veniaDeConversar = useRef(false);
+
+  // Al empezar a conversar se libera el ratón para poder escribir y usar el panel. Al volver a
+  // explorar se recaptura solo: el clic que cerró la conversación es el gesto que el navegador
+  // exige, así el puntero no queda a la vista mientras se gira la cámara. Si el navegador lo
+  // rechaza, queda la tarjeta "Comenzar a explorar" como antes.
   useEffect(() => {
-    if (habilitado) return;
-    velocidad.current.set(0, 0, 0);
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (!habilitado) {
+      velocidad.current.set(0, 0, 0);
+      veniaDeConversar.current = true;
+      if (document.pointerLockElement) document.exitPointerLock();
+      return;
+    }
+    if (!veniaDeConversar.current) return;
+    veniaDeConversar.current = false;
+    try {
+      controles.current?.lock();
+    } catch {
+      // Sin gesto de usuario vigente: el estudiante lo captura con el botón.
+    }
   }, [habilitado]);
 
   useFrame(({ camera }, delta) => {
@@ -132,6 +148,7 @@ export function ControlesPrimeraPersona({
 
   return (
     <PointerLockControls
+      ref={controles}
       selector={`#${ID_BOTON_EXPLORAR}`}
       pointerSpeed={SENSIBILIDAD_RATON}
       minPolarAngle={Math.PI * 0.22}

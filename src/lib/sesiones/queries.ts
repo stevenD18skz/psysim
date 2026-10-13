@@ -10,7 +10,12 @@ import {
   leerTitulosDeEscenarios,
 } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
-import { type Asignacion, type DetalleSesion, type SesionHistorial } from '@/types';
+import {
+  type Asignacion,
+  type DetalleSesion,
+  type SesionHistorial,
+  type SesionInforme,
+} from '@/types';
 
 /*
  * Consultas del seguimiento: historial de sesiones, códigos de acceso y detalle para revisar o
@@ -83,6 +88,39 @@ export const obtenerSesionesDeEstudiante = cache(
       throw new Error('No fue posible cargar las sesiones del estudiante.', { cause: error });
     }
     return aHistorial(data);
+  }
+);
+
+/**
+ * Sesiones de un estudiante con la observación general de su retroalimentación publicada, de la
+ * más antigua a la más reciente (el orden en que se lee un informe de notas).
+ */
+export const obtenerInformeDeEstudiante = cache(
+  async (estudianteId: string): Promise<SesionInforme[]> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('sesion')
+      .select(
+        `id, estado, comenzada, inicio, fin, escenario_id,
+         usuario ( nombre ),
+         retroalimentacion ( publicada_en, nota, comentario_general )`
+      )
+      .eq('estudiante_id', estudianteId)
+      .order('inicio', { ascending: true });
+
+    if (error) {
+      throw new Error('No fue posible cargar las notas del estudiante.', { cause: error });
+    }
+
+    const historial = await aHistorial(data);
+    return historial.map((sesion, indice) => {
+      const retro = data[indice]?.retroalimentacion;
+      return {
+        ...sesion,
+        comentarioGeneral:
+          retro?.publicada_en && retro.comentario_general.trim() ? retro.comentario_general : null,
+      };
+    });
   }
 );
 

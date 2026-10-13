@@ -125,7 +125,7 @@ export default function Home() {
           aria-hidden
           className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,black,transparent_85%)] bg-size-[22px_22px]"
         />
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
+        <header className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-6 py-5">
           <span className="flex items-center gap-3">
             <LogoUnivalle className="h-12" />
             <span className="h-9 w-px bg-border" aria-hidden />

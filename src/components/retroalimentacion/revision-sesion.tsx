@@ -57,6 +57,12 @@ type Burbuja =
 /** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
 const RESALTADO_BORRADOR = 'comentario-borrador';
 
+/**
+ * Estilo del resaltado. Va aquí y no en `globals.css` porque Lightning CSS (el parser de
+ * Turbopack) aún no reconoce el pseudo-elemento `::highlight()` y avisa en cada compilación.
+ */
+const ESTILO_RESALTADO = `::highlight(${RESALTADO_BORRADOR}) { background-color: oklch(87.9% 0.169 91.605 / 0.7); }`;
+
 const formatoHora = new Intl.DateTimeFormat('es-CO', {
   hour: 'numeric',
   minute: '2-digit',
@@ -226,6 +232,9 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+      <style href={RESALTADO_BORRADOR} precedence="default">
+        {ESTILO_RESALTADO}
+      </style>
       <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 id={idTitulo} className="text-xl font-semibold tracking-tight">

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Eye, MailPlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { ArrowRight, Eye, MailPlus, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -26,9 +26,9 @@ type Estudiante = Pick<
 >;
 
 /**
- * Menú "⋯" de un estudiante: ver su ficha, asignarle una simulación, editar sus datos y
- * eliminarlo. En la ficha (`enFicha`) solo ofrece eliminar (lo demás ya está a la vista) y, al
- * eliminar, vuelve a la lista.
+ * Menú "⋯" de un estudiante: ver su ficha, asignarle una simulación, imprimir sus notas, editar
+ * sus datos y eliminarlo. En la ficha (`enFicha`) no hay menú: queda el botón «Eliminar» a la
+ * vista (lo demás ya está a la vista) y, al eliminar, vuelve a la lista.
  */
 export function AccionesEstudiante({
   estudiante,
@@ -41,28 +41,43 @@ export function AccionesEstudiante({
   const [editando, setEditando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
 
+  if (enFicha) {
+    return (
+      <>
+        <Button variant="destructive" size="lg" onClick={() => setEliminando(true)}>
+          <Trash2 aria-hidden />
+          Eliminar
+        </Button>
+        <EliminarEstudiante
+          estudiante={estudiante}
+          abierto={eliminando}
+          onAbiertoCambia={setEliminando}
+          alEliminar={() => router.push('/estudiantes')}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
-            variant={enFicha ? 'outline' : 'ghost'}
-            size={enFicha ? 'icon-lg' : 'icon-sm'}
+            variant="ghost"
+            size="icon-sm"
             aria-label={`Más acciones para ${estudiante.nombre}`}
           >
             <MoreHorizontal aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {!enFicha && (
-            <DropdownMenuItem asChild>
-              <Link href={`/estudiantes/${estudiante.id}`}>
-                <Eye aria-hidden />
-                Ver ficha
-              </Link>
-            </DropdownMenuItem>
-          )}
-          {!enFicha && estudiante.cuentaVinculada && (
+          <DropdownMenuItem asChild>
+            <Link href={`/estudiantes/${estudiante.id}`}>
+              <Eye aria-hidden />
+              Ver ficha
+            </Link>
+          </DropdownMenuItem>
+          {estudiante.cuentaVinculada && (
             <DropdownMenuItem asChild>
               <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
                 <ArrowRight aria-hidden />
@@ -70,15 +85,17 @@ export function AccionesEstudiante({
               </Link>
             </DropdownMenuItem>
           )}
-          {!enFicha && (
-            <>
-              <DropdownMenuItem onSelect={() => setEditando(true)}>
-                {estudiante.correo ? <Pencil aria-hidden /> : <MailPlus aria-hidden />}
-                {estudiante.correo ? 'Editar datos' : 'Agregar correo'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
+          <DropdownMenuItem asChild>
+            <Link href={`/estudiantes/${estudiante.id}/notas`} target="_blank">
+              <Printer aria-hidden />
+              Imprimir notas
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setEditando(true)}>
+            {estudiante.correo ? <Pencil aria-hidden /> : <MailPlus aria-hidden />}
+            {estudiante.correo ? 'Editar datos' : 'Agregar correo'}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setEliminando(true)}>
             <Trash2 aria-hidden />
             Eliminar estudiante
@@ -96,7 +113,7 @@ export function AccionesEstudiante({
         estudiante={estudiante}
         abierto={eliminando}
         onAbiertoCambia={setEliminando}
-        alEliminar={() => (enFicha ? router.push('/estudiantes') : router.refresh())}
+        alEliminar={() => router.refresh()}
       />
     </>
   );
