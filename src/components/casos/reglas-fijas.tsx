@@ -15,7 +15,7 @@ export function ReglasFijas({ className }: { className?: string }) {
       className={cn('flex flex-col gap-3 rounded-2xl border bg-muted/40 p-5', className)}
     >
       <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-salvia-suave text-salvia-oscuro">
           <ShieldCheck className="size-5" aria-hidden />
         </span>
         <div className="leading-tight">
@@ -30,7 +30,7 @@ export function ReglasFijas({ className }: { className?: string }) {
       <ul className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
         {REGLAS_FIJAS.map(regla => (
           <li key={regla} className="flex gap-2.5">
-            <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary/60" />
+            <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-salvia" />
             {regla}
           </li>
         ))}

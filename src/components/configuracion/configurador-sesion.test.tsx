@@ -143,13 +143,15 @@ describe('ConfiguradorSesion', () => {
     const usuario = userEvent.setup();
     renderizar();
 
-    const casos = within(screen.getByRole('radiogroup', { name: /Elige el caso/ }));
+    const casos = within(screen.getByRole('radiogroup', { name: /\bCaso\b/ }));
     expect(casos.getAllByRole('radio')).toHaveLength(2);
     expect(screen.queryByLabelText('Comportamiento del paciente')).not.toBeInTheDocument();
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
 
     expect(screen.getByRole('heading', { name: 'Paciente E-01' })).toBeVisible();
+    // El comportamiento va plegado: se despliega con «Ajustar».
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(E01.npc.promptSistema);
 
     // Solo un escenario seleccionado a la vez.
@@ -163,7 +165,7 @@ describe('ConfiguradorSesion', () => {
     const usuario = userEvent.setup();
     renderizar([E01, E02], undefined, [ANA]);
 
-    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
     expect(await screen.findByText('Selecciona un escenario para continuar.')).toBeVisible();
     expect(screen.getByText('Elige al estudiante que va a practicar.')).toBeVisible();
@@ -188,7 +190,7 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
 
     await usuario.click(screen.getByRole('radio', { name: '3 días' }));
-    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
     expect(mockGenerar).toHaveBeenCalledWith({
       escenarioId: E01.id,
@@ -196,10 +198,10 @@ describe('ConfiguradorSesion', () => {
       estudianteId: ANA.id,
       vigenciaDias: 3,
     });
-    const dialogo = await screen.findByRole('dialog', { name: 'Código de acceso listo' });
+    const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
     expect(within(dialogo).getByText(/\/unirse\/abc-defg-hij$/)).toBeVisible();
-    expect(within(dialogo).getByRole('link', { name: /Ver al estudiante/ })).toHaveAttribute(
+    expect(within(dialogo).getByRole('link', { name: /Ver ficha de/ })).toHaveAttribute(
       'href',
       `/estudiantes/${ANA.id}`
     );
@@ -213,7 +215,7 @@ describe('ConfiguradorSesion', () => {
     renderizar([E01], E01.id, [ANA], ANA);
 
     expect(screen.getByRole('radio', { name: '7 días' })).toBeChecked();
-    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
     expect(mockGenerar).toHaveBeenCalledWith(expect.objectContaining({ vigenciaDias: 7 }));
   });
 
@@ -222,7 +224,7 @@ describe('ConfiguradorSesion', () => {
     const usuario = userEvent.setup();
     renderizar([E01], E01.id, [ANA], ANA);
 
-    await usuario.click(screen.getByRole('button', { name: /Generar código de acceso/ }));
+    await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No fue posible generar el código.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -235,6 +237,7 @@ describe('ConfiguradorSesion', () => {
     const duelo = screen.getByRole('radio', { name: /Duelo y pérdida/ });
     await usuario.click(duelo);
     expect(duelo).toBeChecked();
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
     expect(screen.getByLabelText('Comportamiento del paciente')).toBeVisible();
 
     await usuario.click(duelo);
@@ -250,7 +253,7 @@ describe('ConfiguradorSesion', () => {
   it('invita a crear un caso cuando "Mis casos" está vacío', () => {
     renderizar();
 
-    expect(screen.getByText(/Aún no tienes casos propios/)).toBeVisible();
+    expect(screen.getByText(/Aquí vivirán tus casos/)).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toHaveAttribute(
       'href',
@@ -262,7 +265,7 @@ describe('ConfiguradorSesion', () => {
     const usuario = userEvent.setup();
     renderizar([E01, PROPIO]);
 
-    expect(screen.queryByText(/Aún no tienes casos propios/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
     // Con casos, la creación es una tarjeta punteada junto a ellos.
     expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
       'href',
@@ -287,10 +290,12 @@ describe('ConfiguradorSesion', () => {
     ).toBeVisible();
   });
 
-  it('llega con un caso propio preseleccionado y su prompt cargado', () => {
+  it('llega con un caso propio preseleccionado y su prompt cargado', async () => {
+    const usuario = userEvent.setup();
     renderizar([E01, PROPIO], PROPIO.id);
 
     expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeChecked();
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(
       PROPIO.npc.promptSistema
     );
@@ -316,6 +321,7 @@ describe('ConfiguradorSesion', () => {
     renderizar();
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
     const prompt = screen.getByLabelText('Comportamiento del paciente');
     await usuario.clear(prompt);
     await usuario.type(prompt, 'Un prompt ajustado por el docente para el grupo A.');
@@ -339,7 +345,7 @@ describe('ConfiguradorSesion', () => {
       renderizar([E01, E02], undefined, [SIN_CUENTA]);
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-      expect(screen.getByText(/Aún no tienes estudiantes con cuenta/)).toBeVisible();
+      expect(screen.getByText(/Aún no tienes estudiantes\./)).toBeVisible();
       expect(screen.getByRole('button', { name: /Registrar estudiante/ })).toBeVisible();
     });
 

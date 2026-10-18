@@ -33,12 +33,14 @@ export function BotonCompartir({
   mensaje,
   correo,
   etiqueta = 'Compartir código',
+  size = 'default',
 }: {
   asunto: string;
   mensaje: string;
   /** Destinatario del correo, si se conoce. */
   correo?: string | null;
   etiqueta?: string;
+  size?: 'default' | 'sm';
 }) {
   const nativo = usePuedeCompartirNativo();
   const texto = encodeURIComponent(mensaje);
@@ -74,7 +76,7 @@ export function BotonCompartir({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button type="button" variant="outline" size={size}>
           <Share2 aria-hidden />
           {etiqueta}
           <ChevronDown className="opacity-60" aria-hidden />

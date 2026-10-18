@@ -13,7 +13,7 @@ export function BotonNuevoDocente() {
     <DialogoDocente
       onGuardado={() => router.refresh()}
       disparador={
-        <Button size="lg">
+        <Button size="lg" variant="accion">
           <UserPlus aria-hidden />
           Nuevo docente
         </Button>

@@ -27,7 +27,7 @@ export default async function EditarCasoPage({ params }: PageProps<'/configuraci
       <EncabezadoCaso
         sobretitulo="Mis casos"
         titulo={`Editar «${caso.titulo}»`}
-        descripcion="Los cambios aplican a las sesiones nuevas. Las sesiones ya realizadas conservan el prompt que usaron."
+        descripcion="Los cambios valen para las prácticas que asignes desde ahora. Las ya asignadas conservan su copia del caso."
       />
       <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />
     </div>

@@ -35,11 +35,11 @@ export function ListaDocentes({
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <h2 id={`${id}-titulo`} className="text-xl font-semibold tracking-tight">
+        <h2 id={`${id}-titulo`} className="text-xl font-bold tracking-[-0.015em]">
           Cuentas
         </h2>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto">
-          <div role="group" aria-label="Filtrar por estado" className="flex gap-1.5">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto">
+          <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap gap-1.5">
             {FILTROS.map(filtro => (
               <button
                 key={filtro.valor}
@@ -47,9 +47,9 @@ export function ListaDocentes({
                 aria-pressed={estado === filtro.valor}
                 onClick={() => setEstado(filtro.valor)}
                 className={cn(
-                  'h-8 rounded-full border px-3 text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                  'h-9 rounded-full border px-3.5 text-sm outline-hidden transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   estado === filtro.valor
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-nogal bg-nogal font-semibold text-lino'
                     : 'bg-card hover:bg-muted'
                 )}
               >
@@ -78,10 +78,12 @@ export function ListaDocentes({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border bg-card shadow-xs">
+      {/* `relative`: el texto solo para lectores de pantalla (sr-only, absoluto) queda dentro del
+          contenedor con scroll y no ensancha la página en móvil. */}
+      <div className="relative overflow-x-auto rounded-xl border bg-card">
         <table className="w-full text-sm">
           <caption className="sr-only">Docentes y administradores de PsySim</caption>
-          <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+          <thead className="border-b bg-muted/50 text-left text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase ancho-condensado">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Cuenta
@@ -119,7 +121,7 @@ export function ListaDocentes({
                         className={cn(
                           'flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
                           docente.activo
-                            ? 'bg-primary/10 text-primary'
+                            ? 'bg-salvia-suave text-salvia-oscuro'
                             : 'bg-muted text-muted-foreground'
                         )}
                       >
@@ -134,7 +136,7 @@ export function ListaDocentes({
                             {docente.nombre}
                           </Link>
                           {docente.rol === 'superadmin' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro">
                               <ShieldCheck className="size-3" aria-hidden />
                               Administrador
                             </span>

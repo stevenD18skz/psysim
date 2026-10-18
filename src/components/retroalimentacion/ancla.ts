@@ -28,9 +28,11 @@ export function anclaDeMarca(anotacionId: string, contexto?: Element | null): An
 
 /** Lleva un subrayado al centro de la pantalla. */
 export function irAMarca(anotacionId: string) {
-  document
-    .getElementById(`marca-${anotacionId}`)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById(`marca-${anotacionId}`)?.scrollIntoView({
+    // Con «reducir movimiento», el salto es directo.
+    behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'center',
+  });
 }
 
 /** Marca los elementos que abren el globo de una anotación (subrayados y lista de comentarios). */

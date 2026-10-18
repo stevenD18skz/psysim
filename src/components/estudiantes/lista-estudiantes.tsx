@@ -11,12 +11,7 @@ import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  contarSesiones,
-  filtrarEstudiantes,
-  formatearDia,
-  formatearNota,
-} from '@/lib/estudiantes/estudiantes';
+import { filtrarEstudiantes, formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { type EstudianteRegistrado } from '@/types';
 
 /** Tabla de estudiantes con búsqueda por código o nombre. */
@@ -68,27 +63,27 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border bg-card shadow-xs">
+      <div className="relative overflow-x-auto rounded-xl border bg-card">
         <table className="w-full text-sm">
           <caption className="sr-only">
-            Estudiantes registrados con sus sesiones y retroalimentación
+            Estudiantes registrados con sus prácticas y retroalimentación
           </caption>
-          <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+          <thead className="border-b bg-muted/50 text-left text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase ancho-condensado">
             <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
+              <th scope="col" className="px-4 py-3 font-semibold">
                 Estudiante
               </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Sesiones
+              <th scope="col" className="px-4 py-3 font-semibold">
+                Prácticas
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-medium md:table-cell">
+              <th scope="col" className="hidden px-4 py-3 font-semibold md:table-cell">
                 Retroalimentación
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-medium lg:table-cell">
+              <th scope="col" className="hidden px-4 py-3 font-semibold lg:table-cell">
                 Nota promedio
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-medium sm:table-cell">
-                Última sesión
+              <th scope="col" className="hidden px-4 py-3 font-semibold sm:table-cell">
+                Última práctica
               </th>
               <th scope="col" className="px-4 py-3">
                 <span className="sr-only">Acciones</span>
@@ -117,7 +112,7 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                     {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
                     <Link
                       href={ficha}
-                      className="block rounded-sm font-medium outline-none group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                      className="block rounded-sm font-medium outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {nombre}
                     </Link>
@@ -127,11 +122,22 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
                     </span>
                   </th>
                   <td className="px-4 py-3 tabular-nums">
-                    {contarSesiones(metricas.sesiones)}
+                    {metricas.sesiones === 1 ? '1 práctica' : `${metricas.sesiones} prácticas`}
                     {metricas.enCurso > 0 && (
                       <InsigniaEstado
                         className="mt-1"
-                        estado={{ texto: 'En progreso', tono: 'en-curso' }}
+                        estado={{ texto: 'Practicando ahora', tono: 'en-curso' }}
+                      />
+                    )}
+                    {/* En pantallas pequeñas la columna de retroalimentación no cabe: lo pendiente
+                        se muestra aquí. */}
+                    {metricas.pendientesRetroalimentacion > 0 && (
+                      <InsigniaEstado
+                        className="mt-1 md:hidden"
+                        estado={{
+                          texto: `${metricas.pendientesRetroalimentacion} por revisar`,
+                          tono: 'pendiente',
+                        }}
                       />
                     )}
                     {metricas.codigosPendientes > 0 && (

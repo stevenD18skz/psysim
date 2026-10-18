@@ -2,16 +2,16 @@
 
 import {
   ChevronsUpDown,
-  ClipboardPlus,
-  FilePlus2,
-  GraduationCap,
+  ClipboardList,
   FlaskConical,
   Globe,
+  House,
   KeyRound,
+  Library,
   Loader2,
   LogOut,
   type LucideIcon,
-  MonitorPlay,
+  MessageSquareText,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -23,7 +23,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 import { DialogoCambiarContrasena } from '@/components/layout/dialogo-cambiar-contrasena';
-import { LogoUnivalle } from '@/components/layout/logo-univalle';
+import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import {
   DropdownMenu,
@@ -55,120 +55,49 @@ import { useAppStore } from '@/store/app-store-provider';
 interface Enlace {
   href: Route;
   etiqueta: string;
-  descripcion: string;
   icono: LucideIcon;
+  /** Prefijos de ruta que también marcan el enlace como activo. */
+  incluye?: string[];
+  /** `true` si solo coincide con su propia ruta (no con sus subrutas). */
+  exacto?: boolean;
 }
 
-const ENLACE_NUEVA_SESION: Enlace = {
-  href: '/configuracion',
-  etiqueta: 'Nueva sesión',
-  descripcion: 'Caso, paciente y código de acceso',
-  icono: ClipboardPlus,
-};
-
-const ENLACE_SESION_EN_CURSO: Enlace = {
-  href: '/simulacion',
-  etiqueta: 'Sesión en curso',
-  descripcion: 'En curso · retomar',
-  icono: MonitorPlay,
-};
-
-const ENLACE_NUEVO_CASO: Enlace = {
-  href: '/configuracion/casos/nuevo',
-  etiqueta: 'Nuevo caso',
-  descripcion: 'Constructor guiado de pacientes',
-  icono: FilePlus2,
-};
-
-const ENLACE_ESTUDIANTES: Enlace = {
-  href: '/estudiantes',
-  etiqueta: 'Estudiantes',
-  descripcion: 'Sesiones y retroalimentación',
-  icono: UsersRound,
-};
-
-const ENLACE_PRACTICAS: Enlace = {
-  href: '/practicas',
-  etiqueta: 'Mis prácticas',
-  descripcion: 'Código de acceso e historial',
-  icono: GraduationCap,
-};
-
-const ENLACE_DOCENTES: Enlace = {
-  href: '/admin',
-  etiqueta: 'Docentes',
-  descripcion: 'Cuentas y actividad',
-  icono: ShieldCheck,
-};
-
-const ENLACE_LABORATORIO: Enlace = {
-  href: '/laboratorio',
-  etiqueta: 'Laboratorio',
-  descripcion: 'Prototipos en prueba',
-  icono: FlaskConical,
-};
-
-interface Seccion {
-  titulo: string;
-  enlaces: Enlace[];
-}
-
-const SECCIONES_DOCENTE: Seccion[] = [
-  { titulo: 'Simulación', enlaces: [ENLACE_NUEVA_SESION, ENLACE_NUEVO_CASO] },
-  { titulo: 'Seguimiento', enlaces: [ENLACE_ESTUDIANTES] },
+const ENLACES_TRABAJO: Enlace[] = [
+  { href: '/inicio', etiqueta: 'Inicio', icono: House, exacto: true },
+  { href: '/configuracion', etiqueta: 'Asignar práctica', icono: ClipboardList, exacto: true },
+  { href: '/sesiones', etiqueta: 'Revisiones', icono: MessageSquareText },
+  { href: '/estudiantes', etiqueta: 'Estudiantes', icono: UsersRound },
+  { href: '/configuracion/casos', etiqueta: 'Casos', icono: Library },
 ];
 
-/** El Administrador trabaja como docente y, además, gestiona la plataforma. */
-const SECCIONES_ADMIN: Seccion[] = [
-  ...SECCIONES_DOCENTE,
-  { titulo: 'Administración', enlaces: [ENLACE_DOCENTES, ENLACE_LABORATORIO] },
-];
+const ENLACES_ADMIN: Enlace[] = [{ href: '/admin', etiqueta: 'Docentes', icono: ShieldCheck }];
 
-/**
- * ¿La ruta actual pertenece al enlace? `/configuracion` solo coincide con su propia página, no
- * con `/configuracion/casos/…`, que tiene su enlace aparte.
- */
-function estaActivo(pathname: string, href: string) {
-  if (pathname === href) return true;
-  if (href === '/configuracion') return false;
-  return pathname.startsWith(`${href}/`);
+function estaActivo(pathname: string, enlace: Enlace) {
+  if (pathname === enlace.href) return true;
+  if (enlace.exacto) return false;
+  return [enlace.href, ...(enlace.incluye ?? [])].some(p => pathname.startsWith(`${p}/`));
 }
 
 /**
- * Menú lateral de los paneles del docente y del estudiante (HU-22 · T02/T03).
+ * Menú lateral del docente y del Administrador: el armazón de nogal del consultorio.
  *
- * - Cabecera con el logo de la Universidad del Valle y el botón para contraer el menú.
- * - Enlaces según el rol, con estado activo claro. El estudiante ve "Sesión en curso" solo si
- *   tiene una que retomar; el Administrador ve además la sección "Administración".
- * - Al pie, el usuario: su menú agrupa la cuenta, el cambio de contraseña y el cierre de sesión,
- *   así no se sale por accidente con un clic.
+ * - Cabecera con la marca de PsySim y el botón para contraer el menú (Ctrl/⌘ + B).
+ * - «Trabajo»: la bandeja de inicio, asignar, revisar (con lo pendiente contado), estudiantes y
+ *   casos. El Administrador ve además «Administración».
+ * - Al pie, la cuenta: agrupa el cambio de contraseña, las herramientas de desarrollo (solo el
+ *   Administrador) y el cierre de sesión, así no se sale por accidente con un clic.
  * - Contraído queda una columna de íconos con tooltips; en móvil es un panel deslizable.
  */
-export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) {
+export function AppSidebar({ porRevisar }: { porRevisar: number }) {
   const pathname = usePathname();
   const perfil = useAppStore(state => state.auth.perfil);
-  // La sesión activa del store cubre el caso de venir de /simulacion sin recargar.
-  const hayActiva = useAppStore(state => state.sesion.activa !== null);
   const { salir, cerrando } = useCerrarSesion();
   const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
   const contraido = state === 'collapsed' && !isMobile;
   const [cambiandoContrasena, setCambiandoContrasena] = useState(false);
 
   const rol = perfil?.rol ?? 'docente';
-  const secciones: Seccion[] =
-    rol === 'estudiante'
-      ? [
-          {
-            titulo: 'Práctica',
-            enlaces:
-              sesionEnCurso || hayActiva
-                ? [ENLACE_PRACTICAS, ENLACE_SESION_EN_CURSO]
-                : [ENLACE_PRACTICAS],
-          },
-        ]
-      : rol === 'superadmin'
-        ? SECCIONES_ADMIN
-        : SECCIONES_DOCENTE;
+  const esAdmin = rol === 'superadmin';
   const etiquetaRol = ETIQUETA_ROL[rol];
 
   // En móvil el menú es un panel superpuesto: se cierra al navegar.
@@ -177,22 +106,22 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
   };
 
   return (
-    <Sidebar collapsible="icon">
-      {/* Filete con el rojo institucional de la Universidad del Valle. */}
-      <div aria-hidden className="h-1 shrink-0 bg-marca" />
-
-      <SidebarHeader className="px-3 pt-4 pb-3 group-data-[collapsible=icon]:px-2">
+    <Sidebar collapsible="icon" className="border-r-0">
+      <SidebarHeader className="px-3 pt-5 pb-4 group-data-[collapsible=icon]:px-2">
         {contraido ? (
-          // Contraído, el logo es el botón de expandir: al pasar el ratón (o con el foco) se
+          // Contraído, la marca es el botón de expandir: al pasar el ratón (o con el foco) se
           // convierte en el ícono del panel.
           <button
             type="button"
             onClick={toggleSidebar}
             aria-label="Expandir menú"
             title="Expandir menú (Ctrl + B)"
-            className="group/expandir relative mx-auto flex size-11 items-center justify-center rounded-lg text-sidebar-foreground/75 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            className="group/expandir relative mx-auto flex size-11 items-center justify-center rounded-lg text-sidebar-foreground outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <LogoUnivalle className="h-11 transition-opacity duration-150 group-hover/expandir:opacity-0 group-focus-visible/expandir:opacity-0" />
+            <MarcaPsySim
+              soloSimbolo
+              className="size-7 transition-opacity duration-150 group-hover/expandir:opacity-0 group-focus-visible/expandir:opacity-0"
+            />
             <PanelLeftOpen
               className="absolute size-5 opacity-0 transition-opacity duration-150 group-hover/expandir:opacity-100 group-focus-visible/expandir:opacity-100"
               aria-hidden
@@ -203,15 +132,9 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
             <Link
               href={RUTA_INICIO[rol]}
               onClick={alNavegar}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              className="flex min-w-0 flex-1 items-center rounded-lg px-1 py-0.5 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
-              <LogoUnivalle className="h-11" />
-              <span className="grid min-w-0 leading-tight">
-                <span className="font-heading text-xl font-semibold tracking-tight">PsySim</span>
-                <span className="truncate text-xs text-sidebar-foreground/65">
-                  Simulador clínico · Psicología
-                </span>
-              </span>
+              <MarcaPsySim className="h-8 text-sidebar-foreground" />
             </Link>
             {!isMobile && (
               <button
@@ -219,7 +142,7 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
                 onClick={toggleSidebar}
                 aria-label="Contraer menú"
                 title="Contraer menú (Ctrl + B)"
-                className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/65 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-muted outline-hidden transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
               >
                 <PanelLeftClose className="size-4" aria-hidden />
               </button>
@@ -228,35 +151,32 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
         )}
       </SidebarHeader>
 
-      <SidebarContent className="gap-1 px-1">
+      <SidebarContent className="gap-2 px-1">
         <nav aria-label="Navegación principal" className="contents">
-          {secciones.map((seccion, indice) => (
-            <SidebarGroup key={seccion.titulo}>
-              {/* Contraído no hay etiquetas: una línea fina separa las secciones. */}
-              {indice > 0 && (
-                <div
-                  aria-hidden
-                  className="mx-auto mb-1 hidden h-px w-8 bg-sidebar-border group-data-[collapsible=icon]:block"
+          <SeccionMenu titulo="Trabajo">
+            {ENLACES_TRABAJO.map(enlace => (
+              <ElementoMenu
+                key={enlace.href}
+                enlace={enlace}
+                activo={estaActivo(pathname, enlace)}
+                contador={enlace.href === '/sesiones' ? porRevisar : 0}
+                onNavegar={alNavegar}
+              />
+            ))}
+          </SeccionMenu>
+          {esAdmin && (
+            <SeccionMenu titulo="Administración" separada>
+              {ENLACES_ADMIN.map(enlace => (
+                <ElementoMenu
+                  key={enlace.href}
+                  enlace={enlace}
+                  activo={estaActivo(pathname, enlace)}
+                  contador={0}
+                  onNavegar={alNavegar}
                 />
-              )}
-              <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] text-sidebar-foreground/55 uppercase">
-                {seccion.titulo}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {seccion.enlaces.map(enlace => (
-                    <ElementoMenu
-                      key={enlace.href}
-                      enlace={enlace}
-                      activo={estaActivo(pathname, enlace.href)}
-                      enCurso={enlace === ENLACE_SESION_EN_CURSO}
-                      onNavegar={alNavegar}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
+              ))}
+            </SeccionMenu>
+          )}
         </nav>
       </SidebarContent>
 
@@ -270,22 +190,20 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
                     size="lg"
                     tooltip={perfil.nombre}
                     aria-label={`Cuenta de ${perfil.nombre}`}
-                    className="h-14 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[state=open]:bg-sidebar-accent"
+                    className="h-14 text-sidebar-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
                   >
                     <span
                       aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground ring-2 ring-sidebar"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
                     >
                       {iniciales(perfil.nombre)}
                     </span>
                     <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                       <span className="truncate font-medium">{perfil.nombre}</span>
-                      <span className="truncate text-xs text-sidebar-foreground/65">
-                        {etiquetaRol}
-                      </span>
+                      <span className="truncate text-xs text-sidebar-muted">{etiquetaRol}</span>
                     </span>
                     <ChevronsUpDown
-                      className="ml-auto text-sidebar-foreground/65 group-data-[collapsible=icon]:hidden"
+                      className="ml-auto text-sidebar-muted group-data-[collapsible=icon]:hidden"
                       aria-hidden
                     />
                   </SidebarMenuButton>
@@ -307,13 +225,21 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
                   <DropdownMenuItem asChild>
                     <Link href="/" onClick={alNavegar}>
                       <Globe aria-hidden />
-                      Ir a la página de inicio
+                      Ir a la página pública
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setCambiandoContrasena(true)}>
                     <KeyRound aria-hidden />
                     Cambiar contraseña
                   </DropdownMenuItem>
+                  {esAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/laboratorio" onClick={alNavegar}>
+                        <FlaskConical aria-hidden />
+                        Herramientas de desarrollo
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
@@ -346,60 +272,82 @@ export function AppSidebar({ sesionEnCurso }: { sesionEnCurso: string | null }) 
   );
 }
 
+function SeccionMenu({
+  titulo,
+  separada = false,
+  children,
+}: {
+  titulo: string;
+  separada?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <SidebarGroup>
+      {/* Contraído no hay etiquetas: una línea fina separa las secciones. */}
+      {separada && (
+        <div
+          aria-hidden
+          className="mx-auto mb-1 hidden h-px w-8 bg-sidebar-border group-data-[collapsible=icon]:block"
+        />
+      )}
+      <SidebarGroupLabel className="text-xs font-semibold tracking-[0.12em] text-sidebar-muted uppercase ancho-condensado">
+        {titulo}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-0.5">{children}</SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 function ElementoMenu({
   enlace,
   activo,
-  enCurso,
+  contador,
   onNavegar,
 }: {
   enlace: Enlace;
   activo: boolean;
-  enCurso: boolean;
+  contador: number;
   onNavegar: () => void;
 }) {
-  const { href, etiqueta, descripcion, icono: Icono } = enlace;
+  const { href, etiqueta, icono: Icono } = enlace;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
         size="lg"
         isActive={activo}
-        tooltip={etiqueta}
+        tooltip={contador > 0 ? `${etiqueta} · ${contador} por revisar` : etiqueta}
         className={cn(
-          'relative h-12 gap-3 px-2 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0',
-          'data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground',
-          // Barra roja a la izquierda del elemento activo.
-          'before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-full before:bg-sidebar-primary before:opacity-0 data-active:before:opacity-100'
+          'relative h-11 gap-3 px-2.5 text-[0.95rem] text-sidebar-foreground/90 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0',
+          'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+          'data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-accent-foreground'
         )}
       >
         <Link href={href} aria-current={activo ? 'page' : undefined} onClick={onNavegar}>
-          <span
-            className={cn(
-              'relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors',
-              activo
-                ? 'bg-sidebar-primary text-white'
-                : 'bg-foreground/6 text-sidebar-foreground/80'
-            )}
-          >
-            <Icono className="size-[17px]!" aria-hidden />
-            {enCurso && (
+          <span className="relative flex size-6 shrink-0 items-center justify-center">
+            <Icono
+              className={cn('size-[18px]!', activo ? 'text-laton' : 'text-sidebar-muted')}
+              aria-hidden
+            />
+            {/* Contraído, lo pendiente se ve como un punto de latón sobre el ícono. */}
+            {contador > 0 && (
               <span
                 aria-hidden
-                className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-success ring-2 ring-sidebar"
+                className="absolute -top-0.5 -right-1 hidden size-2.5 rounded-full bg-salvia-suave ring-2 ring-sidebar group-data-[collapsible=icon]:block"
               />
             )}
           </span>
-          <span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate">{etiqueta}</span>
-            <span
-              className={cn(
-                'truncate text-xs font-normal',
-                activo ? 'text-sidebar-foreground/75' : 'text-sidebar-foreground/55'
-              )}
-            >
-              {descripcion}
-            </span>
+          <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:sr-only">
+            {etiqueta}
           </span>
+          {contador > 0 && (
+            <span className="ml-auto rounded-full bg-salvia-suave px-2 py-0.5 text-xs font-semibold text-salvia-oscuro tabular-nums group-data-[collapsible=icon]:sr-only">
+              {contador}
+              <span className="sr-only"> por revisar</span>
+            </span>
+          )}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

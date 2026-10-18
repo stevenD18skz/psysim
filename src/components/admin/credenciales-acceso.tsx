@@ -30,13 +30,11 @@ export function CredencialesAcceso({
     <div className="flex flex-col gap-4">
       <dl className="flex flex-col gap-3 rounded-xl border bg-muted/40 p-4">
         <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Correo
-          </dt>
+          <dt className="text-sm text-muted-foreground">Correo</dt>
           <dd className="font-medium break-all">{correo}</dd>
         </div>
         <div className="flex flex-col gap-1.5">
-          <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <KeyRound className="size-3.5" aria-hidden />
             Contraseña temporal
           </dt>

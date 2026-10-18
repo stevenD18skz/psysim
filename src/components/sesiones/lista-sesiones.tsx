@@ -1,7 +1,8 @@
-import { ArrowRight, Clock, MessageSquareText } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
+import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
@@ -16,20 +17,22 @@ interface ListaSesionesProps {
   vacio: React.ReactNode;
 }
 
-/** Historial de sesiones con su estado (en progreso, por revisar, retroalimentación lista). */
+/** Historial de prácticas como registro: caso, estado, fecha, duración y nota publicada. */
 export function ListaSesiones({ sesiones, para, enlace, vacio }: ListaSesionesProps) {
   if (sesiones.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
         {vacio}
       </p>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
       {sesiones.map(sesion => {
-        const estado = estadoVisibleSesion(sesion, para);
+        const estado = estadoVisibleSesion(sesion, para, {
+          ultimaActividad: sesion.ultimaActividad,
+        });
         const duracion = duracionSesion(sesion);
         const enCurso = sesion.estado === 'en_curso';
         const accion =
@@ -41,53 +44,57 @@ export function ListaSesiones({ sesiones, para, enlace, vacio }: ListaSesionesPr
                 : 'Revisar'
             : enCurso
               ? 'Continuar'
-              : 'Ver detalle';
+              : 'Ver';
 
         return (
           <li
             key={sesion.id}
             data-testid={`sesion-${sesion.id}`}
-            className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:flex-row sm:items-center"
+            className="group relative flex flex-col gap-2 px-4 py-3.5 hover:bg-muted/60 sm:flex-row sm:items-center sm:gap-4"
           >
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium">
-                  {sesion.escenario.codigo}
-                </span>
-                <h3 className="truncate font-medium">{sesion.escenario.titulo}</h3>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <CodigoCaso
+                  codigo={sesion.escenario.codigo}
+                  className="font-mono text-xs font-medium text-muted-foreground"
+                />
+                <span className="truncate font-semibold">{sesion.escenario.titulo}</span>
                 <InsigniaEstado estado={estado} />
-              </div>
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              </p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
                 <span>{formatearFechaHora(sesion.inicio)}</span>
                 {duracion !== null && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="size-3" aria-hidden />
-                    {formatearDuracion(duracion)}
-                  </span>
+                  <>
+                    <span aria-hidden>·</span>
+                    <span className="tabular-nums">{formatearDuracion(duracion)}</span>
+                  </>
                 )}
                 {para === 'estudiante' && sesion.docente && (
-                  <span className="flex items-center gap-1">
-                    <MessageSquareText className="size-3" aria-hidden />
-                    {sesion.docente}
-                  </span>
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>Docente: {sesion.docente}</span>
+                  </>
                 )}
               </p>
             </div>
             {sesion.retroalimentacion?.publicada && (
-              <p className="flex items-baseline gap-1 sm:flex-col sm:items-end sm:gap-0">
+              <p className="flex items-baseline gap-1.5 sm:flex-col sm:items-end sm:gap-0">
                 <span className="text-xs text-muted-foreground">Nota</span>
-                <span className="font-heading text-2xl font-semibold tabular-nums">
+                <span className="text-xl font-semibold ancho-semiexpandido tabular-nums">
                   {formatearNota(sesion.retroalimentacion.nota)}
                 </span>
               </p>
             )}
             <Link
               href={enlace(sesion)}
-              className="inline-flex items-center gap-1 self-start rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:self-center"
+              className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
             >
               {accion}
               <span className="sr-only">: {sesion.escenario.titulo}</span>
-              <ArrowRight className="size-4" aria-hidden />
+              <ArrowRight
+                className="size-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </Link>
           </li>
         );

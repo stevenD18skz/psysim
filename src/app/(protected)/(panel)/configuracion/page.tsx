@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { ConfiguradorSesion } from '@/components/configuracion/configurador-sesion';
 import { requerirDocente } from '@/lib/auth/dal';
 import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
@@ -7,36 +8,30 @@ import { buscarPorCodigo } from '@/lib/estudiantes/estudiantes';
 import { obtenerEstudiantes } from '@/lib/estudiantes/queries';
 
 export const metadata: Metadata = {
-  title: 'Configuración',
+  title: 'Asignar práctica',
 };
 
 export default async function ConfiguracionPage({ searchParams }: PageProps<'/configuracion'>) {
-  const perfil = await requerirDocente();
+  await requerirDocente();
   const [escenarios, estudiantes, { caso, estudiante }] = await Promise.all([
     obtenerCatalogoEscenarios(),
     obtenerEstudiantes(),
     searchParams,
   ]);
-  // `?estudiante=<código>` llega desde la página de estudiantes ("Nueva sesión").
+  // `?estudiante=<código>` llega desde la ficha o la lista de estudiantes ("Asignar práctica").
   const estudianteInicial =
     typeof estudiante === 'string' ? (buscarPorCodigo(estudiantes, estudiante) ?? null) : null;
 
-  const primerNombre = perfil.nombre.split(' ')[0];
-
   return (
-    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-sm font-medium tracking-wide text-primary uppercase">Nueva sesión</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Prepara la simulación</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Hola, {primerNombre}. Elige un escenario o un caso tuyo, ajusta al paciente virtual y
-          genera un código de acceso para el estudiante: lo hará desde su equipo, con su cuenta.
-        </p>
-      </header>
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <EncabezadoPagina
+        titulo="Asignar práctica"
+        descripcion="Elige el caso y a quién se lo asignas. Te damos un código de un solo uso para que practique desde su computador."
+      />
 
       {escenarios.length === 0 ? (
-        <p className="rounded-2xl border border-dashed p-8 text-center text-muted-foreground">
-          No hay escenarios activos por ahora. Contacta al administrador de la plataforma.
+        <p className="rounded-xl border border-dashed border-input/50 p-8 text-center text-muted-foreground">
+          No hay casos disponibles por ahora. Crea uno propio o avisa al administrador.
         </p>
       ) : (
         <ConfiguradorSesion

@@ -114,9 +114,9 @@ const MENSAJE_CODIGO_INVALIDO =
 /** Mensajes para el estudiante según lo que responde `canjear_codigo`. */
 const MENSAJES_CANJE: Partial<Record<string, string>> = {
   invalido: MENSAJE_CODIGO_INVALIDO,
-  vencido: 'Ese código ya venció. Pídele a tu docente que genere uno nuevo.',
-  anulado: 'Tu docente anuló ese código. Pídele uno nuevo si aún debes practicar.',
-  usado: 'Ya usaste ese código: la simulación terminó. Puedes revisarla en Mis prácticas.',
+  vencido: 'Ese código ya venció. Pídele uno nuevo a tu docente.',
+  anulado: 'Tu docente anuló ese código. Si aún debes hacer la práctica, pídele uno nuevo.',
+  usado: 'Ese código ya se usó y la práctica terminó. La encuentras en Mis prácticas.',
 };
 
 /**
@@ -137,7 +137,10 @@ export async function canjearCodigo(valores: unknown): Promise<{ error: string }
 
   if (error || !fila) {
     if (error) log.error('asignacion.canje_fallido', { codigo: error.code });
-    return { error: 'No fue posible validar el código. Inténtalo de nuevo.' };
+    return {
+      error:
+        'No pudimos comprobar el código. No se ha usado: revisa tu conexión e inténtalo de nuevo.',
+    };
   }
   if (fila.resultado !== 'ok' || !fila.sesion_id) {
     return { error: MENSAJES_CANJE[fila.resultado] ?? MENSAJE_CODIGO_INVALIDO };

@@ -1,6 +1,7 @@
-import { ClipboardCheck, MonitorPlay, Radio, UsersRound } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
 import { ListaEstudiantes } from '@/components/estudiantes/lista-estudiantes';
@@ -12,9 +13,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Gestión de estudiantes del docente: los registra con su correo institucional (así entran con
- * Google), les asigna simulaciones con un código de acceso y ve qué sesiones están en progreso o
- * esperan su retroalimentación.
+ * Estudiantes del docente: los registra con su correo institucional (así entran con Google), les
+ * asigna prácticas y ve quién practica ahora y qué espera su retroalimentación.
  */
 export default async function EstudiantesPage() {
   await requerirDocente();
@@ -29,44 +29,38 @@ export default async function EstudiantesPage() {
     { sesiones: 0, enCurso: 0, pendientes: 0 }
   );
 
-  const indicadores = [
-    { icono: UsersRound, etiqueta: 'Estudiantes', valor: estudiantes.length },
-    { icono: Radio, etiqueta: 'En progreso ahora', valor: totales.enCurso },
-    { icono: ClipboardCheck, etiqueta: 'Por revisar', valor: totales.pendientes },
-    { icono: MonitorPlay, etiqueta: 'Total de sesiones', valor: totales.sesiones },
-  ];
-
   return (
-    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-1 flex-col gap-2">
-          <p className="text-sm font-medium tracking-wide text-primary uppercase">Seguimiento</p>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Estudiantes</h1>
-          <p className="max-w-2xl text-muted-foreground">
-            Registra a tus estudiantes con su correo institucional, asígnales simulaciones con un
-            código de acceso y revisa sus sesiones para darles retroalimentación.
-          </p>
-        </div>
-        {estudiantes.length > 0 && <BotonRegistrarEstudiante />}
-      </header>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <EncabezadoPagina
+        titulo="Estudiantes"
+        descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con «Continuar con Google»."
+        acciones={estudiantes.length > 0 ? <BotonRegistrarEstudiante /> : undefined}
+      />
 
       {estudiantes.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed p-10 text-center">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-input/50 p-10 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
             <UsersRound className="size-6" aria-hidden />
           </span>
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-semibold">Aún no hay estudiantes registrados</h2>
+            <h2 className="text-xl font-bold">Aún no tienes estudiantes</h2>
             <p className="max-w-md text-sm text-muted-foreground">
-              Regístralos con su código, nombre y correo @correounivalle.edu.co. Entrarán con
-              «Continuar con Google» y podrás enviarles códigos de acceso.
+              Regístralos con su código, nombre y correo @correounivalle.edu.co. Después podrás
+              asignarles prácticas.
             </p>
           </div>
           <BotonRegistrarEstudiante />
         </div>
       ) : (
         <>
-          <Indicadores indicadores={indicadores} />
+          <Indicadores
+            indicadores={[
+              { etiqueta: 'Estudiantes', valor: estudiantes.length },
+              { etiqueta: 'Practicando ahora', valor: totales.enCurso },
+              { etiqueta: 'Por revisar', valor: totales.pendientes },
+              { etiqueta: 'Prácticas', valor: totales.sesiones },
+            ]}
+          />
           <ListaEstudiantes estudiantes={estudiantes} />
         </>
       )}

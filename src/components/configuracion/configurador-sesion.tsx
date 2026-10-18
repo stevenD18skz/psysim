@@ -41,7 +41,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { textoDias } from '@/lib/asignaciones/codigo';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
-import { contarSesiones } from '@/lib/estudiantes/estudiantes';
+import { formatearDia } from '@/lib/estudiantes/estudiantes';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import {
@@ -70,10 +70,9 @@ interface ConfiguradorSesionProps {
  * HU-06 y HU-07 — Pantalla de preparación de la simulación.
  *
  * 1. El docente elige un caso: uno predefinido o uno de "Mis casos" (un solo caso a la vez).
- * 2. Revisa el perfil del paciente virtual y ajusta su comportamiento (prompt del sistema).
- * 3. Asigna la simulación a uno de sus estudiantes y elige la vigencia del código. Al generar
- *    el código se lo envía; el estudiante la hace desde su propio equipo. También puede guardar
- *    el ajuste como caso propio.
+ * 2. Revisa el perfil del paciente y, si quiere, ajusta su comportamiento (plegado por defecto).
+ * 3. Elige al estudiante y la vigencia del código. Al generar el código se lo envía; el estudiante
+ *    practica desde su propio computador. También puede guardar el ajuste como caso propio.
  */
 export function ConfiguradorSesion({
   escenarios,
@@ -93,6 +92,10 @@ export function ConfiguradorSesion({
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
+  /** El comportamiento del paciente va plegado hasta que el docente decide ajustarlo. */
+  const [ajustando, setAjustando] = useState(false);
+  /** Momento de referencia para mostrar cuándo vencerá el código (se fija al abrir la página). */
+  const [ahora] = useState(() => Date.now());
   const [generando, startTransition] = useTransition();
 
   const {
@@ -218,9 +221,9 @@ export function ConfiguradorSesion({
         <Paso
           numero={1}
           id="paso-escenario-titulo"
-          titulo="Elige el caso"
+          titulo="Caso"
           estado={estadoPaso1}
-          descripcion="Usa uno de los escenarios predefinidos o uno de tus propios casos. Pulsa de nuevo el caso elegido para quitar la selección."
+          descripcion="Un escenario predefinido o uno de tus casos. Pulsa de nuevo el caso elegido para quitar la selección."
         >
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
@@ -235,7 +238,7 @@ export function ConfiguradorSesion({
             className="flex flex-col gap-8"
           >
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+              <h3 className="text-sm font-semibold text-muted-foreground">
                 Escenarios predefinidos
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -254,9 +257,7 @@ export function ConfiguradorSesion({
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                Mis casos
-              </h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">Mis casos</h3>
               {propios.length === 0 ? (
                 <EstadoVacioMisCasos />
               ) : (
@@ -291,12 +292,12 @@ export function ConfiguradorSesion({
           numero={2}
           id="paso-paciente-titulo"
           seccionId="paso-paciente"
-          titulo="Ajusta al paciente virtual"
+          titulo="Comportamiento del paciente (opcional)"
           estado={estadoPaso2}
-          descripcion="Revisa su perfil y, si lo necesitas, adapta cómo debe comportarse en esta sesión."
+          descripcion="Revisa su perfil. Si lo necesitas, ajusta cómo actuará en esta práctica."
         >
           {!escenario && (
-            <div className="flex items-center gap-3 rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-input/50 bg-muted/40 p-5 text-sm text-muted-foreground">
               <LockKeyhole className="size-4 shrink-0" aria-hidden />
               Elige un caso en el paso 1 para ver a su paciente y ajustar su comportamiento.
             </div>
@@ -306,15 +307,15 @@ export function ConfiguradorSesion({
               <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-stretch">
                 {/* Izquierda: el perfil del paciente y, debajo, las reglas que siempre se aplican. */}
                 <div className="flex flex-col gap-4">
-                  <article className="overflow-hidden rounded-2xl border bg-card shadow-xs">
-                    <div className="flex items-center gap-4 bg-linear-to-br from-accent via-accent/60 to-card px-5 py-5">
+                  <article className="overflow-hidden rounded-xl border bg-card">
+                    <div className="flex items-center gap-4 border-b bg-terracota-suave/60 px-5 py-5">
                       <AvatarPaciente
                         src={avatarDeEscena(escenario.configuracion3d)}
                         nombre={escenario.npc.nombre}
-                        className="size-16 font-heading text-xl shadow-sm ring-4 ring-card"
+                        className="size-16 text-xl ring-4 ring-card"
                       />
                       <div className="min-w-0 leading-tight">
-                        <h3 className="truncate font-heading text-2xl font-semibold">
+                        <h3 className="truncate text-2xl font-bold tracking-[-0.015em] text-terracota">
                           {escenario.npc.nombre}
                         </h3>
                         <p className="mt-1 text-sm text-muted-foreground">
@@ -333,21 +334,21 @@ export function ConfiguradorSesion({
                         </span>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Caso
-                        </h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground">Caso</h4>
                         <p className="text-sm font-medium">{escenario.titulo}</p>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        <h4 className="text-sm font-semibold text-muted-foreground">
                           Perfil clínico
                         </h4>
                         <p className="text-sm leading-relaxed">{escenario.npc.perfilClinico}</p>
                       </div>
-                      <div className="flex items-start gap-2 border-t border-dashed pt-4 text-sm">
-                        <Target className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                      <div className="flex items-start gap-2 border-t pt-4 text-sm">
+                        <Target className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
                         <p>
-                          <span className="text-muted-foreground">Se entrena: </span>
+                          <span className="text-muted-foreground">
+                            Competencia que practicará:{' '}
+                          </span>
                           <span className="font-medium">{escenario.competenciaCentral}</span>
                         </p>
                       </div>
@@ -356,55 +357,74 @@ export function ConfiguradorSesion({
                   <ReglasFijas />
                 </div>
 
-                <div className="flex min-h-96 flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Label htmlFor="promptSistema">Comportamiento del paciente</Label>
-                    {promptPersonalizado && <Badge variant="secondary">Personalizado</Badge>}
+                {!ajustando && !promptPersonalizado ? (
+                  // Plegado por defecto: casi siempre basta el comportamiento original del caso.
+                  <div className="flex flex-col items-start justify-center gap-3 rounded-xl border border-dashed border-input/50 bg-card p-5 lg:min-h-96">
+                    <p className="text-sm font-semibold">Comportamiento del paciente</p>
+                    <p className="text-sm text-muted-foreground">
+                      Usa el comportamiento original del caso. El estudiante no lo ve.
+                    </p>
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto"
-                      onClick={restablecerPrompt}
-                      disabled={!promptPersonalizado}
+                      variant="outline"
+                      onClick={() => setAjustando(true)}
+                      disabled={generando}
                     >
-                      <RotateCcw aria-hidden />
-                      Restablecer original
+                      Ajustar
                     </Button>
                   </div>
-                  <Textarea
-                    id="promptSistema"
-                    // Ocupa todo el alto disponible: la tarjeta mide lo mismo que la columna del perfil.
-                    className="field-sizing-fixed min-h-64 flex-1 resize-none font-mono text-[13px] leading-relaxed"
-                    aria-invalid={errors.promptSistema ? true : undefined}
-                    aria-describedby={
-                      errors.promptSistema ? 'promptSistema-error' : 'promptSistema-ayuda'
-                    }
-                    disabled={generando}
-                    {...register('promptSistema')}
-                  />
-                  <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
-                    {errors.promptSistema ? (
-                      <p id="promptSistema-error" className="text-sm text-destructive">
-                        {errors.promptSistema.message}
-                      </p>
-                    ) : (
-                      <p id="promptSistema-ayuda">
-                        Estas instrucciones guían al modelo de lenguaje. Los cambios solo aplican a
-                        esta sesión, a menos que los guardes como caso propio.
-                      </p>
-                    )}
-                    <span
-                      className={cn(
-                        'shrink-0 tabular-nums',
-                        promptSistema.length > LIMITES.prompt.max && 'text-destructive'
+                ) : (
+                  <div className="flex min-h-96 flex-col gap-3 rounded-xl border bg-card p-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label htmlFor="promptSistema">Comportamiento del paciente</Label>
+                      {promptPersonalizado && <Badge variant="secondary">Personalizado</Badge>}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto"
+                        onClick={restablecerPrompt}
+                        disabled={!promptPersonalizado}
+                      >
+                        <RotateCcw aria-hidden />
+                        Restablecer original
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="promptSistema"
+                      // Ocupa todo el alto disponible: la tarjeta mide lo mismo que la columna del perfil.
+                      className="field-sizing-fixed min-h-64 flex-1 resize-none font-mono text-[13px] leading-relaxed"
+                      aria-invalid={errors.promptSistema ? true : undefined}
+                      aria-describedby={
+                        errors.promptSistema ? 'promptSistema-error' : 'promptSistema-ayuda'
+                      }
+                      disabled={generando}
+                      {...register('promptSistema')}
+                    />
+                    <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
+                      {errors.promptSistema ? (
+                        <p id="promptSistema-error" className="text-sm text-destructive">
+                          {errors.promptSistema.message}
+                        </p>
+                      ) : (
+                        <p id="promptSistema-ayuda">
+                          Así actuará el paciente en esta práctica. El estudiante no lo ve. Los
+                          cambios valen solo para esta asignación, salvo que los guardes como caso
+                          propio.
+                        </p>
                       )}
-                    >
-                      {promptSistema.length.toLocaleString('es-CO')}/
-                      {LIMITES.prompt.max.toLocaleString('es-CO')}
-                    </span>
+                      <span
+                        className={cn(
+                          'shrink-0 tabular-nums',
+                          promptSistema.length > LIMITES.prompt.max && 'text-destructive'
+                        )}
+                      >
+                        {promptSistema.length.toLocaleString('es-CO')}/
+                        {LIMITES.prompt.max.toLocaleString('es-CO')}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -414,12 +434,12 @@ export function ConfiguradorSesion({
         <Paso
           numero={3}
           id="paso-estudiante-titulo"
-          titulo="Asigna la simulación"
+          titulo="Estudiante y plazo"
           estado={estadoPaso3}
           ultimo
-          descripcion="Elige al estudiante y cuánto tiempo será válido el código. Él entra con su correo institucional y hace la simulación desde su equipo."
+          descripcion="Elige a quién se la asignas y cuánto tiempo sirve el código. Entra con su correo institucional y practica desde su computador."
         >
-          <div className="flex flex-col gap-5 rounded-2xl border bg-card p-5 shadow-xs">
+          <div className="flex flex-col gap-5 rounded-xl border bg-card p-5">
             {errors.estudianteId && (
               <p id="estudiante-error" role="alert" className="text-sm text-destructive">
                 {errors.estudianteId.message}
@@ -427,10 +447,10 @@ export function ConfiguradorSesion({
             )}
 
             {estudiante ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-accent/30 p-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-salvia-suave/50 p-3">
                 <span
                   aria-hidden
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
                 >
                   {iniciales(estudiante.nombre)}
                 </span>
@@ -444,7 +464,12 @@ export function ConfiguradorSesion({
                       <Mail className="size-3" aria-hidden />
                       {estudiante.correo}
                     </span>
-                    <span>· {contarSesiones(estudiante.metricas.sesiones)}</span>
+                    <span>
+                      ·{' '}
+                      {estudiante.metricas.sesiones === 1
+                        ? '1 práctica'
+                        : `${estudiante.metricas.sesiones} prácticas`}
+                    </span>
                   </p>
                 </div>
                 <Button
@@ -479,11 +504,11 @@ export function ConfiguradorSesion({
                 />
               </div>
             ) : (
-              <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm sm:flex-row sm:items-center">
-                <UserPlus className="size-5 shrink-0 text-primary" aria-hidden />
+              <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-input/50 bg-muted/40 p-4 text-sm sm:flex-row sm:items-center">
+                <UserPlus className="size-5 shrink-0 text-salvia" aria-hidden />
                 <p className="flex-1 text-muted-foreground">
-                  Aún no tienes estudiantes con cuenta. Regístralos con su correo institucional para
-                  enviarles códigos de acceso.
+                  Aún no tienes estudiantes. Regístralos con su correo institucional para asignarles
+                  prácticas.
                 </p>
                 <DialogoEstudiante
                   onGuardado={onEstudianteRegistrado}
@@ -500,19 +525,19 @@ export function ConfiguradorSesion({
             <div
               role="radiogroup"
               aria-labelledby="vigencia-titulo"
-              className="flex flex-col gap-2 border-t border-dashed pt-4"
+              className="flex flex-col gap-2 border-t pt-4"
             >
-              <p id="vigencia-titulo" className="text-sm font-medium">
-                Vigencia del código
+              <p id="vigencia-titulo" className="text-sm font-semibold">
+                El código sirve durante
               </p>
               <div className="flex flex-wrap gap-2">
                 {VIGENCIAS_DIAS.map(dias => (
                   <label
                     key={dias}
                     className={cn(
-                      'flex cursor-pointer items-center rounded-full border px-3.5 py-1.5 text-sm transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+                      'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
                       vigenciaDias === dias
-                        ? 'border-primary bg-primary text-primary-foreground'
+                        ? 'border-nogal bg-nogal font-semibold text-lino'
                         : 'bg-background hover:bg-muted'
                     )}
                   >
@@ -543,7 +568,7 @@ export function ConfiguradorSesion({
         )}
 
         {/* Acciones */}
-        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-2xl border bg-card/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center">
+        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:items-center sm:p-4">
           <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
@@ -556,26 +581,34 @@ export function ConfiguradorSesion({
             className="flex items-center gap-2 text-sm text-muted-foreground sm:ml-auto"
           >
             {!escenario ? (
-              'Elige un caso para comenzar'
+              'Elige un caso para empezar.'
             ) : !estudiante ? (
-              <>Elige al estudiante</>
+              <>Elige a quién se lo asignas.</>
             ) : (
               <>
-                <CheckCircle2 className="size-4 text-success" aria-hidden />
+                <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
                 <span>
                   <span className="font-medium text-foreground">{escenario.titulo}</span> para{' '}
-                  <span className="font-medium text-foreground">{estudiante.nombre}</span>
+                  <span className="font-medium text-foreground">{estudiante.nombre}</span> · el
+                  código vence el{' '}
+                  {formatearDia(new Date(ahora + vigenciaDias * 86_400_000).toISOString())}
                 </span>
               </>
             )}
           </p>
-          <Button type="submit" size="lg" disabled={generando} aria-busy={generando}>
+          <Button
+            type="submit"
+            variant="accion"
+            size="lg"
+            disabled={generando}
+            aria-busy={generando}
+          >
             {generando ? (
               <Loader2 className="animate-spin" aria-hidden />
             ) : (
               <KeyRound aria-hidden />
             )}
-            {generando ? 'Generando…' : 'Generar código de acceso'}
+            {generando ? 'Generando…' : 'Generar código'}
           </Button>
         </div>
       </form>
@@ -588,7 +621,7 @@ const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[]
   {
     icono: Wand2,
     titulo: 'Desde cero',
-    texto: 'Un constructor guiado con vista previa del prompt y prueba del paciente.',
+    texto: 'Un constructor guiado con vista previa del comportamiento y prueba del paciente.',
   },
   {
     icono: Bookmark,
@@ -598,7 +631,7 @@ const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[]
   {
     icono: Repeat2,
     titulo: 'Reutilízalos',
-    texto: 'Quedan en esta lista, listos para cada sesión y cada grupo.',
+    texto: 'Quedan en esta lista, listos para asignarlos de nuevo.',
   },
 ];
 
@@ -607,13 +640,13 @@ function TarjetaNuevoCaso() {
   return (
     <Link
       href="/configuracion/casos/nuevo"
-      className="group flex min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-card/40 p-6 text-center transition-[border-color,background-color] hover:border-primary/50 hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-input/50 bg-card/40 p-6 text-center transition-[border-color,background-color] hover:border-salvia hover:bg-salvia-suave/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
     >
-      <span className="flex size-12 items-center justify-center rounded-full border-2 border-dashed border-primary/50 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <span className="flex size-12 items-center justify-center rounded-full border-2 border-dashed border-salvia text-salvia-oscuro transition-colors group-hover:bg-salvia-oscuro group-hover:text-lino">
         <Plus className="size-6" aria-hidden />
       </span>
       <span className="flex flex-col gap-1">
-        <span className="font-heading text-lg font-semibold">Crear caso nuevo</span>
+        <span className="text-lg font-bold">Crear caso nuevo</span>
         <span className="text-sm text-muted-foreground">
           Diseña un paciente con el constructor guiado
         </span>
@@ -625,29 +658,29 @@ function TarjetaNuevoCaso() {
 /** "Mis casos" sin casos todavía: explica qué son y las dos formas de empezar. */
 function EstadoVacioMisCasos() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-dashed bg-linear-to-br from-accent/60 via-card to-card">
+    <div className="overflow-hidden rounded-xl border border-dashed border-input/50 bg-card">
       <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
           <FilePlus2 className="size-7" aria-hidden />
         </span>
         <div className="flex flex-1 flex-col gap-1.5">
-          <h4 className="font-heading text-xl font-semibold">Aquí vivirán tus propios casos</h4>
+          <h4 className="text-xl font-bold">Aquí vivirán tus casos</h4>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Aún no tienes casos propios. Crea pacientes a tu medida y reutilízalos con cada grupo,
-            sin volver a escribir nada.
+            Crea un paciente a tu medida, o ajusta un escenario al asignarlo y pulsa «Guardar como
+            mi caso».
           </p>
         </div>
-        <Button asChild size="lg">
+        <Button asChild size="lg" variant="outline">
           <Link href="/configuracion/casos/nuevo">
             <Plus aria-hidden />
             Crear mi primer caso
           </Link>
         </Button>
       </div>
-      <ul className="grid gap-4 border-t border-dashed bg-card/60 p-6 text-sm sm:grid-cols-3 sm:px-8">
+      <ul className="grid gap-4 border-t border-dashed border-input/50 bg-muted/40 p-6 text-sm sm:grid-cols-3 sm:px-8">
         {CONSEJOS_MIS_CASOS.map(({ icono: Icono, titulo, texto }) => (
           <li key={titulo} className="flex items-start gap-3">
-            <Icono className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <Icono className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
             <p className="leading-snug">
               <span className="font-medium">{titulo}. </span>
               <span className="text-muted-foreground">{texto}</span>
@@ -701,9 +734,9 @@ function Paso({
           aria-hidden
           className={cn(
             'flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-[background-color,color,box-shadow,border-color] duration-300',
-            estado === 'completado' && 'bg-success text-success-foreground',
-            estado === 'actual' && 'bg-primary text-primary-foreground ring-4 ring-primary/20',
-            estado === 'pendiente' && 'border-2 border-border bg-background text-muted-foreground'
+            estado === 'completado' && 'bg-salvia-oscuro text-lino',
+            estado === 'actual' && 'bg-nogal text-lino ring-4 ring-laton/35',
+            estado === 'pendiente' && 'border-2 border-input/60 bg-background text-muted-foreground'
           )}
         >
           {estado === 'completado' ? <Check className="size-4" strokeWidth={3} /> : numero}
@@ -713,7 +746,7 @@ function Paso({
             aria-hidden
             className={cn(
               'mt-2 w-0 flex-1 border-l-2 border-dashed transition-colors duration-500',
-              estado === 'completado' ? 'border-success/60' : 'border-border'
+              estado === 'completado' ? 'border-salvia/60' : 'border-border'
             )}
           />
         )}
@@ -724,7 +757,7 @@ function Paso({
           <h2
             id={id}
             className={cn(
-              'text-xl font-semibold tracking-tight transition-colors',
+              'text-xl font-bold tracking-[-0.015em] transition-colors',
               estado === 'pendiente' && 'text-muted-foreground'
             )}
           >

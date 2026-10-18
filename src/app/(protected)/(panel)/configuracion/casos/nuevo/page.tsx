@@ -15,8 +15,8 @@ export default async function NuevoCasoPage() {
     <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
         sobretitulo="Mis casos"
-        titulo="Crea un caso nuevo"
-        descripcion="Completa los campos y el prompt del paciente se arma solo. Puedes probarlo antes de guardar."
+        titulo="Crear caso"
+        descripcion="Completa los campos y el comportamiento del paciente se arma solo. Puedes probarlo antes de guardar."
       />
       <ConstructorCaso />
     </div>

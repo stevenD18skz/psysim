@@ -1,19 +1,12 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  Clock,
-  Mail,
-  MessageSquareText,
-  Pencil,
-  Printer,
-  Star,
-} from 'lucide-react';
+import { ArrowRight, Mail, Pencil, Printer } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 
 import { ListaCodigos } from '@/components/asignaciones/lista-codigos';
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import { Indicadores } from '@/components/comun/indicadores';
 import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { EditarEstudiante } from '@/components/estudiantes/editar-estudiante';
 import { ListaSesiones } from '@/components/sesiones/lista-sesiones';
@@ -32,9 +25,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Ficha del estudiante para el docente: sus datos y cuenta, los códigos de acceso que le generó
- * (con la opción de anular los que no ha usado) y sus sesiones, con el estado de cada una y el
- * acceso a la revisión.
+ * Ficha del estudiante para el docente: sus datos y cuenta, sus prácticas con el estado de cada una
+ * y el acceso a la revisión, y los códigos de acceso (los que no ha usado se pueden compartir de
+ * nuevo o anular). Eliminar queda en el menú «⋯», lejos de la acción principal.
  */
 export default async function EstudiantePage({ params }: PageProps<'/estudiantes/[id]'>) {
   await requerirDocente();
@@ -51,51 +44,15 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
   ]);
   const { metricas } = estudiante;
 
-  const indicadores = [
-    {
-      icono: MessageSquareText,
-      etiqueta: 'Intervenciones',
-      valor: metricas.intervenciones.toLocaleString('es-CO'),
-    },
-    {
-      icono: Clock,
-      etiqueta: 'Tiempo de práctica',
-      valor: formatearTiempoPractica(metricas.segundosPractica),
-    },
-    { icono: Star, etiqueta: 'Nota promedio', valor: formatearNota(metricas.notaPromedio) },
-  ];
-
   return (
-    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <RefrescoAutomatico activo={metricas.enCurso > 0} />
 
-      <div className="flex flex-col gap-4">
-        <Link
-          href="/estudiantes"
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Estudiantes
-        </Link>
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="flex flex-1 flex-col gap-1.5">
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              {estudiante.nombre}
-            </h1>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span className="font-mono">{estudiante.codigo}</span>
-              <span className="flex items-center gap-1.5">
-                <Mail className="size-4" aria-hidden />
-                {estudiante.correo ?? 'Sin correo institucional'}
-              </span>
-              <span>
-                {estudiante.cuentaVinculada
-                  ? '· Entra con Google'
-                  : '· Sin cuenta: agrega su correo para enviarle códigos'}
-              </span>
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <EncabezadoPagina
+        volver={{ href: '/estudiantes', etiqueta: 'Estudiantes' }}
+        titulo={estudiante.nombre}
+        acciones={
+          <>
             <Button asChild size="lg" variant="outline">
               <Link href={`/estudiantes/${estudiante.id}/notas`} target="_blank">
                 <Printer aria-hidden />
@@ -107,56 +64,71 @@ export default async function EstudiantePage({ params }: PageProps<'/estudiantes
               etiqueta={estudiante.correo ? 'Editar' : 'Agregar correo'}
               icono={<Pencil aria-hidden />}
             />
-            <AccionesEstudiante estudiante={estudiante} enFicha />
             {estudiante.cuentaVinculada && (
-              <Button asChild size="lg">
+              <Button asChild size="lg" variant="accion">
                 <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
-                  Asignar simulación
+                  Asignar práctica
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>
             )}
-          </div>
-        </header>
-      </div>
+            <AccionesEstudiante estudiante={estudiante} enFicha />
+          </>
+        }
+      >
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span className="font-mono">{estudiante.codigo}</span>
+          <span className="flex items-center gap-1.5">
+            <Mail className="size-4" aria-hidden />
+            {estudiante.correo ?? 'Sin correo institucional'}
+          </span>
+          <span>
+            ·{' '}
+            {estudiante.cuentaVinculada
+              ? 'Entra con Google'
+              : 'Sin cuenta: agrega su correo para asignarle prácticas'}
+          </span>
+        </p>
+      </EncabezadoPagina>
 
-      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {indicadores.map(({ icono: Icono, etiqueta, valor }) => (
-          <div
-            key={etiqueta}
-            className="flex flex-col gap-1 rounded-2xl border bg-card p-4 shadow-xs"
-          >
-            <dt className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <Icono className="size-4 text-primary" aria-hidden />
-              {etiqueta}
-            </dt>
-            <dd className="font-heading text-2xl font-semibold tabular-nums">{valor}</dd>
-          </div>
-        ))}
-      </dl>
+      <Indicadores
+        indicadores={[
+          { etiqueta: 'Prácticas', valor: metricas.sesiones },
+          {
+            etiqueta: 'Tiempo de práctica',
+            valor: formatearTiempoPractica(metricas.segundosPractica),
+          },
+          { etiqueta: 'Intervenciones', valor: metricas.intervenciones },
+          { etiqueta: 'Nota promedio', valor: formatearNota(metricas.notaPromedio) },
+        ]}
+      />
 
       <section aria-labelledby="sesiones-titulo" className="flex flex-col gap-4">
-        <h2 id="sesiones-titulo" className="text-xl font-semibold tracking-tight">
-          Sesiones
+        <h2 id="sesiones-titulo" className="text-xl font-bold tracking-[-0.015em]">
+          Prácticas
         </h2>
         <ListaSesiones
           sesiones={sesiones}
           para="docente"
           enlace={sesion => `/sesiones/${sesion.id}`}
-          vacio="Aún no ha hecho ninguna simulación. Aparecerá aquí en cuanto use un código de acceso."
+          vacio="Aún no ha hecho ninguna práctica. Aparecerá aquí en cuanto use un código."
         />
       </section>
 
       <section aria-labelledby="codigos-titulo" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 id="codigos-titulo" className="text-xl font-semibold tracking-tight">
+          <h2 id="codigos-titulo" className="text-xl font-bold tracking-[-0.015em]">
             Códigos de acceso
           </h2>
           <p className="text-sm text-muted-foreground">
-            Cada código sirve una sola vez y solo con la cuenta de este estudiante.
+            Cada código sirve una sola vez y solo con la cuenta de {estudiante.nombre.split(' ')[0]}
+            .
           </p>
         </div>
-        <ListaCodigos asignaciones={asignaciones} />
+        <ListaCodigos
+          asignaciones={asignaciones}
+          estudiante={{ nombre: estudiante.nombre, correo: estudiante.correo }}
+        />
       </section>
     </div>
   );

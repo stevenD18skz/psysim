@@ -6,11 +6,14 @@ import { useRouter } from 'next/navigation';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { Button } from '@/components/ui/button';
 
-/** "Registrar estudiante" de la página de estudiantes: al guardar, recarga el listado. */
+/**
+ * "Registrar estudiante": la acción principal de la página de estudiantes (latón). Al guardar,
+ * recarga el listado.
+ */
 export function BotonRegistrarEstudiante({
-  variant = 'default',
+  variant = 'accion',
 }: {
-  variant?: 'default' | 'outline';
+  variant?: 'accion' | 'default' | 'outline';
 }) {
   const router = useRouter();
   return (

@@ -18,6 +18,14 @@ export const NIVEL_DIFICULTAD: Record<DificultadEscenario, 1 | 2 | 3> = {
   avanzado: 3,
 };
 
+/**
+ * Código visible de un caso: el de los escenarios predefinidos (E-01…) o «Propio» para los casos
+ * del docente, cuyo código interno (C-36392236) no le dice nada a nadie.
+ */
+export function codigoVisibleCaso(codigo: string): string {
+  return /^E-\d+$/.test(codigo) ? codigo : 'Propio';
+}
+
 const formatoFecha = new Intl.DateTimeFormat('es-CO', {
   day: 'numeric',
   month: 'short',

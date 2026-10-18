@@ -1,29 +1,59 @@
 import { describe, expect, it } from 'vitest';
 
-import { duracionSesion, estadoCortoSesion, estadoVisibleSesion } from './estados';
+import { duracionSesion, estaPorRevisar, estadoCortoSesion, estadoVisibleSesion } from './estados';
 
 const base = { estado: 'finalizada' as const, comenzada: true, retroalimentacion: null };
 
 describe('estadoVisibleSesion', () => {
-  it('en curso: el docente solo ve que está en progreso', () => {
+  it('en curso: cada rol con su voz; el docente nunca ve el chat en vivo', () => {
     expect(estadoVisibleSesion({ ...base, estado: 'en_curso' }, 'docente')).toEqual({
-      texto: 'Simulación en progreso',
+      texto: 'Practicando ahora',
       tono: 'en-curso',
     });
+    expect(estadoVisibleSesion({ ...base, estado: 'en_curso' }, 'estudiante').texto).toBe(
+      'En curso'
+    );
     expect(
       estadoVisibleSesion({ ...base, estado: 'en_curso', comenzada: false }, 'docente').texto
-    ).toBe('Leyendo las instrucciones');
+    ).toBe('Abrió la práctica');
+    expect(
+      estadoVisibleSesion({ ...base, estado: 'en_curso', comenzada: false }, 'estudiante').texto
+    ).toBe('Abierta, sin empezar');
+  });
+
+  it('en curso con el plazo de inactividad vencido: cerrándose', () => {
+    const ahora = new Date('2026-10-07T15:20:00.000Z');
+    const contexto = { ultimaActividad: '2026-10-07T15:05:00.000Z', ahora };
+    expect(estadoVisibleSesion({ ...base, estado: 'en_curso' }, 'estudiante', contexto)).toEqual({
+      texto: 'Cerrándose por inactividad',
+      tono: 'neutro',
+    });
+    expect(
+      estadoVisibleSesion({ ...base, estado: 'en_curso' }, 'docente', {
+        ultimaActividad: '2026-10-07T15:15:00.000Z',
+        ahora,
+      }).texto
+    ).toBe('Practicando ahora');
   });
 
   it('terminada sin revisar, en borrador y publicada', () => {
-    expect(estadoVisibleSesion(base, 'docente').texto).toBe('Pendiente de retroalimentación');
+    expect(estadoVisibleSesion(base, 'docente').texto).toBe('Por revisar');
+    expect(estadoVisibleSesion({ ...base, estado: 'interrumpida' }, 'docente').texto).toBe(
+      'Por revisar · sin terminar'
+    );
     expect(
       estadoVisibleSesion({ ...base, retroalimentacion: { publicada: false, nota: 4 } }, 'docente')
         .texto
-    ).toBe('Borrador de retroalimentación');
+    ).toBe('Borrador guardado');
     expect(
       estadoVisibleSesion({ ...base, retroalimentacion: { publicada: true, nota: 4 } }, 'docente')
-    ).toEqual({ texto: 'Retroalimentación publicada', tono: 'listo' });
+    ).toEqual({ texto: 'Publicada', tono: 'listo' });
+  });
+
+  it('sin conversación: se cerró antes de comenzar', () => {
+    expect(
+      estadoVisibleSesion({ ...base, estado: 'interrumpida', comenzada: false }, 'estudiante')
+    ).toEqual({ texto: 'Sin conversación', tono: 'neutro' });
   });
 
   it('el estudiante no ve los borradores del docente', () => {
@@ -32,15 +62,30 @@ describe('estadoVisibleSesion', () => {
         { ...base, retroalimentacion: { publicada: false, nota: 4 } },
         'estudiante'
       ).texto
-    ).toBe('Pendiente de retroalimentación');
+    ).toBe('Esperando retroalimentación');
     expect(
       estadoVisibleSesion(
         { ...base, retroalimentacion: { publicada: true, nota: 4 } },
         'estudiante'
       ).texto
-    ).toBe('Retroalimentación disponible');
+    ).toBe('Retroalimentación lista');
     expect(estadoVisibleSesion({ ...base, estado: 'interrumpida' }, 'estudiante').texto).toBe(
-      'Interrumpida · en revisión'
+      'Esperando retroalimentación'
+    );
+  });
+});
+
+describe('estaPorRevisar', () => {
+  it('terminada con conversación y sin publicar', () => {
+    expect(estaPorRevisar(base)).toBe(true);
+    expect(estaPorRevisar({ ...base, estado: 'interrumpida' })).toBe(true);
+    expect(estaPorRevisar({ ...base, estado: 'interrumpida', comenzada: false })).toBe(false);
+    expect(estaPorRevisar({ ...base, estado: 'en_curso' })).toBe(false);
+    expect(estaPorRevisar({ ...base, retroalimentacion: { publicada: false, nota: null } })).toBe(
+      true
+    );
+    expect(estaPorRevisar({ ...base, retroalimentacion: { publicada: true, nota: 4 } })).toBe(
+      false
     );
   });
 });

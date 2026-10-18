@@ -281,9 +281,9 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
           <Alert>
             <Pencil aria-hidden />
             <AlertDescription>
-              Estás redactando el prompt como texto, en el panel de la derecha. Los síntomas, la
-              actitud, el riesgo y la frase de apertura ya no se aplican hasta que vuelvas al
-              constructor.
+              Estás redactando el comportamiento como texto, en el panel de la derecha. Los
+              síntomas, la actitud, el riesgo y la frase de apertura ya no se aplican hasta que
+              vuelvas al constructor.
             </AlertDescription>
           </Alert>
         ) : (
@@ -418,7 +418,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
         <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold">
-              {modoTexto ? 'Prompt del paciente' : 'Vista previa del prompt'}
+              {modoTexto ? 'Comportamiento del paciente' : 'Vista previa del comportamiento'}
             </h2>
             <Button
               type="button"
@@ -437,8 +437,8 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
             <Alert role="alert">
               <AlertCircle aria-hidden />
               <AlertDescription className="flex flex-col gap-2">
-                Los cambios que hiciste al texto se descartarán y el prompt se volverá a armar con
-                los campos.
+                Los cambios que hiciste al texto se descartarán y el comportamiento se volverá a
+                armar con los campos.
                 <span className="flex gap-2">
                   <Button type="button" size="sm" onClick={volverAlConstructor}>
                     Descartar y volver
@@ -459,7 +459,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
           {modoTexto ? (
             <>
               <Label htmlFor="promptManual" className="sr-only">
-                Prompt del paciente
+                Comportamiento del paciente
               </Label>
               <Textarea
                 id="promptManual"
@@ -478,7 +478,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
           ) : (
             <pre
               tabIndex={0}
-              aria-label="Prompt generado"
+              aria-label="Comportamiento generado"
               className="max-h-96 min-h-40 overflow-auto rounded-lg bg-muted/50 p-3 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap"
             >
               {promptCompuesto}
@@ -541,7 +541,7 @@ function Seccion({
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-nogal text-sm font-semibold text-lino"
         >
           {numero}
         </span>

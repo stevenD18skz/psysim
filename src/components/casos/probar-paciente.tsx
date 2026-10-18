@@ -58,7 +58,7 @@ export function ProbarPaciente({ prompt, nombre, promptValido }: ProbarPacienteP
   return (
     <section aria-label="Probar al paciente" className="flex flex-col gap-3 rounded-xl border p-3">
       <div className="flex items-center gap-2">
-        <MessageCircle className="size-4 text-primary" aria-hidden />
+        <MessageCircle className="size-4 text-salvia" aria-hidden />
         <h3 className="text-sm font-semibold">Probar al paciente</h3>
         {mensajes.length > 0 && (
           <Button
@@ -81,7 +81,7 @@ export function ProbarPaciente({ prompt, nombre, promptValido }: ProbarPacienteP
         ref={lista}
         role="log"
         aria-live="polite"
-        className="flex max-h-64 min-h-24 flex-col gap-2 overflow-y-auto scroll-smooth rounded-lg bg-muted/40 p-2"
+        className="flex max-h-64 min-h-24 flex-col gap-2 overflow-y-auto rounded-lg bg-muted/40 p-2 motion-safe:scroll-smooth"
       >
         {mensajes.length === 0 && (
           <p className="m-auto px-4 text-center text-xs text-muted-foreground">
@@ -95,7 +95,7 @@ export function ProbarPaciente({ prompt, nombre, promptValido }: ProbarPacienteP
             className={cn(
               'max-w-[85%] rounded-xl px-3 py-1.5 text-sm',
               m.rol === 'user'
-                ? 'self-end bg-primary text-primary-foreground'
+                ? 'self-end bg-salvia-suave text-foreground'
                 : 'self-start border bg-card'
             )}
           >

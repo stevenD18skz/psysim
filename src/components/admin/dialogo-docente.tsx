@@ -360,8 +360,8 @@ function Opcion({
   return (
     <label
       className={cn(
-        'relative flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-60',
-        elegido ? 'border-primary bg-primary/5' : 'hover:bg-muted/60'
+        'relative flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring has-disabled:cursor-not-allowed has-disabled:opacity-60',
+        elegido ? 'border-nogal bg-salvia-suave/45' : 'hover:bg-muted/60'
       )}
     >
       <input
@@ -375,7 +375,7 @@ function Opcion({
       <span
         className={cn(
           'flex size-8 shrink-0 items-center justify-center rounded-lg',
-          elegido ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+          elegido ? 'bg-nogal text-lino' : 'bg-muted text-muted-foreground'
         )}
       >
         <Icono className="size-4" aria-hidden />

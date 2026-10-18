@@ -170,11 +170,28 @@ export interface SesionHistorial {
   comenzada: boolean;
   inicio: string;
   fin: string | null;
+  /** Última actividad registrada por el latido; una práctica en curso se cierra 10 min después. */
+  ultimaActividad: string;
   escenario: { codigo: string; titulo: string };
   /** Nombre del docente que la asignó (en el panel del estudiante). */
   docente: string | null;
   /** `null` si el docente aún no ha empezado a revisarla. */
   retroalimentacion: { publicada: boolean; nota: number | null } | null;
+}
+
+/** Sesión del docente con su estudiante, para la bandeja de inicio y las revisiones. */
+export interface SesionDocente extends SesionHistorial {
+  estudiante: { id: string; nombre: string; codigo: string };
+}
+
+/** Código de acceso que aún se puede usar, con su estudiante, para la bandeja del docente. */
+export interface CodigoPendiente {
+  id: string;
+  codigo: string;
+  expiraEn: string;
+  creadoEn: string;
+  escenario: { codigo: string; titulo: string };
+  estudiante: { id: string; nombre: string; codigo: string } | null;
 }
 
 /** Sesión del historial con la observación general publicada, para el informe de notas. */

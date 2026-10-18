@@ -40,9 +40,9 @@ export function TextoAnotado({
             {...(onAbrir && interaccion(segmento.anotacion.id, onAbrir))}
             className={cn(
               'rounded-sm bg-amber-200/90 text-amber-950 underline decoration-amber-600 decoration-2 underline-offset-2 dark:bg-amber-400/30 dark:text-amber-50',
-              'after:ml-0.5 after:align-super after:text-[10px] after:font-semibold after:text-amber-700 after:no-underline after:content-[attr(data-numero)] dark:after:text-amber-300',
+              'after:ml-0.5 after:align-super after:text-[10px] after:font-semibold after:text-ambar after:no-underline after:content-[attr(data-numero)]',
               onAbrir &&
-                'cursor-pointer transition-colors outline-none hover:bg-amber-300 focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-amber-400/45',
+                'cursor-pointer outline-hidden transition-colors hover:bg-amber-300 focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-amber-400/45',
               activa === segmento.anotacion.id && 'bg-amber-300 ring-2 ring-amber-500'
             )}
           >
@@ -59,7 +59,7 @@ export function TextoAnotado({
 /** Círculo con el número de un comentario, igual al que acompaña su subrayado. */
 export function NumeroAnotacion({ numero }: { numero: number | undefined }) {
   return (
-    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[11px] font-semibold text-amber-900 tabular-nums">
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-ambar-suave text-xs font-semibold text-ambar tabular-nums">
       {numero}
     </span>
   );

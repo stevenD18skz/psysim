@@ -24,27 +24,35 @@ export function BotonInterrumpir({ sesionId }: { sesionId: string }) {
       if (!resultado.ok) {
         toast.error(resultado.error);
       } else {
-        toast.success('La sesión quedó interrumpida. Ya puedes revisarla.');
+        toast.success('Cerramos la práctica. Ya puedes revisarla.');
       }
       router.refresh();
     });
 
   if (!confirmando) {
     return (
-      <Button variant="outline" onClick={() => setConfirmando(true)}>
-        <OctagonX aria-hidden />
-        Dar por interrumpida
-      </Button>
+      <div className="flex flex-col items-center gap-1.5">
+        <Button variant="outline" onClick={() => setConfirmando(true)}>
+          <OctagonX aria-hidden />
+          Cerrar la práctica
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Normalmente no hace falta: se cierra sola tras 10 minutos sin actividad.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border bg-background p-3 text-sm">
-      <p>El estudiante ya no podrá continuarla. ¿Dar la sesión por interrumpida?</p>
+      <p>
+        Si el estudiante sigue practicando, se le cerrará y no podrá continuarla. ¿Cerrar la
+        práctica?
+      </p>
       <div className="flex gap-2">
         <Button variant="destructive" size="sm" onClick={interrumpir} disabled={pendiente}>
           {pendiente && <Loader2 className="animate-spin" aria-hidden />}
-          Sí, interrumpir
+          Sí, cerrar la práctica
         </Button>
         <Button
           variant="ghost"

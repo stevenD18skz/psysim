@@ -118,7 +118,7 @@ export function DialogoCambiarContrasena({
                 onClick={() => setVisible(valor => !valor)}
                 aria-label={visible ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
                 aria-pressed={visible}
-                className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
               >
                 {visible ? (
                   <EyeOff className="size-4" aria-hidden />

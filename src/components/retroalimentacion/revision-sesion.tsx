@@ -129,7 +129,14 @@ function leerSeleccion(
  * el resto de la página. A la derecha, la retroalimentación general con la nota y la lista
  * numerada de comentarios, enlazada con los subrayados.
  */
-export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
+export function RevisionSesion({
+  sesion,
+  siguiente = null,
+}: {
+  sesion: DetalleSesion;
+  /** Próxima práctica por revisar (para «Publicar y abrir la siguiente»), o `null` si es la última. */
+  siguiente?: { id: string; nombre: string } | null;
+}) {
   const router = useRouter();
   const idTitulo = useId();
   const raiz = useRef<HTMLOListElement>(null);
@@ -237,25 +244,25 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
       </style>
       <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 id={idTitulo} className="text-xl font-semibold tracking-tight">
+          <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
             Conversación
           </h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Highlighter className="size-4 shrink-0 text-amber-600" aria-hidden />
+            <Highlighter className="size-4 shrink-0 text-ambar" aria-hidden />
             Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
             verlo o editarlo.
           </p>
         </div>
 
         {sesion.mensajes.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            El estudiante no alcanzó a conversar con el paciente.
+          <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
+            {nombreEstudiante} no alcanzó a conversar con el paciente.
           </p>
         ) : (
           <ol
             ref={raiz}
             aria-label="Conversación de la sesión"
-            className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:p-5"
+            className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
           >
             {sesion.mensajes.map(mensaje => {
               const esEstudiante = mensaje.remitente === 'estudiante';
@@ -269,7 +276,7 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
                     esEstudiante ? 'items-end self-end' : 'self-start'
                   )}
                 >
-                  <span className="px-1 text-[11px] font-medium text-muted-foreground">
+                  <span className="px-1 text-xs font-medium text-muted-foreground">
                     {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre} ·{' '}
                     <time dateTime={mensaje.timestamp}>
                       {formatoHora.format(new Date(mensaje.timestamp))}
@@ -280,8 +287,8 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
                     className={cn(
                       'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
                       esEstudiante
-                        ? 'rounded-br-md border border-primary/20 bg-primary/6 selection:bg-amber-300/70'
-                        : 'rounded-bl-md bg-muted text-foreground select-none'
+                        ? 'rounded-br-md bg-salvia-suave selection:bg-amber-300/70'
+                        : 'rounded-bl-md border bg-background text-foreground select-none'
                     )}
                   >
                     <TextoAnotado
@@ -315,7 +322,7 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
           >
             {seleccion?.solapada ? (
               <p className="px-3 py-1 text-xs font-medium text-destructive">
-                Se cruza con otro comentario
+                Se cruza con otro comentario. Selecciona otra parte de la frase.
               </p>
             ) : (
               <Button
@@ -367,21 +374,23 @@ export function RevisionSesion({ sesion }: { sesion: DetalleSesion }) {
           sesionId={sesion.id}
           inicial={sesion.retroalimentacion}
           nombreEstudiante={sesion.estudiante.nombre}
+          comentarios={anotaciones.length}
+          siguiente={siguiente}
         />
         <section
           aria-labelledby="comentarios-titulo"
-          className="flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs"
+          className="flex flex-col gap-3 rounded-xl border bg-card p-5"
         >
-          <h2 id="comentarios-titulo" className="text-lg font-semibold tracking-tight">
-            Comentarios en el chat
-            <span className="ml-2 text-sm font-normal text-muted-foreground tabular-nums">
+          <h2 id="comentarios-titulo" className="text-lg font-bold tracking-[-0.01em]">
+            Comentarios en la conversación
+            <span className="ml-2 text-sm font-semibold text-muted-foreground tabular-nums">
               {anotaciones.length}
             </span>
           </h2>
           {ordenadas.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Aún no has subrayado ninguna frase. Selecciona texto en las intervenciones del
-              estudiante para comentarlo.
+              Aún no has comentado ninguna frase. Selecciona texto en las intervenciones de{' '}
+              {nombreEstudiante}.
             </p>
           ) : (
             <ol className="flex flex-col gap-2">
@@ -480,7 +489,7 @@ function NuevaAnotacion({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <span className="mr-auto hidden text-[11px] text-muted-foreground sm:inline">
+        <span className="mr-auto hidden text-xs text-muted-foreground sm:inline">
           Ctrl + Enter para guardar
         </span>
         <Button size="sm" variant="ghost" onClick={onCancelar} disabled={guardando}>
@@ -637,7 +646,7 @@ function ComentarioEnLista({
         type="button"
         {...ABRE_ANOTACION}
         onClick={onIr}
-        className="flex w-full flex-col gap-1.5 rounded-xl p-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex w-full flex-col gap-1.5 rounded-xl p-3 pr-16 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
       >
         <span className="flex items-start gap-2">
           <NumeroAnotacion numero={numero} />

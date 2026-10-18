@@ -36,14 +36,28 @@ function useOrigen() {
   );
 }
 
-/** Mensaje que se comparte por WhatsApp, correo u otra aplicación. */
-export function mensajeParaEstudiante(datos: CodigoParaEnviar, enlace: string): string {
+/**
+ * Mensaje que se comparte por WhatsApp, correo u otra aplicación. Es lo primero que lee el
+ * estudiante, muchas veces en el celular: dice antes que nada dónde abrirlo y las dos reglas que
+ * pueden hacerle perder la práctica (un solo uso y el cierre por inactividad).
+ */
+export function mensajeParaEstudiante(
+  datos: Pick<CodigoParaEnviar, 'codigo' | 'expiraEn' | 'caso'> & {
+    estudiante: { nombre: string };
+  },
+  enlace: string
+): string {
   const nombre = datos.estudiante.nombre.split(' ')[0];
   return [
-    `Hola, ${nombre}. Tu simulación en PsySim («${datos.caso}») está lista.`,
-    `Entra a ${enlace} con tu correo institucional («Continuar con Google»).`,
-    `También puedes escribir el código ${datos.codigo} en «Mis prácticas».`,
-    `El código vence el ${formatearFechaHora(datos.expiraEn)}.`,
+    `Hola, ${nombre}. Te asigné una práctica en PsySim: «${datos.caso}».`,
+    '',
+    'Ábrela en un computador con teclado y ratón (la simulación no funciona en el celular):',
+    enlace,
+    '',
+    'Entra con tu correo @correounivalle.edu.co («Continuar con Google»).',
+    '',
+    `El código ${datos.codigo} es de un solo uso y vence el ${formatearFechaHora(datos.expiraEn)}.`,
+    'Cuando lo uses, empieza enseguida: si pasan 10 minutos sin actividad, la práctica se cierra y el código deja de servir.',
   ].join('\n');
 }
 
@@ -67,23 +81,22 @@ export function CodigoGenerado({
     <Dialog open onOpenChange={abierto => !abierto && onCerrar()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Código de acceso listo</DialogTitle>
+          <DialogTitle>Código listo para {datos.estudiante.nombre.split(' ')[0]}</DialogTitle>
           <DialogDescription>
-            Envíaselo a {datos.estudiante.nombre}. Solo funciona con su cuenta y una sola vez.
+            Sirve una sola vez, solo con la cuenta de {datos.estudiante.nombre.split(' ')[0]}, hasta
+            el {formatearFechaHora(datos.expiraEn)}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-accent/40 px-4 py-6 text-center">
-          <KeyRound className="size-5 text-primary" aria-hidden />
+        <div className="flex flex-col items-center gap-2 rounded-xl vetas-nogal px-4 py-6 text-center text-lino">
+          <KeyRound className="size-5 text-laton" aria-hidden />
           <p
             data-testid="codigo-acceso"
             className="font-mono text-3xl font-semibold tracking-[0.12em] select-all sm:text-4xl"
           >
             {datos.codigo}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {datos.caso} · vence el {formatearFechaHora(datos.expiraEn)}
-          </p>
+          <p className="text-sm text-sidebar-muted">{datos.caso}</p>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -97,23 +110,29 @@ export function CodigoGenerado({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <BotonCopiar texto={datos.codigo} etiqueta="Copiar código" variant="default" />
-          <BotonCopiar texto={enlace} etiqueta="Copiar enlace" />
           <BotonCompartir
-            asunto={`Tu simulación en PsySim: ${datos.caso}`}
+            etiqueta="Compartir"
+            asunto={`Tu práctica en PsySim: ${datos.caso}`}
             mensaje={mensajeParaEstudiante(datos, enlace)}
             correo={datos.estudiante.correo}
           />
+          <BotonCopiar
+            texto={() => mensajeParaEstudiante(datos, enlace)}
+            etiqueta="Copiar mensaje"
+          />
+          <BotonCopiar texto={enlace} etiqueta="Copiar enlace" variant="ghost" />
         </div>
 
         <DialogFooter>
           <Button variant="outline" asChild>
             <Link href={`/estudiantes/${datos.estudiante.id}`}>
-              Ver al estudiante
+              Ver ficha de {datos.estudiante.nombre.split(' ')[0]}
               <ArrowRight aria-hidden />
             </Link>
           </Button>
-          <Button onClick={onCerrar}>Listo</Button>
+          <Button variant="accion" onClick={onCerrar}>
+            Listo
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
