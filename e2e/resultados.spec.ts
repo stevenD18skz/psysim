@@ -98,7 +98,7 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     await expect(page.getByLabel('Código institucional')).toHaveValue('');
     await expect(page.getByLabel('Nombre completo')).toHaveValue('');
     await expect(
-      page.getByRole('radiogroup', { name: /Elige el caso/ }).getByRole('radio', { checked: true })
+      page.getByRole('radiogroup', { name: /\bCaso\b/ }).getByRole('radio', { checked: true })
     ).toHaveCount(0);
     // La sesión finalizada ya no se retoma desde /simulacion.
     await page.goto('/simulacion');

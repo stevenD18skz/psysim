@@ -9,5 +9,5 @@ test('la URL raíz responde 200', async ({ request }) => {
 test('la página de login responde 200 y muestra el formulario', async ({ page }) => {
   const respuesta = await page.goto('/login');
   expect(respuesta?.status()).toBe(200);
-  await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continuar con Google' })).toBeVisible();
 });

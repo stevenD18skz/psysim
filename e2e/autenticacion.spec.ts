@@ -48,7 +48,7 @@ test.describe('con credenciales de prueba', () => {
 
   test('HU-02: el docente inicia sesión y la sesión persiste', async ({ page, context }) => {
     await iniciarSesionComoDocente(page);
-    await expect(page.getByRole('heading', { name: 'Prepara la simulación' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Por revisar' })).toBeVisible();
     expect(await cookiesDeSesion(context)).not.toHaveLength(0);
 
     // HU-27 · T02: el saludo usa el nombre del docente (el de la base de datos, si hay acceso).
@@ -58,13 +58,13 @@ test.describe('con credenciales de prueba', () => {
       .eq('correo', docente.correo.toLowerCase())
       .maybeSingle()) ?? { data: null };
     const primerNombre = perfil?.nombre.split(' ')[0];
-    await expect(page.getByText(/^Hola, /)).toContainText(
-      primerNombre ? `Hola, ${primerNombre}.` : /Hola, \p{L}+\./u
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      primerNombre ? `, ${primerNombre}` : /, \p{L}+/u
     );
 
     // Recarga de página.
     await page.reload();
-    await expect(page).toHaveURL(/\/configuracion$/);
+    await expect(page).toHaveURL(/\/inicio$/);
 
     // Nueva pestaña.
     const pestana = await context.newPage();
@@ -72,17 +72,19 @@ test.describe('con credenciales de prueba', () => {
     await expect(pestana).toHaveURL(/\/estudiantes$/);
     await expect(pestana).toHaveTitle(/^Estudiantes · PsySim$/);
 
-    // Con sesión activa, /login redirige a /configuracion sin mostrar el formulario.
+    // Con sesión activa, /login redirige a /inicio sin mostrar el formulario.
     await page.goto('/login');
-    await expect(page).toHaveURL(/\/configuracion$/);
+    await expect(page).toHaveURL(/\/inicio$/);
   });
 
   test('HU-02: tras el login vuelve a la ruta solicitada originalmente', async ({ page }) => {
     await page.goto('/estudiantes');
     await expect(page).toHaveURL(/\/login\?siguiente=%2Festudiantes/);
+    // Volver a una página de docente abre directamente su formulario.
+    await expect(page.getByLabel('Correo institucional')).toBeVisible();
     await page.getByLabel('Correo institucional').fill(docente.correo);
     await page.getByLabel('Contraseña', { exact: true }).fill(docente.contrasena);
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await expect(page).toHaveURL(/\/estudiantes$/);
   });
 
@@ -90,7 +92,7 @@ test.describe('con credenciales de prueba', () => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
     await iniciarSesionComoEstudiante(page);
     await expect(page.getByRole('heading', { name: 'Mis prácticas', level: 1 })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Nueva sesión/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Asignar práctica/ })).toHaveCount(0);
 
     // Una ruta del docente lo devuelve a su panel; con sesión, /login también.
     await page.goto('/configuracion');
@@ -102,7 +104,8 @@ test.describe('con credenciales de prueba', () => {
   test('la página de inicio de sesión ofrece Google a los estudiantes', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByRole('button', { name: 'Continuar con Google' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
+    // La contraseña de los docentes queda en un desplegable.
+    await expect(page.getByText('Soy docente: entrar con correo y contraseña')).toBeVisible();
   });
 
   test('HU-03: un token manipulado redirige a /login', async ({ page, context }) => {
@@ -142,7 +145,7 @@ test.describe('con credenciales de prueba', () => {
 
     await page.goto('/configuracion');
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continuar con Google' })).toBeVisible();
   });
 
   test('HU-03: una cuenta sin rol docente ve la página de acceso denegado', async ({ page }) => {
@@ -150,7 +153,9 @@ test.describe('con credenciales de prueba', () => {
 
     await iniciarSesion(page, sinRol.correo, sinRol.contrasena);
     await expect(page).toHaveURL(/\/acceso-denegado$/);
-    await expect(page.getByRole('heading', { name: 'Acceso denegado' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Tu cuenta no está registrada en PsySim' })
+    ).toBeVisible();
 
     // No queda ninguna sesión abierta: las rutas protegidas siguen bloqueadas.
     await page.goto('/configuracion');

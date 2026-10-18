@@ -22,7 +22,7 @@ test('un docente no abre el laboratorio', async ({ page }) => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
   await iniciarSesionComoDocente(page);
   await page.goto('/laboratorio');
-  await expect(page).toHaveURL(/\/configuracion$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 });
 
 test.describe('NPC del laboratorio', () => {
@@ -34,7 +34,7 @@ test.describe('NPC del laboratorio', () => {
 
     await iniciarSesionComoAdmin(page);
     await page.goto('/laboratorio');
-    await page.getByRole('link', { name: /NPC con esqueleto/ }).click();
+    await page.getByRole('link', { name: /Personajes con esqueleto/ }).click();
     await expect(page.getByRole('img', { name: 'Vista 3D del NPC' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Tomás' })).toBeChecked();
     await expect(page.getByRole('heading', { name: 'Tomás' })).toBeVisible();

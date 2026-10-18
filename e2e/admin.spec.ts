@@ -16,7 +16,7 @@ test('un docente no abre el panel del Administrador', async ({ page }) => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
   await iniciarSesionComoDocente(page);
   await page.goto('/admin');
-  await expect(page).toHaveURL(/\/configuracion$/);
+  await expect(page).toHaveURL(/\/inicio$/);
   await expect(page.getByRole('link', { name: /Docentes/ })).toHaveCount(0);
 });
 
@@ -37,13 +37,16 @@ test.describe('Administrador', () => {
 
   test('entra a su panel y también trabaja como docente', async ({ page }) => {
     await iniciarSesionComoAdmin(page);
+    // Aterriza en su bandeja, con la franja de administración.
+    await expect(page.getByRole('region', { name: 'Administración' })).toBeVisible();
+    const menu = page.getByRole('navigation', { name: 'Navegación principal' });
+    await menu.getByRole('link', { name: /Docentes/ }).click();
+    await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByRole('heading', { name: 'Docentes', level: 1 })).toBeVisible();
     await expect(page.getByRole('table', { name: /Docentes y administradores/ })).toBeVisible();
 
-    const menu = page.getByRole('navigation', { name: 'Navegación principal' });
-    await menu.getByRole('link', { name: /Nueva sesión/ }).click();
+    await menu.getByRole('link', { name: /Asignar práctica/ }).click();
     await expect(page).toHaveURL(/\/configuracion$/);
-    await expect(menu.getByRole('link', { name: /Laboratorio/ })).toBeVisible();
   });
 
   test('crea un docente con contraseña temporal, que entra y debe cambiarla', async ({
@@ -55,6 +58,7 @@ test.describe('Administrador', () => {
     const nombre = `Docente E2E ${sufijo}`;
 
     await iniciarSesionComoAdmin(page);
+    await page.goto('/admin');
     await page.getByRole('button', { name: 'Nuevo docente' }).click();
     const dialogo = page.getByRole('dialog', { name: 'Nuevo docente' });
     await dialogo.getByLabel('Nombre completo').fill(nombre);
@@ -75,7 +79,7 @@ test.describe('Administrador', () => {
     const contexto = await browser.newContext();
     const docente = await contexto.newPage();
     await iniciarSesion(docente, correo, contrasena);
-    await expect(docente).toHaveURL(/\/configuracion$/);
+    await expect(docente).toHaveURL(/\/inicio$/);
     await expect(docente.getByText(/contraseña temporal/)).toBeVisible();
     await contexto.close();
 

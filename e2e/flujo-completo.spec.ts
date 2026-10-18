@@ -64,11 +64,12 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
 
     // 1. El docente configura el caso E-01 para el estudiante y genera el código.
     await iniciarSesionComoDocente(page);
+    await page.goto('/configuracion');
     await page.getByTestId('escenario-E-01').click();
     await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill('Prueba Uno');
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE) }).click();
-    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
-    const dialogo = page.getByRole('dialog', { name: 'Código de acceso listo' });
+    await page.getByRole('button', { name: 'Generar código' }).click();
+    const dialogo = page.getByRole('dialog', { name: /Código listo para/ });
     codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
     await dialogo.getByRole('button', { name: 'Listo' }).click();
 
@@ -78,12 +79,12 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await iniciarSesionComoEstudiante(alumno);
     const sesionId = await canjearCodigoEnPracticas(alumno, codigo.toUpperCase());
     await comenzarSimulacion(alumno, /Duelo y pérdida/);
-    const hud = alumno.getByRole('complementary', { name: 'Datos de la sesión' });
-    await expect(hud).toContainText(ESTUDIANTE);
+    const hud = alumno.getByRole('complementary', { name: 'Datos de la práctica' });
+    await expect(hud).toContainText('Duelo y pérdida');
 
     // El docente solo ve que la simulación está en progreso (sin el chat).
     await page.goto(`/sesiones/${sesionId}`);
-    await expect(page.getByRole('heading', { name: 'Simulación en progreso' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Practicando ahora' })).toBeVisible();
     await expect(page.getByText(INTERVENCION)).toHaveCount(0);
 
     const panel = await abrirConversacion(alumno, 'Marta', 'Marta Lucía');
@@ -94,20 +95,21 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
 
     // 3. El estudiante finaliza desde el HUD.
     await panel.getByRole('button', { name: 'Volver a explorar' }).click();
-    await alumno.keyboard.press('Escape');
-    await alumno.getByRole('button', { name: 'Finalizar sesión' }).click();
+    // Al volver se recaptura el ratón; el navegador sin interfaz no lo suelta con Escape.
+    await alumno.evaluate(() => document.exitPointerLock());
+    await alumno.getByRole('button', { name: 'Terminar práctica' }).click();
     const confirmacion = alumno.getByRole('alertdialog');
-    await expect(confirmacion).toContainText('no podrá reanudarse');
-    await confirmacion.getByRole('button', { name: 'Confirmar finalización' }).click();
-    const cierre = alumno.getByRole('dialog', { name: 'Sesión finalizada' });
+    await expect(confirmacion).toContainText('No se puede reanudar');
+    await confirmacion.getByRole('button', { name: 'Terminar práctica' }).click();
+    const cierre = alumno.getByRole('dialog', { name: 'Práctica terminada' });
     await expect(cierre).toBeVisible({ timeout: 30_000 });
-    await cierre.getByRole('button', { name: 'Ver mi práctica' }).click();
+    await cierre.getByRole('button', { name: 'Releer la conversación' }).click();
     await expect(alumno).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
-    await expect(alumno.getByText('Pendiente de retroalimentación.')).toBeVisible();
+    await expect(alumno.getByText('Tu docente aún no publica la retroalimentación.')).toBeVisible();
 
     // El docente revisa: subraya una frase, la comenta, pone la nota y publica.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Conversación' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Conversación', exact: true })).toBeVisible();
     await seleccionarFragmento(page, 'Soy estudiante de psicología');
     await page.getByRole('button', { name: 'Comentar selección' }).click();
     await page
@@ -118,9 +120,10 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
 
     await page.getByLabel('Comentario general').fill('Buen encuadre inicial y tono empático.');
     await page.getByLabel('Nota (0,0 a 5,0)').fill('4,5');
-    await page.getByRole('button', { name: 'Publicar' }).click();
-    await page.getByRole('button', { name: 'Sí, publicar' }).click();
-    await expect(page.getByText(/Publicada el/)).toBeVisible();
+    // «Publicar» (o «Publicar y abrir la siguiente» si quedan pendientes) pide confirmar.
+    await page.getByRole('button', { name: /^Publicar/ }).click();
+    await page.getByRole('button', { name: /^Publicar/ }).click();
+    await expect(page.getByText(/^Publicada\./)).toBeVisible();
 
     // 4. El estudiante ve la retroalimentación publicada.
     await alumno.reload();

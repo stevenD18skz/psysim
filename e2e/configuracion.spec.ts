@@ -55,6 +55,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
   test.beforeEach(async ({ page }) => {
     await iniciarSesionComoDocente(page);
+    // El docente aterriza en su bandeja; asignar una práctica es otra página.
+    await page.goto('/configuracion');
   });
 
   test('HU-06 · T02: muestra los seis escenarios y expande el perfil del NPC', async ({ page }) => {
@@ -66,21 +68,26 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(page.getByTestId('escenario-E-05')).toContainText('Cotidiano');
     await expect(page.getByTestId('escenario-E-04')).toContainText('Nivel avanzado');
 
-    await expect(page.getByLabel('Comportamiento del paciente')).toBeHidden();
+    // El comportamiento es opcional: queda plegado tras «Ajustar» hasta que el docente lo pide.
+    const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar' });
+    await expect(comportamiento).toBeHidden();
     await page.getByTestId('escenario-E-01').click();
     await expect(page.getByRole('heading', { name: 'Marta Lucía' })).toBeVisible();
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(/Eres Marta Lucía/);
+    await ajustar.click();
+    await expect(comportamiento).toHaveValue(/Eres Marta Lucía/);
 
     // Solo un escenario seleccionado a la vez.
     await page.getByTestId('escenario-E-02').click();
     await expect(
-      page.getByRole('radiogroup', { name: /Elige el caso/ }).getByRole('radio', { checked: true })
+      page.getByRole('radiogroup', { name: /\bCaso\b/ }).getByRole('radio', { checked: true })
     ).toHaveCount(1);
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(/Eres Andrés Felipe/);
+    if (await ajustar.isVisible()) await ajustar.click();
+    await expect(comportamiento).toHaveValue(/Eres Andrés Felipe/);
   });
 
   test('HU-06 · T03: exige el caso y el estudiante con mensajes inline', async ({ page }) => {
-    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
+    await page.getByRole('button', { name: 'Generar código' }).click();
     await expect(page.getByText('Selecciona un escenario para continuar.')).toBeVisible();
     await expect(page.getByText('Elige al estudiante que va a practicar.')).toBeVisible();
     await expect(page).toHaveURL(/\/configuracion$/);
@@ -96,9 +103,9 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE.nombre) }).click();
     await expect(page.getByTestId('estudiante-elegido')).toHaveText(ESTUDIANTE.nombre);
     await page.getByRole('radio', { name: '1 día' }).check({ force: true });
-    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
+    await page.getByRole('button', { name: 'Generar código' }).click();
 
-    const dialogo = page.getByRole('dialog', { name: 'Código de acceso listo' });
+    const dialogo = page.getByRole('dialog', { name: /Código listo para/ });
     const codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
     codigosGenerados.push(codigo);
     expect(codigo).toMatch(/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/);
@@ -129,8 +136,11 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     const guardar = page.getByRole('button', { name: 'Guardar como mi caso' });
     await expect(guardar).toBeDisabled();
 
+    const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar' });
     await page.getByTestId('escenario-E-01').click();
-    await page.getByLabel('Comportamiento del paciente').fill(prompt);
+    await ajustar.click();
+    await comportamiento.fill(prompt);
     await expect(page.getByText('Personalizado', { exact: true })).toBeVisible();
     await guardar.click();
     await page.getByLabel('Nombre del caso').fill(nombre);
@@ -145,7 +155,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
     await page.getByTestId('escenario-E-03').click();
     await propio.check({ force: true });
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(prompt);
+    if (await ajustar.isVisible()) await ajustar.click();
+    await expect(comportamiento).toHaveValue(prompt);
 
     await page.getByRole('button', { name: `Eliminar el caso ${nombre}` }).click();
     await page.getByRole('button', { name: 'Sí, eliminar' }).click();
@@ -170,7 +181,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.getByLabel('Frase de apertura').fill('Hola, no sé por dónde empezar.');
 
     // La vista previa se arma con los campos y no incluye las reglas fijas.
-    const vista = page.getByLabel('Prompt generado');
+    const vista = page.getByLabel('Comportamiento generado');
     await expect(vista).toContainText('Eres Camila Rojas, una persona de 29 años.');
     await expect(vista).toContainText('tristeza persistente');
     await expect(vista).not.toContainText('Reglas de interpretación');
@@ -207,7 +218,7 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
 
     const sesionId = await prepararSesion(page, PREFIJO_CODIGOS);
 
-    const hud = page.getByRole('complementary', { name: 'Datos de la sesión' });
+    const hud = page.getByRole('complementary', { name: 'Datos de la práctica' });
 
     // La pantalla de carga desaparece cuando la escena está lista.
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
@@ -229,8 +240,12 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     await expect(instrucciones).toContainText('Viuda desde hace cuatro meses');
     await expect(page.getByRole('button', { name: 'Revisar nuevamente' })).toHaveCount(0);
 
-    // Es obligatorio: Escape no lo cierra.
+    // Escape no lo cierra en silencio: pregunta si se deja para después, con la hora límite.
     await page.keyboard.press('Escape');
+    const ahoraNo = page.getByRole('alertdialog', { name: '¿Dejarla para después?' });
+    await expect(ahoraNo).toContainText('Tienes hasta las');
+    await ahoraNo.getByRole('button', { name: 'Seguir leyendo' }).click();
+    await expect(ahoraNo).toBeHidden();
     await expect(instrucciones).toBeVisible();
 
     // El registro existe en Supabase con estado en_curso, el prompt copiado y sin comenzar.
@@ -258,14 +273,16 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     }
 
     // Al confirmar, la simulación comienza: el tiempo corre desde ahora (hora del servidor).
-    await page.getByRole('button', { name: 'Entendido · Iniciar simulación' }).click();
+    await page.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }).check();
+    await page.getByRole('button', { name: 'Empezar la práctica' }).click();
     await expect(instrucciones).toBeHidden();
     await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
     await expect(hud).toContainText('E-01');
     await expect(hud).toContainText('Duelo y pérdida');
     await expect(hud).toContainText('Marta Lucía');
-    await expect(hud).toContainText(ESTUDIANTE.nombre);
+    // El HUD ya no repite los datos del estudiante (están en las instrucciones).
+    await expect(hud).not.toContainText(ESTUDIANTE.nombre);
     await expect(hud).not.toContainText('Sin iniciar');
     if (admin) {
       const comenzada = await leerSesion();
@@ -277,7 +294,7 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
 
     // Recargar conserva la sesión (se hidrata desde el servidor) y no repite las instrucciones.
     await page.reload();
-    await expect(hud).toContainText(ESTUDIANTE.nombre);
+    await expect(hud).toContainText('Duelo y pérdida');
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
       timeout: 60_000,
     });

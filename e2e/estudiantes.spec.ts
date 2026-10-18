@@ -125,9 +125,9 @@ test.describe('gestión de estudiantes', () => {
     const alumno = await contexto.newPage();
     await iniciarSesionComoEstudiante(alumno);
     await alumno.getByLabel('Código de acceso').fill(codigo);
-    await alumno.getByRole('button', { name: 'Entrar a la simulación' }).click();
+    await alumno.getByRole('button', { name: 'Usar el código y entrar' }).click();
     await expect(
-      alumno.getByRole('form', { name: 'Unirse con código' }).getByRole('alert')
+      alumno.getByRole('form', { name: 'Usar un código' }).getByRole('alert')
     ).toContainText('anuló ese código');
     await contexto.close();
   });
@@ -140,9 +140,9 @@ test.describe('gestión de estudiantes', () => {
     // El enlace directo lleva al formulario con el código cargado.
     await page.goto(`/unirse/${codigo}`);
     await expect(page.getByLabel('Código de acceso')).toHaveValue(codigo);
-    await page.getByRole('button', { name: 'Entrar a la simulación' }).click();
+    await page.getByRole('button', { name: 'Usar el código y entrar' }).click();
     await expect(
-      page.getByRole('form', { name: 'Unirse con código' }).getByRole('alert')
+      page.getByRole('form', { name: 'Usar un código' }).getByRole('alert')
     ).toContainText('no es para tu cuenta');
     await expect(page).toHaveURL(new RegExp(`/unirse/${codigo}$`));
   });

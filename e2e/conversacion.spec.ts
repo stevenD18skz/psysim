@@ -99,6 +99,9 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     // Volver a explorar cierra el panel sin perder la sesión.
     await panel.getByRole('button', { name: 'Volver a explorar' }).click();
     await expect(panel).toBeHidden();
+    // Al volver se recaptura el ratón (el clic es el gesto que exige el navegador). Al soltarlo
+    // reaparece la tarjeta con la opción de conversar.
+    await page.evaluate(() => document.exitPointerLock());
     await expect(page.getByRole('button', { name: 'Conversar con Marta' })).toBeVisible();
   });
 
@@ -116,7 +119,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
 
     // Mientras la IA responde, el campo se bloquea y el estado cambia a "Pensando".
     await expect(campo).toHaveValue('');
-    await expect(panel.getByTestId('estado-npc')).toHaveText('Pensando');
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Pensando…');
     await expect(campo).toBeDisabled();
 
     const respuesta = await respuestaChat;
@@ -177,7 +180,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await campo.press('Enter');
 
     const aviso = panel.getByRole('alertdialog');
-    await expect(aviso).toContainText('El paciente virtual no está disponible temporalmente');
+    await expect(aviso).toContainText('El paciente no responde por ahora');
     await expect(panel.getByTestId('estado-npc')).toHaveText('Sin conexión');
     await expect(panel.locator('[data-remitente="estudiante"]')).toHaveText(/Hola, ¿cómo está\?/);
 
@@ -202,13 +205,13 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await campo.press('Enter');
 
     const aviso = panel.getByRole('alertdialog');
-    await aviso.getByRole('button', { name: 'Finalizar sesión' }).click();
-    await expect(aviso).toContainText('la conversación no podrá reanudarse');
-    await aviso.getByRole('button', { name: 'Sí, finalizar sesión' }).click();
+    await aviso.getByRole('button', { name: 'Terminar práctica' }).click();
+    await expect(aviso).toContainText('la práctica no se podrá reanudar');
+    await aviso.getByRole('button', { name: 'Sí, terminar práctica' }).click();
 
-    const cierre = page.getByRole('dialog', { name: 'Sesión finalizada' });
+    const cierre = page.getByRole('dialog', { name: 'Práctica terminada' });
     await expect(cierre).toBeVisible();
-    await expect(cierre).toContainText('Intervenciones');
+    await expect(cierre).toContainText(/intervenci/);
 
     const { data } = await clienteAdmin()
       .from('sesion')
@@ -218,9 +221,9 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     expect(data?.estado).toBe('finalizada');
     expect(data?.fin).not.toBeNull();
 
-    await cierre.getByRole('button', { name: 'Ver mi práctica' }).click();
+    await cierre.getByRole('button', { name: 'Releer la conversación' }).click();
     await expect(page).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
-    await expect(page.getByText('Pendiente de retroalimentación.')).toBeVisible();
+    await expect(page.getByText('Tu docente aún no publica la retroalimentación.')).toBeVisible();
   });
 });
 
