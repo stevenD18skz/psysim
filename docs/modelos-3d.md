@@ -143,6 +143,34 @@ ojos se adelantan a la cabeza y hacen microsacadas; mientras escucha levanta las
 cuando (señal de atención). Si un personaje no tiene la cara esperada, conserva el parpadeo
 anterior (escala de los ojos).
 
+**Gestos procedurales** (`repertorio-gestos.ts`, `poses-gestos.ts`, `brazos-paciente.ts`,
+`gestos-habla.ts`). Sin clips nuevos: los brazos se mueven con cinemática inversa hacia puntos
+del propio cuerpo de cada personaje (su pecho, su cara, sus muslos), medidos en el GLB, y se
+mantienen fuera del torso, la cabeza, los muslos y la silla.
+
+| Emoción            | Gestos propios                                    |
+| ------------------ | ------------------------------------------------- |
+| Ansioso            | Frotarse o entrelazar las manos, tocarse el pelo  |
+| Triste             | Mano al pecho, mirar al suelo                     |
+| Aliviado           | Inclinarse hacia delante, mano al pecho           |
+| Molesto            | Cruzar los brazos                                 |
+| Abrumado           | Mano a la frente (sostiene la cabeza) o a la cara |
+| Neutral, tranquilo | Inclinarse hacia delante, entrelazar las manos    |
+
+- **Reposo que varía:** cambiar el peso, mirar por la ventana (siempre hacia el mismo lado) o al
+  suelo, alisarse la ropa, tocarse el pelo. Elige sin repetir el último, a intervalos
+  irregulares; mientras el estudiante escribe solo hace los que se leen como atención.
+- **Al hablar:** ademanes al ritmo del plan de sílabas de la voz y reacciones a frases clave:
+  «no sé» → se encoge de hombros; dolor («me duele», «no aguanto») → mano al pecho; preguntas →
+  alza las cejas al final; «nunca», «tampoco» → niega levemente con la cabeza.
+- **Intensidad (1–3):** escala la amplitud, la frecuencia y la duración de los gestos.
+- **`prefers-reduced-motion`:** amplitud a la mitad, menos frecuencia y sin gestos amplios.
+- Los clips que usan los brazos (pensar, saludar, negar) tienen prioridad; los gestos nunca se
+  encadenan sin volver antes al reposo.
+
+Para verlos: `/laboratorio/npc?vista=paciente` (administrador) sienta al personaje en una silla
+con selectores de estado, emoción e intensidad, un botón por gesto y una frase de prueba.
+
 **Añadir un personaje:** exporta el GLB con los mismos nombres de huesos y clips, cópialo a
 `public/models/personajes/` y agrégalo a `CATALOGO_NPC` (`npc.test.ts` verifica esqueleto y
 clips). Si cambia el rostro de un paciente, regenera su avatar con

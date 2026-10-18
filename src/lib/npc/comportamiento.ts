@@ -6,6 +6,8 @@ import {
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
 
 import { type AccionNpc } from './acciones';
+import { reaccionAlInicio } from './gestos-habla';
+import { type GestoProcedural } from './repertorio-gestos';
 
 /**
  * Lenguaje no verbal del paciente 3D. Es lógica pura (sin Three.js): decide qué clip suena en
@@ -246,6 +248,9 @@ export function expresionPara(
   }
 }
 
+/** Un gesto del paciente: un clip del GLB (saludar, asentir…) o uno procedural (`repertorio-gestos`). */
+export type GestoPaciente = AccionNpc | GestoProcedural;
+
 /** Clip que suena en bucle en cada estado: pensar mientras procesa, reposo el resto. */
 export function clipEnBucle(estado: EstadoNpc): AccionNpc {
   return estado === 'procesando' ? 'think' : 'idle';
@@ -267,7 +272,7 @@ export function gestoDeTransicion(
   desde: EstadoNpc,
   hacia: EstadoNpc,
   { primerEncuentro, respuesta = '' }: ContextoTransicion
-): AccionNpc | null {
+): GestoPaciente | null {
   if (desde === hacia) return null;
   if (hacia === 'sesion_finalizada') return 'wave';
   if (desde === 'inactivo' && hacia === 'esperando_input') return primerEncuentro ? 'wave' : 'yes';
@@ -294,14 +299,20 @@ export function expresionEscuchando(e: Expresion): Expresion {
   };
 }
 
-/** Asiente si la respuesta empieza afirmando y niega si empieza negando. */
-export function gestoDeRespuesta(respuesta: string): AccionNpc | null {
+/**
+ * Gesto al empezar a responder: asiente si la respuesta empieza afirmando, se encoge de hombros
+ * si empieza dudando («No sé…»), se lleva la mano al pecho si empieza por un dolor y niega si
+ * empieza negando. Las frases clave de más adelante las marca `momentosClave` mientras habla.
+ */
+export function gestoDeRespuesta(respuesta: string): GestoPaciente | null {
   const inicio = respuesta
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .replace(/^[\s¿¡"'«“(.…-]+/u, '');
   if (AFIRMACION.test(inicio)) return 'yes';
+  const reaccion = reaccionAlInicio(respuesta);
+  if (reaccion) return reaccion;
   if (NEGACION.test(inicio)) return 'no';
   return null;
 }
