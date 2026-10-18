@@ -24,23 +24,22 @@ export default function ErrorPagina({
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-16 text-center">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+      <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
         <TriangleAlert className="size-6" aria-hidden />
       </span>
       <div className="flex max-w-md flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Algo salió mal</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">No pudimos cargar esta página</h1>
         <p className="text-muted-foreground">
-          No pudimos cargar esta página. Puede ser un problema momentáneo de conexión: inténtalo de
-          nuevo en unos segundos.
+          Puede ser la conexión. Inténtalo de nuevo; si sigue fallando, vuelve más tarde.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        <Button onClick={() => retry()}>
+        <Button variant="accion" onClick={() => retry()}>
           <RotateCw aria-hidden />
           Reintentar
         </Button>
         <Button asChild variant="outline">
-          <Link href="/">Volver al inicio</Link>
+          <Link href="/inicio">Ir a mi inicio</Link>
         </Button>
       </div>
       {error.digest && (

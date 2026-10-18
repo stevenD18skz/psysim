@@ -1,25 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist_Mono, Source_Sans_3, Source_Serif_4 } from 'next/font/google';
+import { Archivo, JetBrains_Mono } from 'next/font/google';
 
 import { Toaster } from '@/components/ui/sonner';
 import { DESCRIPCION_SITIO, NOMBRE_SITIO, TITULO_SITIO, URL_SITIO } from '@/lib/sitio';
 
 import './globals.css';
 
-/** Texto de interfaz: sans humanista, sobria y muy legible en pantalla. */
-const sourceSans = Source_Sans_3({
-  variable: '--font-sans',
-  subsets: ['latin'],
+/**
+ * Archivo (Omnibus-Type, Buenos Aires) es la única familia de la interfaz. Su eje de ancho es parte
+ * del sistema: expandido para la identidad y los títulos, normal para el trabajo y condensado para
+ * metadatos (ver `ancho-*` en globals.css).
+ */
+const archivo = Archivo({
+  variable: '--font-archivo',
+  subsets: ['latin', 'latin-ext'],
+  axes: ['wdth'],
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
-
-/** Serifa para títulos: tono académico, de la misma familia que el texto. */
-const sourceSerif = Source_Serif_4({
-  variable: '--font-source-serif',
+/** Monoespaciada solo para datos: códigos de acceso y de caso. */
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
   subsets: ['latin'],
 });
 
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: '#3a2418',
 };
 
 export default function RootLayout({
@@ -56,10 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="es"
-      className={`${sourceSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
-    >
+    <html lang="es" className={`${archivo.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {children}
         <Toaster position="bottom-right" richColors closeButton />
