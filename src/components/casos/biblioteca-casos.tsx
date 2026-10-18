@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Coffee, HeartPulse } from 'lucide-react';
+import { ArrowRight, Coffee, HeartPulse, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -20,12 +20,22 @@ import { type EscenarioCatalogo } from '@/types';
  * Biblioteca de casos: cada caso es una ficha con su paciente, la competencia que entrena y su
  * nivel, y la acción de asignarlo. Los casos propios añaden editar y eliminar.
  */
+export interface UsoCaso {
+  /** Códigos de acceso que el docente generó con este caso. */
+  asignaciones: number;
+  /** Prácticas de este caso que esperan su revisión. */
+  porRevisar: number;
+}
+
 export function BibliotecaCasos({
   casos,
   vacio,
+  uso = {},
 }: {
   casos: EscenarioCatalogo[];
   vacio?: React.ReactNode;
+  /** Uso de cada caso por el docente, por id del escenario. */
+  uso?: Readonly<Record<string, UsoCaso>>;
 }) {
   const router = useRouter();
 
@@ -84,6 +94,26 @@ export function BibliotecaCasos({
                   <dt className="sr-only">Competencia que entrena</dt>
                   <dd className="font-medium">{caso.competenciaCentral}</dd>
                 </div>
+                <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+                  <dt className="sr-only">Uso</dt>
+                  <dd className="tabular-nums">
+                    {(uso[caso.id]?.asignaciones ?? 0) === 0
+                      ? 'Aún no lo has asignado'
+                      : uso[caso.id]!.asignaciones === 1
+                        ? 'Asignado 1 vez'
+                        : `Asignado ${uso[caso.id]!.asignaciones} veces`}
+                  </dd>
+                  {(uso[caso.id]?.porRevisar ?? 0) > 0 && (
+                    <dd>
+                      <Link
+                        href={`/sesiones?caso=${encodeURIComponent(caso.codigo)}`}
+                        className="relative z-10 rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                      >
+                        {uso[caso.id]!.porRevisar} por revisar
+                      </Link>
+                    </dd>
+                  )}
+                </div>
               </dl>
             </div>
             <div className="flex min-h-12 items-center gap-1 border-t bg-muted/40 px-2 py-1.5">
@@ -93,7 +123,17 @@ export function BibliotecaCasos({
                   titulo={caso.titulo}
                   onEliminado={() => router.refresh()}
                 />
-              ) : null}
+              ) : (
+                // Sin escribir instrucciones: abre los ajustes guiados al asignarlo; desde ahí se
+                // puede guardar como caso propio.
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/configuracion?caso=${caso.id}&ajustar=1`}>
+                    <SlidersHorizontal aria-hidden />
+                    Ajustar a mi medida
+                    <span className="sr-only"> el caso {caso.titulo}</span>
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="ghost" size="sm" className="ml-auto font-semibold">
                 <Link href={`/configuracion?caso=${caso.id}`}>
                   Asignar

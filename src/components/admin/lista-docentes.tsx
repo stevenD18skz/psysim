@@ -19,7 +19,41 @@ const FILTROS: { valor: FiltroEstadoDocente; etiqueta: string }[] = [
   { valor: 'desactivados', etiqueta: 'Desactivadas' },
 ];
 
-/** Tabla de las cuentas del equipo docente con búsqueda y filtro por estado. */
+type OrdenDocentes = 'nombre' | 'pendientes' | 'acceso' | 'estudiantes';
+
+const ORDENES: { valor: OrdenDocentes; etiqueta: string }[] = [
+  { valor: 'nombre', etiqueta: 'Nombre (A–Z)' },
+  { valor: 'pendientes', etiqueta: 'Más por revisar' },
+  { valor: 'acceso', etiqueta: 'Último ingreso' },
+  { valor: 'estudiantes', etiqueta: 'Más estudiantes' },
+];
+
+/** Filas que se muestran de entrada; el resto, al pedirlas. */
+const FILAS_INICIALES = 20;
+
+const comparadorNombre = new Intl.Collator('es', { sensitivity: 'base' });
+
+function ordenar(docentes: DocenteAdmin[], orden: OrdenDocentes): DocenteAdmin[] {
+  const porNombre = (a: DocenteAdmin, b: DocenteAdmin) =>
+    comparadorNombre.compare(a.nombre, b.nombre);
+  return [...docentes].sort((a, b) => {
+    switch (orden) {
+      case 'pendientes':
+        return (
+          b.metricas.pendientesRetroalimentacion - a.metricas.pendientesRetroalimentacion ||
+          porNombre(a, b)
+        );
+      case 'acceso':
+        return (b.ultimoAcceso ?? '').localeCompare(a.ultimoAcceso ?? '') || porNombre(a, b);
+      case 'estudiantes':
+        return b.metricas.estudiantes - a.metricas.estudiantes || porNombre(a, b);
+      default:
+        return porNombre(a, b);
+    }
+  });
+}
+
+/** Tabla de las cuentas del equipo docente con búsqueda, filtro por estado y orden. */
 export function ListaDocentes({
   docentes,
   idPropio,
@@ -30,7 +64,10 @@ export function ListaDocentes({
   const id = useId();
   const [termino, setTermino] = useState('');
   const [estado, setEstado] = useState<FiltroEstadoDocente>('todos');
-  const visibles = filtrarDocentes(docentes, termino, estado);
+  const [orden, setOrden] = useState<OrdenDocentes>('nombre');
+  const [todas, setTodas] = useState(false);
+  const filtradas = ordenar(filtrarDocentes(docentes, termino, estado), orden);
+  const visibles = todas ? filtradas : filtradas.slice(0, FILAS_INICIALES);
 
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
@@ -57,6 +94,20 @@ export function ListaDocentes({
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="whitespace-nowrap">Ordenar por</span>
+            <select
+              value={orden}
+              onChange={evento => setOrden(evento.target.value as OrdenDocentes)}
+              className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground shadow-xs outline-hidden focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              {ORDENES.map(o => (
+                <option key={o.valor} value={o.valor}>
+                  {o.etiqueta}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="relative sm:w-72">
             <label htmlFor={id} className="sr-only">
               Buscar cuenta
@@ -194,6 +245,22 @@ export function ListaDocentes({
             )}
           </tbody>
         </table>
+      </div>
+      <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+        <p aria-live="polite" className="tabular-nums">
+          {filtradas.length === docentes.length
+            ? `${docentes.length} ${docentes.length === 1 ? 'cuenta' : 'cuentas'}`
+            : `${filtradas.length} de ${docentes.length} cuentas`}
+        </p>
+        {filtradas.length > FILAS_INICIALES && (
+          <button
+            type="button"
+            onClick={() => setTodas(actual => !actual)}
+            className="rounded-md px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+          >
+            {todas ? 'Mostrar menos' : `Mostrar las ${filtradas.length} cuentas`}
+          </button>
+        )}
       </div>
     </section>
   );

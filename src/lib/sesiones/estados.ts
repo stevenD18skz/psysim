@@ -69,6 +69,25 @@ export function estaPorRevisar(
   );
 }
 
+/** Filtros por estado de una lista de prácticas (ficha del estudiante, Mis prácticas). */
+export const FILTROS_PRACTICAS = [
+  { valor: 'todas', etiqueta: 'Todas', predicado: () => true },
+  { valor: 'por-revisar', etiqueta: 'Por revisar', predicado: estaPorRevisar },
+  {
+    valor: 'publicadas',
+    etiqueta: 'Con retroalimentación',
+    predicado: (s: DatosEstado) => s.retroalimentacion?.publicada ?? false,
+  },
+  {
+    valor: 'en-curso',
+    etiqueta: 'En curso',
+    predicado: (s: DatosEstado) => s.estado === 'en_curso',
+  },
+] as const;
+
+export type FiltroPracticas = (typeof FILTROS_PRACTICAS)[number]['valor'];
+export const IDS_FILTRO_PRACTICAS = FILTROS_PRACTICAS.map(f => f.valor);
+
 /** Estado de la sesión en una palabra, para tablas e informes. */
 export function estadoCortoSesion(sesion: Pick<SesionHistorial, 'estado' | 'comenzada'>): string {
   if (sesion.estado === 'finalizada') return 'Finalizada';

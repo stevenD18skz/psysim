@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, Loader2 } from 'lucide-react';
+import { Ban, ChevronDown, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -39,12 +39,44 @@ export function ListaCodigos({
     );
   }
 
+  // Los que aún sirven van a la vista; los usados, anulados y vencidos son historial: cada código
+  // usado ya aparece como práctica, así que se pliegan para no duplicar la lista.
+  const vigentes = asignaciones.filter(a => a.estado === 'pendiente');
+  const historial = asignaciones.filter(a => a.estado !== 'pendiente');
+
   return (
-    <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
-      {asignaciones.map(asignacion => (
-        <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {vigentes.length > 0 ? (
+        <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+          {vigentes.map(asignacion => (
+            <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+          No tiene códigos sin usar.
+        </p>
+      )}
+      {historial.length > 0 && (
+        <details className="group/historial rounded-xl border bg-card">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium outline-hidden hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            Historial de códigos
+            <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">
+              {historial.length}
+            </span>
+            <ChevronDown
+              className="ml-auto size-4 text-muted-foreground transition-transform group-open/historial:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <ul className="flex flex-col divide-y border-t">
+            {historial.map(asignacion => (
+              <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, MonitorPlay } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clock, MonitorPlay } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -170,13 +170,39 @@ function Grupo({
         {extra}
       </div>
       <ol className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
-        {sesiones.map(sesion => (
+        {sesiones.slice(0, FILAS_POR_GRUPO).map(sesion => (
           <FilaPractica key={sesion.id} sesion={sesion} ahora={ahora} />
         ))}
       </ol>
+      {/* Tras un semestre las prácticas se acumulan: las más antiguas quedan plegadas. */}
+      {sesiones.length > FILAS_POR_GRUPO && (
+        <details className="group/mas flex flex-col">
+          <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-sm font-semibold underline-offset-4 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span className="group-open/mas:hidden">
+              Ver{' '}
+              {sesiones.length - FILAS_POR_GRUPO === 1
+                ? 'la anterior'
+                : `las ${sesiones.length - FILAS_POR_GRUPO} anteriores`}
+            </span>
+            <span className="hidden group-open/mas:inline">Ocultar las anteriores</span>
+            <ChevronDown
+              className="size-4 transition-transform group-open/mas:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <ol className="mt-3 flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+            {sesiones.slice(FILAS_POR_GRUPO).map(sesion => (
+              <FilaPractica key={sesion.id} sesion={sesion} ahora={ahora} />
+            ))}
+          </ol>
+        </details>
+      )}
     </section>
   );
 }
+
+/** Prácticas visibles por grupo; las más antiguas se despliegan a pedido. */
+const FILAS_POR_GRUPO = 6;
 
 /** Fila del registro: fecha, caso, cómo terminó y, si ya llegó, la retroalimentación. */
 function FilaPractica({ sesion }: { sesion: SesionHistorial; ahora: Date }) {

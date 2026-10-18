@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
+import { separarIntentos } from '@/lib/conversacion/intentos';
 import { obtenerMensajesSesion } from '@/lib/escenarios/queries';
 import {
   CASO_NO_DISPONIBLE,
@@ -134,9 +135,15 @@ export const obtenerInformeDeEstudiante = cache(
  */
 export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]> => {
   const supabase = await createClient();
+  // El conteo de intervenciones va embebido (una sola consulta) y solo cuenta las vigentes.
   const { data, error } = await supabase
     .from('sesion')
-    .select(`${COLUMNAS_HISTORIAL}, estudiante_id, nombre_estudiante, codigo_estudiante`)
+    .select(
+      `${COLUMNAS_HISTORIAL}, estudiante_id, nombre_estudiante, codigo_estudiante,
+       intervenciones:mensaje ( count )`
+    )
+    .eq('mensaje.remitente', 'estudiante')
+    .is('mensaje.descartado_en', null)
     .order('inicio', { ascending: false });
 
   if (error) {
@@ -153,6 +160,7 @@ export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]
         nombre: fila?.nombre_estudiante ?? '',
         codigo: fila?.codigo_estudiante ?? '',
       },
+      intervenciones: fila?.intervenciones[0]?.count ?? 0,
     };
   });
 });
@@ -186,6 +194,19 @@ export const obtenerCodigosPendientes = cache(async (): Promise<CodigoPendiente[
       ? { id: fila.estudiante.id, nombre: fila.estudiante.nombre, codigo: fila.estudiante.codigo }
       : null,
   }));
+});
+
+/** Cuántos códigos generó el docente con cada caso (por id del escenario), para la biblioteca. */
+export const obtenerAsignacionesPorCaso = cache(async (): Promise<Map<string, number>> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('asignacion').select('escenario_id');
+  if (error) {
+    throw new Error('No fue posible cargar el uso de los casos.', { cause: error });
+  }
+  const conteo = new Map<string, number>();
+  for (const { escenario_id } of data)
+    conteo.set(escenario_id, (conteo.get(escenario_id) ?? 0) + 1);
+  return conteo;
 });
 
 /** Códigos de acceso que el docente generó para un estudiante, del más reciente al más antiguo. */
@@ -244,10 +265,11 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
   }
   if (!data) return null;
 
-  const [escenario, mensajes] = await Promise.all([
+  const [escenario, todos] = await Promise.all([
     leerEscenarioDeSesion(data.escenario_id),
     obtenerMensajesSesion(data.id),
   ]);
+  const { vigentes: mensajes, intentos } = separarIntentos(todos);
   const retro = data.retroalimentacion;
 
   return {
@@ -274,6 +296,7 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
       ? { nombre: escenario.npc.nombre, edad: escenario.npc.edad }
       : { nombre: 'Paciente', edad: 0 },
     mensajes,
+    intentos,
     retroalimentacion: retro
       ? {
           comentarioGeneral: retro.comentario_general,

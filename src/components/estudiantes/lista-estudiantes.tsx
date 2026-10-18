@@ -1,25 +1,36 @@
 'use client';
 
-import { ArrowRight, ChevronRight, KeyRound, MailPlus, Search } from 'lucide-react';
+import { ArrowRight, ChevronRight, KeyRound, MailPlus } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useId, useState } from 'react';
+import { useId } from 'react';
 
 import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { filtrarEstudiantes, formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { type EstudianteRegistrado } from '@/types';
 
-/** Tabla de estudiantes con búsqueda por código o nombre. */
-export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegistrado[] }) {
+/**
+ * Tabla de estudiantes (una página: la búsqueda, los filtros y el orden los aplica la página en el
+ * servidor y viven en la URL).
+ */
+export function ListaEstudiantes({
+  estudiantes,
+  vacio,
+  controles,
+}: {
+  estudiantes: EstudianteRegistrado[];
+  /** Mensaje cuando ningún estudiante coincide con los filtros. */
+  vacio: string;
+  /** Búsqueda, filtros y orden, junto al título. */
+  controles?: React.ReactNode;
+}) {
   const id = useId();
   const router = useRouter();
-  const [termino, setTermino] = useState('');
-  const visibles = filtrarEstudiantes(estudiantes, termino, Infinity);
+  const visibles = estudiantes;
 
   /**
    * Abre la ficha al pulsar en cualquier parte de la fila, salvo en sus botones y enlaces, en lo
@@ -39,28 +50,11 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
 
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3">
         <h2 id={`${id}-titulo`} className="text-xl font-semibold tracking-tight">
           Registro
         </h2>
-        <div className="relative sm:ml-auto sm:w-80">
-          <label htmlFor={id} className="sr-only">
-            Buscar estudiante
-          </label>
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            id={id}
-            type="search"
-            autoComplete="off"
-            placeholder="Buscar por código o nombre"
-            className="pl-9"
-            value={termino}
-            onChange={evento => setTermino(evento.target.value)}
-          />
-        </div>
+        {controles}
       </div>
 
       <div className="relative overflow-x-auto rounded-xl border bg-card">
@@ -202,7 +196,7 @@ export function ListaEstudiantes({ estudiantes }: { estudiantes: EstudianteRegis
             {visibles.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  Ningún estudiante coincide con «{termino.trim()}».
+                  {vacio}
                 </td>
               </tr>
             )}

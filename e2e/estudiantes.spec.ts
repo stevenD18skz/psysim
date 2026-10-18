@@ -111,14 +111,18 @@ test.describe('gestión de estudiantes', () => {
     await page.goto(`/estudiantes/${estudianteId}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Estudiante de Prueba Uno');
 
-    const fila = page
-      .getByRole('region', { name: 'Códigos de acceso' })
-      .getByRole('listitem')
-      .filter({ hasText: codigo });
+    const codigos = page.getByRole('region', { name: 'Códigos de acceso' });
+    const fila = codigos.getByRole('listitem').filter({ hasText: codigo });
     await expect(fila).toContainText('Sin usar');
     await fila.getByRole('button', { name: 'Anular' }).click();
     await fila.getByRole('button', { name: 'Sí, anular' }).click();
-    await expect(fila).toContainText('Anulado');
+
+    // Anulado, sale de los vigentes y pasa al historial (plegado).
+    await expect(fila).toHaveCount(0);
+    await codigos.getByText('Historial de códigos').click();
+    await expect(codigos.getByRole('listitem').filter({ hasText: codigo })).toContainText(
+      'Anulado'
+    );
 
     // El estudiante ya no puede usarlo.
     const contexto = await page.context().browser()!.newContext();
