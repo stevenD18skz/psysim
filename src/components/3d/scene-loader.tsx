@@ -11,6 +11,7 @@ import { InteraccionPaciente } from '@/components/3d/interaccion-paciente';
 import { LimiteErrorModelo, ModeloGLB } from '@/components/3d/modelo-glb';
 import { Mueble } from '@/components/3d/mueble';
 import { NPCModel } from '@/components/3d/npc-model';
+import { OyenteAudio } from '@/components/3d/oyente-audio';
 import { RegistroColisionesProvider } from '@/components/3d/registro-colisiones';
 import { Sala } from '@/components/3d/sala';
 import { type Escena } from '@/schemas/escena.schema';
@@ -64,6 +65,7 @@ export function SceneLoader({ escena, onBloqueoCambia }: SceneLoaderProps) {
       <NPCModel npc={escena.npc} />
       <InteraccionPaciente npc={escena.npc} />
       <CamaraConversacion npc={escena.npc} />
+      <OyenteAudio npc={escena.npc} />
 
       <ControlesPrimeraPersona
         camara={escena.camara}

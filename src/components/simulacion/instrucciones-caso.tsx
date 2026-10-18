@@ -29,6 +29,11 @@ import { CONSULTORIOS } from '@/lib/casos/opciones';
 import { comenzarSesion } from '@/lib/escenarios/actions';
 import { avisoDeContenido, RECURSOS_APOYO } from '@/lib/escenarios/avisos';
 import {
+  ACUERDO_FICCION,
+  HERRAMIENTAS_PRACTICA,
+  objetivosDePractica,
+} from '@/lib/escenarios/preparacion';
+import {
   ETIQUETA_CATEGORIA,
   ETIQUETA_DIFICULTAD,
   NIVEL_DIFICULTAD,
@@ -62,8 +67,9 @@ function recordarGuiaVista() {
 
 /** Lo que conviene saber antes de empezar: nunca se pliega (ninguna regla invisible). */
 const REGLAS = [
+  ACUERDO_FICCION,
   'Conversas con una IA (Google Gemini), no con una persona. Puede equivocarse o salirse del caso; si pasa, sigue como lo harías en consulta y cuéntaselo luego a tu docente.',
-  'Tu docente leerá la conversación completa cuando termines. No la ve en vivo.',
+  'Tu docente leerá la conversación completa cuando termines, incluidas las respuestas que reformules. No la ve en vivo.',
   `Si pasan ${MINUTOS_CIERRE_INACTIVIDAD} minutos sin actividad, la práctica se cierra sola. Cuenta también ahora, mientras lees, y si sales. Te avisamos un minuto antes.`,
   'Tu código ya se usó. Si la práctica se cierra, necesitas un código nuevo para repetirla.',
   'Cuando acabes, pulsa «Terminar práctica». Después no se puede reanudar.',
@@ -235,12 +241,32 @@ export function InstruccionesCaso({
               )}
             </section>
 
-            <section className="flex flex-col gap-1">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <Target className="size-4" aria-hidden />
-                Competencia que practicarás
-              </h3>
-              <p className="text-xl font-bold tracking-[-0.01em]">{escenario.competenciaCentral}</p>
+            <section className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <Target className="size-4" aria-hidden />
+                  Competencia que practicarás
+                </h3>
+                <p className="text-xl font-bold tracking-[-0.01em]">
+                  {escenario.competenciaCentral}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm font-semibold">Objetivos de esta práctica</p>
+                <ul className="flex flex-col gap-1 text-sm leading-relaxed">
+                  {objetivosDePractica(escenario.competenciaCentral, escenario.categoria).map(
+                    objetivo => (
+                      <li key={objetivo} className="flex gap-2">
+                        <span
+                          aria-hidden
+                          className="mt-2 size-1.5 shrink-0 rounded-full bg-laton"
+                        />
+                        {objetivo}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
             </section>
 
             <section className="flex flex-col gap-2">
@@ -288,8 +314,8 @@ export function InstruccionesCaso({
                 Antes de empezar
               </h3>
               <p className="text-sm text-muted-foreground">
-                Es una práctica formativa: equivocarte aquí es parte de aprender. Cinco cosas que
-                conviene saber:
+                Es una práctica formativa: equivocarte aquí es parte de aprender. Lo que conviene
+                saber:
               </p>
               <ol className="flex flex-col gap-3">
                 {REGLAS.map((regla, i) => (
@@ -314,7 +340,7 @@ export function InstruccionesCaso({
                 onClick={() => setControlesAbiertos(abiertos => !abiertos)}
                 className="-mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-semibold outline-hidden transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Controles
+                Controles y herramientas
                 <span className="ml-auto flex items-center gap-1 font-normal text-muted-foreground">
                   {controlesAbiertos ? 'Ocultar' : 'Ver controles'}
                   <ChevronDown
@@ -335,6 +361,14 @@ export function InstruccionesCaso({
                 <p className="text-sm text-muted-foreground">
                   ¿Prefieres no recorrer el consultorio? Usa «Ir directo a la conversación».
                 </p>
+                <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
+                  {HERRAMIENTAS_PRACTICA.map(herramienta => (
+                    <div key={herramienta.nombre} className="flex flex-col gap-0.5">
+                      <dt className="font-medium">{herramienta.nombre}</dt>
+                      <dd className="text-muted-foreground">{herramienta.detalle}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             </section>
 

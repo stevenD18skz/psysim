@@ -1,8 +1,9 @@
 'use client';
 
 import { RoundedBox } from '@react-three/drei';
-import { type ReactNode, useMemo } from 'react';
-import { Color, DoubleSide } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { type ReactNode, useMemo, useRef } from 'react';
+import { Color, DoubleSide, type Group } from 'three';
 
 import { VistaExterior } from '@/components/3d/vista-exterior';
 import { type TipoMueble } from '@/schemas/escena.schema';
@@ -538,7 +539,28 @@ function Ventana({ semilla }: { semilla: string }) {
   );
 }
 
+/**
+ * Reloj de pared que marca la hora real: el estudiante puede llevar el tiempo de la sesión
+ * mirando el consultorio, como en una consulta, sin depender del cronómetro de la interfaz.
+ */
 function Reloj() {
+  const horario = useRef<Group>(null);
+  const minutero = useRef<Group>(null);
+  const segundero = useRef<Group>(null);
+
+  useFrame(() => {
+    const ahora = new Date();
+    const segundos = ahora.getSeconds() + ahora.getMilliseconds() / 1000;
+    const minutos = ahora.getMinutes() + segundos / 60;
+    const horas = (ahora.getHours() % 12) + minutos / 60;
+    if (horario.current) horario.current.rotation.z = -(horas / 12) * Math.PI * 2;
+    if (minutero.current) minutero.current.rotation.z = -(minutos / 60) * Math.PI * 2;
+    // El segundero avanza a saltos, como un reloj de cuarzo (y con el tic del sonido).
+    if (segundero.current) {
+      segundero.current.rotation.z = -(Math.floor(segundos) / 60) * Math.PI * 2;
+    }
+  });
+
   return (
     <group>
       <mesh rotation-x={Math.PI / 2}>
@@ -549,14 +571,38 @@ function Reloj() {
         <circleGeometry args={[0.145, 32]} />
         <meshStandardMaterial color="#fbf7f0" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 0.04, 0.025]}>
-        <boxGeometry args={[0.012, 0.09, 0.004]} />
-        <meshStandardMaterial color="#2b2522" />
-      </mesh>
-      <mesh position={[0.045, 0, 0.026]} rotation-z={Math.PI / 2}>
-        <boxGeometry args={[0.01, 0.1, 0.004]} />
-        <meshStandardMaterial color="#2b2522" />
-      </mesh>
+      {Array.from({ length: 12 }, (_, i) => (
+        <mesh
+          key={i}
+          position={[
+            Math.sin((i / 12) * Math.PI * 2) * 0.125,
+            Math.cos((i / 12) * Math.PI * 2) * 0.125,
+            0.023,
+          ]}
+          rotation-z={-(i / 12) * Math.PI * 2}
+        >
+          <boxGeometry args={[i % 3 === 0 ? 0.008 : 0.004, i % 3 === 0 ? 0.022 : 0.012, 0.002]} />
+          <meshStandardMaterial color="#2b2522" />
+        </mesh>
+      ))}
+      <group ref={horario} position-z={0.025}>
+        <mesh position-y={0.035}>
+          <boxGeometry args={[0.012, 0.075, 0.004]} />
+          <meshStandardMaterial color="#2b2522" />
+        </mesh>
+      </group>
+      <group ref={minutero} position-z={0.027}>
+        <mesh position-y={0.05}>
+          <boxGeometry args={[0.008, 0.105, 0.004]} />
+          <meshStandardMaterial color="#2b2522" />
+        </mesh>
+      </group>
+      <group ref={segundero} position-z={0.029}>
+        <mesh position-y={0.045}>
+          <boxGeometry args={[0.003, 0.115, 0.002]} />
+          <meshStandardMaterial color="#a4452c" />
+        </mesh>
+      </group>
     </group>
   );
 }

@@ -1,19 +1,35 @@
 'use client';
 
-import { Volume2, VolumeX } from 'lucide-react';
+import { AudioLines, Check, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
 import { MotorAudio } from '@/lib/audio/motor-audio';
 import { planVoz, type Voz } from '@/lib/audio/voz';
+import {
+  callarVozSistema,
+  guardarModoVoz,
+  hablarConVozSistema,
+  leerModoVoz,
+  type ModoVoz,
+  suscribirModoVoz,
+  vozSistemaDisponible,
+} from '@/lib/audio/voz-sistema';
 import { emocionActual } from '@/lib/conversacion/emociones';
+import { RETRASO_RELLENO_MS } from '@/lib/conversacion/relleno';
+import { cn } from '@/lib/utils';
 import { useAppStoreApi } from '@/store/app-store-provider';
 
+const sinSuscripcion = () => () => {};
+
 /**
- * Sonido de la simulación: ambiente según el clima emocional, efectos de la interfaz y la voz
- * inventada del paciente mientras su respuesta aparece en pantalla.
+ * Sonido de la simulación: ambiente según el clima emocional, la sala, efectos de la interfaz y la
+ * voz del paciente mientras su respuesta aparece en pantalla (la inventada, con audio espacial, o
+ * la del sistema, según la preferencia del estudiante). Mientras la IA tarda, el paciente
+ * murmura un «mmm…» (relleno conversacional).
  *
  * El navegador solo deja sonar audio tras un gesto: arranca cuando la simulación comenzó y el
  * usuario ya interactuó con la página (el clic en "Iniciar simulación" basta).
@@ -23,7 +39,13 @@ export function useSonidoSimulacion({ comenzada, voz }: { comenzada: boolean; vo
   const efectos = useEfectosAmbiente();
   const [motor] = useState(() => new MotorAudio());
 
-  useEffect(() => () => motor.liberar(), [motor]);
+  useEffect(
+    () => () => {
+      motor.liberar();
+      callarVozSistema();
+    },
+    [motor]
+  );
 
   useEffect(() => {
     if (!comenzada) return;
@@ -40,31 +62,60 @@ export function useSonidoSimulacion({ comenzada, voz }: { comenzada: boolean; vo
 
   useEffect(() => motor.fijarAmbiente(efectos), [motor, efectos]);
 
+  useEffect(() => {
+    let relleno: ReturnType<typeof setTimeout> | undefined;
+    const cancelarSuscripcion = store.subscribe((actual, previo) => {
+      if (actual.sesion.activa?.comenzada && !previo.sesion.activa?.comenzada) {
+        // Llega justo tras el clic en "Iniciar simulación": se activa el audio y luego suena.
+        void motor.activar().then(() => motor.efecto('inicio'));
+      }
+      const desde = previo.npc.estado;
+      const hacia = actual.npc.estado;
+      if (desde === hacia) return;
+      clearTimeout(relleno);
+
+      const mensajes = actual.conversacion.mensajes;
+      const emocion = emocionActual(mensajes);
+      const silenciado = motor.estaSilenciado();
+      const modo = leerModoVoz();
+
+      if (hacia === 'procesando') {
+        motor.efecto('enviar');
+        if (modo === 'inventada') {
+          relleno = setTimeout(() => {
+            if (store.getState().npc.estado !== 'procesando') return;
+            motor.hablar(planVoz('Mmm…', voz, emocion, 0.7));
+          }, RETRASO_RELLENO_MS);
+        }
+      }
+      if (hacia === 'respondiendo') {
+        const respuesta = mensajes.findLast(m => m.remitente === 'npc')?.contenido ?? '';
+        motor.callar();
+        if (modo === 'sistema') {
+          if (!silenciado) hablarConVozSistema(respuesta, voz, emocion);
+        } else {
+          motor.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)));
+        }
+      }
+      if (hacia === 'sesion_finalizada') {
+        motor.callar();
+        callarVozSistema();
+        motor.efecto('fin');
+      }
+    });
+    return () => {
+      clearTimeout(relleno);
+      cancelarSuscripcion();
+    };
+  }, [store, motor, voz]);
+
+  // Silenciar también calla la voz del sistema (que no pasa por el motor).
   useEffect(
     () =>
-      store.subscribe((actual, previo) => {
-        if (actual.sesion.activa?.comenzada && !previo.sesion.activa?.comenzada) {
-          // Llega justo tras el clic en "Iniciar simulación": se activa el audio y luego suena.
-          void motor.activar().then(() => motor.efecto('inicio'));
-        }
-        const desde = previo.npc.estado;
-        const hacia = actual.npc.estado;
-        if (desde === hacia) return;
-
-        if (hacia === 'procesando') motor.efecto('enviar');
-        if (hacia === 'respondiendo') {
-          const mensajes = actual.conversacion.mensajes;
-          const respuesta = mensajes.findLast(m => m.remitente === 'npc')?.contenido ?? '';
-          motor.hablar(
-            planVoz(respuesta, voz, emocionActual(mensajes), duracionEscritura(respuesta))
-          );
-        }
-        if (hacia === 'sesion_finalizada') {
-          motor.callar();
-          motor.efecto('fin');
-        }
+      motor.suscribir(() => {
+        if (motor.estaSilenciado()) callarVozSistema();
       }),
-    [store, motor, voz]
+    [motor]
   );
 
   return motor;
@@ -90,5 +141,81 @@ export function BotonSonido({ motor }: { motor: MotorAudio }) {
     >
       <Icono aria-hidden />
     </Button>
+  );
+}
+
+const OPCIONES_VOZ: readonly { modo: ModoVoz; titulo: string; detalle: string }[] = [
+  {
+    modo: 'inventada',
+    titulo: 'Voz inventada',
+    detalle: 'Balbucea con la entonación de la frase y sale de donde está el paciente.',
+  },
+  {
+    modo: 'sistema',
+    titulo: 'Voz del sistema',
+    detalle:
+      'Dice las palabras en español con la voz de tu computador. Suena distinto en cada equipo.',
+  },
+];
+
+/** Elegir cómo suena el paciente (se recuerda en este navegador). */
+export function BotonVoz() {
+  const modo = useSyncExternalStore(suscribirModoVoz, leerModoVoz, () => 'inventada' as const);
+  const disponible = useSyncExternalStore(sinSuscripcion, vozSistemaDisponible, () => false);
+  if (!disponible) return null;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="pointer-events-auto bg-card/90 backdrop-blur"
+          aria-label={`Voz del paciente: ${modo === 'sistema' ? 'del sistema' : 'inventada'}`}
+          title="Voz del paciente"
+        >
+          <AudioLines aria-hidden />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-2">
+        <p className="px-2 pt-1 pb-2 text-sm font-semibold">Voz del paciente</p>
+        <div role="radiogroup" aria-label="Voz del paciente" className="flex flex-col gap-1">
+          {OPCIONES_VOZ.map(opcion => {
+            const activa = opcion.modo === modo;
+            return (
+              <button
+                key={opcion.modo}
+                type="button"
+                role="radio"
+                aria-checked={activa}
+                onClick={() => {
+                  guardarModoVoz(opcion.modo);
+                  if (opcion.modo === 'inventada') callarVozSistema();
+                }}
+                className={cn(
+                  'flex items-start gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                  activa && 'bg-salvia-suave'
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
+                    activa && 'border-salvia-oscuro bg-salvia-oscuro text-white'
+                  )}
+                >
+                  {activa && <Check className="size-3" />}
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">{opcion.titulo}</span>
+                  <span className="text-xs text-muted-foreground">{opcion.detalle}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

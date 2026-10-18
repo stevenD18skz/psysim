@@ -25,6 +25,7 @@ import {
 } from '@/components/3d/interaccion-paciente';
 import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
+import { audioEspacialStore } from '@/components/3d/oyente-audio';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
@@ -32,10 +33,20 @@ import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
 import { BotonAmbiente, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
+import {
+  BotonHerramienta,
+  type Herramienta,
+  HojaRemision,
+  LibretaNotas,
+} from '@/components/simulacion/herramientas-consulta';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
-import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
+import {
+  BotonSonido,
+  BotonVoz,
+  useSonidoSimulacion,
+} from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
@@ -158,6 +169,19 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     comenzada,
     voz: personaje ? buscarModeloNpc(personaje).voz : VOZ_POR_DEFECTO,
   });
+  const [herramientas, setHerramientas] = useState<Record<Herramienta, boolean>>({
+    remision: false,
+    notas: false,
+  });
+  const alternarHerramienta = (herramienta: Herramienta) =>
+    setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
+  const enConsulta = lista && comenzada && !resumen;
+
+  // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
+  useEffect(() => {
+    audioEspacialStore.setState({ posicionar: motorAudio.posicionar });
+    return () => audioEspacialStore.setState({ posicionar: null });
+  }, [motorAudio]);
 
   return (
     <>
@@ -182,7 +206,22 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
           />
           <div className="flex flex-wrap items-start justify-end gap-2">
             {depuracion && <IndicadorFps />}
+            {enConsulta && (
+              <>
+                <BotonHerramienta
+                  herramienta="remision"
+                  abierta={herramientas.remision}
+                  onAlternar={() => alternarHerramienta('remision')}
+                />
+                <BotonHerramienta
+                  herramienta="notas"
+                  abierta={herramientas.notas}
+                  onAlternar={() => alternarHerramienta('notas')}
+                />
+              </>
+            )}
             <BotonSonido motor={motorAudio} />
+            <BotonVoz />
             <BotonAmbiente />
             {!conversando && <BotonControles />}
             {lista && comenzada && !resumen && (
@@ -209,6 +248,21 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
           </>
         )}
       </div>
+
+      {enConsulta && herramientas.remision && (
+        <HojaRemision
+          sesion={sesion}
+          conversando={conversando}
+          onCerrar={() => alternarHerramienta('remision')}
+        />
+      )}
+      {enConsulta && herramientas.notas && (
+        <LibretaNotas
+          sesionId={sesion.id}
+          conversando={conversando}
+          onCerrar={() => alternarHerramienta('notas')}
+        />
+      )}
 
       {lista && conversando && (
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />

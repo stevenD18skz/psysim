@@ -14,6 +14,13 @@ import { type Silaba } from './voz';
  *   osciladores graves ─ paso bajo ───────────────────── zumbido ........... tensión
  *   (latido: golpes graves dobles) ...................................... tensión alta
  *   (reloj: tic cada segundo) ............................................... siempre
+ *   osciladores 100/150 Hz + ruido ─ paso banda ──────── ventilación del edificio (siempre)
+ *   (tráfico: un carro que pasa lejos, de un lado a otro) ......... cada 25–55 s
+ *
+ * El consultorio suena como una sala: la voz, el reloj y los efectos pasan por una reverberación
+ * corta (reflexiones de una habitación pequeña), y la voz del paciente sale de donde está sentado
+ * (audio espacial con HRTF): las reflexiones de la sala y un fondo sonoro bien presentado
+ * aumentan la sensación de presencia (Pörschmann & Pellegrini, JVRB 2010).
  *
  * El navegador solo permite sonido tras un gesto del usuario: `activar()` se llama al pulsar
  * (p. ej. "Iniciar simulación"). Sin Web Audio (tests, navegadores antiguos) todo es un no-op.
@@ -21,10 +28,21 @@ import { type Silaba } from './voz';
 
 export type EfectoSonido = 'inicio' | 'enviar' | 'fin';
 
+/** Posición y orientación de quien escucha (la cámara) y de la voz (la cabeza del paciente). */
+export interface PosicionesAudio {
+  oyente: { x: number; y: number; z: number };
+  /** Hacia dónde mira el oyente y su «arriba» (vectores unitarios). */
+  frente: { x: number; y: number; z: number };
+  arriba: { x: number; y: number; z: number };
+  voz: { x: number; y: number; z: number } | null;
+}
+
 const CLAVE_SILENCIO = 'psysim:sonido-silenciado';
 const VOLUMEN_GENERAL = 0.8;
 /** Constante de tiempo de las transiciones de las capas (s): ~3 s hasta el nuevo nivel. */
 const TRANSICION_S = 1;
+/** Duración de la cola de reverberación de la sala (s): un consultorio pequeño y amoblado. */
+const COLA_SALA_S = 0.75;
 const NIVEL = {
   sala: 0.05,
   viento: 0.18,
@@ -34,6 +52,10 @@ const NIVEL = {
   reloj: 0.035,
   pajaros: 0.045,
   voz: 0.22,
+  ventilacion: 0.018,
+  trafico: 0.05,
+  /** Cuánto de la señal va a la reverberación. */
+  reverberacion: 0.22,
 };
 
 interface Capas {
@@ -72,16 +94,43 @@ function crearRuido(ctx: AudioContext, tipo: 'blanco' | 'marron'): AudioBuffer {
   return buffer;
 }
 
+/**
+ * Respuesta al impulso de una habitación pequeña, sintetizada: ruido estéreo que decae
+ * exponencialmente, con las primeras reflexiones algo más marcadas.
+ */
+function crearSala(ctx: AudioContext): AudioBuffer {
+  const largo = Math.floor(ctx.sampleRate * COLA_SALA_S);
+  const buffer = ctx.createBuffer(2, largo, ctx.sampleRate);
+  for (let canal = 0; canal < 2; canal++) {
+    const datos = buffer.getChannelData(canal);
+    for (let i = 0; i < largo; i++) {
+      const t = i / largo;
+      const temprana = i < ctx.sampleRate * 0.03 ? 1.6 : 1;
+      datos[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3.2) * temprana;
+    }
+  }
+  return buffer;
+}
+
+/** Fija un AudioParam de inmediato (o con la API antigua si el navegador no tiene AudioParam). */
+function fijar(parametro: AudioParam | undefined, valor: number, ctx: AudioContext) {
+  parametro?.setTargetAtTime(valor, ctx.currentTime, 0.05);
+}
+
 export class MotorAudio {
   private ctx: AudioContext | null = null;
   private maestro: GainNode | null = null;
+  /** Entrada de la reverberación de la sala (envío). */
+  private envioSala: GainNode | null = null;
   private voz: GainNode | null = null;
+  private panoramaVoz: PannerNode | null = null;
   private capas: Capas | null = null;
   private ruidoBlanco: AudioBuffer | null = null;
+  private ruidoMarron: AudioBuffer | null = null;
   private temporizador: ReturnType<typeof setInterval> | undefined;
   private fuentesVoz: OscillatorNode[] = [];
   private efectos: EfectosAmbiente | null = null;
-  private proximo = { reloj: 0, latido: 0, pajaros: 0 };
+  private proximo = { reloj: 0, latido: 0, pajaros: 0, trafico: 0 };
   private silenciado = leerSilencio();
   private readonly oyentes = new Set<() => void>();
 
@@ -124,8 +173,10 @@ export class MotorAudio {
     void this.ctx?.close().catch(() => {});
     this.ctx = null;
     this.maestro = null;
+    this.envioSala = null;
     this.capas = null;
     this.voz = null;
+    this.panoramaVoz = null;
   };
 
   /** En otra pestaña, el sonido se pausa (y deja de gastar batería). */
@@ -144,7 +195,16 @@ export class MotorAudio {
     maestro.connect(compresor);
     this.maestro = maestro;
 
+    // Reverberación de la sala: un envío que suma las reflexiones al sonido directo.
+    const sala = ctx.createConvolver();
+    sala.buffer = crearSala(ctx);
+    const envioSala = ctx.createGain();
+    envioSala.gain.value = NIVEL.reverberacion;
+    envioSala.connect(sala).connect(maestro);
+    this.envioSala = envioSala;
+
     const marron = crearRuido(ctx, 'marron');
+    this.ruidoMarron = marron;
     this.ruidoBlanco = crearRuido(ctx, 'blanco');
     const ruido = (buffer: AudioBuffer) => {
       const fuente = ctx.createBufferSource();
@@ -210,16 +270,73 @@ export class MotorAudio {
 
     this.capas = { viento, lluvia, zumbido, filtroZumbido };
 
+    // Ventilación del edificio: un zumbido grave y un soplo de aire, casi imperceptibles.
+    const ventilacion = ganancia(NIVEL.ventilacion);
+    ventilacion.connect(maestro);
+    for (const frecuencia of [100, 150]) {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = frecuencia;
+      osc.connect(ganancia(frecuencia === 100 ? 0.5 : 0.2)).connect(ventilacion);
+      osc.start();
+    }
+    ruido(marron)
+      .connect(filtro('bandpass', 260, 0.6))
+      .connect(ganancia(1.2))
+      .connect(ventilacion);
+
+    // Voz del paciente: sale de su cabeza (HRTF) y suena dentro de la sala.
     const voz = ganancia(NIVEL.voz);
-    voz.connect(maestro);
+    const panorama = ctx.createPanner();
+    panorama.panningModel = 'HRTF';
+    panorama.distanceModel = 'inverse';
+    panorama.refDistance = 1.2;
+    panorama.rolloffFactor = 0.6;
+    voz.connect(panorama).connect(maestro);
+    panorama.connect(envioSala);
     this.voz = voz;
+    this.panoramaVoz = panorama;
 
     if (this.efectos) this.fijarAmbiente(this.efectos);
     const ahora = ctx.currentTime;
-    this.proximo = { reloj: ahora + 1, latido: ahora + 1, pajaros: ahora + 2 };
+    this.proximo = { reloj: ahora + 1, latido: ahora + 1, pajaros: ahora + 2, trafico: ahora + 12 };
     this.temporizador = setInterval(this.programar, 100);
     document.addEventListener('visibilitychange', this.alCambiarVisibilidad);
   }
+
+  // ---------- Espacio ----------
+  /**
+   * Coloca al oyente (la cámara) y la voz del paciente. Se llama desde el bucle de la escena 3D;
+   * las transiciones son suaves, así que basta con unas pocas veces por segundo.
+   */
+  posicionar = ({ oyente, frente, arriba, voz }: PosicionesAudio) => {
+    const { ctx, panoramaVoz } = this;
+    if (!ctx) return;
+    const l = ctx.listener;
+    if (l.positionX) {
+      fijar(l.positionX, oyente.x, ctx);
+      fijar(l.positionY, oyente.y, ctx);
+      fijar(l.positionZ, oyente.z, ctx);
+      fijar(l.forwardX, frente.x, ctx);
+      fijar(l.forwardY, frente.y, ctx);
+      fijar(l.forwardZ, frente.z, ctx);
+      fijar(l.upX, arriba.x, ctx);
+      fijar(l.upY, arriba.y, ctx);
+      fijar(l.upZ, arriba.z, ctx);
+    } else {
+      // Navegadores sin AudioParam en el oyente (Firefox antiguo).
+      l.setPosition(oyente.x, oyente.y, oyente.z);
+      l.setOrientation(frente.x, frente.y, frente.z, arriba.x, arriba.y, arriba.z);
+    }
+    if (voz && panoramaVoz) {
+      if (panoramaVoz.positionX) {
+        fijar(panoramaVoz.positionX, voz.x, ctx);
+        fijar(panoramaVoz.positionY, voz.y, ctx);
+        fijar(panoramaVoz.positionZ, voz.z, ctx);
+      } else {
+        panoramaVoz.setPosition(voz.x, voz.y, voz.z);
+      }
+    }
+  };
 
   // ---------- Ambiente ----------
   /** Ajusta las capas al clima emocional (las transiciones son suaves). */
@@ -243,8 +360,13 @@ export class MotorAudio {
     const horizonte = ahora + 0.3;
     const efectos = this.efectos;
     // Tras una pausa (pestaña oculta) no se recuperan los sonidos atrasados de golpe.
-    for (const clave of ['reloj', 'latido', 'pajaros'] as const) {
+    for (const clave of ['reloj', 'latido', 'pajaros', 'trafico'] as const) {
       if (this.proximo[clave] < ahora - 0.25) this.proximo[clave] = ahora + 0.05;
+    }
+
+    while (this.proximo.trafico < horizonte) {
+      this.carroLejano(this.proximo.trafico);
+      this.proximo.trafico += 25 + Math.random() * 30;
     }
 
     while (this.proximo.reloj < horizonte) {
@@ -283,8 +405,35 @@ export class MotorAudio {
     envolvente.gain.setValueAtTime(NIVEL.reloj, cuando);
     envolvente.gain.exponentialRampToValueAtTime(0.0001, cuando + 0.03);
     fuente.connect(banda).connect(envolvente).connect(maestro);
+    if (this.envioSala) envolvente.connect(this.envioSala);
     fuente.start(cuando, Math.random());
     fuente.stop(cuando + 0.04);
+  }
+
+  /** Un carro que pasa lejos, tras la ventana: un soplo grave que cruza de un lado a otro. */
+  private carroLejano(cuando: number) {
+    const { ctx, maestro, ruidoMarron } = this;
+    if (!ctx || !maestro || !ruidoMarron) return;
+    const duracion = 4 + Math.random() * 2.5;
+    const fuente = ctx.createBufferSource();
+    fuente.buffer = ruidoMarron;
+    fuente.loop = true;
+    const filtro = ctx.createBiquadFilter();
+    filtro.type = 'lowpass';
+    filtro.frequency.setValueAtTime(180, cuando);
+    filtro.frequency.linearRampToValueAtTime(520, cuando + duracion * 0.5);
+    filtro.frequency.linearRampToValueAtTime(180, cuando + duracion);
+    const envolvente = ctx.createGain();
+    envolvente.gain.setValueAtTime(0.0001, cuando);
+    envolvente.gain.exponentialRampToValueAtTime(NIVEL.trafico, cuando + duracion * 0.5);
+    envolvente.gain.exponentialRampToValueAtTime(0.0001, cuando + duracion);
+    const lado = ctx.createStereoPanner();
+    const desde = Math.random() < 0.5 ? -0.8 : 0.8;
+    lado.pan.setValueAtTime(desde, cuando);
+    lado.pan.linearRampToValueAtTime(-desde, cuando + duracion);
+    fuente.connect(filtro).connect(envolvente).connect(lado).connect(maestro);
+    fuente.start(cuando, Math.random());
+    fuente.stop(cuando + duracion + 0.1);
   }
 
   private golpe(cuando: number, intensidad: number) {
@@ -347,13 +496,45 @@ export class MotorAudio {
       osc.frequency.setValueAtTime(520, ahora);
       osc.frequency.exponentialRampToValueAtTime(780, ahora + 0.07);
     } else if (tipo === 'inicio') {
-      // Acorde mayor arpegiado, suave: empieza la sesión.
-      [523.25, 659.25, 783.99].forEach((f, i) => nota(f, ahora + i * 0.07, 1.4, 0.05));
+      // Empieza la sesión dentro del mundo: la puerta del consultorio se cierra detrás.
+      this.puerta(ahora);
     } else {
       // Arpegio descendente: se cierra la sesión.
       [783.99, 659.25, 523.25].forEach((f, i) => nota(f, ahora + i * 0.14, 1.2, 0.05));
     }
   };
+
+  /** La puerta se cierra: un golpe grave amortiguado y, enseguida, el clic del pestillo. */
+  private puerta(cuando: number) {
+    const { ctx, maestro, ruidoBlanco, envioSala } = this;
+    if (!ctx || !maestro || !ruidoBlanco) return;
+    const golpe = ctx.createOscillator();
+    golpe.frequency.setValueAtTime(90, cuando);
+    golpe.frequency.exponentialRampToValueAtTime(45, cuando + 0.18);
+    const cuerpo = ctx.createGain();
+    cuerpo.gain.setValueAtTime(0.0001, cuando);
+    cuerpo.gain.exponentialRampToValueAtTime(0.22, cuando + 0.01);
+    cuerpo.gain.exponentialRampToValueAtTime(0.0001, cuando + 0.32);
+    golpe.connect(cuerpo).connect(maestro);
+    if (envioSala) cuerpo.connect(envioSala);
+    golpe.start(cuando);
+    golpe.stop(cuando + 0.35);
+
+    const pestillo = ctx.createBufferSource();
+    pestillo.buffer = ruidoBlanco;
+    const banda = ctx.createBiquadFilter();
+    banda.type = 'bandpass';
+    banda.frequency.value = 2400;
+    banda.Q.value = 4;
+    const clic = ctx.createGain();
+    const t = cuando + 0.16;
+    clic.gain.setValueAtTime(0.12, t);
+    clic.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    pestillo.connect(banda).connect(clic).connect(maestro);
+    if (envioSala) clic.connect(envioSala);
+    pestillo.start(t, Math.random());
+    pestillo.stop(t + 0.05);
+  }
 
   // ---------- Voz inventada ----------
   /** Reproduce un plan de sílabas (`planVoz`). Corta cualquier frase anterior. */
