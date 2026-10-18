@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Nogal y salvia · boceto</title>
+<style>
+  :root {
+    --nogal: #3a2418; --nogal-2: #4a2f20; --salvia: #5f7f63; --salvia-claro: #e6ebe2;
+    --laton: #b0853a; --terracota: #b4532f; --tinta: #1d1a17; --lino: #f1f3ee;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1440px; height: 900px; overflow: hidden; background: var(--nogal); color: var(--lino);
+    font-family: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; }
+  /* Vetas del nogal: bandas verticales finas. */
+  .nogal { position: absolute; inset: 0; background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 2px, transparent 2px 9px, rgba(255,255,255,.025) 9px 10px, transparent 10px 23px),
+    linear-gradient(180deg, var(--nogal-2), var(--nogal)); }
+  nav { position: absolute; top: 0; left: 0; right: 0; height: 84px; display: flex; align-items: center; padding: 0 64px; gap: 40px; }
+  .marca { font-size: 30px; font-weight: 700; letter-spacing: -.02em; display: flex; align-items: center; gap: 14px; }
+  .marca i { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--laton); display: inline-block; }
+  .links { display: flex; gap: 28px; margin-left: auto; font-size: 15px; opacity: .8; }
+  .docente { font-size: 15px; border: 1px solid rgba(241,243,238,.35); padding: 10px 18px; border-radius: 999px; }
+  .copy { position: absolute; left: 64px; top: 168px; width: 560px; }
+  .copy h1 { font-size: 60px; line-height: 1.02; letter-spacing: -.03em; font-weight: 700; }
+  .copy h1 em { font-style: normal; color: #c9d8c7; }
+  .copy p { margin-top: 26px; font-size: 19px; line-height: 1.5; color: #d9d2c8; width: 470px; }
+  .accion { margin-top: 40px; background: var(--lino); color: var(--tinta); border-radius: 18px; padding: 22px; width: 520px; }
+  .accion .etq { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5b5047; }
+  .fila { display: flex; gap: 10px; margin-top: 12px; }
+  .campo { flex: 1; height: 58px; border: 2px solid #8c8378; border-radius: 12px; font: 600 24px/58px ui-monospace, Consolas, monospace; padding: 0 16px; color: #7d756c; }
+  .btn { height: 58px; border-radius: 12px; background: var(--laton); color: var(--tinta); font-weight: 700; font-size: 22px; padding: 0 22px; display: flex; align-items: center; }
+  .google { margin-top: 12px; height: 52px; border-radius: 12px; border: 1px solid #c8c2b8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
+  /* El consultorio, enmarcado como el vano de una puerta. */
+  .puerta { position: absolute; right: 64px; top: 120px; width: 700px; height: 700px; border-radius: 350px 350px 0 0; overflow: hidden;
+    border: 14px solid #2a190f; box-shadow: inset 0 0 0 2px var(--laton); }
+  .cuarto { position: absolute; inset: 0; background:
+    radial-gradient(240px 200px at 26% 30%, rgba(255,214,150,.55), transparent 70%),
+    linear-gradient(180deg, #c99a6b 0 58%, #8c5a36 58% 100%); }
+  .ventana { position: absolute; left: 70px; top: 120px; width: 170px; height: 200px; background: linear-gradient(#9fc3a5, #6f9c78); border: 10px solid #e2c9a3; }
+  .alfombra { position: absolute; left: 90px; right: 90px; bottom: 40px; height: 120px; background: var(--terracota); border-radius: 50%; transform: perspective(400px) rotateX(55deg); }
+  .butaca { position: absolute; left: 270px; bottom: 120px; width: 220px; height: 210px; background: var(--salvia); border-radius: 40px 40px 18px 18px; box-shadow: inset 0 -30px 0 rgba(0,0,0,.15); }
+  .paciente { position: absolute; left: 330px; bottom: 250px; width: 100px; height: 130px; background: #d9b493; border-radius: 50px 50px 30px 30px; }
+  .cuerpo { position: absolute; left: 300px; bottom: 150px; width: 160px; height: 120px; background: #6a4b5c; border-radius: 30px 30px 10px 10px; }
+  .cita { position: absolute; right: 40px; bottom: 210px; width: 300px; background: rgba(29,26,23,.82); padding: 18px 20px; border-radius: 14px 14px 14px 2px; }
+  .cita b { display: block; font-size: 24px; line-height: 1.25; font-weight: 600; color: #f6efe6; }
+  .cita span { display: block; margin-top: 10px; font-size: 13px; color: #cbbfb1; }
+  .regla { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; border-top: 1px solid rgba(176,133,58,.55); display: flex; align-items: center; padding: 0 64px; gap: 48px; font-size: 13px; color: #cbbfb1; }
+  .pie { position: absolute; left: 64px; bottom: 58px; font-size: 13px; color: #b9ad9f; display: flex; gap: 10px; align-items: center; }
+  .sello { width: 22px; height: 22px; background: #fff; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="nogal"></div>
+  <nav>
+    <span class="marca"><i></i>PsySim</span>
+    <span class="links"><span>Cómo funciona</span><span>Los casos</span><span>Privacidad</span></span>
+    <span class="docente">Soy docente · Ingresar</span>
+  </nav>
+  <section class="copy">
+    <h1>Entra al consultorio <em>antes</em> de la consulta real.</h1>
+    <p>Conversa con pacientes virtuales guiados por IA en un consultorio 3D. Tu docente lee la entrevista y te deja comentarios frase por frase.</p>
+    <div class="accion">
+      <div class="etq">Tengo un código de mi docente</div>
+      <div class="fila"><div class="campo">abc-defg-hij</div><div class="btn">Entrar →</div></div>
+      <div class="google">Continuar con Google · @correounivalle.edu.co</div>
+    </div>
+  </section>
+  <div class="puerta">
+    <div class="cuarto"></div>
+    <div class="ventana"></div>
+    <div class="alfombra"></div>
+    <div class="butaca"></div>
+    <div class="cuerpo"></div>
+    <div class="paciente"></div>
+    <div class="cita"><b>«Buenas… la verdad no sé muy bien por dónde empezar.»</b><span>Marta Lucía, 58 años · Duelo y pérdida</span></div>
+  </div>
+  <div class="pie"><span class="sello"></span>Un proyecto de grado de la Universidad del Valle</div>
+  <div class="regla"><span>01 Tu docente te asigna un caso</span><span>02 Practicas desde tu computador</span><span>03 Recibes comentarios frase por frase</span></div>
+</body>
+</html>

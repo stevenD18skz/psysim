@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Hojas de calco · boceto</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1440px; height: 900px; overflow: hidden; background: #2a2a27; color: #2a2a27;
+    font-family: "Barlow Semi Condensed", "Segoe UI", system-ui, sans-serif; }
+  .rampa { position: absolute; left: 0; top: 0; bottom: 0; width: 48px; display: grid; grid-template-rows: repeat(11, 1fr); }
+  .rampa i { display: block; }
+  nav { position: absolute; left: 96px; right: 72px; top: 0; height: 80px; display: flex; align-items: center; color: #f2f2ef; }
+  .marca { font-size: 30px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+  nav span:last-child { margin-left: auto; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: #d6d6d1; }
+  .base { position: absolute; left: 120px; top: 130px; width: 860px; height: 690px; background: #f2f2ef; padding: 48px 56px; transform: rotate(-1.2deg); }
+  .base h1 { font-size: 70px; line-height: .98; text-transform: uppercase; letter-spacing: .01em; font-weight: 700; width: 700px; }
+  .base p { margin-top: 30px; font-size: 26px; line-height: 1.35; width: 620px; color: #4a4a46; }
+  .calco { position: absolute; left: 520px; top: 380px; width: 820px; height: 420px; background: rgba(242,242,239,.9); border: 1px solid rgba(255,255,255,.7); transform: rotate(2.4deg); padding: 40px; backdrop-filter: blur(1px); }
+  .calco .zona { height: 64px; width: 520px; background: repeating-linear-gradient(45deg, rgba(194,24,122,.55) 0 2px, transparent 2px 9px); outline: 2px dashed #c2187a; }
+  .calco b { display: block; margin-top: 24px; font-size: 30px; color: #c2187a; text-transform: uppercase; font-weight: 700; width: 560px; }
+  .accion { position: absolute; right: 72px; top: 150px; width: 330px; color: #f2f2ef; }
+  .accion .btn { height: 62px; background: #f2f2ef; color: #2a2a27; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; text-transform: uppercase; }
+  .accion .sec { margin-top: 12px; height: 54px; border: 2px solid #f2f2ef; display: flex; align-items: center; justify-content: center; font-size: 18px; text-transform: uppercase; letter-spacing: .08em; }
+</style>
+</head>
+<body>
+  <div class="rampa"><i style="background:#0d0d0c"></i><i style="background:#1c1c1a"></i><i style="background:#2a2a27"></i><i style="background:#3b3b37"></i><i style="background:#4f4f4a"></i><i style="background:#6d6d68"></i><i style="background:#8a8a85"></i><i style="background:#a8a8a3"></i><i style="background:#c9c9c4"></i><i style="background:#e0e0dc"></i><i style="background:#f2f2ef"></i></div>
+  <nav><span class="marca">PsySim</span><span>Registro de práctica</span></nav>
+  <section class="base">
+    <h1>La entrevista es la hoja. La supervisión es el calco.</h1>
+    <p>Conversa con un paciente virtual; tu docente superpone su revisión sobre tus propias palabras.</p>
+  </section>
+  <div class="calco"><div class="zona"></div><b>+1 · Buena validación del silencio</b></div>
+  <div class="accion"><div class="btn">Tengo un código</div><div class="sec">Soy docente</div></div>
+</body>
+</html>

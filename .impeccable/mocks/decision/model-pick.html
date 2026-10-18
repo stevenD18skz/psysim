@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Transcripción de supervisión · boceto</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1440px; height: 900px; overflow: hidden; background: #f7f8f5; color: #1c2333;
+    font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif; }
+  nav { height: 72px; display: flex; align-items: center; padding: 0 72px; border-bottom: 2px solid #1c2333; gap: 32px; }
+  .marca { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+  .meta { margin-left: auto; font: 14px ui-monospace, Consolas, monospace; color: #6c7488; }
+  .hoja { position: absolute; left: 72px; top: 120px; width: 900px; }
+  .encabezado { font: 600 14px ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #6c7488; text-transform: uppercase; }
+  h1 { margin-top: 18px; font-size: 64px; line-height: 1.02; letter-spacing: -.03em; font-weight: 800; width: 820px; }
+  .lineas { margin-top: 40px; border-top: 1px solid #c5cad4; }
+  .l { display: grid; grid-template-columns: 56px 140px 1fr; gap: 0; padding: 14px 0; border-bottom: 1px solid #e1e4ea; align-items: baseline; }
+  .n { font: 14px ui-monospace, Consolas, monospace; color: #5b6478; }
+  .q { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #4b5468; }
+  .t { font-size: 26px; line-height: 1.35; }
+  mark { background: linear-gradient(transparent 55%, #f0d548 55%); color: inherit; padding: 0 2px; }
+  .margen { position: absolute; left: 1010px; top: 120px; width: 358px; }
+  .nota { border-left: 3px solid #2f7d5b; padding: 6px 0 6px 18px; margin-top: 238px; }
+  .nota b { font-size: 24px; color: #2f7d5b; line-height: 1.3; display: block; }
+  .nota span { display: block; margin-top: 8px; font-size: 13px; color: #6c7488; }
+  .entrar { position: absolute; left: 1010px; bottom: 72px; width: 358px; }
+  .entrar .btn { height: 60px; background: #1c2333; color: #f7f8f5; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+  .entrar .sec { margin-top: 12px; height: 52px; border: 2px solid #1c2333; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; }
+</style>
+</head>
+<body>
+  <nav><span class="marca">PsySim</span><span class="meta">Hoja de proceso · E-01 · Supervisión</span></nav>
+  <section class="hoja">
+    <h1>Practica la entrevista. Tu docente la anota línea por línea.</h1>
+    <div class="lineas">
+      <div class="l"><span class="n">01</span><span class="q">Estudiante</span><span class="t">Hola, buenos días. ¿Qué la trae por aquí hoy?</span></div>
+      <div class="l"><span class="n">02</span><span class="q">Paciente</span><span class="t">Buenas… la verdad no sé muy bien por dónde empezar.</span></div>
+      <div class="l"><span class="n">03</span><span class="q">Estudiante</span><span class="t"><mark>Tómese su tiempo, aquí no hay prisa.</mark></span></div>
+      <div class="l"><span class="n">04</span><span class="q">Paciente</span><span class="t">Mi hija fue la que insistió en que viniera.</span></div>
+    </div>
+  </section>
+  <aside class="margen">
+    <div class="nota"><b>Buena validación: le das permiso para el silencio.</b><span>Comentario del docente · línea 03</span></div>
+  </aside>
+  <div class="entrar"><div class="btn">Tengo un código</div><div class="sec">Soy docente</div></div>
+</body>
+</html>
