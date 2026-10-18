@@ -1,71 +1,73 @@
-import {
-  Armchair,
-  ArrowRight,
-  BarChart3,
-  Bot,
-  CheckCircle2,
-  Gauge,
-  MessageSquare,
-  Wrench,
-} from 'lucide-react';
+import { ArrowRight, ChevronDown, Monitor } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 
+import { BotonGoogle } from '@/app/(auth)/login/boton-google';
+import { BarraCodigoMovil } from '@/components/landing/barra-codigo-movil';
+import { EntradaCodigo } from '@/components/landing/entrada-codigo';
 import { EscenariosGaleria } from '@/components/landing/escenarios-galeria';
-import { HeroVisual } from '@/components/landing/hero-visual';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
+import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { PiePagina } from '@/components/layout/pie-pagina';
-import { Button } from '@/components/ui/button';
+import { ESCENARIOS_PUBLICOS } from '@/lib/landing/escenarios';
 import { JsonLd } from '@/lib/seo/json-ld';
 import { DESCRIPCION_SITIO, NOMBRE_SITIO, TITULO_SITIO, URL_SITIO } from '@/lib/sitio';
 
 const PREGUNTAS = [
   {
-    pregunta: '¿Qué es PsySim?',
+    pregunta: '¿Converso con una persona real?',
     respuesta:
-      'Es una plataforma web 3D de la Universidad del Valle en la que estudiantes de psicología practican la entrevista clínica conversando con pacientes virtuales guiados por inteligencia artificial.',
+      'No. El paciente es una IA (Google Gemini) que sigue el caso que preparó tu docente. Puede equivocarse o salirse del papel.',
   },
   {
-    pregunta: '¿Reemplaza la práctica con pacientes reales?',
+    pregunta: '¿Quién lee mi conversación?',
     respuesta:
-      'No. Es un espacio seguro para ensayar la entrevista antes de la práctica real: se puede repetir el escenario las veces necesarias, sin riesgo para ninguna persona.',
+      'Tu docente, cuando terminas. No la ve en vivo. Google la procesa para generar las respuestas del paciente. Los detalles están en el aviso de privacidad.',
   },
   {
-    pregunta: '¿Quién puede ingresar a la plataforma?',
+    pregunta: '¿Puedo hacerla en el celular?',
     respuesta:
-      'El acceso es para docentes con una cuenta autorizada. El docente configura el escenario y dirige la sesión de práctica con su grupo.',
+      'Puedes ver tus prácticas y tu retroalimentación en el celular. La simulación necesita un computador con teclado y ratón.',
   },
   {
-    pregunta: '¿Necesito gafas de realidad virtual o instalar algo?',
+    pregunta: '¿Tengo que instalar algo?',
     respuesta:
-      'No. PsySim funciona en el navegador de un portátil de oficina, sin gafas ni instalaciones.',
+      'No. Funciona en el navegador de un portátil de oficina, sin gafas de realidad virtual.',
   },
   {
-    pregunta: '¿Qué inteligencia artificial usa el paciente virtual?',
+    pregunta: '¿Reemplaza la práctica con personas?',
     respuesta:
-      'El diálogo lo genera Google Gemini a través del Vercel AI SDK. El perfil clínico del paciente se define con un prompt por escenario que el docente puede ajustar.',
+      'No. Es un espacio para ensayar la entrevista antes de la práctica real, sin riesgo para nadie.',
   },
   {
-    pregunta: '¿Qué métricas registra cada sesión?',
+    pregunta: '¿Y si me equivoco?',
     respuesta:
-      'La duración de la sesión, el número de intervenciones del estudiante y las latencias de respuesta, sin interrumpir la práctica.',
+      'Para eso está. Es una práctica formativa: los comentarios de tu docente te ayudan a mejorar.',
   },
 ] as const;
 
-const PASOS = [
+const CICLO = [
   {
-    titulo: 'El docente configura el escenario',
-    texto:
-      'Elige el caso, ajusta el prompt del paciente y el consultorio 3D, y guarda la configuración.',
+    titulo: 'Tu docente prepara el caso',
+    texto: 'Elige un caso, ajusta cómo actúa el paciente y te envía un código de un solo uso.',
   },
   {
-    titulo: 'El estudiante realiza la entrevista',
-    texto:
-      'Conversa en lenguaje natural con el paciente virtual, que escucha, reflexiona y responde.',
+    titulo: 'Abres el enlace en un computador',
+    texto: 'Entras con tu correo institucional. No hay nada que instalar.',
   },
   {
-    titulo: 'La sesión queda medida',
-    texto: 'Al finalizar se resumen la duración, las intervenciones y las latencias de respuesta.',
+    titulo: 'Lees el caso y las reglas',
+    texto: 'Sabes qué vas a practicar, de qué trata el caso y qué puede cerrar la práctica.',
+  },
+  {
+    titulo: 'Conversas con el paciente',
+    texto:
+      'Recorres el consultorio y escribes como lo harías en consulta. El paciente responde y su rostro reacciona.',
+  },
+  {
+    titulo: 'Tu docente te deja comentarios',
+    texto:
+      'Lee la conversación, comenta frases concretas y publica una retroalimentación con nota.',
   },
 ] as const;
 
@@ -110,253 +112,231 @@ const DATOS_ESTRUCTURADOS = {
 };
 
 export default function Home() {
+  const portada = ESCENARIOS_PUBLICOS[0];
+
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background pb-20 md:pb-0">
       <JsonLd datos={DATOS_ESTRUCTURADOS} />
-      {/* Filete con el rojo institucional de la Universidad del Valle. */}
-      <div aria-hidden className="h-1 bg-marca" />
-      <div className="relative isolate overflow-hidden border-b">
-        {/* Fondo del hero: resplandor con el rojo institucional y trama de puntos. */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[radial-gradient(60rem_32rem_at_85%_-10%,color-mix(in_oklab,var(--marca)_12%,transparent),transparent),radial-gradient(40rem_28rem_at_0%_100%,var(--accent),transparent)]"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,black,transparent_85%)] bg-size-[22px_22px]"
-        />
-        <header className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-6 py-5">
-          <span className="flex items-center gap-3">
-            <LogoUnivalle className="h-12" />
-            <span className="h-9 w-px bg-border" aria-hidden />
-            <span className="grid leading-tight">
-              <span className="font-heading text-xl font-semibold">PsySim</span>
-              <span className="text-xs text-muted-foreground">Simulador clínico · Psicología</span>
-            </span>
-          </span>
-          <nav aria-label="Principal" className="flex items-center gap-2 sm:gap-6">
-            <a
-              href="#como-funciona"
-              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
+
+      {/* El consultorio visto desde el umbral: la franja de nogal lleva la marca y la acción. */}
+      <div className="vetas-nogal text-sidebar-foreground">
+        <header className="mx-auto flex w-full max-w-7xl items-center gap-6 px-5 py-5 sm:px-8">
+          <Link
+            href="/"
+            className="rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-laton"
+          >
+            <MarcaPsySim className="h-8" />
+          </Link>
+          <nav aria-label="Principal" className="ml-auto flex items-center gap-1 sm:gap-2">
+            {[
+              ['#como-funciona', 'Cómo funciona'],
+              ['#casos', 'Casos'],
+              ['/privacidad', 'Privacidad'],
+            ].map(([href, texto]) => (
+              <a
+                key={href}
+                href={href}
+                className="hidden rounded-md px-3 py-2 text-sm text-sidebar-foreground/85 outline-hidden hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-laton md:inline"
+              >
+                {texto}
+              </a>
+            ))}
+            <Link
+              href="/login?docente=1"
+              className="rounded-full border border-lino/35 px-4 py-2 text-sm font-medium outline-hidden hover:border-lino/70 focus-visible:ring-2 focus-visible:ring-laton"
             >
-              Cómo funciona
-            </a>
-            <a
-              href="#escenarios"
-              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
-            >
-              Escenarios
-            </a>
-            <a
-              href="#preguntas-frecuentes"
-              className="hidden text-sm text-muted-foreground hover:text-foreground md:inline"
-            >
-              Preguntas frecuentes
-            </a>
-            <Button asChild variant="outline">
-              <Link href="/login">Ingresar</Link>
-            </Button>
+              Soy docente
+            </Link>
           </nav>
         </header>
 
-        {/* Presentación */}
         <section
           aria-labelledby="titulo-principal"
-          className="mx-auto grid w-full max-w-7xl items-center gap-14 px-6 pt-8 pb-20 lg:grid-cols-[1fr_1.1fr] lg:gap-16 lg:pt-14 lg:pb-28"
+          className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 pt-6 pb-16 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16 lg:pt-10 lg:pb-24"
         >
-          <div className="flex flex-col gap-7 motion-safe:animate-in motion-safe:duration-700 motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3">
-            <h1
-              id="titulo-principal"
-              className="text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]"
-            >
-              Un consultorio virtual para practicar la{' '}
-              <span className="bg-[linear-gradient(transparent_62%,color-mix(in_oklab,var(--marca)_22%,transparent)_62%)] px-1">
-                entrevista clínica
-              </span>
-            </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              Plataforma web 3D donde estudiantes de psicología conversan con{' '}
-              <strong className="font-medium text-foreground">pacientes virtuales</strong> guiados
-              por inteligencia artificial, en escenarios que el docente configura y evalúa.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg" className="h-12 px-6 text-base shadow-md">
-                <Link href="/login">
-                  Ingresar como docente
-                  <ArrowRight aria-hidden />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="h-12 bg-card/80 px-6 text-base"
+          <div className="flex flex-col gap-7">
+            <div className="flex flex-col gap-5">
+              <h1
+                id="titulo-principal"
+                className="max-w-[16ch] text-[2.6rem] leading-[1.02] font-bold tracking-[-0.035em] text-balance ancho-expandido sm:text-[3.4rem] lg:text-[3.9rem]"
               >
-                <a href="#escenarios">Ver los escenarios</a>
-              </Button>
+                Practica la entrevista clínica con un paciente que responde.
+              </h1>
+              <p className="max-w-xl text-lg leading-relaxed text-sidebar-foreground/85">
+                Entra al consultorio 3D desde tu navegador, conversa por escrito con un paciente
+                simulado con IA y recibe los comentarios de tu docente, frase por frase.
+              </p>
             </div>
-            <dl className="grid max-w-lg grid-cols-3 gap-4 border-t pt-6">
-              {[
-                ['6', 'escenarios, del día a día a la crisis'],
-                ['0', 'instalaciones ni gafas de realidad virtual'],
-                ['IA', 'paciente que responde en lenguaje natural'],
-              ].map(([valor, texto]) => (
-                <div key={texto} className="flex flex-col gap-1">
-                  <dt className="font-heading text-3xl font-semibold text-primary">{valor}</dt>
-                  <dd className="text-xs leading-snug text-muted-foreground">{texto}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="text-sm text-muted-foreground">
-              Proyecto de{' '}
-              <span className="font-medium text-foreground">Brayan Steven Narváez Valdés</span>
-            </p>
+
+            {/* La acción real del estudiante, en su forma de trabajo. */}
+            <div
+              id="codigo"
+              className="flex max-w-lg scroll-mt-6 flex-col gap-4 rounded-2xl bg-card p-5 text-card-foreground shadow-[0_24px_48px_-24px_rgb(0_0_0/0.55)] sm:p-6"
+            >
+              <EntradaCodigo />
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <span aria-hidden className="h-px flex-1 bg-border" />o
+                <span aria-hidden className="h-px flex-1 bg-border" />
+              </div>
+              <BotonGoogle siguiente={null} />
+              <p className="text-sm text-muted-foreground">
+                Usa tu correo @correounivalle.edu.co. Tu docente debe haberte registrado.
+              </p>
+              <p className="flex items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
+                <Monitor className="size-4 shrink-0 text-salvia" aria-hidden />
+                La práctica se hace en un computador con teclado y ratón.
+              </p>
+            </div>
           </div>
 
-          <div className="motion-safe:animate-in motion-safe:duration-1000 motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-5">
-            <HeroVisual />
-          </div>
+          {portada && (
+            <figure className="mx-auto flex w-full max-w-md flex-col gap-5 lg:max-w-none lg:pl-6">
+              {/* El vano de la puerta del consultorio, con la captura real de la simulación. */}
+              {/* Jamba oscura con el filo de latón: se lee como una puerta, no como un marco. */}
+              <div className="rounded-t-[999px] bg-[#2a190f] p-3 shadow-[0_40px_80px_-40px_rgb(0_0_0/0.7)] sm:p-3.5">
+                <div className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[999px] border-2 border-laton">
+                  <Image
+                    src={portada.imagen.src}
+                    alt="Consultorio 3D con Marta Lucía, la paciente del caso E-01, sentada en un sillón"
+                    fill
+                    priority
+                    sizes="(min-width: 1024px) 520px, 90vw"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+              <figcaption className="flex flex-col gap-2">
+                <blockquote className="text-xl leading-snug font-medium text-balance">
+                  «{portada.paciente.apertura}»
+                </blockquote>
+                <span className="text-sm text-sidebar-muted">
+                  {portada.paciente.nombre}, {portada.paciente.edad} años · {portada.codigo}{' '}
+                  {portada.titulo}
+                </span>
+              </figcaption>
+            </figure>
+          )}
         </section>
+
+        <div className="border-t border-laton/60">
+          <p className="mx-auto flex w-full max-w-7xl items-center gap-3 px-5 py-4 text-sm text-sidebar-muted sm:px-8">
+            <span className="rounded-md bg-white p-1">
+              <LogoUnivalle className="h-6" />
+            </span>
+            Un proyecto de grado de la Universidad del Valle
+          </p>
+        </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 pt-16">
-        {/* Resumen */}
-        <aside
-          aria-labelledby="resumen"
-          className="rounded-lg border border-l-4 border-l-primary bg-card p-6"
-        >
-          <h2 id="resumen" className="text-sm font-medium tracking-wide text-primary uppercase">
-            En resumen
-          </h2>
-          <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            {[
-              'Paciente virtual con IA que responde en lenguaje natural.',
-              'Seis escenarios, de lo cotidiano a la intervención en crisis.',
-              'Consultorio 3D en el navegador, sin gafas ni instalaciones.',
-              'El docente configura el caso y revisa métricas de cada sesión.',
-            ].map(t => (
-              <li key={t} className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                {t}
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        {/* Características */}
-        <Seccion titulo="Todo lo necesario para una práctica clínica realista">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Caracteristica
-              icono={<MessageSquare />}
-              titulo="Conversación con IA"
-              texto="Diálogo en lenguaje natural. El paciente adopta su perfil clínico a partir de un prompt que el docente puede ajustar en cada sesión."
-            />
-            <Caracteristica
-              icono={<Armchair />}
-              titulo="Entorno 3D inmersivo"
-              texto="Consultorios navegables en primera persona con React Three Fiber, colisiones y modelos comprimidos con Draco."
-            />
-            <Caracteristica
-              icono={<Bot />}
-              titulo="Paciente reactivo"
-              texto="Animaciones sincronizadas con la conversación: escucha, reflexiona y responde."
-            />
-            <Caracteristica
-              icono={<BarChart3 />}
-              titulo="Métricas automáticas"
-              texto="Duración de la sesión, número de intervenciones y latencias de respuesta, sin interrumpir la práctica."
-            />
-            <Caracteristica
-              icono={<Wrench />}
-              titulo="Configuraciones reutilizables"
-              texto="El docente guarda sus ajustes por escenario y los carga en segundos para cada grupo."
-            />
-            <Caracteristica
-              icono={<Gauge />}
-              titulo="Pensado para equipos modestos"
-              texto="Funciona en el navegador de un portátil de oficina, sin gafas de realidad virtual ni instalaciones."
-            />
-          </div>
-        </Seccion>
-
-        {/* Cómo funciona */}
-        <Seccion id="como-funciona" titulo="Cómo funciona en tres pasos">
-          <ol className="grid gap-4 sm:grid-cols-3">
-            {PASOS.map((paso, i) => (
-              <li key={paso.titulo} className="flex flex-col gap-3 rounded-2xl border bg-card p-6">
-                <span className="flex size-8 items-center justify-center rounded-full bg-primary font-mono text-sm text-primary-foreground">
-                  {i + 1}
-                </span>
-                <h3 className="text-lg font-semibold">{paso.titulo}</h3>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
+        {/* El ciclo real, como un registro por etapas. */}
+        <Seccion id="como-funciona" titulo="Cómo funciona una práctica">
+          {/* Un registro sobre una sola regla de latón: el ordinal va dentro del encabezado. */}
+          <ol className="grid gap-x-6 gap-y-7 border-t-2 border-laton pt-5 sm:grid-cols-2 md:grid-cols-5">
+            {CICLO.map((paso, i) => (
+              <li key={paso.titulo} className="flex flex-col gap-2">
+                <h3 className="text-base leading-snug font-bold">
+                  <span className="mr-1 text-salvia-oscuro ancho-condensado tabular-nums">
+                    {i + 1} ·
+                  </span>
+                  {paso.titulo}
+                </h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{paso.texto}</p>
               </li>
             ))}
           </ol>
         </Seccion>
 
-        {/* Escenarios */}
         <Seccion
-          id="escenarios"
-          titulo="Seis escenarios, de lo cotidiano a la crisis"
-          descripcion="Elige uno para ver al paciente, la competencia que entrena y cómo empieza la conversación."
+          id="casos"
+          titulo="Seis casos para empezar"
+          descripcion="De lo cotidiano a la crisis. Tu docente también puede crear los suyos."
         >
           <EscenariosGaleria />
         </Seccion>
 
-        {/* Tecnología */}
-        <Seccion titulo="Tecnología">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <ColumnaStack
-              titulo="Interfaz"
-              items={['Next.js 16 · React 19', 'Tailwind CSS · shadcn/ui', 'Zustand', 'Zod']}
-            />
-            <ColumnaStack
-              titulo="Motor 3D"
-              items={['Three.js', 'React Three Fiber', '@react-three/drei', 'Draco']}
-            />
-            <ColumnaStack
-              titulo="Datos"
-              items={['Supabase Auth', 'PostgreSQL + RLS', 'Supabase Storage', 'Route Handlers']}
-            />
-            <ColumnaStack
-              titulo="IA"
-              items={['Google Gemini', 'Vercel AI SDK', 'Prompts por escenario', 'Vercel']}
-            />
-          </div>
+        <Seccion
+          titulo="La revisión, frase por frase"
+          descripcion="Tu docente subraya lo que dijiste y te explica por qué funcionó o qué cambiarías."
+        >
+          <RevisionIlustrativa />
         </Seccion>
 
-        {/* Preguntas frecuentes */}
-        <Seccion id="preguntas-frecuentes" titulo="Preguntas frecuentes">
-          <div className="flex flex-col divide-y rounded-2xl border bg-card">
+        <Seccion id="preguntas-frecuentes" titulo="Lo que conviene saber">
+          <div className="flex flex-col divide-y rounded-xl border bg-card">
             {PREGUNTAS.map(p => (
-              <details key={p.pregunta} className="group px-6 py-4">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-                  <h3 className="text-base font-semibold">{p.pregunta}</h3>
-                  <span
+              <details key={p.pregunta} className="group px-5 py-4">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-base font-bold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                  {p.pregunta}
+                  <ChevronDown
+                    className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
                     aria-hidden
-                    className="text-xl text-muted-foreground transition-transform group-open:rotate-45"
-                  >
-                    +
-                  </span>
+                  />
                 </summary>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.respuesta}</p>
+                <p className="mt-3 max-w-[65ch] text-sm leading-relaxed text-muted-foreground">
+                  {p.respuesta}
+                </p>
               </details>
             ))}
           </div>
         </Seccion>
+
+        <section className="my-4 flex flex-col gap-5 rounded-2xl vetas-nogal p-7 text-sidebar-foreground sm:flex-row sm:items-center sm:p-9">
+          <div className="flex flex-1 flex-col gap-2">
+            <h2 className="text-2xl font-bold tracking-[-0.02em]">Para docentes</h2>
+            <p className="max-w-xl text-sidebar-foreground/85">
+              Asigna un caso con un código, sigue quién está practicando y revisa cada conversación
+              frase por frase.
+            </p>
+          </div>
+          {/* Contorno sobre la madera: el latón de la página es solo «Entrar». */}
+          <Link
+            href="/login?docente=1"
+            className="inline-flex h-11 w-fit items-center gap-2 rounded-lg border border-lino/40 px-5 font-semibold outline-hidden hover:border-lino/80 hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            Ingresar como docente
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </section>
+
+        <details className="group mt-8 mb-4 rounded-xl border bg-card">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-5 py-4 text-sm font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+            Ficha técnica del proyecto
+            <ChevronDown
+              className="ml-auto size-4 transition-transform group-open:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <dl className="grid gap-x-8 gap-y-3 border-t px-5 py-5 text-sm sm:grid-cols-2">
+            {[
+              ['Autor', 'Brayan Steven Narváez Valdés'],
+              [
+                'Institución',
+                'Universidad del Valle · Escuela de Ingeniería de Sistemas y Computación · Trabajo de grado, 2026',
+              ],
+              ['Interfaz', 'Next.js 16, React 19, Tailwind CSS 4, shadcn/ui'],
+              ['Consultorio 3D', 'Three.js, React Three Fiber, Draco'],
+              ['Datos y acceso', 'Supabase (PostgreSQL con RLS, Auth, Storage)'],
+              ['Paciente', 'Google Gemini mediante Vercel AI SDK, con reglas fijas de seguridad'],
+              [
+                'Alcance',
+                'Práctica formativa de la entrevista clínica. No tiene validación clínica ni sustituye la supervisión docente.',
+              ],
+              ['Accesibilidad', 'Meta: WCAG 2.2 AA en las pantallas 2D.'],
+            ].map(([dato, valor]) => (
+              <div key={dato} className="flex flex-col gap-0.5">
+                <dt className="font-semibold">{dato}</dt>
+                <dd className="text-muted-foreground">{valor}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
       </main>
 
-      {/* CTA fijo en móvil: el botón del encabezado queda fuera de vista al hacer scroll. */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:hidden">
-        <Button asChild size="lg" className="w-full">
-          <Link href="/login">
-            Ingresar como docente
-            <ArrowRight aria-hidden />
-          </Link>
-        </Button>
-      </div>
+      {/* En móvil, la acción del estudiante queda a mano cuando ya no se ve el bloque del código. */}
+      <BarraCodigoMovil objetivo="codigo" />
 
-      <PiePagina className="mt-16" />
+      <PiePagina className="mt-12" />
     </div>
   );
 }
@@ -370,53 +350,61 @@ function Seccion({
   id?: string;
   titulo: string;
   descripcion?: string;
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="flex scroll-mt-8 flex-col gap-8 border-t py-16">
+    <section id={id} className="flex scroll-mt-8 flex-col gap-7 py-14 sm:py-16">
       <div className="flex max-w-2xl flex-col gap-2">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{titulo}</h2>
-        {descripcion && <p className="text-muted-foreground">{descripcion}</p>}
+        <h2 className="text-[1.75rem] leading-tight font-bold tracking-[-0.02em] sm:text-[2.1rem]">
+          {titulo}
+        </h2>
+        {descripcion && <p className="text-lg text-muted-foreground">{descripcion}</p>}
       </div>
       {children}
     </section>
   );
 }
 
-function Caracteristica({
-  icono,
-  titulo,
-  texto,
-}: {
-  icono: ReactNode;
-  titulo: string;
-  texto: string;
-}) {
+/**
+ * Ejemplo ilustrativo de la revisión: dos intervenciones con un comentario del docente señalado
+ * con una línea guía hacia la frase exacta. Es un ejemplo, y así se rotula.
+ */
+function RevisionIlustrativa() {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-6 transition-shadow hover:shadow-md">
-      <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground [&_svg]:size-5">
-        {icono}
-      </span>
-      <h3 className="text-lg font-semibold">{titulo}</h3>
-      <p className="text-sm leading-relaxed text-muted-foreground">{texto}</p>
-    </div>
-  );
-}
-
-function ColumnaStack({ titulo, items }: { titulo: string; items: string[] }) {
-  return (
-    <div className="rounded-2xl border bg-card p-6">
-      <h3 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-        {titulo}
-      </h3>
-      <ul className="flex flex-col gap-2 text-sm">
-        {items.map(item => (
-          <li key={item} className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <figure className="grid gap-6 rounded-xl border bg-card p-5 sm:p-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
+      <ol aria-label="Fragmento de una conversación de práctica" className="flex flex-col gap-3">
+        <li className="flex max-w-[88%] flex-col gap-1 self-start">
+          <span className="px-1 text-xs font-medium text-muted-foreground">Paciente</span>
+          <p className="rounded-2xl rounded-bl-md border bg-background px-4 py-2.5 text-sm leading-relaxed">
+            No sé si esto sea algo importante, la verdad. Solo me siento muy cansada.
+          </p>
+        </li>
+        <li className="flex max-w-[88%] flex-col items-end gap-1 self-end">
+          <span className="px-1 text-xs font-medium text-muted-foreground">Estudiante</span>
+          <p className="rounded-2xl rounded-br-md bg-salvia-suave px-4 py-2.5 text-sm leading-relaxed">
+            Entiendo.{' '}
+            <mark className="relative rounded-sm bg-ambar-suave px-0.5 text-foreground underline decoration-ambar decoration-2 underline-offset-4">
+              ¿Desde cuándo te sientes así?
+              <sup className="ml-0.5 text-xs font-semibold text-ambar">1</sup>
+            </mark>{' '}
+            Cuéntame un poco más.
+          </p>
+        </li>
+      </ol>
+      <div className="relative flex flex-col gap-2 lg:pl-8">
+        {/* Línea guía hacia la frase comentada (solo en escritorio, donde van lado a lado). */}
+        <span aria-hidden className="absolute top-1/2 -left-6 hidden h-px w-12 bg-ambar lg:block" />
+        <p className="flex items-center gap-2 text-sm font-bold">
+          <span className="flex size-5 items-center justify-center rounded-full bg-ambar-suave text-xs text-ambar">
+            1
+          </span>
+          Comentario del docente
+        </p>
+        <p className="leading-relaxed">
+          Buena pregunta abierta. Antes, valida lo que dijo: «Lo que sientes sí es importante».
+        </p>
+        <p className="text-xs text-muted-foreground">Ejemplo ilustrativo</p>
+      </div>
+    </figure>
   );
 }

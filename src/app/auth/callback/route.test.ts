@@ -47,7 +47,7 @@ describe('GET /auth/callback (acceso con Google)', () => {
     accesoExitoso('estudiante');
     expect(destino(await GET(peticion('?code=abc')))).toBe('/practicas');
     accesoExitoso('docente');
-    expect(destino(await GET(peticion('?code=abc&siguiente=%2Fpracticas')))).toBe('/configuracion');
+    expect(destino(await GET(peticion('?code=abc&siguiente=%2Fpracticas')))).toBe('/inicio');
   });
 
   it('una cuenta sin perfil cierra la sesión y ve acceso denegado', async () => {

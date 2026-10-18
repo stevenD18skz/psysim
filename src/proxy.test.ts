@@ -55,12 +55,7 @@ describe('proxy', () => {
 
   it.each([
     ['un estudiante abre una ruta del docente', 'estudiante', '/sesiones/abc', '/practicas'],
-    [
-      'un docente abre una ruta del estudiante',
-      'docente',
-      '/simulacion?sesion=1',
-      '/configuracion',
-    ],
+    ['un docente abre una ruta del estudiante', 'docente', '/simulacion?sesion=1', '/inicio'],
   ])('si %s, lo lleva a su ruta de inicio', async (_, rol, ruta, destino) => {
     conSesion({ sub: 'u1', rol_usuario: rol });
     const res = await proxy(peticion(ruta));

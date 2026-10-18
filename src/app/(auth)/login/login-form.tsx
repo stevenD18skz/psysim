@@ -115,15 +115,9 @@ export function LoginForm({ siguiente }: LoginFormProps) {
         )}
       </div>
 
-      <Button
-        type="submit"
-        size="lg"
-        className="h-11 text-base"
-        disabled={enviando}
-        aria-busy={enviando}
-      >
+      <Button type="submit" size="lg" disabled={enviando} aria-busy={enviando}>
         {enviando && <Loader2 className="animate-spin" aria-hidden />}
-        {enviando ? 'Ingresando…' : 'Iniciar sesión'}
+        {enviando ? 'Entrando…' : 'Entrar'}
       </Button>
     </form>
   );

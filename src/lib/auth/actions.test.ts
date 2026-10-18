@@ -55,7 +55,7 @@ describe('iniciarSesion (HU-02)', () => {
     loginExitoso();
     db.responder('usuario', { data: { rol: 'docente' } });
     await expect(iniciarSesion(CREDENCIALES, '//sitio-malicioso.com')).rejects.toThrow(
-      'NEXT_REDIRECT:/configuracion'
+      'NEXT_REDIRECT:/inicio'
     );
   });
 

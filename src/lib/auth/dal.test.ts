@@ -136,7 +136,7 @@ describe('requerirSuperadmin', () => {
   });
 
   it.each([
-    ['docente', '/configuracion'],
+    ['docente', '/inicio'],
     ['estudiante', '/practicas'],
   ])('un %s va a su ruta de inicio', async (rol, ruta) => {
     conUsuario();
@@ -155,7 +155,7 @@ describe('requerirEstudiante', () => {
   it('un docente va a su ruta de inicio', async () => {
     conUsuario();
     db.responder('usuario', { data: PERFIL });
-    await expect(requerirEstudiante()).rejects.toThrow('NEXT_REDIRECT:/configuracion');
+    await expect(requerirEstudiante()).rejects.toThrow('NEXT_REDIRECT:/inicio');
   });
 });
 
