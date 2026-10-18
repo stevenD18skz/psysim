@@ -7,6 +7,7 @@ import {
   actividadSesionSchema,
   comenzarSesionSchema,
   finalizarSesionSchema,
+  reformularSchema,
 } from '@/schemas/configuracion.schema';
 import { type EstadoSesion } from '@/types';
 
@@ -108,6 +109,37 @@ export async function registrarActividad(
     return { ok: false, error: 'No fue posible registrar la actividad.' };
   }
   return { ok: true, datos: { enCurso: data === true } };
+}
+
+/**
+ * Ensayar otra respuesta: el estudiante vuelve a una de sus intervenciones. Esa intervención y lo
+ * que vino después quedan descartados (no se borran: el docente los ve como intento reformulado)
+ * y el paciente deja de recordarlos. La base de datos comprueba que el mensaje es del estudiante y
+ * que su sesión sigue en curso.
+ */
+export async function reformularIntervencion(
+  valores: unknown
+): Promise<ResultadoAccion<{ descartados: number }>> {
+  await requerirEstudiante();
+
+  const datos = reformularSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('reformular_desde', {
+    p_mensaje_id: datos.data.mensajeId,
+  });
+
+  if (error || !data) {
+    if (error) console.error('[sesion] No se pudo reformular:', error.code);
+    return {
+      ok: false,
+      error: 'No pudimos volver a ese momento. Tu conversación sigue igual; inténtalo de nuevo.',
+    };
+  }
+  return { ok: true, datos: { descartados: data } };
 }
 
 /**

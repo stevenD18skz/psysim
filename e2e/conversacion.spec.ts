@@ -156,6 +156,61 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await expect(panelTrasRecargar.locator('[data-remitente]')).toHaveCount(2);
   });
 
+  test('ensayar otra respuesta: vuelve a una intervención y el docente ve el intento', async ({
+    page,
+  }) => {
+    const sesionId = await crearSesion();
+    const panel = await iniciarConversacion(page, sesionId);
+    const campo = panel.getByLabel('Tu intervención para Marta Lucía');
+
+    await campo.fill('¿Por qué no lo superó ya?');
+    await campo.press('Enter');
+    await expect(panel.locator('[data-remitente="npc"]')).toHaveCount(1, { timeout: 40_000 });
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 15_000 });
+
+    // Vuelve a su intervención: sale de la conversación y el texto queda para reformularlo.
+    await panel.getByRole('button', { name: 'Ensayar otra respuesta' }).click();
+    const aviso = panel.getByRole('alertdialog', { name: '¿Volver a este momento?' });
+    await expect(aviso).toContainText('Tu docente verá este intento');
+    await aviso.getByRole('button', { name: 'Volver y reformular' }).click();
+    await expect(panel.locator('[data-remitente]')).toHaveCount(0);
+    await expect(campo).toHaveValue('¿Por qué no lo superó ya?');
+    await expect(campo).toBeFocused();
+
+    // En la base de datos nada se borra: el intercambio queda marcado como descartado.
+    const { data: descartados } = await clienteAdmin()
+      .from('mensaje')
+      .select('remitente, descartado_en')
+      .eq('sesion_id', sesionId);
+    expect(descartados).toHaveLength(2);
+    expect(descartados?.every(m => m.descartado_en !== null)).toBe(true);
+
+    await campo.fill('¿Cómo ha estado estos meses, Marta?');
+    await campo.press('Enter');
+    await expect(panel.locator('[data-remitente="npc"]')).toHaveCount(1, { timeout: 40_000 });
+
+    // Al recargar, el paciente solo recuerda la conversación vigente.
+    await page.reload();
+    const panelTrasRecargar = await iniciarConversacion(page, sesionId);
+    await expect(panelTrasRecargar.locator('[data-remitente]')).toHaveCount(2);
+    await expect(panelTrasRecargar).not.toContainText('¿Por qué no lo superó ya?');
+
+    // El docente ve el intento reformulado en su lugar, plegado.
+    await clienteAdmin().from('sesion').update({ estado: 'finalizada' }).eq('id', sesionId);
+    const contexto = await page.context().browser()!.newContext();
+    const docente = await contexto.newPage();
+    await iniciarSesionComoDocente(docente);
+    await docente.goto(`/sesiones/${sesionId}`);
+    const conversacion = docente.getByRole('list', { name: 'Conversación de la sesión' });
+    const intento = conversacion.getByText(/reformuló aquí/);
+    await expect(intento).toBeVisible();
+    await expect(conversacion.getByText('¿Por qué no lo superó ya?')).toBeHidden();
+    await intento.click();
+    await expect(conversacion.getByText('¿Por qué no lo superó ya?')).toBeVisible();
+    await expect(docente.getByText(/1 · 1 reformulada/)).toBeVisible();
+    await contexto.close();
+  });
+
   test('HU-16: un error de la IA muestra el aviso, conserva el historial y permite reintentar', async ({
     page,
   }) => {

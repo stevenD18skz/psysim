@@ -4,7 +4,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5';
+    PostgrestVersion: '14.1';
   };
   public: {
     Tables: {
@@ -236,6 +236,7 @@ export type Database = {
         Row: {
           contenido: string;
           creado_en: string;
+          descartado_en: string | null;
           emocion: string | null;
           id: string;
           latencia_ms: number | null;
@@ -247,6 +248,7 @@ export type Database = {
         Insert: {
           contenido: string;
           creado_en?: string;
+          descartado_en?: string | null;
           emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
@@ -258,6 +260,7 @@ export type Database = {
         Update: {
           contenido?: string;
           creado_en?: string;
+          descartado_en?: string | null;
           emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
@@ -532,6 +535,7 @@ export type Database = {
       es_estudiante: { Args: never; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
       id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
+      reformular_desde: { Args: { p_mensaje_id: string }; Returns: number };
       registrar_actividad_sesion: {
         Args: { p_sesion_id: string };
         Returns: boolean;

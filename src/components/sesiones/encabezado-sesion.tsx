@@ -6,6 +6,7 @@ import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
+import { intervencionesDe } from '@/lib/conversacion/intentos';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { duracionSesion, estadoVisibleSesion } from '@/lib/sesiones/estados';
@@ -33,6 +34,10 @@ export function EncabezadoSesion({
 }) {
   const duracion = duracionSesion(sesion);
   const intervenciones = sesion.mensajes.filter(m => m.remitente === 'estudiante').length;
+  const reformuladas = sesion.intentos.reduce(
+    (total, intento) => total + intervencionesDe(intento),
+    0
+  );
   const estado = estadoVisibleSesion(
     {
       ...sesion,
@@ -102,7 +107,13 @@ export function EncabezadoSesion({
             : { etiqueta: 'Docente', valor: sesion.docente ?? '—' },
           { etiqueta: 'Fecha', valor: formatearFechaHora(sesion.inicio) },
           { etiqueta: 'Duración', valor: duracion === null ? '—' : formatearDuracion(duracion) },
-          { etiqueta: 'Intervenciones', valor: intervenciones },
+          {
+            etiqueta: 'Intervenciones',
+            valor:
+              reformuladas > 0
+                ? `${intervenciones} · ${reformuladas} ${reformuladas === 1 ? 'reformulada' : 'reformuladas'}`
+                : intervenciones,
+          },
         ]}
       />
     </div>

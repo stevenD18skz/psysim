@@ -110,12 +110,15 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
  * Historial de la conversación de una sesión, en orden cronológico. El mensaje del estudiante
  * y la respuesta del NPC se insertan juntos (mismo `creado_en`): el orden del enum
  * `remitente_mensaje` (estudiante < npc) desempata.
+ *
+ * Incluye los mensajes que el estudiante reformuló (con `descartadoEn`): la simulación los quita
+ * y la revisión los muestra como intentos (`separarIntentos`).
  */
 export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeConversacion[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('mensaje')
-    .select('id, remitente, contenido, creado_en, latencia_ms, emocion')
+    .select('id, remitente, contenido, creado_en, latencia_ms, emocion, descartado_en')
     .eq('sesion_id', sesionId)
     .order('creado_en')
     .order('remitente');
@@ -132,6 +135,7 @@ export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeCo
     ...(fila.latencia_ms !== null && { latencia_ms: fila.latencia_ms }),
     // Al retomar la sesión, el paciente conserva el estado emocional en que quedó.
     ...(fila.emocion !== null && esEmocionNpc(fila.emocion) && { emocion: fila.emocion }),
+    ...(fila.descartado_en !== null && { descartadoEn: fila.descartado_en }),
   }));
 }
 

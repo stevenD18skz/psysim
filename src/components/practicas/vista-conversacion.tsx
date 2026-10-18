@@ -15,7 +15,9 @@ import {
   NumeroAnotacion,
   TextoAnotado,
 } from '@/components/retroalimentacion/texto-anotado';
+import { IntentoReformulado } from '@/components/sesiones/intento-reformulado';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { type DetalleSesion } from '@/types';
 
@@ -48,7 +50,7 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
     setAbierta({ id, ancla: anclaDeMarca(id, raiz.current) });
   };
 
-  if (sesion.mensajes.length === 0) {
+  if (sesion.mensajes.length === 0 && sesion.intentos.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
         No alcanzaste a conversar con el paciente en esta práctica.
@@ -62,7 +64,18 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
       aria-label="Tu conversación"
       className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
     >
-      {sesion.mensajes.map(mensaje => {
+      {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
+        if (elemento.tipo === 'intento') {
+          return (
+            <IntentoReformulado
+              key={`intento-${elemento.intento.posicion}`}
+              intento={elemento.intento}
+              estudiante={null}
+              paciente={sesion.npc.nombre}
+            />
+          );
+        }
+        const { mensaje } = elemento;
         const esEstudiante = mensaje.remitente === 'estudiante';
         const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
         return (

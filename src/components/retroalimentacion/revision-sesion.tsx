@@ -14,6 +14,7 @@ import {
   irAMarca,
 } from '@/components/retroalimentacion/ancla';
 import { FormularioRetroalimentacion } from '@/components/retroalimentacion/formulario-retroalimentacion';
+import { IntentoReformulado } from '@/components/sesiones/intento-reformulado';
 import {
   numerarAnotaciones,
   NumeroAnotacion,
@@ -33,6 +34,7 @@ import {
   recortarSeleccion,
   seSolapa,
 } from '@/lib/retroalimentacion/fragmentos';
+import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
 import { type Anotacion, type DetalleSesion, type MensajeConversacion } from '@/types';
@@ -254,7 +256,7 @@ export function RevisionSesion({
           </p>
         </div>
 
-        {sesion.mensajes.length === 0 ? (
+        {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
           <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
             {nombreEstudiante} no alcanzó a conversar con el paciente.
           </p>
@@ -264,7 +266,18 @@ export function RevisionSesion({
             aria-label="Conversación de la sesión"
             className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
           >
-            {sesion.mensajes.map(mensaje => {
+            {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
+              if (elemento.tipo === 'intento') {
+                return (
+                  <IntentoReformulado
+                    key={`intento-${elemento.intento.posicion}`}
+                    intento={elemento.intento}
+                    estudiante={nombreEstudiante ?? sesion.estudiante.nombre}
+                    paciente={sesion.npc.nombre}
+                  />
+                );
+              }
+              const { mensaje } = elemento;
               const esEstudiante = mensaje.remitente === 'estudiante';
               const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
               return (
