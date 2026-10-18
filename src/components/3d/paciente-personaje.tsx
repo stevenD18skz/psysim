@@ -26,8 +26,9 @@ function ultimaRespuesta({ conversacion }: AppState): string | undefined {
 /**
  * Conecta el animador con el store de Zustand sin re-renderizar React: en cada cambio del estado
  * del NPC o de la conversación ajusta el bucle y la expresión, y en cada transición decide el
- * gesto (saludar al llegar, asentir o negar al responder, despedirse al terminar). Al empezar a
- * responder, la boca sigue el mismo plan de sílabas que suena (`useSonidoSimulacion`).
+ * gesto (saludar al llegar, asentir, negar o encogerse al responder, despedirse al terminar). Al
+ * empezar a responder, la boca y los ademanes siguen el mismo plan de sílabas que suena
+ * (`useSonidoSimulacion`), y las frases clave del texto marcan sus gestos.
  */
 function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
   const store = useAppStoreApi();
@@ -62,7 +63,7 @@ function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
       animador.actualizarConducta(hacia, emocion, intensidadActual(mensajes));
       if (hacia === 'respondiendo' && desde !== hacia) {
         const respuesta = ultimaRespuesta(actual) ?? '';
-        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)));
+        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)), respuesta);
       }
       previo = actual;
     });
@@ -96,6 +97,8 @@ export function PacientePersonaje({ npc, personaje }: { npc: ConfigNpc; personaj
         postura: npc.postura,
         alturaAsiento: npc.alturaAsiento,
         piernas: npc.piernas,
+        movimientoReducido:
+          window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
       })
   );
   const camara = useMemo(() => new Vector3(), []);

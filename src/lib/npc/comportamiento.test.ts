@@ -111,10 +111,26 @@ describe('gestoDeRespuesta', () => {
     }
   );
 
-  it.each(['No sé qué decirle.', 'No me acuerdo bien.', 'Siento que nadie me escucha.', 'Bueno…'])(
-    'no gesticula con "%s"',
+  it.each([
+    'No me acuerdo bien.',
+    'Siento que nadie me escucha.',
+    'No se puede hablar con él.',
+    'Bueno…',
+  ])('no gesticula con "%s"', texto => {
+    expect(gestoDeRespuesta(texto)).toBeNull();
+  });
+
+  it.each(['No sé qué decirle.', 'Pues… no sé.', 'Ni idea, la verdad.', 'No se, la verdad.'])(
+    'se encoge de hombros con "%s"',
     texto => {
-      expect(gestoDeRespuesta(texto)).toBeNull();
+      expect(gestoDeRespuesta(texto)).toBe('encogerse');
+    }
+  );
+
+  it.each(['Me duele mucho todo esto.', 'Ay, es que duele.', 'Es muy duro para mí.'])(
+    'se lleva la mano al pecho con "%s"',
+    texto => {
+      expect(gestoDeRespuesta(texto)).toBe('mano_al_pecho');
     }
   );
 });
