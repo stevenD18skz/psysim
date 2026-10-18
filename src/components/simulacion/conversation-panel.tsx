@@ -16,12 +16,14 @@ import { type MensajeConversacion } from '@/types';
 /** Texto breve del estado del paciente en la cabecera del panel. */
 const ETIQUETA_ESTADO: Partial<Record<EstadoNpc, string>> = {
   esperando_input: 'Escuchando',
-  procesando: 'Pensando',
+  procesando: 'Pensando…',
   respondiendo: 'Respondiendo',
   error_comunicacion: 'Sin conexión',
 };
 
 const formatoHora = new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' });
+
+const AVISO_IA = 'Paciente simulado con IA (Google Gemini). Puede equivocarse o salirse del caso.';
 
 interface ConversationPanelProps {
   onFinalizar: () => void;
@@ -79,12 +81,12 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-3 sm:p-4">
       <section
         aria-label={`Conversación con ${nombre}`}
-        className="pointer-events-auto flex h-[min(46dvh,30rem)] w-full max-w-3xl animate-in flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-2xl backdrop-blur fade-in-0 slide-in-from-bottom-6"
+        className="pointer-events-auto flex h-[min(42dvh,27rem)] w-full max-w-[46rem] flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-[0_20px_50px_-20px_rgb(29_20_14/0.55)] backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-6"
       >
         <header className="flex items-center gap-3 border-b px-4 py-2.5">
           <span
             aria-hidden
-            className="flex size-9 items-center justify-center rounded-full bg-accent font-heading text-sm font-semibold text-accent-foreground"
+            className="flex size-9 items-center justify-center rounded-full bg-terracota-suave text-sm font-semibold text-terracota"
           >
             {nombre
               .split(' ')
@@ -93,8 +95,14 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
               .join('')}
           </span>
           <div className="flex min-w-0 flex-col">
-            <h2 className="truncate font-heading text-base leading-tight font-semibold">
+            <h2 className="flex items-center gap-2 truncate text-base leading-tight font-bold">
               {nombre}
+              <span
+                title={AVISO_IA}
+                className="rounded-md border border-input/60 px-1.5 text-[0.7rem] leading-5 font-semibold text-muted-foreground"
+              >
+                IA<span className="sr-only">: {AVISO_IA}</span>
+              </span>
             </h2>
             <p
               className="flex items-center gap-1.5 text-xs text-muted-foreground"
@@ -104,8 +112,8 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
                 aria-hidden
                 className={cn(
                   'size-1.5 rounded-full',
-                  estado === 'error_comunicacion' ? 'bg-destructive' : 'bg-success',
-                  estado === 'procesando' && 'animate-pulse'
+                  estado === 'error_comunicacion' ? 'bg-destructive' : 'bg-salvia',
+                  estado === 'procesando' && 'motion-safe:animate-pulse'
                 )}
               />
               {ETIQUETA_ESTADO[estado] ?? ''}
@@ -150,13 +158,13 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
               />
             ))}
             {estado === 'procesando' && (
-              <li className="flex items-center gap-2 self-start rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2 self-start rounded-2xl rounded-bl-md border bg-card px-4 py-3 text-sm text-muted-foreground">
                 <span className="sr-only">{nombre} está pensando…</span>
                 <span aria-hidden className="flex gap-1">
-                  {[0, 150, 300].map(retraso => (
+                  {[0, 200, 400].map(retraso => (
                     <span
                       key={retraso}
-                      className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60"
+                      className="size-1.5 rounded-full bg-terracota/60 motion-safe:animate-pulse"
                       style={{ animationDelay: `${retraso}ms` }}
                     />
                   ))}
@@ -225,11 +233,15 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
             <p
               id="ayuda-mensaje"
               className={cn(
-                'flex justify-between text-[11px] text-muted-foreground',
+                'flex justify-between text-xs text-muted-foreground',
                 excedido && 'text-destructive'
               )}
             >
-              <span>Enter para enviar · Shift + Enter para una nueva línea</span>
+              <span>
+                {excedido
+                  ? `Tu mensaje supera los ${LIMITES_CHAT.mensaje} caracteres. Acórtalo para enviarlo.`
+                  : 'Enter para enviar · Mayús + Enter para una nueva línea'}
+              </span>
               {texto.length > LIMITES_CHAT.mensaje * 0.8 && (
                 <span className="tabular-nums">
                   {texto.length}/{LIMITES_CHAT.mensaje}
@@ -239,6 +251,7 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
           </div>
           <Button
             type="submit"
+            variant="accion"
             size="icon-lg"
             className="mb-5"
             disabled={bloqueado || !texto.trim() || excedido}
@@ -285,19 +298,19 @@ function Burbuja({ mensaje, nombre, escribiendo, onProgreso, onTerminar }: Burbu
         className={cn(
           'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
           esEstudiante
-            ? 'rounded-br-md bg-primary text-primary-foreground'
-            : 'rounded-bl-md bg-muted text-foreground'
+            ? 'rounded-br-md bg-salvia-suave text-foreground'
+            : 'rounded-bl-md border bg-card text-foreground'
         )}
       >
         {texto}
         {escribiendo && (
           <span
             aria-hidden
-            className="ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 animate-pulse bg-current"
+            className="ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 bg-current motion-safe:animate-pulse"
           />
         )}
       </p>
-      <time dateTime={mensaje.timestamp} className="px-1 text-[11px] text-muted-foreground">
+      <time dateTime={mensaje.timestamp} className="px-1 text-xs text-muted-foreground">
         {formatoHora.format(new Date(mensaje.timestamp))}
       </time>
     </li>
@@ -307,7 +320,7 @@ function Burbuja({ mensaje, nombre, escribiendo, onProgreso, onTerminar }: Burbu
 /** Detalle del aviso: el mensaje específico del servidor o una causa probable. */
 function detalleError(mensaje: string | null): string {
   if (mensaje && mensaje !== MENSAJE_NO_DISPONIBLE) return mensaje;
-  return 'Puede deberse a la conexión o a una saturación momentánea del servicio de IA.';
+  return 'Puede ser la conexión o una saturación momentánea del servicio de IA.';
 }
 
 interface ErrorComunicacionProps {
@@ -330,7 +343,7 @@ function ErrorComunicacion({
   const [confirmando, setConfirmando] = useState(false);
 
   return (
-    <div className="absolute inset-x-3 bottom-3 animate-in fade-in-0 slide-in-from-bottom-2">
+    <div className="absolute inset-x-3 bottom-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
       <div
         role="alertdialog"
         aria-labelledby="error-comunicacion-titulo"
@@ -340,13 +353,13 @@ function ErrorComunicacion({
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
           <div className="flex flex-col gap-0.5">
-            <h3 id="error-comunicacion-titulo" className="font-sans text-sm font-semibold">
-              El paciente virtual no está disponible temporalmente
+            <h3 id="error-comunicacion-titulo" className="text-sm font-bold">
+              El paciente no responde por ahora
             </h3>
             <p id="error-comunicacion-detalle" className="text-sm text-muted-foreground">
               {confirmando
-                ? 'Si finalizas, la conversación no podrá reanudarse.'
-                : `${detalleError(mensaje)} Tu último mensaje se conserva.`}
+                ? 'Si terminas ahora, la práctica no se podrá reanudar. Tu docente revisará lo que alcanzaste a conversar.'
+                : `${detalleError(mensaje)} Tu último mensaje se guardó.`}
             </p>
           </div>
         </div>
@@ -359,7 +372,7 @@ function ErrorComunicacion({
                 onClick={() => setConfirmando(false)}
                 disabled={finalizando}
               >
-                Cancelar
+                Volver
               </Button>
               <Button variant="destructive" size="sm" onClick={onFinalizar} disabled={finalizando}>
                 {finalizando ? (
@@ -367,13 +380,13 @@ function ErrorComunicacion({
                 ) : (
                   <Square aria-hidden />
                 )}
-                Sí, finalizar sesión
+                Sí, terminar práctica
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={() => setConfirmando(true)}>
-                Finalizar sesión
+                Terminar práctica
               </Button>
               <Button size="sm" onClick={onReintentar} autoFocus>
                 <RotateCw aria-hidden />

@@ -30,7 +30,7 @@ const NIVEL = {
   viento: 0.18,
   lluvia: 0.09,
   zumbido: 0.09,
-  latido: 0.3,
+  latido: 0.16,
   reloj: 0.035,
   pajaros: 0.045,
   voz: 0.22,
@@ -254,12 +254,13 @@ export class MotorAudio {
 
     const tension = efectos?.tension ?? 0;
     while (this.proximo.latido < horizonte) {
-      if (tension > 0.55) {
+      // Solo con tensión alta y a pulso de reposo: el latido acompaña el clima del paciente sin
+      // acelerar el del estudiante (antes subía hasta ~100 por minuto).
+      if (tension > 0.7) {
         this.golpe(this.proximo.latido, tension);
         this.golpe(this.proximo.latido + 0.22, tension * 0.7);
       }
-      // El pulso se acelera con la tensión (de 65 a ~100 latidos por minuto).
-      this.proximo.latido += 60 / (65 + 35 * tension);
+      this.proximo.latido += 60 / 66;
     }
 
     const calma = efectos?.calma ?? 0;

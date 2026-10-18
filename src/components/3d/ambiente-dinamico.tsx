@@ -89,6 +89,10 @@ export function AmbienteDinamico({ sala }: { sala: Sala }) {
     [polvo, ceniza]
   );
 
+  const [movimientoReducido] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  );
+
   useFrame(({ clock, scene }, delta) => {
     const dt = Math.min(delta, 0.1);
     const t = 1 - Math.exp(-RAPIDEZ_AMBIENTE * dt);
@@ -105,8 +109,10 @@ export function AmbienteDinamico({ sala }: { sala: Sala }) {
     }
 
     const tiempo = clock.elapsedTime;
-    moverPolvo(polvo, a.calma, tiempo, dt, sala);
-    moverCeniza(ceniza, Math.max(a.tension, a.pesadumbre * 0.7), a.tension, tiempo, dt, sala);
+    // Con «reducir movimiento» las partículas aparecen y se desvanecen, pero no se mueven.
+    const avance = movimientoReducido ? 0 : dt;
+    moverPolvo(polvo, a.calma, tiempo, avance, sala);
+    moverCeniza(ceniza, Math.max(a.tension, a.pesadumbre * 0.7), a.tension, tiempo, avance, sala);
   });
 
   return (

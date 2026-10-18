@@ -14,7 +14,18 @@ export const INTERVALO_LATIDO_MS = 30_000;
 /** Si el cierre falla (p. ej. sin conexión), se reintenta pasado este tiempo. */
 const REINTENTO_CIERRE_MS = 15_000;
 
-const EVENTOS_INTERACCION = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'];
+// `click` cubre a quien activa «Sigo aquí» con un lector de pantalla, control por voz o
+// conmutador: esas tecnologías suelen enviar solo el clic, sin puntero ni teclado.
+const EVENTOS_INTERACCION = [
+  'pointermove',
+  'pointerdown',
+  'keydown',
+  'wheel',
+  'touchstart',
+  'click',
+];
+/** Como mucho, un aviso a las otras pestañas de la misma práctica cada 5 s. */
+const INTERVALO_DIFUSION_MS = 5_000;
 
 /**
  * Segundos que faltan para el cierre, o `null` mientras no haga falta avisar.
@@ -33,6 +44,10 @@ export function segundosParaCierre(inactivoMs: number): number | null {
  *
  * Si el latido revela que la sesión ya terminó (la cerró el barrido mientras el estudiante estaba
  * fuera), también llama a `alVencer` para mostrar el cierre.
+ *
+ * Con la misma práctica abierta en varias pestañas, todas comparten la última interacción (por
+ * `BroadcastChannel`): una pestaña olvidada no cierra la práctica que sigue activa en otra. Un
+ * latido que falla (sin conexión) no detiene los siguientes.
  */
 export function useInactividad({
   sesionId,
@@ -56,9 +71,31 @@ export function useInactividad({
     let ultimoLatido = 0;
     let latiendo = false;
     let proximoCierre = 0;
+    let ultimaDifusion = 0;
+    let avisando = false;
+
+    const canal =
+      typeof BroadcastChannel === 'undefined'
+        ? null
+        : new BroadcastChannel(`psysim:actividad:${sesionId}`);
+    canal?.addEventListener('message', (evento: MessageEvent<number>) => {
+      if (typeof evento.data === 'number' && evento.data > ultimaInteraccion) {
+        ultimaInteraccion = evento.data;
+      }
+    });
 
     const marcar = () => {
-      ultimaInteraccion = Date.now();
+      const ahora = Date.now();
+      ultimaInteraccion = ahora;
+      // Responder al aviso lo cierra en el acto, sin esperar al próximo tic.
+      if (avisando) {
+        avisando = false;
+        setSegundosRestantes(null);
+      }
+      if (canal && ahora - ultimaDifusion >= INTERVALO_DIFUSION_MS) {
+        ultimaDifusion = ahora;
+        canal.postMessage(ahora);
+      }
     };
 
     const cerrar = () => {
@@ -70,9 +107,14 @@ export function useInactividad({
     const latir = async () => {
       latiendo = true;
       ultimoLatido = Date.now();
-      const resultado = await registrarActividad({ sesionId });
-      latiendo = false;
-      if (!cancelado && resultado.ok && !resultado.datos.enCurso) cerrar();
+      try {
+        const resultado = await registrarActividad({ sesionId });
+        if (!cancelado && resultado.ok && !resultado.datos.enCurso) cerrar();
+      } catch {
+        // Sin conexión: se reintenta en el próximo intervalo de latido con interacción.
+      } finally {
+        latiendo = false;
+      }
     };
 
     const revisar = () => {
@@ -81,6 +123,7 @@ export function useInactividad({
       if (estadoNpc === 'procesando' || estadoNpc === 'respondiendo') ultimaInteraccion = ahora;
 
       const restantes = segundosParaCierre(ahora - ultimaInteraccion);
+      avisando = restantes !== null;
       setSegundosRestantes(restantes);
       if (restantes === 0) {
         cerrar();
@@ -103,6 +146,7 @@ export function useInactividad({
     return () => {
       cancelado = true;
       clearInterval(intervalo);
+      canal?.close();
       for (const evento of EVENTOS_INTERACCION) {
         window.removeEventListener(evento, marcar, { capture: true });
       }

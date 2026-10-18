@@ -50,8 +50,8 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
 
   if (sesion.mensajes.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-        No alcanzaste a conversar con el paciente en esta sesión.
+      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
+        No alcanzaste a conversar con el paciente en esta práctica.
       </p>
     );
   }
@@ -59,8 +59,8 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
   const chat = (
     <ol
       ref={raiz}
-      aria-label="Conversación de la sesión"
-      className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs sm:p-5"
+      aria-label="Tu conversación"
+      className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
     >
       {sesion.mensajes.map(mensaje => {
         const esEstudiante = mensaje.remitente === 'estudiante';
@@ -74,7 +74,7 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
               esEstudiante ? 'items-end self-end' : 'self-start'
             )}
           >
-            <span className="px-1 text-[11px] font-medium text-muted-foreground">
+            <span className="px-1 text-xs font-medium text-muted-foreground">
               {esEstudiante ? 'Tú' : sesion.npc.nombre} ·{' '}
               <time dateTime={mensaje.timestamp}>
                 {formatoHora.format(new Date(mensaje.timestamp))}
@@ -84,8 +84,8 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
               className={cn(
                 'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
                 esEstudiante
-                  ? 'rounded-br-md border border-primary/20 bg-primary/6'
-                  : 'rounded-bl-md bg-muted text-foreground'
+                  ? 'rounded-br-md bg-salvia-suave'
+                  : 'rounded-bl-md border bg-background text-foreground'
               )}
             >
               <TextoAnotado
@@ -108,7 +108,7 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
       <div className="flex min-w-0 flex-col gap-3">
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Highlighter className="size-4 shrink-0 text-amber-600" aria-hidden />
+          <Highlighter className="size-4 shrink-0 text-ambar" aria-hidden />
           Pulsa una frase subrayada para leer el comentario de tu docente.
         </p>
         {chat}
@@ -142,9 +142,9 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
 
       <aside
         aria-labelledby="comentarios-docente-titulo"
-        className="flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-xs lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto"
+        className="flex flex-col gap-3 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto"
       >
-        <h3 id="comentarios-docente-titulo" className="text-base font-semibold tracking-tight">
+        <h3 id="comentarios-docente-titulo" className="text-base font-bold tracking-[-0.01em]">
           Comentarios de tu docente
           <span className="ml-2 text-sm font-normal text-muted-foreground tabular-nums">
             {anotaciones.length}
@@ -158,10 +158,10 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
                 {...ABRE_ANOTACION}
                 onClick={() => abrir(anotacion.id)}
                 className={cn(
-                  'flex w-full flex-col gap-1.5 rounded-xl border p-3 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                  'flex w-full flex-col gap-1.5 rounded-xl border p-3 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
                   abierta?.id === anotacion.id
-                    ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10'
-                    : 'bg-background hover:border-amber-300'
+                    ? 'border-ambar bg-ambar-suave'
+                    : 'bg-background hover:border-ambar/60'
                 )}
               >
                 <span className="flex items-start gap-2">

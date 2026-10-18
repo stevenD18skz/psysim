@@ -81,7 +81,6 @@ export function BotonSonido({ motor }: { motor: MotorAudio }) {
       variant="outline"
       size="icon-sm"
       className="pointer-events-auto bg-card/90 backdrop-blur"
-      aria-pressed={silenciado}
       aria-label={silenciado ? 'Activar el sonido' : 'Silenciar el sonido'}
       title={silenciado ? 'Activar el sonido' : 'Silenciar el sonido'}
       onClick={() => {

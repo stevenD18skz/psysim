@@ -41,7 +41,7 @@ export function AvisoPantallaCompleta() {
   return (
     <p
       role="status"
-      className="pointer-events-none absolute top-4 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 animate-in items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm text-white shadow-lg backdrop-blur fade-in-0 slide-in-from-top-2"
+      className="pointer-events-none absolute top-4 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm text-white shadow-lg backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2"
     >
       <Maximize className="size-4 shrink-0" aria-hidden />
       <span>

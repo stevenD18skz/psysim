@@ -1,20 +1,28 @@
 'use client';
 
-import { CheckCircle2, Clock, Hourglass, MessageSquare, Timer } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Hourglass } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 
+import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { type MotivoCierre } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { formatearDuracion, type ResumenSesion } from '@/lib/conversacion/resumen';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
 
+const QUE_SIGUE = [
+  'Tu docente lee la conversación.',
+  'Comenta frases concretas y publica una retroalimentación con nota.',
+  'La verás en Mis prácticas. No enviamos avisos: vuelve a revisar.',
+];
+
 /**
- * Cierre de la sesión (versión mínima del Sprint 3). El estudiante pasa a su práctica, donde
- * relee la conversación y, cuando el docente la publique, ve la retroalimentación. El Sprint 4
- * (HU-21) añade las métricas persistidas. Si se cerró por inactividad, lo explica: la duración
- * llega hasta la última actividad.
+ * Cierre de la práctica: reconoce el esfuerzo con calma y dice qué sigue, sin métricas técnicas.
+ * Tres variantes: terminada por el estudiante, cerrada por inactividad y cerrada antes de empezar
+ * (en ese caso el código ya se usó y se ofrece un mensaje para pedir uno nuevo). La reflexión es
+ * solo para el estudiante: no se guarda.
  */
 export function SesionFinalizada({
   resumen,
@@ -25,75 +33,157 @@ export function SesionFinalizada({
   sesion: SesionActiva;
   motivo?: MotivoCierre;
 }) {
-  const porInactividad = motivo === 'inactividad';
   const router = useRouter();
   const limpiarSesion = useAppStore(state => state.sesion.limpiar);
   const [navegando, startTransition] = useTransition();
+  const [copiado, setCopiado] = useState(false);
+  const idReflexion = useId();
 
-  const verPractica = () =>
+  const sinEmpezar = motivo === 'inactividad' && resumen.intervenciones === 0;
+  const porInactividad = motivo === 'inactividad';
+
+  const ir = (ruta: '/practicas' | `/practicas/${string}`) =>
     startTransition(() => {
       limpiarSesion();
-      router.push(`/practicas/${sesion.id}`);
+      router.push(ruta);
     });
 
-  const indicadores = [
-    { icono: Clock, etiqueta: 'Duración', valor: formatearDuracion(resumen.duracionSegundos) },
-    { icono: MessageSquare, etiqueta: 'Intervenciones', valor: String(resumen.intervenciones) },
-    {
-      icono: Timer,
-      etiqueta: 'Respuesta media del paciente',
-      valor:
-        resumen.latenciaPromedioMs === null
-          ? '—'
-          : `${(resumen.latenciaPromedioMs / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })} s`,
-    },
-  ];
+  const titulo = sinEmpezar
+    ? 'La práctica se cerró antes de empezar'
+    : porInactividad
+      ? 'La práctica se cerró por inactividad'
+      : 'Práctica terminada';
+  const texto = sinEmpezar
+    ? 'Pasaron 10 minutos sin actividad. El código ya se usó: pídele uno nuevo a tu docente.'
+    : porInactividad
+      ? 'Pasaron 10 minutos sin actividad. Tu docente revisará lo que alcanzaste a conversar.'
+      : 'Ahora le toca a tu docente.';
+
+  const copiarMensaje = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `Hola. Mi práctica en PsySim («${sesion.escenario.titulo}») se cerró por inactividad antes de empezar. ¿Sería posible recibir un código nuevo? Gracias.`
+      );
+      setCopiado(true);
+    } catch {
+      setCopiado(false);
+    }
+  };
 
   return (
-    <div className="absolute inset-0 z-40 flex animate-in items-center justify-center bg-background/85 p-6 backdrop-blur-sm fade-in-0">
+    <div className="absolute inset-0 z-[55] flex animate-in items-center justify-center overflow-y-auto bg-nogal/60 p-4 backdrop-blur-sm fade-in-0 sm:p-6">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="sesion-finalizada-titulo"
-        className="flex w-full max-w-md flex-col items-center gap-6 rounded-3xl border bg-card p-8 text-center shadow-2xl"
+        className="my-auto flex w-full max-w-lg flex-col gap-6 rounded-2xl border bg-card p-6 shadow-[0_24px_64px_-16px_rgb(29_20_14/0.5)] sm:p-8"
       >
-        {porInactividad ? (
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-            <Hourglass className="size-7" aria-hidden />
+        <div className="flex flex-col gap-3">
+          <span
+            className={
+              porInactividad
+                ? 'flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground'
+                : 'flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro'
+            }
+          >
+            {porInactividad ? (
+              <Hourglass className="size-6" aria-hidden />
+            ) : (
+              <CheckCircle2 className="size-6" aria-hidden />
+            )}
           </span>
-        ) : (
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-sage text-sage-foreground">
-            <CheckCircle2 className="size-7" aria-hidden />
-          </span>
-        )}
-        <div className="flex flex-col gap-1">
-          <h2 id="sesion-finalizada-titulo" className="text-2xl font-semibold tracking-tight">
-            {porInactividad ? 'Sesión cerrada por inactividad' : 'Sesión finalizada'}
+          <h2
+            id="sesion-finalizada-titulo"
+            className="text-[1.75rem] leading-tight font-bold tracking-[-0.02em]"
+          >
+            {titulo}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {sesion.estudiante.nombre} · {sesion.escenario.codigo} {sesion.escenario.titulo}
-          </p>
-          <p className="mt-2 text-sm">
-            {porInactividad
-              ? 'Pasaron 10 minutos sin actividad. Tu docente igual revisará lo que alcanzaste a conversar y te dejará su retroalimentación.'
-              : 'Tu docente revisará la conversación y te dejará su retroalimentación.'}
-          </p>
+          <p className="text-lg text-muted-foreground">{texto}</p>
+          {!sinEmpezar && (
+            <p className="text-sm text-muted-foreground">
+              <CodigoCaso codigo={sesion.escenario.codigo} className="font-mono text-xs" />{' '}
+              {sesion.escenario.titulo} · {formatearDuracion(resumen.duracionSegundos)} ·{' '}
+              {resumen.intervenciones === 1
+                ? '1 intervención'
+                : `${resumen.intervenciones} intervenciones`}
+            </p>
+          )}
         </div>
-        <dl className="grid w-full grid-cols-3 gap-3">
-          {indicadores.map(({ icono: Icono, etiqueta, valor }) => (
-            <div
-              key={etiqueta}
-              className="flex flex-col items-center gap-1 rounded-xl bg-muted/60 p-3"
+
+        {!sinEmpezar && (
+          <>
+            <section aria-labelledby="que-sigue" className="flex flex-col gap-3">
+              <h3 id="que-sigue" className="text-sm font-bold">
+                Qué pasa ahora
+              </h3>
+              <ol className="flex flex-col gap-2.5">
+                {QUE_SIGUE.map((paso, i) => (
+                  <li key={paso} className="flex gap-3 text-sm leading-relaxed">
+                    <span
+                      aria-hidden
+                      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-nogal text-xs font-bold text-lino"
+                    >
+                      {i + 1}
+                    </span>
+                    {paso}
+                  </li>
+                ))}
+              </ol>
+            </section>
+
+            <section
+              aria-labelledby={`${idReflexion}-titulo`}
+              className="flex flex-col gap-2 rounded-xl bg-salvia-suave p-4"
             >
-              <Icono className="size-4 text-primary" aria-hidden />
-              <dd className="font-heading text-xl font-semibold tabular-nums">{valor}</dd>
-              <dt className="text-[11px] leading-tight text-muted-foreground">{etiqueta}</dt>
-            </div>
-          ))}
-        </dl>
-        <Button size="lg" onClick={verPractica} disabled={navegando} autoFocus>
-          Ver mi práctica
-        </Button>
+              <h3 id={`${idReflexion}-titulo`} className="text-sm font-bold text-salvia-oscuro">
+                Para ti, mientras esperas
+              </h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                <li>¿Qué momento de la conversación sentiste que funcionó?</li>
+                <li>¿Qué harías distinto la próxima vez?</li>
+              </ul>
+              <label htmlFor={idReflexion} className="sr-only">
+                Tus notas (opcional)
+              </label>
+              <Textarea
+                id={idReflexion}
+                placeholder="Tus notas (opcional)"
+                className="min-h-20 bg-card"
+                aria-describedby={`${idReflexion}-aviso`}
+              />
+              <p id={`${idReflexion}-aviso`} className="text-xs text-salvia-oscuro">
+                Esto no se guarda ni lo ve tu docente. Es solo para ti.
+              </p>
+            </section>
+          </>
+        )}
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {sinEmpezar ? (
+            <Button variant="outline" size="lg" onClick={copiarMensaje}>
+              {copiado ? <Check aria-hidden /> : <Copy aria-hidden />}
+              {copiado ? 'Mensaje copiado' : 'Copiar mensaje para mi docente'}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => ir(`/practicas/${sesion.id}`)}
+              disabled={navegando}
+            >
+              Releer la conversación
+            </Button>
+          )}
+          <Button
+            variant="accion"
+            size="lg"
+            onClick={() => ir('/practicas')}
+            disabled={navegando}
+            autoFocus
+          >
+            Ir a Mis prácticas
+          </Button>
+        </div>
       </section>
     </div>
   );
