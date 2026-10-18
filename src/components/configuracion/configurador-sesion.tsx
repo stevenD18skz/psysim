@@ -14,7 +14,8 @@ import {
   Mail,
   Plus,
   Repeat2,
-  RotateCcw,
+  Search,
+  SlidersHorizontal,
   Target,
   UserPlus,
   Wand2,
@@ -28,18 +29,21 @@ import { useForm, useWatch } from 'react-hook-form';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
+import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { textoDias } from '@/lib/asignaciones/codigo';
+import { AJUSTES_VACIOS, type AjustesPractica, promptConAjustes } from '@/lib/casos/ajustes';
+import { coincideBusqueda } from '@/lib/listas';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
@@ -64,6 +68,8 @@ interface ConfiguradorSesionProps {
   estudiantes?: EstudianteRegistrado[];
   /** Estudiante que llega preseleccionado (p. ej. desde la página de estudiantes). */
   estudianteInicial?: EstudianteRegistrado | null;
+  /** Llega desde «Crear mi versión»: los ajustes del paciente salen abiertos. */
+  ajustarInicial?: boolean;
 }
 
 /**
@@ -79,21 +85,31 @@ export function ConfiguradorSesion({
   casoInicialId = null,
   estudiantes = [],
   estudianteInicial = null,
+  ajustarInicial = false,
 }: ConfiguradorSesionProps) {
   const router = useRouter();
   const idGrupo = useId();
+  const idBusquedaCaso = useId();
+  const [busquedaCaso, setBusquedaCaso] = useState('');
 
-  const oficiales = escenarios.filter(e => !e.propio);
+  const coincide = (e: EscenarioCatalogo) =>
+    coincideBusqueda(busquedaCaso, e.titulo, e.codigo, e.npc.nombre, e.competenciaCentral);
+  const oficiales = escenarios.filter(e => !e.propio && coincide(e));
   const propios = escenarios
-    .filter(e => e.propio)
+    .filter(e => e.propio && coincide(e))
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
+  const totalPropios = escenarios.filter(e => e.propio).length;
   const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada);
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
   /** El comportamiento del paciente va plegado hasta que el docente decide ajustarlo. */
-  const [ajustando, setAjustando] = useState(false);
+  const [ajustando, setAjustando] = useState(ajustarInicial && casoInicial !== null);
+  /** Ajustes guiados del paciente para esta práctica (sin escribir instrucciones). */
+  const [ajustes, setAjustes] = useState<AjustesPractica>(AJUSTES_VACIOS);
+  /** El docente editó el texto completo a mano: los ajustes guiados quedan en pausa. */
+  const [textoManual, setTextoManual] = useState(false);
   /** Momento de referencia para mostrar cuándo vencerá el código (se fija al abrir la página). */
   const [ahora] = useState(() => Date.now());
   const [generando, startTransition] = useTransition();
@@ -140,6 +156,18 @@ export function ConfiguradorSesion({
     const opciones = { shouldDirty: true, shouldValidate: isSubmitted };
     setValue('escenarioId', nuevo.id, opciones);
     setValue('promptSistema', nuevo.npc.promptSistema, opciones);
+    // Los ajustes eran para el paciente anterior.
+    setAjustes(AJUSTES_VACIOS);
+    setTextoManual(false);
+  };
+
+  const cambiarAjustes = (nuevos: AjustesPractica) => {
+    setAjustes(nuevos);
+    if (!escenario || textoManual) return;
+    setValue('promptSistema', promptConAjustes(escenario.npc.promptSistema, nuevos), {
+      shouldDirty: true,
+      shouldValidate: isSubmitted,
+    });
   };
 
   const onSeleccionar = (nuevo: EscenarioCatalogo) => {
@@ -151,6 +179,8 @@ export function ConfiguradorSesion({
   const onDeseleccionar = () => {
     setValue('escenarioId', '', { shouldDirty: true });
     setValue('promptSistema', '', { shouldDirty: true });
+    setAjustes(AJUSTES_VACIOS);
+    setTextoManual(false);
   };
 
   // Un caso recién guardado entra en la lista al recargar los datos del servidor.
@@ -175,10 +205,23 @@ export function ConfiguradorSesion({
 
   const restablecerPrompt = () => {
     if (!escenario) return;
+    setAjustes(AJUSTES_VACIOS);
+    setTextoManual(false);
     setValue('promptSistema', escenario.npc.promptSistema, {
       shouldDirty: true,
       shouldValidate: true,
     });
+  };
+
+  // Editar el texto completo a mano deja en pausa los ajustes guiados.
+  const campoPrompt = register('promptSistema');
+  const editarTexto = (evento: React.ChangeEvent<HTMLTextAreaElement>) => {
+    void campoPrompt.onChange(evento);
+    if (escenario) {
+      setTextoManual(
+        evento.target.value !== promptConAjustes(escenario.npc.promptSistema, ajustes)
+      );
+    }
   };
 
   const onSubmit = (datos: GenerarAsignacionData) => {
@@ -230,6 +273,27 @@ export function ConfiguradorSesion({
               {errors.escenarioId.message}
             </p>
           )}
+          {/* Con muchos casos propios, encontrar uno de un vistazo deja de ser posible. */}
+          {escenarios.length > 6 && (
+            <div className="relative max-w-md">
+              <label htmlFor={idBusquedaCaso} className="sr-only">
+                Buscar un caso
+              </label>
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                id={idBusquedaCaso}
+                type="search"
+                autoComplete="off"
+                placeholder="Buscar por título, paciente o competencia"
+                className="pl-9"
+                value={busquedaCaso}
+                onChange={evento => setBusquedaCaso(evento.target.value)}
+              />
+            </div>
+          )}
           <div
             role="radiogroup"
             aria-labelledby="paso-escenario-titulo"
@@ -237,7 +301,7 @@ export function ConfiguradorSesion({
             aria-invalid={errors.escenarioId ? true : undefined}
             className="flex flex-col gap-8"
           >
-            <div className="flex flex-col gap-3">
+            <div className={cn('flex flex-col gap-3', oficiales.length === 0 && 'hidden')}>
               <h3 className="text-sm font-semibold text-muted-foreground">
                 Escenarios predefinidos
               </h3>
@@ -258,8 +322,12 @@ export function ConfiguradorSesion({
 
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold text-muted-foreground">Mis casos</h3>
-              {propios.length === 0 ? (
+              {totalPropios === 0 ? (
                 <EstadoVacioMisCasos />
+              ) : propios.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+                  Ninguno de tus casos coincide con «{busquedaCaso.trim()}».
+                </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {propios.map(e => (
@@ -359,10 +427,15 @@ export function ConfiguradorSesion({
 
                 {!ajustando && !promptPersonalizado ? (
                   // Plegado por defecto: casi siempre basta el comportamiento original del caso.
-                  <div className="flex flex-col items-start justify-center gap-3 rounded-xl border border-dashed border-input/50 bg-card p-5 lg:min-h-96">
-                    <p className="text-sm font-semibold">Comportamiento del paciente</p>
-                    <p className="text-sm text-muted-foreground">
-                      Usa el comportamiento original del caso. El estudiante no lo ve.
+                  <div className="flex flex-col items-start justify-center gap-3 rounded-xl border border-dashed border-input/50 bg-card p-6 lg:min-h-80">
+                    <p className="flex items-center gap-2 text-base font-semibold">
+                      <SlidersHorizontal className="size-4 text-salvia" aria-hidden />
+                      {escenario.npc.nombre.split(' ')[0]} se comportará como describe el caso
+                    </p>
+                    <p className="max-w-md text-sm text-muted-foreground">
+                      Si quieres, ajústalo solo para esta práctica sin escribir instrucciones: que
+                      se abra más o menos, una actitud distinta, algo que guarde o una indicación
+                      con tus palabras.
                     </p>
                     <Button
                       type="button"
@@ -370,60 +443,56 @@ export function ConfiguradorSesion({
                       onClick={() => setAjustando(true)}
                       disabled={generando}
                     >
-                      Ajustar
+                      <SlidersHorizontal aria-hidden />
+                      Ajustar para esta práctica
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex min-h-96 flex-col gap-3 rounded-xl border bg-card p-5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Label htmlFor="promptSistema">Comportamiento del paciente</Label>
-                      {promptPersonalizado && <Badge variant="secondary">Personalizado</Badge>}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="ml-auto"
-                        onClick={restablecerPrompt}
-                        disabled={!promptPersonalizado}
-                      >
-                        <RotateCcw aria-hidden />
-                        Restablecer original
-                      </Button>
-                    </div>
-                    <Textarea
-                      id="promptSistema"
-                      // Ocupa todo el alto disponible: la tarjeta mide lo mismo que la columna del perfil.
-                      className="field-sizing-fixed min-h-64 flex-1 resize-none font-mono text-[13px] leading-relaxed"
-                      aria-invalid={errors.promptSistema ? true : undefined}
-                      aria-describedby={
-                        errors.promptSistema ? 'promptSistema-error' : 'promptSistema-ayuda'
-                      }
-                      disabled={generando}
-                      {...register('promptSistema')}
-                    />
-                    <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
-                      {errors.promptSistema ? (
-                        <p id="promptSistema-error" className="text-sm text-destructive">
-                          {errors.promptSistema.message}
-                        </p>
-                      ) : (
-                        <p id="promptSistema-ayuda">
-                          Así actuará el paciente en esta práctica. El estudiante no lo ve. Los
-                          cambios valen solo para esta asignación, salvo que los guardes como caso
-                          propio.
-                        </p>
-                      )}
-                      <span
-                        className={cn(
-                          'shrink-0 tabular-nums',
-                          promptSistema.length > LIMITES.prompt.max && 'text-destructive'
-                        )}
-                      >
-                        {promptSistema.length.toLocaleString('es-CO')}/
-                        {LIMITES.prompt.max.toLocaleString('es-CO')}
-                      </span>
-                    </div>
-                  </div>
+                  <AjustesPaciente
+                    nombre={escenario.npc.nombre}
+                    ajustes={ajustes}
+                    onCambio={cambiarAjustes}
+                    textoManual={textoManual}
+                    onRestablecer={restablecerPrompt}
+                    deshabilitado={generando}
+                    editorTexto={
+                      <>
+                        <Label htmlFor="promptSistema" className="sr-only">
+                          Comportamiento del paciente
+                        </Label>
+                        <Textarea
+                          id="promptSistema"
+                          rows={14}
+                          className="max-h-[28rem] min-h-56 font-mono text-[13px] leading-relaxed"
+                          aria-invalid={errors.promptSistema ? true : undefined}
+                          aria-describedby={
+                            errors.promptSistema ? 'promptSistema-error' : undefined
+                          }
+                          disabled={generando}
+                          {...campoPrompt}
+                          onChange={editarTexto}
+                        />
+                        <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
+                          {errors.promptSistema ? (
+                            <p id="promptSistema-error" className="text-sm text-destructive">
+                              {errors.promptSistema.message}
+                            </p>
+                          ) : (
+                            <span />
+                          )}
+                          <span
+                            className={cn(
+                              'shrink-0 tabular-nums',
+                              promptSistema.length > LIMITES.prompt.max && 'text-destructive'
+                            )}
+                          >
+                            {promptSistema.length.toLocaleString('es-CO')}/
+                            {LIMITES.prompt.max.toLocaleString('es-CO')}
+                          </span>
+                        </div>
+                      </>
+                    }
+                  />
                 )}
               </div>
             </div>

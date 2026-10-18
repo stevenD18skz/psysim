@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function ConfiguracionPage({ searchParams }: PageProps<'/configuracion'>) {
   await requerirDocente();
-  const [escenarios, estudiantes, { caso, estudiante }] = await Promise.all([
+  const [escenarios, estudiantes, { caso, estudiante, ajustar }] = await Promise.all([
     obtenerCatalogoEscenarios(),
     obtenerEstudiantes(),
     searchParams,
@@ -41,6 +41,7 @@ export default async function ConfiguracionPage({ searchParams }: PageProps<'/co
           casoInicialId={typeof caso === 'string' ? caso : null}
           estudiantes={estudiantes}
           estudianteInicial={estudianteInicial}
+          ajustarInicial={ajustar === '1'}
         />
       )}
     </div>

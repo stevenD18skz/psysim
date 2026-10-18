@@ -151,7 +151,7 @@ describe('ConfiguradorSesion', () => {
 
     expect(screen.getByRole('heading', { name: 'Paciente E-01' })).toBeVisible();
     // El comportamiento va plegado: se despliega con «Ajustar».
-    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(E01.npc.promptSistema);
 
     // Solo un escenario seleccionado a la vez.
@@ -237,7 +237,8 @@ describe('ConfiguradorSesion', () => {
     const duelo = screen.getByRole('radio', { name: /Duelo y pérdida/ });
     await usuario.click(duelo);
     expect(duelo).toBeChecked();
-    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByText('Ver o editar el texto completo (avanzado)'));
     expect(screen.getByLabelText('Comportamiento del paciente')).toBeVisible();
 
     await usuario.click(duelo);
@@ -295,7 +296,7 @@ describe('ConfiguradorSesion', () => {
     renderizar([E01, PROPIO], PROPIO.id);
 
     expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeChecked();
-    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(
       PROPIO.npc.promptSistema
     );
@@ -321,11 +322,13 @@ describe('ConfiguradorSesion', () => {
     renderizar();
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
-    await usuario.click(screen.getByRole('button', { name: 'Ajustar' }));
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByText('Ver o editar el texto completo (avanzado)'));
     const prompt = screen.getByLabelText('Comportamiento del paciente');
     await usuario.clear(prompt);
     await usuario.type(prompt, 'Un prompt ajustado por el docente para el grupo A.');
-    expect(screen.getByText('Personalizado')).toBeVisible();
+    // Editado a mano: los ajustes rápidos quedan en pausa y se usa el texto.
+    expect(screen.getByText('Usará el texto que editaste.')).toBeVisible();
 
     await usuario.click(screen.getByRole('button', { name: /Guardar como mi caso/ }));
     const nombre = screen.getByLabelText('Nombre del caso');
@@ -338,6 +341,60 @@ describe('ConfiguradorSesion', () => {
       prompt: 'Un prompt ajustado por el docente para el grupo A.',
     });
     await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('ajusta al paciente sin escribir instrucciones y lo envía con el código', async () => {
+    mockGenerar.mockResolvedValue({ ok: false, error: 'Servidor de prueba sin respuesta.' });
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id, [ANA], ANA);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByRole('radio', { name: /Más reservado/ }));
+    await usuario.click(screen.getByRole('button', { name: 'desconfiado' }));
+    await usuario.type(
+      screen.getByLabelText('Una indicación con tus palabras (opcional)'),
+      'Hoy llega tarde'
+    );
+
+    // El resumen dice en lenguaje cotidiano qué cambiará.
+    expect(screen.getByText(/Así cambiará .* en esta práctica:/)).toBeVisible();
+    expect(screen.getByText('Se muestra desconfiado.')).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
+    const enviado = (mockGenerar.mock.calls[0]![0] as { promptSistema: string }).promptSistema;
+    expect(enviado.startsWith(E01.npc.promptSistema)).toBe(true);
+    expect(enviado).toContain('Ajustes del docente para esta práctica');
+    expect(enviado).toContain('te cuesta más abrirte');
+    expect(enviado).toContain('Indicación del docente: Hoy llega tarde.');
+  }, 20_000);
+
+  it('«Volver al original» deshace los ajustes', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByRole('radio', { name: /Se abre más/ }));
+    const texto = screen.getByLabelText('Comportamiento del paciente');
+    expect((texto as HTMLTextAreaElement).value).toContain('Ajustes del docente');
+
+    await usuario.click(screen.getByRole('button', { name: 'Volver al original' }));
+    expect(texto).toHaveValue(E01.npc.promptSistema);
+    expect(screen.getByText(/se comportará como describe el caso/)).toBeVisible();
+  });
+
+  it('con muchos casos, el paso 1 tiene buscador', async () => {
+    const usuario = userEvent.setup();
+    const muchos = Array.from({ length: 7 }, (_, i) => ({
+      ...E01,
+      id: `0000000${i}-0000-4000-8000-000000000000`,
+      codigo: `E-1${i}`,
+      titulo: i === 3 ? 'Caso de insomnio' : `Caso ${i}`,
+    }));
+    renderizar(muchos);
+
+    await usuario.type(screen.getByLabelText('Buscar un caso'), 'insomnio');
+    expect(screen.getAllByRole('radio', { name: /^E-1\d/ })).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: /Caso de insomnio/ })).toBeInTheDocument();
   });
 
   describe('estudiantes', () => {

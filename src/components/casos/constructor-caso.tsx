@@ -1,13 +1,26 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, ArrowLeft, Loader2, Pencil, Save, Wand2 } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  CircleDashed,
+  Lightbulb,
+  Loader2,
+  Pencil,
+  Save,
+  Wand2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FichaPaciente } from '@/components/casos/ficha-paciente';
+import { LoQueGuarda } from '@/components/casos/lo-que-guarda';
 import { ProbarPaciente } from '@/components/casos/probar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { GrupoChips, SelectorOpciones, Sugerencias } from '@/components/casos/selectores';
@@ -18,6 +31,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { actualizarCaso, crearCaso } from '@/lib/casos/actions';
 import { componerPrompt } from '@/lib/casos/componer-prompt';
+import {
+  camposFaltantes,
+  COMPETENCIAS_FRECUENTES,
+  EJEMPLOS_CASO,
+  type EjemploCaso,
+  FRASES_APERTURA,
+} from '@/lib/casos/ejemplos';
 import {
   ACTITUDES,
   CONSULTORIOS,
@@ -30,6 +50,7 @@ import { valoresVacios } from '@/lib/casos/valores';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { cn } from '@/lib/utils';
 import {
+  type CamposCaso,
   type CasoFormData,
   type CasoFormInput,
   casoFormSchema,
@@ -68,6 +89,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
     handleSubmit,
     setValue,
     getValues,
+    reset,
     control,
     formState: { errors, isSubmitted },
   } = useForm<CasoFormInput, unknown, CasoFormData>({
@@ -83,7 +105,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
   const actualizar = <K extends keyof CasoFormInput>(campo: K, valor: CasoFormInput[K]) =>
     setValue(campo, valor as never, { shouldDirty: true, shouldValidate: isSubmitted });
 
-  const promptCompuesto = componerPrompt({
+  const camposActuales: CamposCaso = {
     nombre: valores.nombre ?? '',
     edad: Number(valores.edad),
     ocupacion: valores.ocupacion ?? '',
@@ -96,7 +118,28 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
     riesgo: valores.riesgo ?? 'ninguno',
     fraseApertura: valores.fraseApertura ?? '',
     notas: valores.notas ?? '',
-  });
+    secretos: (valores.secretos ?? []).map(s => ({
+      dato: s?.dato ?? '',
+      condicion: s?.condicion ?? '',
+    })),
+  };
+  const promptCompuesto = componerPrompt(camposActuales);
+  const faltantes = camposFaltantes(valores as Partial<CasoFormInput>);
+  // Los ejemplos solo se ofrecen al crear, mientras el paciente aún no tiene identidad.
+  const ofrecerEjemplos =
+    !casoId && !(valores.nombre ?? '').trim() && !(valores.situacion ?? '').trim();
+
+  const usarEjemplo = (ejemplo: EjemploCaso) => {
+    reset({ ...valoresVacios(), ...ejemplo.valores }, { keepDefaultValues: true });
+    toast.success(`Cargamos el ejemplo «${ejemplo.etiqueta}». Cámbialo a tu medida.`);
+  };
+
+  /** Lleva al campo que falta (y lo enfoca), desde la lista de pendientes. */
+  const irACampo = (campo: string) => {
+    const elemento = document.getElementById(campo);
+    elemento?.scrollIntoView?.({ block: 'center' });
+    elemento?.focus({ preventScroll: true });
+  };
   const promptActual = modoTexto ? (valores.promptManual ?? '') : promptCompuesto;
   // En modo guiado la prueba espera a lo mínimo para que el paciente tenga identidad y situación.
   const promptValido =
@@ -150,6 +193,44 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
       className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
     >
       <div className="flex flex-col gap-8">
+        {ofrecerEjemplos && (
+          <section
+            aria-labelledby="ejemplos-titulo"
+            className="flex flex-col gap-3 rounded-2xl border border-dashed border-salvia/50 bg-salvia-suave/35 p-5"
+          >
+            <div className="flex items-start gap-3">
+              <Lightbulb className="mt-0.5 size-5 shrink-0 text-salvia-oscuro" aria-hidden />
+              <div className="flex flex-col gap-0.5">
+                <h2 id="ejemplos-titulo" className="text-base font-semibold">
+                  ¿Primera vez? Empieza desde un ejemplo
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Llenamos todos los campos con un caso completo; luego cambias lo que quieras. No
+                  necesitas saber escribir instrucciones para una IA.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 pl-8">
+              {EJEMPLOS_CASO.map(ejemplo => (
+                <Button
+                  key={ejemplo.id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto flex-col items-start gap-0 bg-card py-1.5"
+                  onClick={() => usarEjemplo(ejemplo)}
+                  disabled={guardando}
+                >
+                  <span>{ejemplo.etiqueta}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {ejemplo.detalle}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* 1 — El caso */}
         <Seccion
           numero={1}
@@ -200,6 +281,12 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
               disabled={guardando}
               aria-invalid={errors.competenciaCentral ? true : undefined}
               {...register('competenciaCentral')}
+            />
+            <Opciones
+              etiqueta="Competencias frecuentes"
+              opciones={COMPETENCIAS_FRECUENTES}
+              actual={valores.competenciaCentral ?? ''}
+              onElegir={c => actualizar('competenciaCentral', c)}
             />
           </Campo>
           <Campo
@@ -281,9 +368,10 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
           <Alert>
             <Pencil aria-hidden />
             <AlertDescription>
-              Estás redactando el comportamiento como texto, en el panel de la derecha. Los
-              síntomas, la actitud, el riesgo y la frase de apertura ya no se aplican hasta que
-              vuelvas al constructor.
+              El comportamiento de este caso está escrito como texto, en el panel de la derecha: los
+              síntomas, la actitud, el riesgo y la frase de apertura no se aplican hasta que vuelvas
+              al constructor. ¿Prefieres no escribir? Asigna el caso y usa «Ajustar para esta
+              práctica»: cambias su comportamiento con botones.
             </AlertDescription>
           </Alert>
         ) : (
@@ -375,8 +463,8 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
 
             <Seccion
               numero={4}
-              titulo="Cómo empieza"
-              descripcion="La primera impresión del estudiante."
+              titulo="Cómo empieza y qué guarda"
+              descripcion="La primera impresión del estudiante y lo que tendrá que ganarse."
             >
               <Campo
                 id="fraseApertura"
@@ -393,11 +481,17 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
                   aria-invalid={errors.fraseApertura ? true : undefined}
                   {...register('fraseApertura')}
                 />
+                <Opciones
+                  etiqueta="Frases de apertura de ejemplo"
+                  opciones={FRASES_APERTURA}
+                  actual={valores.fraseApertura ?? ''}
+                  onElegir={f => actualizar('fraseApertura', f)}
+                />
               </Campo>
               <Campo
                 id="notas"
                 etiqueta="Información adicional (opcional)"
-                ayuda="Antecedentes, relaciones, datos que solo revela si le preguntan."
+                ayuda="Antecedentes, relaciones y contexto que puede mencionar si viene al caso."
                 error={errors.notas?.message}
               >
                 <Textarea
@@ -408,6 +502,12 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
                   {...register('notas')}
                 />
               </Campo>
+              <LoQueGuarda
+                control={control}
+                register={register}
+                errores={errors.secretos}
+                deshabilitado={guardando}
+              />
             </Seccion>
           </>
         )}
@@ -418,19 +518,21 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
         <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-xs">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold">
-              {modoTexto ? 'Comportamiento del paciente' : 'Vista previa del comportamiento'}
+              {modoTexto ? 'Comportamiento del paciente (texto)' : 'Así será tu paciente'}
             </h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="ml-auto"
-              onClick={modoTexto ? solicitarVolver : pasarAModoTexto}
-              disabled={guardando}
-            >
-              {modoTexto ? <Wand2 aria-hidden /> : <Pencil aria-hidden />}
-              {modoTexto ? 'Volver al constructor' : 'Editar como texto'}
-            </Button>
+            {modoTexto && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={solicitarVolver}
+                disabled={guardando}
+              >
+                <Wand2 aria-hidden />
+                Volver al constructor
+              </Button>
+            )}
           </div>
 
           {confirmandoVolver && (
@@ -476,22 +578,53 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
               )}
             </>
           ) : (
-            <pre
-              tabIndex={0}
-              aria-label="Comportamiento generado"
-              className="max-h-96 min-h-40 overflow-auto rounded-lg bg-muted/50 p-3 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap"
-            >
-              {promptCompuesto}
-            </pre>
+            <>
+              <FichaPaciente campos={camposActuales} />
+              {/* El texto técnico queda para quien quiera verlo o escribirlo a mano. */}
+              <details className="group/texto rounded-lg border">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium outline-hidden hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  Ver el texto que recibe la IA
+                  <ChevronDown
+                    className="ml-auto size-4 text-muted-foreground transition-transform group-open/texto:rotate-180"
+                    aria-hidden
+                  />
+                </summary>
+                <div className="flex flex-col gap-2 border-t p-3">
+                  <pre
+                    tabIndex={0}
+                    aria-label="Comportamiento generado"
+                    className="max-h-80 overflow-auto rounded-lg bg-muted/50 p-3 font-mono text-[12.5px] leading-relaxed break-words whitespace-pre-wrap"
+                  >
+                    {promptCompuesto}
+                  </pre>
+                  <p className="text-xs text-muted-foreground">
+                    Se arma solo con lo que eliges a la izquierda. Si prefieres redactarlo tú:
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={pasarAModoTexto}
+                    disabled={guardando}
+                  >
+                    <Pencil aria-hidden />
+                    Editar como texto (avanzado)
+                  </Button>
+                </div>
+              </details>
+            </>
           )}
-          <p
-            className={cn(
-              'text-right text-xs text-muted-foreground tabular-nums',
-              promptActual.length > 8000 && 'text-destructive'
-            )}
-          >
-            {promptActual.length.toLocaleString('es-CO')}/8.000
-          </p>
+          {modoTexto && (
+            <p
+              className={cn(
+                'text-right text-xs text-muted-foreground tabular-nums',
+                promptActual.length > 8000 && 'text-destructive'
+              )}
+            >
+              {promptActual.length.toLocaleString('es-CO')}/8.000
+            </p>
+          )}
           <ReglasFijas />
         </div>
 
@@ -508,9 +641,37 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
           </Alert>
         )}
 
+        {faltantes.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 text-sm">
+            <p className="font-semibold">
+              Para guardar te falta{faltantes.length === 1 ? '' : 'n'} {faltantes.length}{' '}
+              {faltantes.length === 1 ? 'dato' : 'datos'}:
+            </p>
+            <ul className="flex flex-col gap-1">
+              {faltantes.map(({ campo, texto }) => (
+                <li key={campo}>
+                  <button
+                    type="button"
+                    onClick={() => irACampo(campo)}
+                    className="flex items-center gap-2 rounded-md text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                  >
+                    <CircleDashed className="size-4 shrink-0" aria-hidden />
+                    {texto}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="flex items-center gap-2 rounded-xl bg-salvia-suave/60 px-4 py-3 text-sm font-medium text-salvia-oscuro">
+            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+            Todo listo. Pruébalo arriba antes de guardar, si quieres.
+          </p>
+        )}
+
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button asChild variant="outline" size="lg">
-            <Link href="/configuracion">
+            <Link href="/configuracion/casos">
               <ArrowLeft aria-hidden />
               Cancelar
             </Link>
@@ -522,6 +683,43 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
         </div>
       </aside>
     </form>
+  );
+}
+
+/** Valores sugeridos para un campo de texto corto: un clic los pone en el campo. */
+function Opciones({
+  etiqueta,
+  opciones,
+  actual,
+  onElegir,
+}: {
+  etiqueta: string;
+  opciones: readonly string[];
+  actual: string;
+  onElegir: (opcion: string) => void;
+}) {
+  return (
+    <div role="group" aria-label={etiqueta} className="flex flex-wrap gap-1.5">
+      {opciones.map(opcion => {
+        const elegida = actual.trim() === opcion;
+        return (
+          <button
+            key={opcion}
+            type="button"
+            aria-pressed={elegida}
+            onClick={() => onElegir(opcion)}
+            className={cn(
+              'rounded-full border px-2.5 py-0.5 text-xs transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden',
+              elegida
+                ? 'border-nogal bg-nogal text-lino'
+                : 'border-dashed text-muted-foreground hover:border-nogal/50 hover:bg-muted hover:text-foreground'
+            )}
+          >
+            {opcion}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

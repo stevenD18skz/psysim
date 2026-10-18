@@ -122,12 +122,50 @@ describe('ConstructorCaso', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('muestra al paciente en lenguaje cotidiano y lo que falta para guardar', async () => {
+    const usuario = userEvent.setup();
+    render(<ConstructorCaso />);
+
+    expect(screen.getByText(/Para guardar te faltan 6 datos/)).toBeVisible();
+    await usuario.type(screen.getByLabelText('Nombre', { exact: true }), 'Camila Rojas');
+    await usuario.click(screen.getByRole('button', { name: 'reservado' }));
+
+    // La ficha usa las palabras del docente, no la redacción para la IA.
+    expect(screen.getAllByText('Camila Rojas')[0]).toBeVisible();
+    expect(screen.getAllByText(/necesitas que te animen/)[0]).toBeVisible();
+    expect(screen.getByText(/Para guardar te faltan 5 datos/)).toBeVisible();
+
+    // Cada pendiente lleva a su campo.
+    await usuario.click(screen.getByRole('button', { name: 'El título del caso' }));
+    expect(screen.getByLabelText('Título del caso')).toHaveFocus();
+  });
+
+  it('un ejemplo llena el caso completo y queda listo para guardar', async () => {
+    const usuario = userEvent.setup();
+    render(<ConstructorCaso />);
+
+    await usuario.click(screen.getByRole('button', { name: /Duelo reciente/ }));
+    expect(screen.getByLabelText('Nombre', { exact: true })).toHaveValue('Rocío Andrea');
+    expect(screen.getByText(/Todo listo/)).toBeVisible();
+    // Con el paciente ya definido, la invitación a los ejemplos desaparece.
+    expect(screen.queryByText(/Empieza desde un ejemplo/)).not.toBeInTheDocument();
+  });
+
+  it('las sugerencias de competencia llenan el campo con un clic', async () => {
+    const usuario = userEvent.setup();
+    render(<ConstructorCaso />);
+
+    await usuario.click(screen.getByRole('button', { name: 'Escucha activa' }));
+    expect(screen.getByLabelText('Competencia que se entrena')).toHaveValue('Escucha activa');
+  });
+
   it('pasa a modo texto con el prompt generado y pide confirmar antes de descartar cambios', async () => {
     const usuario = userEvent.setup();
     render(<ConstructorCaso />);
 
     await usuario.type(screen.getByLabelText('Nombre', { exact: true }), 'Camila Rojas');
-    await usuario.click(screen.getByRole('button', { name: 'Editar como texto' }));
+    await usuario.click(screen.getByText('Ver el texto que recibe la IA'));
+    await usuario.click(screen.getByRole('button', { name: /Editar como texto/ }));
 
     const texto = screen.getByLabelText('Comportamiento del paciente');
     expect((texto as HTMLTextAreaElement).value).toContain('Eres Camila Rojas');
@@ -139,7 +177,8 @@ describe('ConstructorCaso', () => {
     expect(screen.getByLabelText('Frase de apertura')).toBeVisible();
 
     // Con cambios, pide confirmación.
-    await usuario.click(screen.getByRole('button', { name: 'Editar como texto' }));
+    await usuario.click(screen.getByText('Ver el texto que recibe la IA'));
+    await usuario.click(screen.getByRole('button', { name: /Editar como texto/ }));
     await usuario.type(screen.getByLabelText('Comportamiento del paciente'), ' Añadido a mano.');
     await usuario.click(screen.getByRole('button', { name: 'Volver al constructor' }));
     expect(screen.getByText(/se descartarán/)).toBeVisible();

@@ -70,11 +70,12 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     // El comportamiento es opcional: queda plegado tras «Ajustar» hasta que el docente lo pide.
     const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
-    const ajustar = page.getByRole('button', { name: 'Ajustar' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
     await expect(comportamiento).toBeHidden();
     await page.getByTestId('escenario-E-01').click();
     await expect(page.getByRole('heading', { name: 'Marta Lucía' })).toBeVisible();
     await ajustar.click();
+    await page.getByText('Ver o editar el texto completo (avanzado)').click();
     await expect(comportamiento).toHaveValue(/Eres Marta Lucía/);
 
     // Solo un escenario seleccionado a la vez.
@@ -99,6 +100,10 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
     await page.getByTestId('escenario-E-01').click();
+    // Ajuste guiado, sin escribir instrucciones: viaja con el código.
+    await page.getByRole('button', { name: 'Ajustar para esta práctica' }).click();
+    await page.getByText('Más reservado', { exact: true }).click();
+    await expect(page.getByText(/Así cambiará Marta en esta práctica/)).toBeVisible();
     await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill(ESTUDIANTE.codigo);
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE.nombre) }).click();
     await expect(page.getByTestId('estudiante-elegido')).toHaveText(ESTUDIANTE.nombre);
@@ -122,6 +127,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
         .eq('codigo', codigo)
         .single();
       expect(data?.prompt_sistema).toContain('Eres Marta Lucía');
+      expect(data?.prompt_sistema).toContain('Ajustes del docente para esta práctica');
+      expect(data?.prompt_sistema).toContain('te cuesta más abrirte');
       expect(data?.sesion_id).toBeNull();
       const horas =
         (new Date(data!.expira_en).getTime() - new Date(data!.creado_en).getTime()) / 3_600_000;
@@ -137,11 +144,13 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(guardar).toBeDisabled();
 
     const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
-    const ajustar = page.getByRole('button', { name: 'Ajustar' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
     await page.getByTestId('escenario-E-01').click();
     await ajustar.click();
+    // El texto completo es la opción avanzada, plegada bajo los ajustes guiados.
+    await page.getByText('Ver o editar el texto completo (avanzado)').click();
     await comportamiento.fill(prompt);
-    await expect(page.getByText('Personalizado', { exact: true })).toBeVisible();
+    await expect(page.getByText('Usará el texto que editaste.')).toBeVisible();
     await guardar.click();
     await page.getByLabel('Nombre del caso').fill(nombre);
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -156,6 +165,9 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.getByTestId('escenario-E-03').click();
     await propio.check({ force: true });
     if (await ajustar.isVisible()) await ajustar.click();
+    if (!(await comportamiento.isVisible())) {
+      await page.getByText('Ver o editar el texto completo (avanzado)').click();
+    }
     await expect(comportamiento).toHaveValue(prompt);
 
     await page.getByRole('button', { name: `Eliminar el caso ${nombre}` }).click();
@@ -180,7 +192,11 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.getByRole('button', { name: 'reservado' }).click();
     await page.getByLabel('Frase de apertura').fill('Hola, no sé por dónde empezar.');
 
-    // La vista previa se arma con los campos y no incluye las reglas fijas.
+    // La ficha cuenta al paciente en lenguaje cotidiano.
+    await expect(page.getByText('Para guardar te falta')).toBeHidden();
+    await expect(page.getByText('Todo listo.', { exact: false })).toBeVisible();
+
+    // El texto para la IA se arma con los campos y no incluye las reglas fijas.
     const vista = page.getByLabel('Comportamiento generado');
     await expect(vista).toContainText('Eres Camila Rojas, una persona de 29 años.');
     await expect(vista).toContainText('tristeza persistente');

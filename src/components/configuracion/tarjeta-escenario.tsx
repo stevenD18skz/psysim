@@ -1,11 +1,13 @@
 import { Check, Coffee, HeartPulse, Target } from 'lucide-react';
 import { type ReactNode } from 'react';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import {
   ETIQUETA_CATEGORIA,
   ETIQUETA_DIFICULTAD,
   NIVEL_DIFICULTAD,
 } from '@/lib/escenarios/etiquetas';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { type EscenarioCatalogo } from '@/types';
 
@@ -107,6 +109,17 @@ export function TarjetaEscenario({
         </div>
 
         <div className="flex flex-col gap-1">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AvatarPaciente
+              src={avatarDeEscena(escenario.configuracion3d)}
+              nombre={escenario.npc.nombre}
+              className="size-7 text-[0.65rem]"
+            />
+            <span>
+              <span className="font-medium text-terracota">{escenario.npc.nombre}</span>,{' '}
+              {escenario.npc.edad} años
+            </span>
+          </p>
           <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-bold tracking-[-0.01em]">
             {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
             {escenario.titulo}
