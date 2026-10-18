@@ -24,6 +24,7 @@ export function valoresVacios(): CasoFormInput {
     riesgo: 'ninguno',
     fraseApertura: '',
     notas: '',
+    secretos: [],
     modoTexto: false,
     promptManual: '',
   };

@@ -1,3 +1,4 @@
+import { type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import {
   LIMITES_CHAT,
   type MensajeHistorial,
@@ -81,6 +82,7 @@ export async function enviarMensaje(
       remitente: 'estudiante',
       contenido,
       timestamp: new Date().toISOString(),
+      sinGuardar: true,
     };
     estado.conversacion.agregarMensaje(mensaje);
   } else {
@@ -138,13 +140,23 @@ export async function enviarMensaje(
   if (!datos.success) return fallar(MENSAJE_NO_DISPONIBLE);
 
   const final = store.getState();
+  const idRespuesta = crypto.randomUUID();
   final.conversacion.agregarMensaje({
-    id: crypto.randomUUID(),
+    id: idRespuesta,
     remitente: 'npc',
     contenido: datos.data.respuesta_npc,
     timestamp: datos.data.timestamp_respuesta,
     latencia_ms: latencia,
+    sinGuardar: true,
     ...(datos.data.emocion_npc && { emocion: datos.data.emocion_npc }),
+    ...(datos.data.intensidad_npc && {
+      intensidad: datos.data.intensidad_npc as IntensidadEmocion,
+    }),
+  });
+  // Con los ids de la base de datos se puede volver a este momento para ensayar otra respuesta.
+  final.conversacion.confirmarGuardado({
+    [mensaje.id]: datos.data.id_mensaje_estudiante,
+    [idRespuesta]: datos.data.id_mensaje_npc,
   });
   final.metricas.registrarTokens(datos.data.tokens_entrada, datos.data.tokens_salida);
   final.conversacion.establecerPendiente(null);

@@ -129,21 +129,26 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ambos mensajes en una sola inserción (atómica). Si falla, la conversación continúa: el
   // estudiante ya tiene la respuesta y el error queda registrado para revisarlo.
-  const { error: errorGuardado } = await supabase.from('mensaje').insert([
-    { sesion_id, remitente: 'estudiante', contenido: mensaje_usuario },
-    {
-      sesion_id,
-      remitente: 'npc',
-      contenido: respuesta.texto,
-      emocion: respuesta.emocion,
-      latencia_ms: latenciaMs,
-      tokens_entrada: respuesta.tokensEntrada,
-      tokens_salida: respuesta.tokensSalida,
-    },
-  ]);
+  const { data: guardados, error: errorGuardado } = await supabase
+    .from('mensaje')
+    .insert([
+      { sesion_id, remitente: 'estudiante', contenido: mensaje_usuario },
+      {
+        sesion_id,
+        remitente: 'npc',
+        contenido: respuesta.texto,
+        emocion: respuesta.emocion,
+        latencia_ms: latenciaMs,
+        tokens_entrada: respuesta.tokensEntrada,
+        tokens_salida: respuesta.tokensSalida,
+      },
+    ])
+    .select('id, remitente');
   if (errorGuardado) {
     log.error('npc_chat.mensajes_no_guardados', { codigo: errorGuardado.code, sesion_id });
   }
+  const idGuardado = (remitente: 'estudiante' | 'npc') =>
+    guardados?.find(fila => fila.remitente === remitente)?.id ?? null;
 
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
   log.info('npc_chat.respuesta', {
@@ -157,9 +162,12 @@ export async function POST(request: Request): Promise<Response> {
   const cuerpoRespuesta: NpcChatResponse = {
     respuesta_npc: respuesta.texto,
     emocion_npc: respuesta.emocion,
+    intensidad_npc: respuesta.intensidad,
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: respuesta.tokensEntrada,
     tokens_salida: respuesta.tokensSalida,
+    id_mensaje_estudiante: idGuardado('estudiante'),
+    id_mensaje_npc: idGuardado('npc'),
   };
   return Response.json(cuerpoRespuesta, { status: 200, headers: SIN_CACHE });
 }

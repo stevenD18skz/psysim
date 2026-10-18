@@ -32,6 +32,8 @@ const cuerpoValido = {
 
 const ESCENARIO_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const PROMPT = 'Eres Marta Lucía, 58 años.';
+const ID_MENSAJE_ESTUDIANTE = '2a3b4c5d-0000-4000-8000-000000000001';
+const ID_MENSAJE_NPC = '2a3b4c5d-0000-4000-8000-000000000002';
 
 /** Lo que ve el estudiante con RLS: la sesión sin el prompt. */
 const sesionEnCurso = { estado: 'en_curso', comenzada: true, escenario_id: ESCENARIO_ID };
@@ -51,9 +53,21 @@ const escenarioDeLaSesion = {
 
 /** Cliente de Supabase falso: devuelve la sesión indicada y registra las inserciones. */
 function clienteFalso(sesion: unknown, opciones: { errorInsercion?: boolean } = {}) {
-  const insert = vi.fn().mockResolvedValue({
-    error: opciones.errorInsercion ? { code: '42501' } : null,
-  });
+  // La inserción devuelve los ids guardados (para poder ensayar otra respuesta desde ellos).
+  const guardado = {
+    select: vi.fn().mockResolvedValue(
+      opciones.errorInsercion
+        ? { data: null, error: { code: '42501' } }
+        : {
+            data: [
+              { id: ID_MENSAJE_ESTUDIANTE, remitente: 'estudiante' },
+              { id: ID_MENSAJE_NPC, remitente: 'npc' },
+            ],
+            error: null,
+          }
+    ),
+  };
+  const insert = vi.fn().mockReturnValue(guardado);
   const consulta = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -92,6 +106,7 @@ describe('POST /api/npc/chat', () => {
     vi.mocked(generarRespuestaPaciente).mockResolvedValue({
       texto: 'Buenas... no sé muy bien por dónde empezar.',
       emocion: 'ansioso',
+      intensidad: 2,
       tokensEntrada: 512,
       tokensSalida: 21,
       modelo: 'gemini-3.5-flash',
@@ -108,9 +123,13 @@ describe('POST /api/npc/chat', () => {
     expect(json).toEqual({
       respuesta_npc: 'Buenas... no sé muy bien por dónde empezar.',
       emocion_npc: 'ansioso',
+      intensidad_npc: 2,
       timestamp_respuesta: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       tokens_entrada: 512,
       tokens_salida: 21,
+      // Ids guardados: el estudiante podrá volver a este momento para ensayar otra respuesta.
+      id_mensaje_estudiante: ID_MENSAJE_ESTUDIANTE,
+      id_mensaje_npc: ID_MENSAJE_NPC,
     });
 
     // Usa el prompt de la sesión (leído en el servidor) y el mensaje del estudiante.
@@ -231,9 +250,11 @@ describe('POST /api/npc/chat', () => {
     }
   );
 
-  it('devuelve la respuesta aunque falle el guardado de los mensajes', async () => {
+  it('devuelve la respuesta aunque falle el guardado de los mensajes (sin ids)', async () => {
     clienteFalso(sesionEnCurso, { errorInsercion: true });
     const respuesta = await POST(peticion(cuerpoValido));
     expect(respuesta.status).toBe(200);
+    const json = await respuesta.json();
+    expect(json).toMatchObject({ id_mensaje_estudiante: null, id_mensaje_npc: null });
   });
 });

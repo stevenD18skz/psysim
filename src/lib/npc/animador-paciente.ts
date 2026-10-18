@@ -12,8 +12,17 @@ import {
 } from 'three';
 
 import { type Silaba } from '@/lib/audio/voz';
-import { type EmocionNpc } from '@/lib/conversacion/emociones';
+import {
+  type EmocionNpc,
+  INTENSIDAD_POR_DEFECTO,
+  type IntensidadEmocion,
+} from '@/lib/conversacion/emociones';
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
+import {
+  RETRASO_RELLENO_MS,
+  SILENCIO_ACOMODARSE_S,
+  SILENCIO_SUSPIRAR_S,
+} from '@/lib/conversacion/relleno';
 
 import { type AccionNpc, metaAccion } from './acciones';
 import { type GlbCargado } from './cargar-glb';
@@ -22,6 +31,7 @@ import {
   EMOCIONES_CON_SUSPIRO,
   type Expresion,
   EXPRESION_NEUTRA,
+  expresionEscuchando,
   expresionPara,
 } from './comportamiento';
 import { adaptarClipSentado, clipSentado, type Piernas, type Postura } from './postura';
@@ -52,6 +62,13 @@ const RECORRIDO_OJOS = { x: 0.0065, y: 0.0045 };
 /** Duración de un levantamiento breve de cejas (señal de atención, al tomar la palabra) (s). */
 const DURACION_CEJAS_S = 0.55;
 const DURACION_SUSPIRO_S = 2.4;
+/** Asentimiento breve de escucha (dos cabeceos pequeños) y su amplitud (rad). */
+const DURACION_ASENTIR_S = 0.8;
+const AMPLITUD_ASENTIR = 0.075;
+/** Acomodarse en la silla tras un silencio largo (s). */
+const DURACION_ACOMODO_S = 1.8;
+/** Emociones con las que el relleno de la espera es un suspiro (en las demás, alza las cejas). */
+const RELLENO_CON_SUSPIRO: ReadonlySet<EmocionNpc> = new Set(['triste', 'abrumado', 'ansioso']);
 
 export interface OpcionesAnimador {
   postura: Postura;
@@ -114,7 +131,18 @@ export class AnimadorPaciente {
   private bucle: AccionNpc = 'idle';
   private gesto: AccionNpc | null = null;
   private emocion: EmocionNpc = 'neutral';
+  private intensidad: IntensidadEmocion = INTENSIDAD_POR_DEFECTO;
+  /** El estudiante está escribiendo: el paciente lo escucha. */
+  private escuchando = false;
   private objetivo: Expresion = { ...EXPRESION_NEUTRA };
+  private inicioAsentir = -Infinity;
+  private inicioAcomodo = -Infinity;
+  /** Última señal del estudiante (o cambio de estado), para medir sus silencios. */
+  private ultimaSenal = 0;
+  /** 0 = sin reaccionar al silencio, 1 = ya se acomodó, 2 = ya suspiró. */
+  private faseSilencio = 0;
+  private inicioProcesando = 0;
+  private rellenoHecho = false;
   private readonly expresion: Expresion = { ...EXPRESION_NEUTRA };
 
   private tiempo = 0;
@@ -234,20 +262,67 @@ export class AnimadorPaciente {
 
   // ---------- Conducta ----------
   /** Ajusta el bucle y la expresión al estado de la conversación y a la emoción vigente. */
-  actualizarConducta = (estado: EstadoNpc, emocion: EmocionNpc) => {
+  actualizarConducta = (
+    estado: EstadoNpc,
+    emocion: EmocionNpc,
+    intensidad: IntensidadEmocion = INTENSIDAD_POR_DEFECTO
+  ) => {
     if (emocion !== this.emocion && EMOCIONES_CON_SUSPIRO.has(emocion)) {
       this.inicioSuspiro = this.tiempo;
     }
+    if (estado !== this.estado) {
+      this.ultimaSenal = this.tiempo;
+      this.faseSilencio = 0;
+      if (estado === 'procesando') {
+        this.inicioProcesando = this.tiempo;
+        this.rellenoHecho = false;
+      }
+    }
     this.emocion = emocion;
-    this.objetivo = expresionPara(estado, emocion);
+    this.intensidad = intensidad;
     if (estado !== 'respondiendo') this.silabas = [];
     this.estado = estado;
+    this.recalcularObjetivo();
 
     const bucle = clipEnBucle(estado);
     if (bucle === this.bucle) return;
     this.bucle = bucle;
     // Si hay un gesto en curso, al terminar vuelve al bucle nuevo.
     if (!this.gesto) this.reproducir(bucle);
+  };
+
+  private recalcularObjetivo() {
+    const base = expresionPara(this.estado, this.emocion, this.intensidad);
+    this.objetivo =
+      this.escuchando && this.estado === 'esperando_input' ? expresionEscuchando(base) : base;
+  }
+
+  /** El estudiante empieza o deja de escribir: el paciente lo escucha con atención. */
+  escuchar = (escribiendo: boolean) => {
+    this.ultimaSenal = this.tiempo;
+    this.faseSilencio = 0;
+    if (escribiendo === this.escuchando) return;
+    this.escuchando = escribiendo;
+    this.recalcularObjetivo();
+  };
+
+  /**
+   * Asentimiento breve de escucha (cuando el estudiante hace una pausa tras escribir): una señal
+   * de «te sigo», mucho más pequeña que el gesto de asentir al responder.
+   */
+  asentirLeve = () => {
+    this.ultimaSenal = this.tiempo;
+    if (this.estado !== 'esperando_input' || this.gesto) return;
+    if (this.tiempo - this.inicioAsentir < DURACION_ASENTIR_S * 2) return;
+    this.inicioAsentir = this.tiempo;
+  };
+
+  /** El estudiante volvió a un momento anterior: el paciente parpadea, respira y se recompone. */
+  reiniciarMomento = () => {
+    this.ultimaSenal = this.tiempo;
+    this.faseSilencio = 0;
+    this.inicioSuspiro = this.tiempo;
+    this.proximoParpadeo = this.tiempo;
   };
 
   /** Gesto puntual (saludar, asentir, negar…); al terminar vuelve al bucle del estado. */
@@ -310,11 +385,41 @@ export class AnimadorPaciente {
       e[clave] = aproximar(e[clave], this.objetivo[clave], t);
     }
 
+    this.reaccionarAlTiempo();
     this.aplicarCuerpo(dt);
     this.aplicarMirada(dt, camara);
     this.aplicarOjos();
     this.aplicarRostro();
   };
+
+  /**
+   * Conductas que dependen de cuánto dura algo: el relleno mientras la IA tarda (suspira o alza
+   * las cejas, como quien busca las palabras) y la reacción al silencio del estudiante (primero se
+   * acomoda y lo mira esperando; luego suspira).
+   */
+  private reaccionarAlTiempo() {
+    const tiempo = this.tiempo;
+    if (
+      this.estado === 'procesando' &&
+      !this.rellenoHecho &&
+      tiempo - this.inicioProcesando > RETRASO_RELLENO_MS / 1000
+    ) {
+      this.rellenoHecho = true;
+      if (RELLENO_CON_SUSPIRO.has(this.emocion)) this.inicioSuspiro = tiempo;
+      else this.inicioCejas = tiempo;
+    }
+
+    if (this.estado !== 'esperando_input' || this.escuchando) return;
+    const silencio = tiempo - this.ultimaSenal;
+    if (this.faseSilencio === 0 && silencio > SILENCIO_ACOMODARSE_S) {
+      this.faseSilencio = 1;
+      this.inicioAcomodo = tiempo;
+      this.inicioCejas = tiempo + DURACION_ACOMODO_S * 0.6;
+    } else if (this.faseSilencio === 1 && silencio > SILENCIO_SUSPIRAR_S) {
+      this.faseSilencio = 2;
+      this.inicioSuspiro = tiempo;
+    }
+  }
 
   /** Respiración, encorvamiento, inquietud y habla sobre la columna y la cabeza. */
   private aplicarCuerpo(dt: number) {
@@ -332,14 +437,25 @@ export class AnimadorPaciente {
       e.inquietud * (0.025 * Math.sin(tiempo * 5.3) + 0.015 * Math.sin(tiempo * 8.9 + 1.3));
     const habla = e.habla * (0.035 * Math.sin(tiempo * 9.1) + 0.02 * Math.sin(tiempo * 4.3 + 0.7));
 
-    if (spine) this.rotar(spine, this.ejeX, e.encorvado * 0.55);
+    // Asentimiento de escucha: dos cabeceos pequeños.
+    const a = (tiempo - this.inicioAsentir) / DURACION_ASENTIR_S;
+    const asentir = a >= 0 && a < 1 ? AMPLITUD_ASENTIR * Math.sin(2 * Math.PI * a) ** 2 : 0;
+    // Acomodarse en la silla: se endereza, gira un poco el torso y vuelve.
+    const c = (tiempo - this.inicioAcomodo) / DURACION_ACOMODO_S;
+    const acomodo = c >= 0 && c < 1 ? Math.sin(Math.PI * c) : 0;
+
+    if (spine) this.rotar(spine, this.ejeX, e.encorvado * 0.55 - acomodo * 0.06);
     if (chest) {
       this.rotar(chest, this.ejeX, e.encorvado * 0.45 - respiracion);
-      this.rotar(chest, this.ejeY, inquietud * 0.6 + e.habla * 0.025 * Math.sin(tiempo * 2.3));
+      this.rotar(
+        chest,
+        this.ejeY,
+        inquietud * 0.6 + e.habla * 0.025 * Math.sin(tiempo * 2.3) + acomodo * 0.07
+      );
       this.rotar(chest, this.ejeZ, e.inquietud * 0.012 * Math.sin(tiempo * 3.7));
     }
     if (head) {
-      this.rotar(head, this.ejeX, e.cabeceo + habla + respiracion * 0.3);
+      this.rotar(head, this.ejeX, e.cabeceo + habla + respiracion * 0.3 + asentir);
       this.rotar(head, this.ejeZ, e.ladeo);
       this.rotar(head, this.ejeY, inquietud);
     }

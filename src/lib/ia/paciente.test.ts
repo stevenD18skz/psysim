@@ -133,6 +133,7 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
     expect(respuesta).toEqual({
       texto: 'Buenas... no sé por dónde empezar.',
       emocion: null,
+      intensidad: null,
       tokensEntrada: 120,
       tokensSalida: 18,
       modelo: 'principal',
@@ -154,7 +155,17 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
 
     expect(respuesta).toMatchObject({ texto: 'Es que... es demasiado.', emocion: 'abrumado' });
     const sistema = (modelo.doGenerateCalls[0]!.prompt[0] as { content: string }).content;
-    expect(sistema).toContain('[triste]');
+    expect(sistema).toContain('[triste 2]');
+  });
+
+  it('devuelve la intensidad de la emoción si el modelo la indica', async () => {
+    const modelo = modeloQueResponde('[ansioso 3] No puedo dejar de pensar en eso.');
+    const respuesta = await generarRespuestaPaciente(entrada, solo(modelo));
+    expect(respuesta).toMatchObject({
+      texto: 'No puedo dejar de pensar en eso.',
+      emocion: 'ansioso',
+      intensidad: 3,
+    });
   });
 
   it('una respuesta que solo trae la etiqueta es inválida', async () => {

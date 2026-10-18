@@ -9,6 +9,7 @@ describe('extraerEmocion', () => {
     expect(extraerEmocion('[emocion: triste] No he podido dormir.')).toEqual({
       texto: 'No he podido dormir.',
       emocion: 'triste',
+      intensidad: null,
     });
   });
 
@@ -16,6 +17,7 @@ describe('extraerEmocion', () => {
     expect(extraerEmocion('[molesto] Uy, son muchas preguntas.')).toEqual({
       texto: 'Uy, son muchas preguntas.',
       emocion: 'molesto',
+      intensidad: null,
     });
   });
 
@@ -39,6 +41,7 @@ describe('extraerEmocion', () => {
     expect(extraerEmocion('[emocion: eufórico] ¡Hola!')).toEqual({
       texto: '¡Hola!',
       emocion: null,
+      intensidad: null,
     });
   });
 
@@ -46,6 +49,7 @@ describe('extraerEmocion', () => {
     expect(extraerEmocion('Hola, buenas tardes.')).toEqual({
       texto: 'Hola, buenas tardes.',
       emocion: null,
+      intensidad: null,
     });
   });
 
@@ -56,6 +60,27 @@ describe('extraerEmocion', () => {
     expect(extraerEmocion('(suspira) Bueno, sí.')).toEqual({
       texto: '(suspira) Bueno, sí.',
       emocion: null,
+      intensidad: null,
+    });
+  });
+
+  it.each([
+    ['[triste 2] No he podido dormir.', 'triste', 2],
+    ['[ansioso:3] No puedo más.', 'ansioso', 3],
+    ['[Emoción: Abrumada · 1] Es mucho.', 'abrumado', 1],
+    ['[tranquilo] Gracias.', 'tranquilo', null],
+  ] as const)('lee la intensidad (1–3) si la indica: %s', (texto, emocion, intensidad) => {
+    const resultado = extraerEmocion(texto);
+    expect(resultado.emocion).toBe(emocion);
+    expect(resultado.intensidad).toBe(intensidad);
+    expect(resultado.texto).not.toMatch(/[[]]/);
+  });
+
+  it('ignora una intensidad fuera de 1–3, pero quita la etiqueta', () => {
+    expect(extraerEmocion('[triste 7] Hola.')).toEqual({
+      texto: 'Hola.',
+      emocion: 'triste',
+      intensidad: null,
     });
   });
 

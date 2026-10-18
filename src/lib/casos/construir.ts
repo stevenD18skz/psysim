@@ -17,6 +17,7 @@ export function camposDelFormulario(caso: CasoFormData): CamposCaso {
     riesgo: caso.riesgo,
     fraseApertura: caso.fraseApertura,
     notas: caso.notas,
+    secretos: caso.secretos,
   };
 }
 

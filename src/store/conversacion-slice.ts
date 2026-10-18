@@ -3,6 +3,7 @@ import { type StateCreator } from 'zustand';
 import { type MensajeConversacion } from '@/types';
 
 import { type AppState } from './app-store';
+import { metricasDesdeHistorial } from './metricas-slice';
 
 export interface ConversacionState {
   /** Historial de la sesión activa, en orden cronológico. */
@@ -22,6 +23,13 @@ export interface ConversacionSlice {
     agregarMensaje: (mensaje: MensajeConversacion) => void;
     establecerPendiente: (mensaje: MensajeConversacion | null) => void;
     establecerError: (error: string | null) => void;
+    /** El servidor guardó el intercambio: los mensajes locales reciben el id de la base de datos. */
+    confirmarGuardado: (ids: Readonly<Record<string, string | null>>) => void;
+    /**
+     * Ensayar otra respuesta: quita del historial la intervención indicada y todo lo que vino
+     * después (el servidor ya los marcó como descartados).
+     */
+    volverA: (mensajeId: string) => void;
   };
 }
 
@@ -57,5 +65,33 @@ export const crearConversacionSlice =
       establecerPendiente: pendiente =>
         set(state => ({ conversacion: { ...state.conversacion, pendiente } })),
       establecerError: error => set(state => ({ conversacion: { ...state.conversacion, error } })),
+      confirmarGuardado: ids =>
+        set(state => ({
+          conversacion: {
+            ...state.conversacion,
+            mensajes: state.conversacion.mensajes.map(mensaje => {
+              const id = ids[mensaje.id];
+              if (!id) return mensaje;
+              const { sinGuardar: _, ...guardado } = mensaje;
+              return { ...guardado, id };
+            }),
+          },
+        })),
+      volverA: mensajeId =>
+        set(state => {
+          const indice = state.conversacion.mensajes.findIndex(m => m.id === mensajeId);
+          if (indice === -1) return state;
+          const mensajes = state.conversacion.mensajes.slice(0, indice);
+          const { tokensEntrada, tokensSalida } = state.metricas;
+          return {
+            conversacion: { ...state.conversacion, mensajes, pendiente: null, error: null },
+            metricas: {
+              ...state.metricas,
+              ...metricasDesdeHistorial(mensajes),
+              tokensEntrada,
+              tokensSalida,
+            },
+          };
+        }),
     },
   });

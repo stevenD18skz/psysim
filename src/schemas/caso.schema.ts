@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-import { IDS_ACTITUD, IDS_RIESGO, IDS_SINTOMA, RUTAS_CONSULTORIO } from '@/lib/casos/opciones';
+import {
+  IDS_ACTITUD,
+  IDS_RIESGO,
+  IDS_SINTOMA,
+  MAXIMO_SECRETOS,
+  RUTAS_CONSULTORIO,
+} from '@/lib/casos/opciones';
 
 import { promptSchema } from './configuracion.schema';
 
@@ -15,6 +21,7 @@ export const LIMITES_CASO = {
   extra: { max: 400 },
   fraseApertura: { min: 5, max: 300 },
   notas: { max: 1200 },
+  secreto: { min: 5, max: 220 },
 } as const;
 
 const texto = (min: number, max: number, etiqueta: string) =>
@@ -52,6 +59,19 @@ export const camposCasoSchema = z.object({
     .trim()
     .max(LIMITES_CASO.fraseApertura.max, 'La frase es demasiado larga.'),
   notas: opcional(LIMITES_CASO.notas.max, 'Las notas'),
+  /**
+   * Lo que el paciente guarda: cada dato solo lo cuenta cuando se cumple su condición. Los casos
+   * guardados antes de existir el campo no lo traen (vale como lista vacía).
+   */
+  secretos: z
+    .array(
+      z.object({
+        dato: texto(LIMITES_CASO.secreto.min, LIMITES_CASO.secreto.max, 'El dato'),
+        condicion: texto(LIMITES_CASO.secreto.min, LIMITES_CASO.secreto.max, 'La condición'),
+      })
+    )
+    .max(MAXIMO_SECRETOS, `Puedes guardar hasta ${MAXIMO_SECRETOS} datos.`)
+    .default([]),
 });
 
 export type CamposCaso = z.infer<typeof camposCasoSchema>;

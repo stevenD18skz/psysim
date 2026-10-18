@@ -17,6 +17,7 @@ const CAMPOS: CamposCaso = {
   riesgo: 'ninguno',
   fraseApertura: 'Hola, no sé por dónde empezar.',
   notas: 'Vive sola desde hace dos años',
+  secretos: [],
 };
 
 describe('componerPrompt', () => {
@@ -37,6 +38,31 @@ describe('componerPrompt', () => {
     expect(prompt).toContain(
       'Frase de apertura (úsala en tu primera respuesta): "Hola, no sé por dónde empezar."'
     );
+  });
+
+  it('describe cada actitud como conducta (cómo conversa)', () => {
+    expect(componerPrompt(CAMPOS)).toContain(
+      'Cómo conversas: das respuestas breves o vagas y necesitas que te animen'
+    );
+    expect(componerPrompt({ ...CAMPOS, actitudes: ['tangencial'] })).toContain(
+      'pronto te desvías a otros temas'
+    );
+  });
+
+  it('añade lo que guarda el paciente con la condición para contarlo', () => {
+    const prompt = componerPrompt({
+      ...CAMPOS,
+      secretos: [
+        { dato: 'Toma alcohol casi todas las noches', condicion: 'le preguntan por las noches' },
+        { dato: '  ', condicion: 'incompleto: se omite' },
+      ],
+    });
+    expect(prompt).toContain('Lo que guardas (no lo cuentes de entrada):');
+    expect(prompt).toContain(
+      '- Toma alcohol casi todas las noches. Lo cuentas solo si le preguntan por las noches.'
+    );
+    expect(prompt).not.toContain('incompleto');
+    expect(componerPrompt(CAMPOS)).not.toContain('Lo que guardas');
   });
 
   it('no incluye las reglas fijas: las añade el servidor', () => {

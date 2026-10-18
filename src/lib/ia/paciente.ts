@@ -10,7 +10,11 @@ import {
   RetryError,
 } from 'ai';
 
-import { type EmocionNpc, extraerEmocion } from '@/lib/conversacion/emociones';
+import {
+  type EmocionNpc,
+  extraerEmocion,
+  type IntensidadEmocion,
+} from '@/lib/conversacion/emociones';
 import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
@@ -64,6 +68,8 @@ export interface RespuestaPaciente {
   texto: string;
   /** Emoción que eligió el modelo para la respuesta, o `null` si no la indicó. */
   emocion: EmocionNpc | null;
+  /** Intensidad de esa emoción (1–3), o `null` si no la indicó. */
+  intensidad: IntensidadEmocion | null;
   tokensEntrada: number | null;
   tokensSalida: number | null;
   /** Modelo que generó la respuesta (el principal o el de respaldo), para los logs. */
@@ -201,13 +207,14 @@ async function generarCon(
     throw new ErrorIA(clasificarError(error), { cause: error });
   }
 
-  const { texto: sinEtiqueta, emocion } = extraerEmocion(resultado.text);
+  const { texto: sinEtiqueta, emocion, intensidad } = extraerEmocion(resultado.text);
   const texto = limpiarRespuesta(sinEtiqueta, entrada.nombrePaciente);
   if (!texto) throw new ErrorIA('respuesta_invalida');
 
   return {
     texto,
     emocion,
+    intensidad,
     tokensEntrada: resultado.usage.inputTokens ?? null,
     tokensSalida: resultado.usage.outputTokens ?? null,
     modelo: id,
