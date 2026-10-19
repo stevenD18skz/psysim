@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
+import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
@@ -21,11 +23,16 @@ import { useAppStore } from '@/store/app-store-provider';
 /**
  * Barra superior del estudiante. Su panel tiene un solo destino (Mis prácticas), así que no lleva
  * menú lateral: la marca, el enlace a sus prácticas, la práctica en curso si la hay y su cuenta.
+ * En el computador del docente (modo presencial), cerrar sesión queda a la vista y cierra también
+ * la marca de equipo compartido.
  */
 export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | null }) {
   const pathname = usePathname();
   const perfil = useAppStore(state => state.auth.perfil);
-  const { salir, cerrando } = useCerrarSesion();
+  const compartido = useEquipoCompartido();
+  const sesionPropia = useCerrarSesion();
+  const sesionCompartida = useCerrarSesionCompartida();
+  const { salir, cerrando } = compartido ? sesionCompartida : sesionPropia;
   const enPracticas = pathname === '/practicas' || pathname.startsWith('/practicas/');
 
   return (
@@ -52,6 +59,23 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {compartido && (
+            <button
+              type="button"
+              onClick={salir}
+              disabled={cerrando}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-lg border border-sidebar-muted/40 px-3 text-sm font-medium whitespace-nowrap text-sidebar-foreground outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton disabled:opacity-60"
+            >
+              {cerrando ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <LogOut className="size-4" aria-hidden />
+              )}
+              <span>
+                <span className="hidden sm:inline">Equipo compartido · </span>Cerrar sesión
+              </span>
+            </button>
+          )}
           {sesionEnCurso && (
             <Link
               href={`/simulacion?sesion=${sesionEnCurso}`}

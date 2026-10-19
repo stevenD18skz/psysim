@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react';
 
 import { BotonCompartir } from '@/components/asignaciones/boton-compartir';
 import { BotonCopiar } from '@/components/asignaciones/boton-copiar';
+import { BotonEntregarEquipo } from '@/components/asignaciones/boton-entregar-equipo';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +20,8 @@ import { rutaUnirse } from '@/lib/asignaciones/codigo';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 
 export interface CodigoParaEnviar {
+  /** Id de la asignación: permite entregar este computador al estudiante (modo presencial). */
+  id: string;
   codigo: string;
   expiraEn: string;
   estudiante: { id: string; nombre: string; correo: string | null };
@@ -121,6 +124,11 @@ export function CodigoGenerado({
             etiqueta="Copiar mensaje"
           />
           <BotonCopiar texto={enlace} etiqueta="Copiar enlace" variant="ghost" />
+          <BotonEntregarEquipo
+            asignacionId={datos.id}
+            estudiante={datos.estudiante.nombre}
+            size="default"
+          />
         </div>
 
         <DialogFooter>

@@ -12,6 +12,7 @@ import {
   rutaSiguienteSegura,
 } from '@/lib/auth/routes';
 import { publicEnv } from '@/lib/env/public';
+import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -78,6 +79,9 @@ export async function iniciarSesion(
     redirect(RUTA_ACCESO_DENEGADO);
   }
 
+  // El docente vuelve a su equipo después de entregarlo a un estudiante (modo presencial). Si
+  // quien entra es el estudiante (con contraseña en lugar de Google), el equipo sigue entregado.
+  if (perfil.rol !== 'estudiante') await olvidarEntrega();
   redirect(rutaSiguienteSegura(siguiente, perfil.rol));
 }
 

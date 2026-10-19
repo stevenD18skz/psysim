@@ -237,6 +237,7 @@ export function ConfiguradorSesion({
         return;
       }
       setCodigoGenerado({
+        id: resultado.datos.id,
         codigo: resultado.datos.codigo,
         expiraEn: resultado.datos.expiraEn,
         estudiante: {

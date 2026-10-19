@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { BotonEntregarEquipo } from '@/components/asignaciones/boton-entregar-equipo';
 import { ReenviarCodigo } from '@/components/asignaciones/reenviar-codigo';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
@@ -146,6 +147,7 @@ function FilaCodigo({
                 caso={asignacion.escenario.titulo}
                 estudiante={estudiante}
               />
+              <BotonEntregarEquipo asignacionId={asignacion.id} estudiante={estudiante.nombre} />
               <Button size="sm" variant="ghost" onClick={() => setConfirmando(true)}>
                 <Ban aria-hidden />
                 Anular
