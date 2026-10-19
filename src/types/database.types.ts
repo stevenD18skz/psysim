@@ -317,6 +317,32 @@ export type Database = {
           },
         ];
       };
+      peticion_ia: {
+        Row: {
+          creada_en: string;
+          id: number;
+          usuario_id: string;
+        };
+        Insert: {
+          creada_en?: string;
+          id?: never;
+          usuario_id: string;
+        };
+        Update: {
+          creada_en?: string;
+          id?: never;
+          usuario_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'peticion_ia_usuario_id_fkey';
+            columns: ['usuario_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       retroalimentacion: {
         Row: {
           actualizado_en: string;
@@ -540,6 +566,7 @@ export type Database = {
         Args: { p_sesion_id: string };
         Returns: boolean;
       };
+      reservar_peticion_ia: { Args: never; Returns: number };
       sesion_limite_inactividad: { Args: never; Returns: string };
     };
     Enums: {

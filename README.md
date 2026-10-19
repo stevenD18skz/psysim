@@ -101,11 +101,13 @@ pnpm ai:test
 ```
 
 **Route Handler `POST /api/npc/chat`** (HU-12): recibe `sesion_id`, `npc_id`, `mensaje_usuario` e
-`historial`; verifica la sesión del docente (401/403), valida con Zod (400), carga la sesión con
-RLS (404 si no es del docente, 409 si ya finalizó), llama a la IA con el prompt **de la sesión**
-(el del NPC o el personalizado por el docente) y guarda el intercambio en la tabla `mensaje`.
-Responde `respuesta_npc`, `timestamp_respuesta`, `tokens_entrada` y `tokens_salida`. Los errores
-de la IA se traducen a 504 (tiempo agotado), 503 (saturación) o 502, sin exponer detalles.
+`historial`; verifica la sesión del estudiante (401/403), valida con Zod (400), carga la sesión con
+RLS (404 si no es del estudiante, 409 si ya finalizó o no ha comenzado), reserva un turno del
+límite de 10 mensajes por minuto (429 con `Retry-After`; función `reservar_peticion_ia`), llama a
+la IA con el prompt **de la sesión** (el que configuró el docente al asignar el caso) y guarda el
+intercambio en la tabla `mensaje`. Responde `respuesta_npc`, `timestamp_respuesta`,
+`tokens_entrada` y `tokens_salida`. Los errores de la IA se traducen a 504 (tiempo agotado), 503
+(saturación) o 502, sin exponer detalles.
 
 ---
 
