@@ -8,6 +8,12 @@ import {
   RUTA_LOGIN,
   rutaSiguienteSegura,
 } from '@/lib/auth/routes';
+import {
+  COOKIE_ENTREGA,
+  leerEntrega,
+  PARAM_CUENTA_RECHAZADA,
+  RUTA_ENTREGA,
+} from '@/lib/equipo-compartido/entrega';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -17,7 +23,9 @@ import { createClient } from '@/lib/supabase/server';
  * 2. Solo entran las cuentas con perfil: el docente registró al estudiante con ese correo
  *    (la plataforma no admite registros abiertos: Supabase rechaza los correos desconocidos con
  *    `signup_disabled`).
- * 3. Redirige a la ruta pedida antes del login, si el rol puede abrirla, o a la de inicio del rol.
+ * 3. En un equipo entregado a un estudiante (modo presencial) solo entra una cuenta de
+ *    estudiante: si alguien elige en Google la cuenta del docente, se cierra y vuelve a la entrega.
+ * 4. Redirige a la ruta pedida antes del login, si el rol puede abrirla, o a la de inicio del rol.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -63,6 +71,13 @@ export async function GET(request: NextRequest) {
   if (!esRol(perfil?.rol)) {
     await supabase.auth.signOut({ scope: 'local' });
     return aAccesoDenegado();
+  }
+
+  if (perfil.rol !== 'estudiante' && leerEntrega(request.cookies.get(COOKIE_ENTREGA)?.value)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    const url = new URL(RUTA_ENTREGA, request.url);
+    url.searchParams.set(PARAM_CUENTA_RECHAZADA, '1');
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.redirect(new URL(rutaSiguienteSegura(siguiente, perfil.rol), request.url));

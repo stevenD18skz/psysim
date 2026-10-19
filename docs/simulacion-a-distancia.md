@@ -29,6 +29,38 @@ con nota. El estudiante ve sus prácticas y la retroalimentación publicada.
    etiqueta «Pendiente de retroalimentación». Después ve la nota, la retroalimentación general y sus
    frases subrayadas, cada una con su comentario.
 
+## Modo presencial: practicar en el computador del docente
+
+Para practicar en clase, el docente puede entregar su computador en lugar de enviar el código. Los
+roles nunca se mezclan: la práctica queda en la cuenta del estudiante, que después lee ahí la
+retroalimentación.
+
+1. **Entrega.** En el diálogo del código recién generado, o en un código sin usar de la ficha del
+   estudiante, el docente pulsa «Practicar en este equipo» y confirma. `entregarEquipo`
+   (`src/lib/equipo-compartido/actions.ts`) comprueba con RLS que el código sea suyo y siga
+   vigente, guarda para quién es el equipo en la cookie `psysim-entrega` (solo servidor) y marca el
+   equipo como compartido con `psysim-equipo-compartido` (legible en el navegador). Las dos duran
+   4 horas. Después cierra la sesión del docente y lleva a `/entrega`. El botón solo aparece en un
+   computador.
+2. **`/entrega`.** Saluda al estudiante por su nombre y le recuerda el caso. «Continuar con Google»
+   vuelve directo a `/unirse/<código>`. «¿No eres …? Volver a entrar como docente» cancela la
+   entrega.
+3. **Práctica.** Es igual que a distancia. Mientras el equipo esté marcado como compartido, la barra
+   del estudiante muestra «Equipo compartido · Cerrar sesión» y el cierre de la práctica ofrece
+   «Cerrar sesión en este equipo» como acción principal.
+4. **`/entrega/fin`.** Al cerrar la sesión se borran las marcas y se pide cerrar también la sesión
+   de Google (`https://accounts.google.com/Logout`).
+
+El último paso es necesario porque cerrar la sesión de PsySim no cierra la de Google. Si queda
+abierta, el siguiente estudiante vería esa cuenta en el selector de Google y podría entrar con ella
+sin contraseña. Por la misma razón, la pantalla de entrega pide al docente cerrar su sesión de
+Google si la tiene vinculada.
+
+Además, mientras haya una entrega en curso, `/auth/callback` solo acepta cuentas de estudiante: si
+alguien elige en Google la cuenta del docente, la sesión se cierra y vuelve a `/entrega` con un
+aviso. El docente recupera su equipo entrando con su contraseña, que borra las marcas, o con
+«Volver a entrar como docente».
+
 ## Base de datos
 
 Migraciones `20261007010000_rol_estudiante`, `20261007020000_codigos_acceso_retroalimentacion` y

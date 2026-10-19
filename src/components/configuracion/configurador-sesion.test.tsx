@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { guardarVariante } from '@/lib/casos/actions';
+import { entregarEquipo } from '@/lib/equipo-compartido/actions';
 import { AppStoreProvider } from '@/store/app-store-provider';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 
@@ -14,6 +15,9 @@ const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/asignaciones/actions', () => ({ generarAsignacion: vi.fn() }));
+vi.mock('@/lib/equipo-compartido/actions', () => ({ entregarEquipo: vi.fn() }));
+// jsdom no tiene matchMedia: el docente está en un computador.
+vi.mock('@/hooks/use-es-computador', () => ({ useEsComputador: () => true }));
 vi.mock('@/lib/estudiantes/actions', () => ({
   registrarEstudiante: vi.fn(),
   actualizarEstudiante: vi.fn(),
@@ -205,8 +209,18 @@ describe('ConfiguradorSesion', () => {
       'href',
       `/estudiantes/${ANA.id}`
     );
-    // La simulación ya no se abre en el equipo del docente.
+    // La simulación no se abre sola en el equipo del docente: solo si él lo entrega.
     expect(push).not.toHaveBeenCalled();
+
+    // Modo presencial: el docente confirma y entrega este computador al estudiante.
+    await usuario.click(within(dialogo).getByRole('button', { name: /Practicar en este equipo/ }));
+    const confirmacion = await screen.findByRole('alertdialog', {
+      name: /¿Ana practica en este computador\?/,
+    });
+    await usuario.click(
+      within(confirmacion).getByRole('button', { name: /Cerrar mi sesión y entregar/ })
+    );
+    expect(entregarEquipo).toHaveBeenCalledWith({ id: '77777777-7777-4777-8777-777777777777' });
   });
 
   it('la vigencia por defecto es de 7 días', async () => {

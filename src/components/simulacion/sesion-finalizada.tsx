@@ -1,13 +1,15 @@
 'use client';
 
-import { Check, CheckCircle2, Copy, Hourglass } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Hourglass, Loader2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition } from 'react';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
 import { type MotivoCierre } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { formatearDuracion, type ResumenSesion } from '@/lib/conversacion/resumen';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
@@ -22,7 +24,8 @@ const QUE_SIGUE = [
  * Cierre de la práctica: reconoce el esfuerzo con calma y dice qué sigue, sin métricas técnicas.
  * Tres variantes: terminada por el estudiante, cerrada por inactividad y cerrada antes de empezar
  * (en ese caso el código ya se usó y se ofrece un mensaje para pedir uno nuevo). La reflexión es
- * solo para el estudiante: no se guarda.
+ * solo para el estudiante: no se guarda. En el computador del docente (modo presencial), la acción
+ * principal es cerrar la sesión, para que el siguiente no vea sus prácticas.
  */
 export function SesionFinalizada({
   resumen,
@@ -38,6 +41,8 @@ export function SesionFinalizada({
   const [navegando, startTransition] = useTransition();
   const [copiado, setCopiado] = useState(false);
   const idReflexion = useId();
+  const compartido = useEquipoCompartido();
+  const { salir, cerrando } = useCerrarSesionCompartida();
 
   const sinEmpezar = motivo === 'inactividad' && resumen.intervenciones === 0;
   const porInactividad = motivo === 'inactividad';
@@ -158,6 +163,13 @@ export function SesionFinalizada({
           </>
         )}
 
+        {compartido && (
+          <p className="rounded-xl border border-laton/50 bg-laton/10 px-4 py-3 text-sm leading-relaxed">
+            Estás en el computador de tu docente. Cierra tu sesión antes de entregarlo: así nadie
+            más ve tus prácticas.
+          </p>
+        )}
+
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {sinEmpezar ? (
             <Button variant="outline" size="lg" onClick={copiarMensaje}>
@@ -174,15 +186,28 @@ export function SesionFinalizada({
               Releer la conversación
             </Button>
           )}
-          <Button
-            variant="accion"
-            size="lg"
-            onClick={() => ir('/practicas')}
-            disabled={navegando}
-            autoFocus
-          >
-            Ir a Mis prácticas
-          </Button>
+          {compartido ? (
+            <Button
+              variant="accion"
+              size="lg"
+              onClick={salir}
+              disabled={navegando || cerrando}
+              autoFocus
+            >
+              {cerrando ? <Loader2 className="animate-spin" aria-hidden /> : <LogOut aria-hidden />}
+              Cerrar sesión en este equipo
+            </Button>
+          ) : (
+            <Button
+              variant="accion"
+              size="lg"
+              onClick={() => ir('/practicas')}
+              disabled={navegando}
+              autoFocus
+            >
+              Ir a Mis prácticas
+            </Button>
+          )}
         </div>
       </section>
     </div>
