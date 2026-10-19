@@ -52,7 +52,10 @@ const escenarioDeLaSesion = {
 };
 
 /** Cliente de Supabase falso: devuelve la sesión indicada y registra las inserciones. */
-function clienteFalso(sesion: unknown, opciones: { errorInsercion?: boolean } = {}) {
+function clienteFalso(
+  sesion: unknown,
+  opciones: { errorInsercion?: boolean; esperaLimite?: number; errorLimite?: boolean } = {}
+) {
   // La inserción devuelve los ids guardados (para poder ensayar otra respuesta desde ellos).
   const guardado = {
     select: vi.fn().mockResolvedValue(
@@ -73,11 +76,20 @@ function clienteFalso(sesion: unknown, opciones: { errorInsercion?: boolean } = 
     eq: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: sesion, error: null }),
   };
+  // RNF-03.7: segundos de espera del límite de mensajes (0 = turno reservado).
+  const rpc = vi
+    .fn()
+    .mockResolvedValue(
+      opciones.errorLimite
+        ? { data: null, error: { code: 'PGRST202' } }
+        : { data: opciones.esperaLimite ?? 0, error: null }
+    );
   const cliente = {
     from: vi.fn((tabla: string) => (tabla === 'mensaje' ? { insert } : consulta)),
+    rpc,
   };
   vi.mocked(createClient).mockResolvedValue(cliente as never);
-  return { insert, consulta };
+  return { insert, consulta, rpc };
 }
 
 function peticion(cuerpo: unknown) {
@@ -256,5 +268,35 @@ describe('POST /api/npc/chat', () => {
     expect(respuesta.status).toBe(200);
     const json = await respuesta.json();
     expect(json).toMatchObject({ id_mensaje_estudiante: null, id_mensaje_npc: null });
+  });
+
+  it('RNF-03.7: reserva un turno del límite antes de llamar a la IA', async () => {
+    const { rpc } = clienteFalso(sesionEnCurso);
+    expect((await POST(peticion(cuerpoValido))).status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('reservar_peticion_ia');
+  });
+
+  it('RNF-03.7: con el límite agotado responde 429 sin llamar a la IA ni guardar', async () => {
+    const { insert } = clienteFalso(sesionEnCurso, { esperaLimite: 42 });
+    const respuesta = await POST(peticion(cuerpoValido));
+
+    expect(respuesta.status).toBe(429);
+    expect(respuesta.headers.get('Retry-After')).toBe('42');
+    expect(respuesta.headers.get('Cache-Control')).toBe('no-store');
+    expect((await respuesta.json()).error).toMatch(/Espera 42 s/);
+    expect(generarRespuestaPaciente).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('RNF-03.7: si el conteo falla, la práctica sigue', async () => {
+    clienteFalso(sesionEnCurso, { errorLimite: true });
+    expect((await POST(peticion(cuerpoValido))).status).toBe(200);
+    expect(generarRespuestaPaciente).toHaveBeenCalled();
+  });
+
+  it('RNF-03.7: las peticiones rechazadas antes de la IA no gastan turnos', async () => {
+    const { rpc } = clienteFalso({ ...sesionEnCurso, estado: 'finalizada' });
+    expect((await POST(peticion(cuerpoValido))).status).toBe(409);
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

@@ -133,7 +133,9 @@ export async function enviarMensaje(
   if (!respuesta.ok) {
     const error = npcChatErrorSchema.safeParse(json);
     const detalle = error.success ? error.data.error : null;
-    return fallar(respuesta.status === 401 && detalle ? detalle : MENSAJE_NO_DISPONIBLE);
+    // La sesión vencida (401) y el límite de mensajes (429) tienen un aviso propio para el estudiante.
+    const conAviso = respuesta.status === 401 || respuesta.status === 429;
+    return fallar(conAviso && detalle ? detalle : MENSAJE_NO_DISPONIBLE);
   }
 
   const datos = npcChatResponseSchema.safeParse(json);

@@ -42,7 +42,8 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
  * 3. Carga la sesión de simulación con RLS: debe ser del estudiante (404), seguir en curso (409)
  *    y corresponder al NPC indicado (404). El prompt del sistema es el que configuró el docente
  *    al generar el código; se lee con la clave secreta porque el estudiante no puede verlo.
- * 4. Llama a la IA con el prompt, el historial y el mensaje (504/502/503 si falla).
+ * 4. Reserva un turno del límite de mensajes por minuto (429 si se agotó, RNF-03.7) y llama a la
+ *    IA con el prompt, el historial y el mensaje (504/502/503 si falla).
  * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con su emoción (para el
  *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
@@ -107,6 +108,22 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (!npc || npc.id !== npc_id || !promptSistema) {
     return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
+  }
+
+  // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
+  // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log).
+  const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+  if (errorLimite) {
+    log.error('npc_chat.limite_no_verificado', { codigo: errorLimite.code, sesion_id });
+  } else if (esperaS > 0) {
+    log.info('npc_chat.limite_alcanzado', { sesion_id, espera_s: esperaS });
+    const cuerpoLimite: NpcChatError = {
+      error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
+    };
+    return Response.json(cuerpoLimite, {
+      status: 429,
+      headers: { ...SIN_CACHE, 'Retry-After': String(esperaS) },
+    });
   }
 
   const inicio = performance.now();
