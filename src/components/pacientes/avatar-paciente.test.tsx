@@ -9,6 +9,7 @@ describe('avatarDeEscena', () => {
   it('asigna un rostro a cada escena y ninguno a las desconocidas', () => {
     expect(avatarDeEscena('scenes/e-01.json')).toBe('/pacientes/marta-lucia.webp');
     expect(avatarDeEscena('scenes/e-06.json')).toBe('/pacientes/santiago.webp');
+    expect(avatarDeEscena('scenes/e-12.json')).toBe('/pacientes/gilberto.webp');
     expect(avatarDeEscena('scenes/otra.json')).toBeNull();
   });
 });

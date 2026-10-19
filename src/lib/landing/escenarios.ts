@@ -159,4 +159,139 @@ export const ESCENARIOS_PUBLICOS: readonly EscenarioPublico[] = [
       alt: 'Oficina de bienestar universitario en 3D: Santiago sentado en una silla, con un escritorio con portátil y una biblioteca',
     },
   },
+  {
+    codigo: 'E-07',
+    titulo: 'Consumo de alcohol y ambivalencia',
+    categoria: 'Clínico',
+    nivel: 2,
+    competencia: 'Entrevista motivacional',
+    resumen:
+      'Un taxista llega presionado por su esposa, que le dijo que se irá con los hijos si sigue tomando. Él cree que toma como cualquiera. Hay que explorar su ambivalencia sin sermonear ni etiquetar.',
+    consultorio: 'Consultorio de consejería, luz fría de mañana',
+    paciente: {
+      nombre: 'Hernán',
+      foto: '/pacientes/hernan.webp',
+      edad: 46,
+      perfil:
+        'Taxista casado, con dos hijos. Toma casi todos los fines de semana y varias noches entre semana; su esposa le planteó que se irá con los hijos si sigue. Minimiza el consumo y se muestra a la defensiva. Ambivalente ante el cambio. Sin riesgo para sí ni para otros.',
+      apertura: 'Vengo porque mi señora me tiene amenazado, pero yo no tengo ningún problema, ¿ah?',
+    },
+    imagen: {
+      src: '/simulacion/consultorio-consumo-de-alcohol.webp',
+      alt: 'Consultorio de consejería en 3D: Hernán sentado en un sillón azul grisáceo, con una mesa de centro, una lámpara de pie y una biblioteca',
+    },
+  },
+  {
+    codigo: 'E-08',
+    titulo: 'Trauma por desplazamiento forzado',
+    categoria: 'Clínico',
+    nivel: 3,
+    competencia: 'Intervención informada en trauma',
+    resumen:
+      'Una mujer desplazada por el conflicto armado llega remitida por una fundación, con pesadillas, sobresaltos y culpa. Hay que ir despacio, validar y dejar que ella decida cuánto cuenta.',
+    consultorio: 'Sala de acogida de una fundación, luz de tarde',
+    paciente: {
+      nombre: 'Yolanda',
+      foto: '/pacientes/yolanda.webp',
+      edad: 34,
+      perfil:
+        'Mujer desplazada de una vereda del Cauca, en Cali desde hace un año, que trabaja en casas de familia. Pesadillas, sobresaltos, insomnio, evitación de salir de noche y culpa. Reservada y evasiva con lo doloroso. Sin riesgo para sí ni para otros.',
+      apertura: 'Buenas… me mandaron de la fundación. La verdad no sé si esto me sirva.',
+    },
+    imagen: {
+      src: '/simulacion/sala-trauma-por-desplazamiento.webp',
+      alt: 'Sala de acogida en 3D: Yolanda sentada en un sofá verde con luz cálida de tarde, una lámpara de pie y una ventana a la izquierda',
+    },
+  },
+  {
+    codigo: 'E-09',
+    titulo: 'Adolescente con autolesiones',
+    categoria: 'Clínico',
+    nivel: 3,
+    competencia: 'Evaluación de riesgo con adolescentes',
+    resumen:
+      'La orientadora de un colegio remite a una adolescente tras ver cortes en sus antebrazos. Es desconfiada y reservada: hay que explorar el riesgo con honestidad sobre la confidencialidad y sus límites.',
+    consultorio: 'Oficina de orientación escolar',
+    paciente: {
+      nombre: 'Sara',
+      foto: '/pacientes/sara.webp',
+      edad: 15,
+      perfil:
+        'Estudiante de grado décimo remitida por la orientadora del colegio tras ver cortes en sus antebrazos. Desconfiada y reservada. Autolesión como forma de manejar el malestar; ciberacoso; ideación pasiva de muerte sin plan ni intención.',
+      apertura: 'La orientadora me obligó a venir. No sé qué quiere que le diga.',
+    },
+    imagen: {
+      src: '/simulacion/orientacion-adolescente-autolesiones.webp',
+      alt: 'Oficina de orientación escolar en 3D: Sara sentada en una silla naranja, con una mesa de centro, un escritorio con portátil y una biblioteca',
+    },
+  },
+  {
+    codigo: 'E-10',
+    titulo: 'Conducta alimentaria restrictiva',
+    categoria: 'Clínico',
+    nivel: 2,
+    competencia: 'Exploración sin confrontar',
+    resumen:
+      'Una joven bailarina llega remitida por su médico por cansancio y mareos. Minimiza lo que le pasa y evita hablar de la comida: hay que explorar sin confrontar ni centrarse en el peso.',
+    consultorio: 'Consultorio de salud universitario, luz de mediodía',
+    paciente: {
+      nombre: 'Daniela',
+      foto: '/pacientes/daniela.webp',
+      edad: 20,
+      perfil:
+        'Estudiante de administración y bailarina, remitida por su médico por cansancio y mareos. Complaciente y evasiva; minimiza. Restricción alimentaria, conductas compensatorias ocasionales y control del peso. Sin riesgo para sí ni para otros.',
+      apertura:
+        'Hola. El médico dijo que viniera porque me he mareado, pero yo creo que es el estrés de la U.',
+    },
+    imagen: {
+      src: '/simulacion/consultorio-conducta-alimentaria.webp',
+      alt: 'Consultorio luminoso en 3D: Daniela sentada en un sillón verde azulado frente a una mesa de centro, con un sofá a la izquierda y una biblioteca a la derecha',
+    },
+  },
+  {
+    codigo: 'E-11',
+    titulo: 'Violencia en la pareja',
+    categoria: 'Clínico',
+    nivel: 3,
+    competencia: 'Detección de violencia y plan de seguridad',
+    resumen:
+      'Una mujer consulta por estrés y dolores de cabeza, y justifica a su pareja. Hay que detectar con tacto una posible violencia, sin presionarla, y acompañarla a pensar en su seguridad.',
+    consultorio: 'Consultorio reservado, luz de tarde',
+    paciente: {
+      nombre: 'Paola',
+      foto: '/pacientes/paola.webp',
+      edad: 29,
+      perfil:
+        'Cajera de supermercado, con una hija de 4 años, que consulta por estrés y dolores de cabeza. Complaciente y ansiosa; justifica a su pareja. Control, amenazas y un episodio reciente de violencia física por parte de la pareja. Sin ideas de hacerse daño; el riesgo viene de un tercero.',
+      apertura:
+        'Es que ando con mucho estrés, me duele la cabeza todo el tiempo… pero en la casa todo bien, ¿sí?',
+    },
+    imagen: {
+      src: '/simulacion/consultorio-violencia-en-la-pareja.webp',
+      alt: 'Consultorio reservado en 3D: Paola sentada en un sillón azul con una alfombra azul grisácea, un reloj de pared y un sofá gris a la derecha',
+    },
+  },
+  {
+    codigo: 'E-12',
+    titulo: 'Soledad y olvidos en la vejez',
+    categoria: 'Cotidiano',
+    nivel: 1,
+    competencia: 'Comunicación con adultos mayores',
+    resumen:
+      'Un profesor jubilado, viudo y con los hijos en el exterior, viene porque su hija se preocupa. Habla con gusto de su vida y se va por las ramas: hay que escucharlo con paciencia y preguntar con tacto.',
+    consultorio: 'Consulta del adulto mayor, luz de tarde',
+    paciente: {
+      nombre: 'Gilberto',
+      foto: '/pacientes/gilberto.webp',
+      edad: 74,
+      perfil:
+        'Profesor jubilado, viudo hace tres años, con los hijos en el exterior. Colaborador y hablador. Episodio reciente de desorientación al volver a casa y descuido de las comidas. Soledad. Sin riesgo para sí ni para otros.',
+      apertura:
+        'Buenas tardes, jovencito. Mi hija insistió por videollamada en que viniera; ella siempre tan preocupada.',
+    },
+    imagen: {
+      src: '/simulacion/sala-soledad-y-olvidos.webp',
+      alt: 'Consulta del adulto mayor en 3D: Gilberto sentado en un sillón marrón sobre una alfombra terracota, con dos estanterías de libros y una lámpara de pie',
+    },
+  },
 ];

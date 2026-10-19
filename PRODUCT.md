@@ -47,8 +47,10 @@ estudiante.
   revisión del docente → relectura del estudiante. Detalle en `docs/simulacion-a-distancia.md`.
 - La simulación requiere teclado y ratón. En móvil, todo lo 2D debe funcionar; la simulación debe
   avisar con claridad que se abre en un computador (decisión del usuario, 2026-10-17).
-- Seis escenarios predefinidos (E-01 a E-06: duelo, ansiedad generalizada, episodio depresivo
-  leve, crisis de pánico, conflicto de pareja, estrés académico) y casos propios del docente.
+- Doce escenarios predefinidos (E-01 a E-12: duelo, ansiedad generalizada, episodio depresivo
+  leve, crisis de pánico, conflicto de pareja, estrés académico, consumo de alcohol, trauma por
+  desplazamiento, autolesiones en la adolescencia, conducta alimentaria, violencia en la pareja y
+  soledad en la vejez) y casos propios del docente.
 - Cierre automático de la sesión tras 10 minutos de inactividad, con aviso en el último minuto.
 - Se usa en equipos modestos (portátiles de oficina) y conexiones variables.
 
@@ -77,7 +79,7 @@ estudiante.
 
 ## Evidence on Hand
 
-- Seis escenarios con paciente, competencia, nivel y frase de apertura (`src/lib/escenarios`).
+- Doce escenarios con paciente, competencia, nivel y frase de apertura (`src/lib/escenarios`).
 - Escenas 3D y modelos (`public/scenes`, `public/models`, `docs/modelos-3d.md`).
 - Registros de pruebas por sprint en `docs/pruebas/`.
 - No hay testimonios, cifras de uso ni validación clínica: no se deben inventar.

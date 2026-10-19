@@ -96,6 +96,12 @@ Los pacientes son los personajes de `public/models/personajes/` (los mismos del 
 | E-04      | Julián David, 24  | `tomas`   | de pie                              |
 | E-05      | Carolina, 35      | `marina`  | sentada en sofá                     |
 | E-06      | Santiago, 20      | `leo`     | sentado en silla (piernas dobladas) |
+| E-07      | Hernán, 46        | `tomas`   | sentado en sillón                   |
+| E-08      | Yolanda, 34       | `marina`  | sentada en sofá                     |
+| E-09      | Sara, 15          | `lucia`   | sentada en silla (piernas dobladas) |
+| E-10      | Daniela, 20       | `lucia`   | sentada en sillón                   |
+| E-11      | Paola, 29         | `marina`  | sentada en sillón                   |
+| E-12      | Gilberto, 74      | `ernesto` | sentado en sillón                   |
 
 **Sentado.** Los clips están hechos de pie, así que la animación va en dos capas
 (`src/lib/npc/postura.ts`): un clip fijo para caderas y piernas sobre el asiento

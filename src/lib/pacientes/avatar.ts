@@ -16,6 +16,12 @@ const AVATAR_POR_ESCENA: Record<string, string> = {
   'scenes/e-04.json': 'julian-david',
   'scenes/e-05.json': 'carolina',
   'scenes/e-06.json': 'santiago',
+  'scenes/e-07.json': 'hernan',
+  'scenes/e-08.json': 'yolanda',
+  'scenes/e-09.json': 'sara',
+  'scenes/e-10.json': 'daniela',
+  'scenes/e-11.json': 'paola',
+  'scenes/e-12.json': 'gilberto',
 };
 
 /** Ruta pública del avatar del paciente de una escena, o `null` si no hay uno asignado. */

@@ -15,7 +15,7 @@ export default async function VistaPreviaEscenaPage({
 }: PageProps<'/dev/escena/[archivo]'>) {
   if (process.env.NODE_ENV === 'production') notFound();
   const { archivo } = await params;
-  if (!/^e-0[1-6]$/.test(archivo)) notFound();
+  if (!/^e-(0[1-9]|1[0-2])$/.test(archivo)) notFound();
 
   // La escena lee el estado del paciente desde el store (fuera de las rutas protegidas).
   return (

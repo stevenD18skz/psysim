@@ -249,7 +249,7 @@ export default function Home() {
 
         <Seccion
           id="casos"
-          titulo="Seis casos para empezar"
+          titulo="Doce casos para empezar"
           descripcion="De lo cotidiano a la crisis. Tu docente también puede crear los suyos."
         >
           <EscenariosGaleria />
