@@ -31,6 +31,36 @@ export const CONSULTORIOS = [
     detalle: 'Atardecer, ambiente cercano',
   },
   { ruta: 'scenes/e-06.json', nombre: 'Oficina de bienestar', detalle: 'Entorno universitario' },
+  {
+    ruta: 'scenes/e-07.json',
+    nombre: 'Consultorio de consejería',
+    detalle: 'Luz fría de mañana, tonos azulados',
+  },
+  {
+    ruta: 'scenes/e-08.json',
+    nombre: 'Sala de acogida',
+    detalle: 'Luz cálida de tarde, ambiente sereno',
+  },
+  {
+    ruta: 'scenes/e-09.json',
+    nombre: 'Orientación escolar',
+    detalle: 'Entorno de colegio, luminoso',
+  },
+  {
+    ruta: 'scenes/e-10.json',
+    nombre: 'Consultorio de salud',
+    detalle: 'Luz de mediodía, tonos claros',
+  },
+  {
+    ruta: 'scenes/e-11.json',
+    nombre: 'Consultorio reservado',
+    detalle: 'Tarde tranquila, ambiente discreto',
+  },
+  {
+    ruta: 'scenes/e-12.json',
+    nombre: 'Sala para adultos mayores',
+    detalle: 'Luz de tarde, ambiente de hogar',
+  },
 ] as const;
 
 type RutaConsultorio = (typeof CONSULTORIOS)[number]['ruta'];

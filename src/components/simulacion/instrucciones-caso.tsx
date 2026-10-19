@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { CONSULTORIOS } from '@/lib/casos/opciones';
 import { comenzarSesion } from '@/lib/escenarios/actions';
-import { avisoDeContenido, RECURSOS_APOYO } from '@/lib/escenarios/avisos';
+import { avisoDeContenido, recursosDeApoyo } from '@/lib/escenarios/avisos';
 import {
   ACUERDO_FICCION,
   HERRAMIENTAS_PRACTICA,
@@ -231,9 +231,14 @@ export function InstruccionesCaso({
                     Si necesitas apoyo
                   </p>
                   <ul className="flex flex-col gap-0.5 pl-6 text-sm text-foreground">
-                    {RECURSOS_APOYO.map(recurso => (
-                      <li key={recurso} className="list-disc">
-                        {recurso}
+                    {recursosDeApoyo(escenario.codigo).map(recurso => (
+                      <li key={recurso.texto} className="list-disc">
+                        {recurso.texto}
+                        {recurso.porConfirmar && (
+                          <span className="ml-2 rounded-md bg-ambar-suave px-1.5 py-0.5 text-xs font-semibold text-ambar">
+                            Por confirmar
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

@@ -24,6 +24,12 @@ const PREFIJO = 'E2E';
 const PREFIJO_CODIGOS = 'cfg';
 /** Nombre del estudiante de prueba (E2E_ESTUDIANTE_*, creado por pnpm db:seed). */
 const ESTUDIANTE = { codigo: '209990001', nombre: 'Estudiante de Prueba Uno' };
+
+/** Escenarios oficiales sembrados en la base (E-01 a E-12). */
+const CODIGOS_OFICIALES = Array.from(
+  { length: 12 },
+  (_, i) => `E-${String(i + 1).padStart(2, '0')}`
+);
 /** Códigos generados desde la interfaz (aleatorios): se limpian por su valor. */
 const codigosGenerados: string[] = [];
 
@@ -59,10 +65,10 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.goto('/configuracion');
   });
 
-  test('HU-06 · T02: muestra los seis escenarios y expande el perfil del NPC', async ({ page }) => {
-    // Los seis escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
-    await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(6);
-    for (const codigo of ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'E-06']) {
+  test('HU-06 · T02: muestra los doce escenarios y expande el perfil del NPC', async ({ page }) => {
+    // Los doce escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
+    await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(12);
+    for (const codigo of CODIGOS_OFICIALES) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
     }
     await expect(page.getByTestId('escenario-E-05')).toContainText('Cotidiano');
