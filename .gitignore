@@ -55,3 +55,5 @@ next-env.d.ts
 taiga.json
 *-pychsims-*.json
 /claude_desing
+# documento del trabajo de grado (se edita en Google Docs; aquí solo la copia de trabajo)
+/docs/trabajo-de-grado/
