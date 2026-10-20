@@ -40,9 +40,10 @@ export function componerPrompt(campos: CamposCaso): string {
     lineas.push(`Estado actual: experimentas ${enumerar(sintomas)}.`);
   }
 
-  const actitudes = ACTITUDES.filter(a => campos.actitudes.includes(a.id)).map(a => a.texto);
+  const actitudes = ACTITUDES.filter(a => campos.actitudes.includes(a.id));
   if (actitudes.length > 0) {
-    lineas.push(`Actitud en la consulta: te muestras ${enumerar(actitudes)}.`);
+    lineas.push(`Actitud en la consulta: te muestras ${enumerar(actitudes.map(a => a.texto))}.`);
+    lineas.push(`Cómo conversas: ${actitudes.map(a => a.conducta).join('; ')}.`);
   }
 
   const seAbre = campos.seAbreSi.trim();
@@ -55,6 +56,16 @@ export function componerPrompt(campos: CamposCaso): string {
 
   const notas = campos.notas.trim();
   if (notas) lineas.push(`Información adicional: ${conPunto(notas)}`);
+
+  const secretos = (campos.secretos ?? []).filter(s => s.dato.trim() && s.condicion.trim());
+  if (secretos.length > 0) {
+    lineas.push('Lo que guardas (no lo cuentes de entrada):');
+    for (const { dato, condicion } of secretos) {
+      lineas.push(
+        `- ${conPunto(dato).replace(/\.$/, '')}. Lo cuentas solo si ${conPunto(condicion)}`
+      );
+    }
+  }
 
   const apertura = campos.fraseApertura.trim().replace(/^["“«]|["”»]$/g, '');
   if (apertura) {

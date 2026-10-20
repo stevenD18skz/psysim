@@ -19,7 +19,20 @@ const navegador = await chromium.launch({
 
 /** Planos: la cámara por defecto de cada escena y un plano más cercano y en ángulo para el hero. */
 const planos = [
-  ...['e-01', 'e-02', 'e-03', 'e-04', 'e-05', 'e-06'].map(id => ({ id, nombre: id, consulta: '' })),
+  ...[
+    'e-01',
+    'e-02',
+    'e-03',
+    'e-04',
+    'e-05',
+    'e-06',
+    'e-07',
+    'e-08',
+    'e-09',
+    'e-10',
+    'e-11',
+    'e-12',
+  ].map(id => ({ id, nombre: id, consulta: '' })),
   { id: 'e-01', nombre: 'hero', consulta: '?camara=0.9,1.45,0.8&mirar=-0.1,1.1,-1.95' },
 ];
 

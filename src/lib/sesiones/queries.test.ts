@@ -191,6 +191,7 @@ describe('obtenerDetalleSesion', () => {
       },
       npc: { nombre: 'Marta Lucía', edad: 58 },
       mensajes: [{ id: 'm1', remitente: 'estudiante', contenido: 'Hola', timestamp: 'T1' }],
+      intentos: [],
       retroalimentacion: {
         comentarioGeneral: 'Bien.',
         nota: 4,

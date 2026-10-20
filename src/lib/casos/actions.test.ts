@@ -215,6 +215,7 @@ describe('probarPaciente', () => {
     vi.mocked(generarRespuestaPaciente).mockResolvedValueOnce({
       texto: 'Hola… no sé por dónde empezar.',
       emocion: 'ansioso',
+      intensidad: null,
       tokensEntrada: 1,
       tokensSalida: 1,
       modelo: 'm',

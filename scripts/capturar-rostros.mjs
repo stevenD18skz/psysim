@@ -5,7 +5,7 @@
  * WebP con el mismo nombre. Se pueden reemplazar por fotos o ilustraciones propias (WebP
  * cuadrado de 256 a 512 px) usando exactamente el mismo nombre de archivo.
  *
- *   node scripts/capturar-rostros.mjs [baseUrl] [e-01,e-04,…]   (sin lista, captura las seis)
+ *   node scripts/capturar-rostros.mjs [baseUrl] [e-01,e-04,…]   (sin lista, captura las doce)
  *
  * Requiere el servidor de desarrollo en marcha.
  */
@@ -27,6 +27,12 @@ const PACIENTES = {
   'e-04': 'julian-david',
   'e-05': 'carolina',
   'e-06': 'santiago',
+  'e-07': 'hernan',
+  'e-08': 'yolanda',
+  'e-09': 'sara',
+  'e-10': 'daniela',
+  'e-11': 'paola',
+  'e-12': 'gilberto',
 };
 
 /**

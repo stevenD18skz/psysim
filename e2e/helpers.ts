@@ -42,20 +42,20 @@ export const MOTIVO_SIN_ESTUDIANTE =
   'Define E2E_ESTUDIANTE_CORREO, E2E_ESTUDIANTE_CONTRASENA y SUPABASE_SECRET_KEY (pnpm db:seed)';
 
 export async function iniciarSesion(page: Page, correo: string, contrasena: string) {
-  await page.goto('/login');
+  await page.goto('/login?docente=1');
   await page.getByLabel('Correo institucional').fill(correo);
   await page.getByLabel('Contraseña', { exact: true }).fill(contrasena);
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
 }
 
 export async function iniciarSesionComoDocente(page: Page) {
   await iniciarSesion(page, docente.correo, docente.contrasena);
-  await expect(page).toHaveURL(/\/configuracion$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 }
 
 export async function iniciarSesionComoAdmin(page: Page) {
   await iniciarSesion(page, administrador.correo, administrador.contrasena);
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 }
 
 export async function iniciarSesionComoEstudiante(page: Page, cuenta = estudiante) {

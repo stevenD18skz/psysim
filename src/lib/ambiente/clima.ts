@@ -31,17 +31,29 @@ const EJES: Readonly<Record<EmocionNpc, Clima>> = {
 export const PESO_RESPUESTA = 0.55;
 
 /**
+ * Cuánto pesa una respuesta según la intensidad de su emoción: una tristeza apenas perceptible
+ * mueve poco el clima; una que desborda al paciente lo carga de inmediato.
+ */
+const PESO_POR_INTENSIDAD: Readonly<Record<1 | 2 | 3, number>> = {
+  1: PESO_RESPUESTA * 0.55,
+  2: PESO_RESPUESTA,
+  3: Math.min(0.85, PESO_RESPUESTA * 1.4),
+};
+
+/**
  * Clima a partir del historial: promedio móvil exponencial de las emociones de las respuestas
- * del paciente. Las respuestas sin emoción (sesión retomada) no aportan información y se omiten.
+ * del paciente, ponderado por su intensidad. Las respuestas sin emoción (sesión retomada) no
+ * aportan información y se omiten.
  */
 export function climaDeConversacion(mensajes: readonly MensajeConversacion[]): Clima {
   let clima: Clima = CLIMA_NEUTRO;
   for (const mensaje of mensajes) {
     if (mensaje.remitente !== 'npc' || !mensaje.emocion) continue;
     const objetivo = EJES[mensaje.emocion];
+    const peso = PESO_POR_INTENSIDAD[mensaje.intensidad ?? 2];
     clima = {
-      valencia: clima.valencia + (objetivo.valencia - clima.valencia) * PESO_RESPUESTA,
-      activacion: clima.activacion + (objetivo.activacion - clima.activacion) * PESO_RESPUESTA,
+      valencia: clima.valencia + (objetivo.valencia - clima.valencia) * peso,
+      activacion: clima.activacion + (objetivo.activacion - clima.activacion) * peso,
     };
   }
   return clima;

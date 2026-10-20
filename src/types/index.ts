@@ -1,4 +1,4 @@
-import { type EmocionNpc } from '@/lib/conversacion/emociones';
+import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import { type BorradorCaso } from '@/schemas/caso.schema';
 
 import { type Database } from './database.types';
@@ -112,6 +112,25 @@ export interface MensajeConversacion {
    * la base de datos: al retomar una sesión, las respuestas anteriores no la tienen.
    */
   emocion?: EmocionNpc;
+  /** Solo en mensajes del NPC: cuánto se le nota la emoción (1–3). No se guarda. */
+  intensidad?: IntensidadEmocion;
+  /**
+   * Recién enviado y aún sin el id de la base de datos (o no se pudo guardar): no se puede
+   * reformular desde él.
+   */
+  sinGuardar?: boolean;
+  /** Solo en mensajes descartados (revisión): cuándo el estudiante reformuló desde ese punto. */
+  descartadoEn?: string;
+}
+
+/**
+ * Intervenciones que el estudiante reformuló durante la práctica («ensayar otra respuesta»). No
+ * forman parte de la conversación, pero el docente las ve en su sitio: `posicion` es cuántos
+ * mensajes vigentes las preceden.
+ */
+export interface IntentoDescartado {
+  posicion: number;
+  mensajes: MensajeConversacion[];
 }
 
 /** Datos del usuario autenticado (docente o estudiante) que la aplicación expone (DTO). */
@@ -170,11 +189,30 @@ export interface SesionHistorial {
   comenzada: boolean;
   inicio: string;
   fin: string | null;
+  /** Última actividad registrada por el latido; una práctica en curso se cierra 10 min después. */
+  ultimaActividad: string;
   escenario: { codigo: string; titulo: string };
   /** Nombre del docente que la asignó (en el panel del estudiante). */
   docente: string | null;
   /** `null` si el docente aún no ha empezado a revisarla. */
   retroalimentacion: { publicada: boolean; nota: number | null } | null;
+}
+
+/** Sesión del docente con su estudiante, para la bandeja de inicio y las revisiones. */
+export interface SesionDocente extends SesionHistorial {
+  estudiante: { id: string; nombre: string; codigo: string };
+  /** Intervenciones del estudiante en la conversación vigente. */
+  intervenciones: number;
+}
+
+/** Código de acceso que aún se puede usar, con su estudiante, para la bandeja del docente. */
+export interface CodigoPendiente {
+  id: string;
+  codigo: string;
+  expiraEn: string;
+  creadoEn: string;
+  escenario: { codigo: string; titulo: string };
+  estudiante: { id: string; nombre: string; codigo: string } | null;
 }
 
 /** Sesión del historial con la observación general publicada, para el informe de notas. */
@@ -218,6 +256,9 @@ export interface DetalleSesion {
     'codigo' | 'titulo' | 'competenciaCentral' | 'configuracion3d'
   >;
   npc: Pick<NpcEscenario, 'nombre' | 'edad'>;
+  /** Conversación vigente, en orden. */
   mensajes: MensajeConversacion[];
+  /** Intentos que el estudiante reformuló, en su lugar de la conversación. */
+  intentos: IntentoDescartado[];
   retroalimentacion: Retroalimentacion | null;
 }

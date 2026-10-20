@@ -78,9 +78,14 @@ export function InteraccionPaciente({ npc }: { npc: Escena['npc'] }) {
  * Inicia la conversación (NPC `inactivo` → `esperando_input`) si el estudiante está cerca del
  * paciente. Devuelve si se inició.
  */
-export function iniciarConversacion(store: AppStore): boolean {
+export function iniciarConversacion(
+  store: AppStore,
+  /** `directo`: sin recorrer el consultorio (alternativa para teclado o lector de pantalla). */
+  { directo = false }: { directo?: boolean } = {}
+): boolean {
   const { npc, sesion } = store.getState();
   if (!sesion.activa?.comenzada) return false;
-  if (npc.estado !== 'inactivo' || !interaccionStore.getState().cerca) return false;
+  if (npc.estado !== 'inactivo') return false;
+  if (!directo && !interaccionStore.getState().cerca) return false;
   return npc.actualizarEstadoNPC('esperando_input');
 }

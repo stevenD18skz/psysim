@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "nombre": "Consultorio de salud universitario — mediodía",
+  "sala": {
+    "ancho": 6,
+    "largo": 7,
+    "alto": 2.8,
+    "colores": {
+      "paredes": "#f1efe8",
+      "acento": "#c5d5cc",
+      "suelo": "#b08b6a",
+      "techo": "#f8f6f1",
+      "zocalo": "#72604f"
+    }
+  },
+  "mobiliario": [
+    { "id": "alfombra", "tipo": "alfombra", "posicion": [0, 0, -0.9], "color": "#a9c0b4", "colision": false },
+    { "id": "sillon-paciente", "tipo": "sillon", "posicion": [0, 0, -2], "rotacion": 0, "color": "#86a798" },
+    { "id": "mesa-centro", "tipo": "mesa-centro", "posicion": [0, 0, -0.8], "color": "#7d6350" },
+    { "id": "mesa-auxiliar", "tipo": "mesa-auxiliar", "posicion": [0.95, 0, -2.05], "color": "#7d6350" },
+    { "id": "lampara", "tipo": "lampara-pie", "posicion": [-0.95, 0, -2.3], "color": "#f4f0e2" },
+    { "id": "sofa", "tipo": "sofa", "posicion": [-2.55, 0, 0.7], "rotacion": 90, "color": "#c9b8a2" },
+    { "id": "estanteria", "tipo": "estanteria", "posicion": [2.78, 0, -0.9], "rotacion": -90, "color": "#7d6350" },
+    { "id": "escritorio", "tipo": "escritorio", "posicion": [2.35, 0, 2.2], "rotacion": -90, "color": "#a07a58" },
+    { "id": "planta-fondo", "tipo": "planta", "modelo": "muebles/houseplant-vtjh4irl4w.glb", "ajuste": { "alto": 1.1 }, "posicion": [-2.45, 0, -3.0] },
+    { "id": "planta-entrada", "tipo": "planta", "modelo": "muebles/houseplant-e9ort-ct6js.glb", "ajuste": { "alto": 0.95 }, "posicion": [2.5, 0, 0.55] },
+    { "id": "ventana", "tipo": "ventana", "posicion": [-1.7, 1.55, -3.49], "colision": false },
+    { "id": "cuadro-sofa", "tipo": "cuadro", "posicion": [-2.99, 1.65, 0.7], "rotacion": 90, "color": "#c5d5cc", "colision": false },
+    { "id": "cuadro-fondo", "tipo": "cuadro", "posicion": [1.3, 1.7, -3.49], "escala": 0.8, "color": "#d9c08c", "colision": false },
+    { "id": "reloj", "tipo": "reloj", "posicion": [2.98, 1.95, 1.3], "rotacion": -90, "colision": false },
+    { "id": "vaso-mesa", "tipo": "decoracion", "modelo": "muebles/cup.glb", "ajuste": { "alto": 0.1 }, "posicion": [0.3, 0.425, -0.72], "rotacion": 0, "colision": false },
+    { "id": "libros-mesa", "tipo": "decoracion", "modelo": "muebles/book-stack.glb", "ajuste": { "alto": 0.12 }, "posicion": [-0.2, 0.425, -0.86], "rotacion": 25, "colision": false }
+  ],
+  "npc": {
+    "personaje": "lucia",
+    "alturaAsiento": 0.56,
+    "posicion": [0, 0, -1.95],
+    "rotacion": 0,
+    "postura": "sentado",
+    "colorRopa": "#b9a590",
+    "colorPiel": "#c99b7b",
+    "colorCabello": "#6b4226"
+  },
+  "camara": {
+    "posicion": [0, 1.6, 2.7],
+    "mirarA": [0, 1.05, -1.95],
+    "fov": 60
+  },
+  "navegacion": {
+    "limites": { "min": [-2.7, 1.2, -3.2], "max": [2.7, 2, 3.2] },
+    "radioJugador": 0.3,
+    "velocidad": 2
+  },
+  "iluminacion": {
+    "fondo": "#f1f0ea",
+    "ambiental": { "intensidad": 0.45, "color": "#fbfaf4" },
+    "hemisferica": { "intensidad": 0.7, "cielo": "#f7f8f2", "suelo": "#8a7a68" },
+    "direccional": { "intensidad": 2.0, "color": "#fff8ea", "posicion": [0, 6, -4] },
+    "puntuales": []
+  }
+}

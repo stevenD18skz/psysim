@@ -42,12 +42,27 @@ export function AccionesEstudiante({
   const [eliminando, setEliminando] = useState(false);
 
   if (enFicha) {
+    // En la ficha lo demás ya está a la vista: el menú «⋯» guarda solo la acción destructiva, lejos
+    // de «Asignar práctica».
     return (
       <>
-        <Button variant="destructive" size="lg" onClick={() => setEliminando(true)}>
-          <Trash2 aria-hidden />
-          Eliminar
-        </Button>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              aria-label={`Más acciones para ${estudiante.nombre}`}
+            >
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem variant="destructive" onSelect={() => setEliminando(true)}>
+              <Trash2 aria-hidden />
+              Eliminar estudiante
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <EliminarEstudiante
           estudiante={estudiante}
           abierto={eliminando}

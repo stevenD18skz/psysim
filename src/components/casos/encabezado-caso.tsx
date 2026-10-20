@@ -1,16 +1,19 @@
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+
 interface EncabezadoCasoProps {
-  sobretitulo: string;
+  /** Se conserva por compatibilidad; el título habla solo (sin etiqueta encima). */
+  sobretitulo?: string;
   titulo: string;
   descripcion: string;
 }
 
-/** Encabezado común de las páginas del constructor de casos. */
-export function EncabezadoCaso({ sobretitulo, titulo, descripcion }: EncabezadoCasoProps) {
+/** Encabezado común de las páginas del constructor de casos: vuelve a la biblioteca de casos. */
+export function EncabezadoCaso({ titulo, descripcion }: EncabezadoCasoProps) {
   return (
-    <header className="flex flex-col gap-2">
-      <p className="text-sm font-medium tracking-wide text-primary uppercase">{sobretitulo}</p>
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{titulo}</h1>
-      <p className="max-w-2xl text-muted-foreground">{descripcion}</p>
-    </header>
+    <EncabezadoPagina
+      volver={{ href: '/configuracion/casos', etiqueta: 'Casos' }}
+      titulo={titulo}
+      descripcion={descripcion}
+    />
   );
 }

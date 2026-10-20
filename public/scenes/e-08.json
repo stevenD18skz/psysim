@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "nombre": "Sala de acogida de la fundación — tarde",
+  "sala": {
+    "ancho": 6,
+    "largo": 7,
+    "alto": 2.8,
+    "colores": {
+      "paredes": "#ece4d6",
+      "acento": "#b8c4ab",
+      "suelo": "#8e6b52",
+      "techo": "#f6f1e8",
+      "zocalo": "#66503f"
+    }
+  },
+  "mobiliario": [
+    { "id": "alfombra", "tipo": "alfombra", "posicion": [0, 0, -1.2], "color": "#c4a584", "colision": false },
+    { "id": "sofa-paciente", "tipo": "sofa", "posicion": [0, 0, -2.55], "rotacion": 0, "color": "#7f9a86" },
+    { "id": "mesa-centro", "tipo": "mesa-centro", "posicion": [0, 0, -1.2], "color": "#6e5440" },
+    { "id": "lampara", "tipo": "lampara-pie", "posicion": [1.6, 0, -2.75], "color": "#f4dcb4" },
+    { "id": "planta-a", "tipo": "planta", "modelo": "muebles/houseplant-vtjh4irl4w.glb", "ajuste": { "alto": 1.0 }, "posicion": [-1.65, 0, -2.85] },
+    { "id": "sillon", "tipo": "sillon", "posicion": [-2.3, 0, 0.6], "rotacion": 110, "color": "#b5835a" },
+    { "id": "estanteria", "tipo": "estanteria", "posicion": [2.78, 0, 0.2], "rotacion": -90, "color": "#6e5440" },
+    { "id": "planta-b", "tipo": "planta", "posicion": [2.5, 0, 2.9], "escala": 0.8 },
+    { "id": "ventana", "tipo": "ventana", "posicion": [-2.99, 1.55, -1.5], "rotacion": 90, "colision": false },
+    { "id": "cuadro", "tipo": "cuadro", "posicion": [0, 1.75, -3.49], "escala": 1.2, "color": "#b8c4ab", "colision": false },
+    { "id": "reloj", "tipo": "reloj", "posicion": [2.99, 2.05, 1.6], "rotacion": -90, "colision": false },
+    { "id": "taza-mesa", "tipo": "decoracion", "modelo": "muebles/mug.glb", "ajuste": { "alto": 0.1 }, "posicion": [-0.3, 0.425, -1.1], "rotacion": 60, "colision": false }
+  ],
+  "npc": {
+    "personaje": "marina",
+    "alturaAsiento": 0.56,
+    "posicion": [0.35, 0, -2.4],
+    "rotacion": 0,
+    "postura": "sentado",
+    "colorRopa": "#5f7a6b",
+    "colorPiel": "#a9764f",
+    "colorCabello": "#1f1712"
+  },
+  "camara": {
+    "posicion": [0, 1.6, 2.7],
+    "mirarA": [0.35, 1.05, -2.4],
+    "fov": 60
+  },
+  "navegacion": {
+    "limites": { "min": [-2.7, 1.2, -3.2], "max": [2.7, 2, 3.2] },
+    "radioJugador": 0.3,
+    "velocidad": 2
+  },
+  "iluminacion": {
+    "fondo": "#ece1d1",
+    "ambiental": { "intensidad": 0.38, "color": "#fff1e0" },
+    "hemisferica": { "intensidad": 0.6, "cielo": "#ffe9cf", "suelo": "#7a5d48" },
+    "direccional": { "intensidad": 1.4, "color": "#ffd2a0", "posicion": [-6, 3.5, -1.5] },
+    "puntuales": [{ "posicion": [1.6, 1.45, -2.75], "color": "#ffbb7a", "intensidad": 2.5, "distancia": 5 }]
+  }
+}

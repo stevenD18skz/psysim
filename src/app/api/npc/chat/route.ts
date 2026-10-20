@@ -42,7 +42,8 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
  * 3. Carga la sesión de simulación con RLS: debe ser del estudiante (404), seguir en curso (409)
  *    y corresponder al NPC indicado (404). El prompt del sistema es el que configuró el docente
  *    al generar el código; se lee con la clave secreta porque el estudiante no puede verlo.
- * 4. Llama a la IA con el prompt, el historial y el mensaje (504/502/503 si falla).
+ * 4. Reserva un turno del límite de mensajes por minuto (429 si se agotó, RNF-03.7) y llama a la
+ *    IA con el prompt, el historial y el mensaje (504/502/503 si falla).
  * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con su emoción (para el
  *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
@@ -109,6 +110,22 @@ export async function POST(request: Request): Promise<Response> {
     return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
   }
 
+  // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
+  // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log).
+  const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+  if (errorLimite) {
+    log.error('npc_chat.limite_no_verificado', { codigo: errorLimite.code, sesion_id });
+  } else if (esperaS > 0) {
+    log.info('npc_chat.limite_alcanzado', { sesion_id, espera_s: esperaS });
+    const cuerpoLimite: NpcChatError = {
+      error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
+    };
+    return Response.json(cuerpoLimite, {
+      status: 429,
+      headers: { ...SIN_CACHE, 'Retry-After': String(esperaS) },
+    });
+  }
+
   const inicio = performance.now();
   let respuesta: Awaited<ReturnType<typeof generarRespuestaPaciente>>;
   try {
@@ -129,21 +146,26 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ambos mensajes en una sola inserción (atómica). Si falla, la conversación continúa: el
   // estudiante ya tiene la respuesta y el error queda registrado para revisarlo.
-  const { error: errorGuardado } = await supabase.from('mensaje').insert([
-    { sesion_id, remitente: 'estudiante', contenido: mensaje_usuario },
-    {
-      sesion_id,
-      remitente: 'npc',
-      contenido: respuesta.texto,
-      emocion: respuesta.emocion,
-      latencia_ms: latenciaMs,
-      tokens_entrada: respuesta.tokensEntrada,
-      tokens_salida: respuesta.tokensSalida,
-    },
-  ]);
+  const { data: guardados, error: errorGuardado } = await supabase
+    .from('mensaje')
+    .insert([
+      { sesion_id, remitente: 'estudiante', contenido: mensaje_usuario },
+      {
+        sesion_id,
+        remitente: 'npc',
+        contenido: respuesta.texto,
+        emocion: respuesta.emocion,
+        latencia_ms: latenciaMs,
+        tokens_entrada: respuesta.tokensEntrada,
+        tokens_salida: respuesta.tokensSalida,
+      },
+    ])
+    .select('id, remitente');
   if (errorGuardado) {
     log.error('npc_chat.mensajes_no_guardados', { codigo: errorGuardado.code, sesion_id });
   }
+  const idGuardado = (remitente: 'estudiante' | 'npc') =>
+    guardados?.find(fila => fila.remitente === remitente)?.id ?? null;
 
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
   log.info('npc_chat.respuesta', {
@@ -157,9 +179,12 @@ export async function POST(request: Request): Promise<Response> {
   const cuerpoRespuesta: NpcChatResponse = {
     respuesta_npc: respuesta.texto,
     emocion_npc: respuesta.emocion,
+    intensidad_npc: respuesta.intensidad,
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: respuesta.tokensEntrada,
     tokens_salida: respuesta.tokensSalida,
+    id_mensaje_estudiante: idGuardado('estudiante'),
+    id_mensaje_npc: idGuardado('npc'),
   };
   return Response.json(cuerpoRespuesta, { status: 200, headers: SIN_CACHE });
 }

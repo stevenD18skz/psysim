@@ -1,8 +1,8 @@
-import { ClipboardCheck, MonitorPlay, UserCheck, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { BotonNuevoDocente } from '@/components/admin/boton-nuevo-docente';
 import { ListaDocentes } from '@/components/admin/lista-docentes';
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { requerirSuperadmin } from '@/lib/auth/dal';
 import { obtenerDocentes } from '@/lib/admin/queries';
@@ -30,25 +30,19 @@ export default async function AdminPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-1 flex-col gap-2">
-          <p className="text-sm font-medium tracking-wide text-primary uppercase">Administración</p>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Docentes</h1>
-          <p className="max-w-2xl text-muted-foreground">
-            Crea las cuentas de los docentes, decide cómo entran y sigue su actividad. Un
-            Administrador también puede preparar simulaciones como cualquier docente.
-          </p>
-        </div>
-        <BotonNuevoDocente />
-      </header>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <EncabezadoPagina
+        titulo="Docentes"
+        descripcion="Crea las cuentas de los docentes, decide cómo entran y sigue su actividad. Como administrador, también trabajas como docente."
+        acciones={<BotonNuevoDocente />}
+      />
 
       <Indicadores
         indicadores={[
-          { icono: UserCheck, etiqueta: 'Cuentas activas', valor: totales.activos },
-          { icono: UsersRound, etiqueta: 'Estudiantes', valor: totales.estudiantes },
-          { icono: MonitorPlay, etiqueta: 'Sesiones', valor: totales.sesiones },
-          { icono: ClipboardCheck, etiqueta: 'Por revisar', valor: totales.pendientes },
+          { etiqueta: 'Cuentas activas', valor: totales.activos },
+          { etiqueta: 'Estudiantes', valor: totales.estudiantes },
+          { etiqueta: 'Prácticas', valor: totales.sesiones },
+          { etiqueta: 'Por revisar', valor: totales.pendientes },
         ]}
       />
 

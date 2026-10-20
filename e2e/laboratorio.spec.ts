@@ -22,7 +22,7 @@ test('un docente no abre el laboratorio', async ({ page }) => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
   await iniciarSesionComoDocente(page);
   await page.goto('/laboratorio');
-  await expect(page).toHaveURL(/\/configuracion$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 });
 
 test.describe('NPC del laboratorio', () => {
@@ -34,7 +34,7 @@ test.describe('NPC del laboratorio', () => {
 
     await iniciarSesionComoAdmin(page);
     await page.goto('/laboratorio');
-    await page.getByRole('link', { name: /NPC con esqueleto/ }).click();
+    await page.getByRole('link', { name: /Personajes con esqueleto/ }).click();
     await expect(page.getByRole('img', { name: 'Vista 3D del NPC' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Tomás' })).toBeChecked();
     await expect(page.getByRole('heading', { name: 'Tomás' })).toBeVisible();
@@ -92,6 +92,34 @@ test.describe('NPC del laboratorio', () => {
       'false'
     );
 
+    expect(errores).toEqual([]);
+  });
+
+  test('la vista «Paciente sentado» muestra sus gestos a pedido', async ({ page }) => {
+    const errores: string[] = [];
+    page.on('pageerror', error => errores.push(error.message));
+
+    await iniciarSesionComoAdmin(page);
+    await page.goto('/laboratorio/npc?npc=rosa');
+    await page.getByRole('radio', { name: 'Paciente sentado' }).click();
+    await expect(page).toHaveURL(/\/laboratorio\/npc\?npc=rosa&vista=paciente$/);
+    await expect(page.getByRole('img', { name: 'Vista 3D del paciente sentado' })).toBeVisible({
+      timeout: 15_000,
+    });
+    // La barra de la API de clips solo aplica a la vista de pie.
+    await expect(page.getByRole('button', { name: 'play()' })).toBeHidden();
+
+    await page.getByLabel('Emoción').selectOption('molesto');
+    await page.getByRole('radio', { name: '3' }).click();
+    await page.getByRole('button', { name: 'Cruzar los brazos', exact: true }).click();
+    await page.getByRole('button', { name: 'Decir la frase' }).click();
+    await page.getByLabel('Movimiento reducido').check();
+    await expect(page.getByRole('img', { name: 'Vista 3D del paciente sentado' })).toBeVisible();
+
+    // De vuelta a la vista de clips, con el mismo personaje.
+    await page.getByRole('radio', { name: 'De pie (clips)' }).click();
+    await expect(page).toHaveURL(/\/laboratorio\/npc\?npc=rosa$/);
+    await expect(page.getByRole('img', { name: 'Vista 3D del NPC' })).toBeVisible();
     expect(errores).toEqual([]);
   });
 

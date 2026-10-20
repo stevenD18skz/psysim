@@ -1,0 +1,660 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-18T06:15:08.996Z",
+  "title": "Design System: PsySim",
+  "extensions": {
+    "colorMeta": {
+      "nogal": {
+        "role": "primary",
+        "displayName": "Nogal",
+        "canonical": "oklch(28.5% 0.040 49.2)",
+        "tonalRamp": [
+          "oklch(15% 0.040 49.2)",
+          "oklch(25% 0.040 49.2)",
+          "oklch(35% 0.040 49.2)",
+          "oklch(45% 0.040 49.2)",
+          "oklch(55% 0.040 49.2)",
+          "oklch(70% 0.040 49.2)",
+          "oklch(85% 0.040 49.2)",
+          "oklch(95% 0.016 49.2)"
+        ]
+      },
+      "nogal-claro": {
+        "role": "primary",
+        "displayName": "Nogal claro",
+        "canonical": "oklch(34.5% 0.048 52.7)",
+        "tonalRamp": [
+          "oklch(15% 0.048 52.7)",
+          "oklch(25% 0.048 52.7)",
+          "oklch(35% 0.048 52.7)",
+          "oklch(45% 0.048 52.7)",
+          "oklch(55% 0.048 52.7)",
+          "oklch(70% 0.048 52.7)",
+          "oklch(85% 0.048 52.7)",
+          "oklch(95% 0.019 52.7)"
+        ]
+      },
+      "jamba": {
+        "role": "primary",
+        "displayName": "Jamba",
+        "canonical": "oklch(23.3% 0.033 51.0)",
+        "tonalRamp": [
+          "oklch(15% 0.033 51.0)",
+          "oklch(25% 0.033 51.0)",
+          "oklch(35% 0.033 51.0)",
+          "oklch(45% 0.033 51.0)",
+          "oklch(55% 0.033 51.0)",
+          "oklch(70% 0.033 51.0)",
+          "oklch(85% 0.033 51.0)",
+          "oklch(95% 0.013 51.0)"
+        ]
+      },
+      "laton": {
+        "role": "secondary",
+        "displayName": "Latón",
+        "canonical": "oklch(66.3% 0.111 78.2)",
+        "tonalRamp": [
+          "oklch(15% 0.111 78.2)",
+          "oklch(25% 0.111 78.2)",
+          "oklch(35% 0.111 78.2)",
+          "oklch(45% 0.111 78.2)",
+          "oklch(55% 0.111 78.2)",
+          "oklch(70% 0.111 78.2)",
+          "oklch(85% 0.111 78.2)",
+          "oklch(95% 0.044 78.2)"
+        ]
+      },
+      "laton-claro": {
+        "role": "secondary",
+        "displayName": "Latón claro",
+        "canonical": "oklch(71.7% 0.112 79.2)",
+        "tonalRamp": [
+          "oklch(15% 0.112 79.2)",
+          "oklch(25% 0.112 79.2)",
+          "oklch(35% 0.112 79.2)",
+          "oklch(45% 0.112 79.2)",
+          "oklch(55% 0.112 79.2)",
+          "oklch(70% 0.112 79.2)",
+          "oklch(85% 0.112 79.2)",
+          "oklch(95% 0.045 79.2)"
+        ]
+      },
+      "laton-texto": {
+        "role": "secondary",
+        "displayName": "Latón para texto",
+        "canonical": "oklch(75.6% 0.109 80.2)",
+        "tonalRamp": [
+          "oklch(15% 0.109 80.2)",
+          "oklch(25% 0.109 80.2)",
+          "oklch(35% 0.109 80.2)",
+          "oklch(45% 0.109 80.2)",
+          "oklch(55% 0.109 80.2)",
+          "oklch(70% 0.109 80.2)",
+          "oklch(85% 0.109 80.2)",
+          "oklch(95% 0.044 80.2)"
+        ]
+      },
+      "salvia": {
+        "role": "tertiary",
+        "displayName": "Salvia",
+        "canonical": "oklch(56.4% 0.056 148.1)",
+        "tonalRamp": [
+          "oklch(15% 0.056 148.1)",
+          "oklch(25% 0.056 148.1)",
+          "oklch(35% 0.056 148.1)",
+          "oklch(45% 0.056 148.1)",
+          "oklch(55% 0.056 148.1)",
+          "oklch(70% 0.056 148.1)",
+          "oklch(85% 0.056 148.1)",
+          "oklch(95% 0.023 148.1)"
+        ]
+      },
+      "salvia-oscuro": {
+        "role": "tertiary",
+        "displayName": "Salvia oscuro",
+        "canonical": "oklch(43.8% 0.049 150.6)",
+        "tonalRamp": [
+          "oklch(15% 0.049 150.6)",
+          "oklch(25% 0.049 150.6)",
+          "oklch(35% 0.049 150.6)",
+          "oklch(45% 0.049 150.6)",
+          "oklch(55% 0.049 150.6)",
+          "oklch(70% 0.049 150.6)",
+          "oklch(85% 0.049 150.6)",
+          "oklch(95% 0.020 150.6)"
+        ]
+      },
+      "salvia-suave": {
+        "role": "tertiary",
+        "displayName": "Salvia suave",
+        "canonical": "oklch(92.8% 0.017 137.0)",
+        "tonalRamp": [
+          "oklch(15% 0.017 137.0)",
+          "oklch(25% 0.017 137.0)",
+          "oklch(35% 0.017 137.0)",
+          "oklch(45% 0.017 137.0)",
+          "oklch(55% 0.017 137.0)",
+          "oklch(70% 0.017 137.0)",
+          "oklch(85% 0.017 137.0)",
+          "oklch(95% 0.007 137.0)"
+        ]
+      },
+      "terracota": {
+        "role": "tertiary",
+        "displayName": "Terracota",
+        "canonical": "oklch(51.5% 0.131 37.7)",
+        "tonalRamp": [
+          "oklch(15% 0.120 37.7)",
+          "oklch(25% 0.120 37.7)",
+          "oklch(35% 0.120 37.7)",
+          "oklch(45% 0.120 37.7)",
+          "oklch(55% 0.120 37.7)",
+          "oklch(70% 0.120 37.7)",
+          "oklch(85% 0.120 37.7)",
+          "oklch(95% 0.048 37.7)"
+        ]
+      },
+      "terracota-suave": {
+        "role": "tertiary",
+        "displayName": "Terracota suave",
+        "canonical": "oklch(92.6% 0.021 48.5)",
+        "tonalRamp": [
+          "oklch(15% 0.021 48.5)",
+          "oklch(25% 0.021 48.5)",
+          "oklch(35% 0.021 48.5)",
+          "oklch(45% 0.021 48.5)",
+          "oklch(55% 0.021 48.5)",
+          "oklch(70% 0.021 48.5)",
+          "oklch(85% 0.021 48.5)",
+          "oklch(95% 0.008 48.5)"
+        ]
+      },
+      "ambar": {
+        "role": "status",
+        "displayName": "Ámbar",
+        "canonical": "oklch(53.1% 0.118 64.4)",
+        "tonalRamp": [
+          "oklch(15% 0.118 64.4)",
+          "oklch(25% 0.118 64.4)",
+          "oklch(35% 0.118 64.4)",
+          "oklch(45% 0.118 64.4)",
+          "oklch(55% 0.118 64.4)",
+          "oklch(70% 0.118 64.4)",
+          "oklch(85% 0.118 64.4)",
+          "oklch(95% 0.047 64.4)"
+        ]
+      },
+      "ambar-suave": {
+        "role": "status",
+        "displayName": "Ámbar suave",
+        "canonical": "oklch(94.0% 0.034 84.6)",
+        "tonalRamp": [
+          "oklch(15% 0.034 84.6)",
+          "oklch(25% 0.034 84.6)",
+          "oklch(35% 0.034 84.6)",
+          "oklch(45% 0.034 84.6)",
+          "oklch(55% 0.034 84.6)",
+          "oklch(70% 0.034 84.6)",
+          "oklch(85% 0.034 84.6)",
+          "oklch(95% 0.014 84.6)"
+        ]
+      },
+      "destructive": {
+        "role": "error",
+        "displayName": "Rojo",
+        "canonical": "oklch(50.0% 0.182 29.5)",
+        "tonalRamp": [
+          "oklch(15% 0.120 29.5)",
+          "oklch(25% 0.120 29.5)",
+          "oklch(35% 0.120 29.5)",
+          "oklch(45% 0.120 29.5)",
+          "oklch(55% 0.120 29.5)",
+          "oklch(70% 0.120 29.5)",
+          "oklch(85% 0.120 29.5)",
+          "oklch(95% 0.048 29.5)"
+        ]
+      },
+      "lino": {
+        "role": "neutral",
+        "displayName": "Lino",
+        "canonical": "oklch(96.1% 0.007 124.4)",
+        "tonalRamp": [
+          "oklch(15% 0.007 124.4)",
+          "oklch(25% 0.007 124.4)",
+          "oklch(35% 0.007 124.4)",
+          "oklch(45% 0.007 124.4)",
+          "oklch(55% 0.007 124.4)",
+          "oklch(70% 0.007 124.4)",
+          "oklch(85% 0.007 124.4)",
+          "oklch(95% 0.003 124.4)"
+        ]
+      },
+      "tarjeta": {
+        "role": "neutral",
+        "displayName": "Tarjeta",
+        "canonical": "oklch(98.9% 0.004 121.6)",
+        "tonalRamp": [
+          "oklch(15% 0.004 121.6)",
+          "oklch(25% 0.004 121.6)",
+          "oklch(35% 0.004 121.6)",
+          "oklch(45% 0.004 121.6)",
+          "oklch(55% 0.004 121.6)",
+          "oklch(70% 0.004 121.6)",
+          "oklch(85% 0.004 121.6)",
+          "oklch(95% 0.002 121.6)"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(22.5% 0.010 67.3)",
+        "tonalRamp": [
+          "oklch(15% 0.010 67.3)",
+          "oklch(25% 0.010 67.3)",
+          "oklch(35% 0.010 67.3)",
+          "oklch(45% 0.010 67.3)",
+          "oklch(55% 0.010 67.3)",
+          "oklch(70% 0.010 67.3)",
+          "oklch(85% 0.010 67.3)",
+          "oklch(95% 0.004 67.3)"
+        ]
+      },
+      "apagado": {
+        "role": "neutral",
+        "displayName": "Apagado",
+        "canonical": "oklch(93.5% 0.011 128.6)",
+        "tonalRamp": [
+          "oklch(15% 0.011 128.6)",
+          "oklch(25% 0.011 128.6)",
+          "oklch(35% 0.011 128.6)",
+          "oklch(45% 0.011 128.6)",
+          "oklch(55% 0.011 128.6)",
+          "oklch(70% 0.011 128.6)",
+          "oklch(85% 0.011 128.6)",
+          "oklch(95% 0.005 128.6)"
+        ]
+      },
+      "texto-apagado": {
+        "role": "neutral",
+        "displayName": "Texto apagado",
+        "canonical": "oklch(45.5% 0.011 78.2)",
+        "tonalRamp": [
+          "oklch(15% 0.011 78.2)",
+          "oklch(25% 0.011 78.2)",
+          "oklch(35% 0.011 78.2)",
+          "oklch(45% 0.011 78.2)",
+          "oklch(55% 0.011 78.2)",
+          "oklch(70% 0.011 78.2)",
+          "oklch(85% 0.011 78.2)",
+          "oklch(95% 0.004 78.2)"
+        ]
+      },
+      "borde": {
+        "role": "neutral",
+        "displayName": "Borde",
+        "canonical": "oklch(88.2% 0.015 128.6)",
+        "tonalRamp": [
+          "oklch(15% 0.015 128.6)",
+          "oklch(25% 0.015 128.6)",
+          "oklch(35% 0.015 128.6)",
+          "oklch(45% 0.015 128.6)",
+          "oklch(55% 0.015 128.6)",
+          "oklch(70% 0.015 128.6)",
+          "oklch(85% 0.015 128.6)",
+          "oklch(95% 0.006 128.6)"
+        ]
+      },
+      "borde-campo": {
+        "role": "neutral",
+        "displayName": "Borde de campo",
+        "canonical": "oklch(62.6% 0.016 128.7)",
+        "tonalRamp": [
+          "oklch(15% 0.016 128.7)",
+          "oklch(25% 0.016 128.7)",
+          "oklch(35% 0.016 128.7)",
+          "oklch(45% 0.016 128.7)",
+          "oklch(55% 0.016 128.7)",
+          "oklch(70% 0.016 128.7)",
+          "oklch(85% 0.016 128.7)",
+          "oklch(95% 0.006 128.7)"
+        ]
+      },
+      "menu-texto": {
+        "role": "neutral",
+        "displayName": "Texto del menú",
+        "canonical": "oklch(93.1% 0.019 80.1)",
+        "tonalRamp": [
+          "oklch(15% 0.019 80.1)",
+          "oklch(25% 0.019 80.1)",
+          "oklch(35% 0.019 80.1)",
+          "oklch(45% 0.019 80.1)",
+          "oklch(55% 0.019 80.1)",
+          "oklch(70% 0.019 80.1)",
+          "oklch(85% 0.019 80.1)",
+          "oklch(95% 0.008 80.1)"
+        ]
+      },
+      "menu-apagado": {
+        "role": "neutral",
+        "displayName": "Apagado del menú",
+        "canonical": "oklch(76.0% 0.035 73.1)",
+        "tonalRamp": [
+          "oklch(15% 0.035 73.1)",
+          "oklch(25% 0.035 73.1)",
+          "oklch(35% 0.035 73.1)",
+          "oklch(45% 0.035 73.1)",
+          "oklch(55% 0.035 73.1)",
+          "oklch(70% 0.035 73.1)",
+          "oklch(85% 0.035 73.1)",
+          "oklch(95% 0.014 73.1)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Solo el titular del inicio público; Archivo a 118 % de ancho."
+      },
+      "headline": {
+        "displayName": "Título de página",
+        "purpose": "Título de cada página de trabajo y saludo de la bandeja; 112 % de ancho."
+      },
+      "section": {
+        "displayName": "Sección",
+        "purpose": "Títulos de sección de la landing y cabecera de instrucciones del caso."
+      },
+      "title": {
+        "displayName": "Bloque",
+        "purpose": "Encabezados de bloque en paneles, con la cantidad al lado."
+      },
+      "body": {
+        "displayName": "Texto",
+        "purpose": "Texto corrido, máximo 65 ch."
+      },
+      "body-sm": {
+        "displayName": "Texto pequeño",
+        "purpose": "Metadatos de filas, ayudas y pies."
+      },
+      "label": {
+        "displayName": "Etiqueta condensada",
+        "purpose": "Etiquetas de indicadores, tiempo relativo y ordinales; 82 % de ancho. Mayúsculas solo en grupos del menú y cabeceras de tabla."
+      },
+      "mono": {
+        "displayName": "Código",
+        "purpose": "JetBrains Mono solo para códigos de acceso, de caso, institucional y teclas."
+      }
+    },
+    "shadows": [
+      {
+        "name": "placa-laton",
+        "value": "0 1px 0 rgb(255 255 255 / 0.35) inset, 0 1px 2px rgb(58 36 24 / 0.25)",
+        "purpose": "Solo el botón de acción de latón."
+      },
+      {
+        "name": "tarjeta-sobre-madera",
+        "value": "0 24px 48px -24px rgb(0 0 0 / 0.55)",
+        "purpose": "Bloque de acción claro apoyado en la franja de nogal."
+      },
+      {
+        "name": "puerta",
+        "value": "0 40px 80px -40px rgb(0 0 0 / 0.7)",
+        "purpose": "Jamba del arco grande de la landing (0 30px 60px -30px rgb(0 0 0 / 0.6) en el ingreso)."
+      },
+      {
+        "name": "levante-hover",
+        "value": "0 10px 28px -14px rgb(58 36 24 / 0.4)",
+        "purpose": "Tarjetas de escenario al pasar el ratón."
+      },
+      {
+        "name": "panel-sobre-3d",
+        "value": "0 20px 50px -20px rgb(29 20 14 / 0.55)",
+        "purpose": "Panel de conversación translúcido sobre el consultorio."
+      },
+      {
+        "name": "barra-inferior",
+        "value": "0 -8px 24px -12px rgb(0 0 0 / 0.45)",
+        "purpose": "Barra móvil fija «Tengo un código»."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-salida",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Salida suave de elementos que entran."
+      },
+      {
+        "name": "transicion-estado",
+        "value": "150ms (color, borde, sombra)",
+        "purpose": "Hover y foco de botones, filas y enlaces."
+      },
+      {
+        "name": "despliegue-details",
+        "value": "block-size 200ms ease",
+        "purpose": "Preguntas frecuentes, solo con prefers-reduced-motion: no-preference."
+      },
+      {
+        "name": "carga",
+        "value": "translateX(-100%) a translateX(300%), 1.4s ease-in-out infinite",
+        "purpose": "Barra de latón indeterminada de la pantalla de carga; solo con movimiento permitido."
+      },
+      {
+        "name": "respiracion",
+        "value": "opacity 0.85 a 1, 6s ease-in-out infinite",
+        "purpose": "Velo emocional con tensión alta; solo con movimiento permitido."
+      },
+      {
+        "name": "velo-cambio",
+        "value": "3000ms ease-in-out",
+        "purpose": "Cambio de intensidad y tinte del velo emocional."
+      },
+      {
+        "name": "latido-en-curso",
+        "value": "ping, solo motion-safe",
+        "purpose": "Punto salvia de una sesión en curso."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "contenedor-2xl",
+        "value": "42rem"
+      }
+    ],
+    "focus": {
+      "width": "2px",
+      "style": "solid",
+      "sobreClaro": "#3a2418 (nogal)",
+      "sobreMadera": "#c99b4b (latón claro, 5,72:1 sobre nogal)",
+      "nota": "La utilidad vetas-nogal redefine --ring; las tarjetas claras dentro de la madera recuperan el nogal."
+    },
+    "contraste": {
+      "tinta/lino": "15,31:1",
+      "texto-apagado/lino": "6,52:1",
+      "tinta/laton": "5,49:1",
+      "borde-campo/lino": "3,16:1",
+      "laton-texto/nogal": "6,61:1",
+      "laton-texto/nogal-claro": "5,32:1",
+      "laton-claro/nogal": "5,72:1",
+      "terracota/tarjeta": "5,80:1",
+      "ambar/ambar-suave": "4,55:1",
+      "salvia-oscuro/salvia-suave": "6,20:1",
+      "menu-texto/nogal": "11,84:1",
+      "menu-apagado/nogal": "6,73:1",
+      "destructive/tarjeta": "6,38:1"
+    },
+    "verificacionMovil": ["390px", "768px"],
+    "pendientes": [
+      "La veta del nogal es un gradiente CSS (utilidad vetas-nogal); falta un recurso raster de madera con procedencia documentada."
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón de acción (latón)",
+      "kind": "button",
+      "refersTo": "button-accion",
+      "description": "La única acción principal de la vista: latón con tinta y filo de luz de placa.",
+      "html": "<button class=\"ds-btn-accion\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"8\" y=\"2\" width=\"8\" height=\"4\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/></svg>Asignar práctica</button>",
+      "css": ".ds-btn-accion{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:1px solid transparent;border-radius:10px;background:var(--laton, #b88a3b);color:#1f1b17;font-family:Archivo,ui-sans-serif,system-ui,sans-serif;font-size:0.95rem;font-weight:600;box-shadow:0 1px 0 rgb(255 255 255/0.35) inset,0 1px 2px rgb(58 36 24/0.25);cursor:pointer;transition:background-color .15s,box-shadow .15s}.ds-btn-accion:hover{background:var(--laton-claro, #c99b4b)}.ds-btn-accion:focus-visible{outline:2px solid var(--ring, #3a2418);outline-offset:2px}.ds-btn-accion:disabled{opacity:.5;pointer-events:none}"
+    },
+    {
+      "name": "Botón primario (nogal)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Confirmaciones y acciones secundarias firmes: nogal con texto lino.",
+      "html": "<button class=\"ds-btn-nogal\">Ir a Mis prácticas</button>",
+      "css": ".ds-btn-nogal{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid transparent;border-radius:10px;background:var(--nogal, #3a2418);color:var(--lino, #f1f3ee);font-family:Archivo,ui-sans-serif,system-ui,sans-serif;font-size:0.875rem;font-weight:500;cursor:pointer;transition:background-color .15s}.ds-btn-nogal:hover{background:var(--nogal-claro, #4d3221)}.ds-btn-nogal:focus-visible{outline:2px solid var(--ring, #3a2418);outline-offset:2px}"
+    },
+    {
+      "name": "Botón de contorno",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Acción acompañante sobre lino: tarjeta con filete, hover apagado.",
+      "html": "<button class=\"ds-btn-contorno\">Seguir leyendo</button>",
+      "css": ".ds-btn-contorno{display:inline-flex;align-items:center;height:36px;padding:0 12px;border:1px solid #d5dad0;border-radius:10px;background:#fbfcf9;color:#1f1b17;font-family:Archivo,ui-sans-serif,system-ui,sans-serif;font-size:0.875rem;font-weight:500;cursor:pointer;transition:background-color .15s}.ds-btn-contorno:hover{background:#e7ebe3}.ds-btn-contorno:focus-visible{outline:2px solid var(--ring, #3a2418);outline-offset:2px}"
+    },
+    {
+      "name": "Botón destructivo",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Eliminar o cerrar sin retorno: texto rojo sobre rojo al 10 %, nunca relleno sólido.",
+      "html": "<button class=\"ds-btn-destructivo\">Eliminar estudiante</button>",
+      "css": ".ds-btn-destructivo{display:inline-flex;align-items:center;height:36px;padding:0 12px;border:1px solid transparent;border-radius:10px;background:rgb(180 35 24/0.1);color:var(--destructive, #b42318);font-family:Archivo,ui-sans-serif,system-ui,sans-serif;font-size:0.875rem;font-weight:500;cursor:pointer;transition:background-color .15s}.ds-btn-destructivo:hover{background:rgb(180 35 24/0.2)}.ds-btn-destructivo:focus-visible{outline:2px solid var(--ring, #3a2418);outline-offset:2px}"
+    },
+    {
+      "name": "Campo de código de acceso",
+      "kind": "input",
+      "refersTo": "input-codigo",
+      "description": "El campo del código en mono, con llave a la izquierda; contorno de campo a 3,16:1 y foco sólido hacia dentro.",
+      "html": "<label class=\"ds-campo\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"7.5\" cy=\"15.5\" r=\"5.5\"/><path d=\"m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3\"/></svg><input placeholder=\"abc-defg-hij\" aria-label=\"Código de acceso\"></label>",
+      "css": ".ds-campo{position:relative;display:flex;align-items:center;width:280px}.ds-campo svg{position:absolute;left:12px;color:#5a5650}.ds-campo input{width:100%;height:48px;padding:4px 12px 4px 40px;border:1px solid #858a80;border-radius:10px;background:#fbfcf9;color:#1f1b17;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:1.125rem;letter-spacing:0.06em;outline:none;transition:border-color .15s}.ds-campo input::placeholder{color:#5a5650}.ds-campo input:focus-visible{border-color:#3a2418;outline:2px solid #3a2418;outline-offset:-1px}.ds-campo input[aria-invalid=true]{border-color:#b42318;box-shadow:0 0 0 3px rgb(180 35 24/0.2)}"
+    },
+    {
+      "name": "Insignias de estado",
+      "kind": "chip",
+      "refersTo": "insignia-en-curso",
+      "description": "Estado de sesión o código: en curso (punto salvia que late solo con movimiento permitido), pendiente ámbar, listo salvia oscuro.",
+      "html": "<div class=\"ds-insignias\"><span class=\"ds-insignia ds-en-curso\"><span class=\"ds-punto\"></span>En curso</span><span class=\"ds-insignia ds-pendiente\">Pendiente</span><span class=\"ds-insignia ds-listo\">Retroalimentación publicada</span></div>",
+      "css": ".ds-insignias{display:flex;gap:8px;flex-wrap:wrap}.ds-insignia{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:9999px;font-family:Archivo,ui-sans-serif,system-ui,sans-serif;font-size:0.75rem;font-weight:500;white-space:nowrap}.ds-en-curso{background:#e2eadf;color:#3e5a44}.ds-pendiente{background:#f6ead2;color:#9a5b06}.ds-listo{background:#3e5a44;color:#f1f3ee}.ds-punto{width:8px;height:8px;border-radius:9999px;background:#5f7f63}@media (prefers-reduced-motion:no-preference){.ds-punto{animation:ds-latido 2s ease-in-out infinite}}@keyframes ds-latido{50%{box-shadow:0 0 0 4px rgb(95 127 99/0.25)}}"
+    },
+    {
+      "name": "Menú de nogal",
+      "kind": "nav",
+      "refersTo": "menu-nogal",
+      "description": "Armazón del docente: madera con veta, grupo condensado, activo con fondo nogal claro e ícono de latón, contador salvia.",
+      "html": "<nav class=\"ds-menu\" aria-label=\"Navegación principal\"><div class=\"ds-marca\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 32 32\" aria-hidden=\"true\"><path d=\"M7 29.5V14a9 9 0 0 1 18 0v15.5\" fill=\"none\" stroke=\"#b88a3b\" stroke-width=\"2.6\" stroke-linecap=\"round\"/><rect x=\"10.5\" y=\"20.5\" width=\"11\" height=\"7\" rx=\"2.4\" fill=\"#5f7f63\"/><circle cx=\"16\" cy=\"16.6\" r=\"2.7\" fill=\"#a4472a\"/></svg>PsySim</div><p class=\"ds-grupo\">Trabajo</p><a href=\"#\" class=\"ds-item ds-activo\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z\"/></svg>Inicio</a><a href=\"#\" class=\"ds-item\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg>Revisiones<span class=\"ds-contador\">7</span></a></nav>",
+      "css": ".ds-menu{display:flex;flex-direction:column;gap:2px;width:256px;padding:20px 12px;color:#efe7da;font-family:Archivo,ui-sans-serif,system-ui,sans-serif;background-color:#3a2418;background-image:repeating-linear-gradient(91deg,transparent 0 11px,rgb(0 0 0/0.07) 11px 12px,transparent 12px 29px,rgb(0 0 0/0.05) 29px 31px,transparent 31px 37px),repeating-linear-gradient(89.4deg,transparent 0 23px,rgb(255 255 255/0.03) 23px 24px,transparent 24px 47px,rgb(0 0 0/0.06) 47px 50px,transparent 50px 61px),repeating-linear-gradient(90deg,rgb(0 0 0/0.08) 0 5px,transparent 5px 71px,rgb(255 255 255/0.02) 71px 74px,transparent 74px 113px),linear-gradient(180deg,#4d3221,#3a2418);}.ds-marca{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:1.35rem;font-weight:700;font-stretch:118%;letter-spacing:-0.02em}.ds-grupo{margin:0 8px 4px;font-size:0.75rem;font-weight:600;font-stretch:82%;letter-spacing:0.12em;text-transform:uppercase;color:#bfae99}.ds-item{display:flex;align-items:center;gap:12px;height:44px;padding:0 10px;border-radius:8px;color:rgb(239 231 218/0.9);text-decoration:none;font-size:0.95rem;transition:background-color .15s}.ds-item svg{color:#bfae99}.ds-item:hover{background:#4d3221;color:#f6efe4}.ds-item:focus-visible{outline:2px solid #c99b4b;outline-offset:2px}.ds-activo{background:#4d3221;color:#f6efe4;font-weight:600}.ds-activo svg{color:#b88a3b}.ds-contador{margin-left:auto;padding:2px 8px;border-radius:9999px;background:#e2eadf;color:#3e5a44;font-size:0.75rem;font-weight:600;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Registro de pendientes",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Lista como registro: una tarjeta con divisores, columna fija de tiempo condensado, código de caso en mono y acción de texto.",
+      "html": "<ol class=\"ds-registro\"><li><p class=\"ds-cuando\"><b>Hace 8 días</b><span>9 de oct de 2026</span></p><div><p class=\"ds-quien\">Estudiante de Prueba Uno</p><p class=\"ds-meta\"><code>E-01</code> Duelo y pérdida · Interrumpida · 01:28 <span class=\"ds-borrador\">Borrador</span></p></div><a href=\"#\">Continuar revisión →</a></li><li><p class=\"ds-cuando\"><b>Hace 10 horas</b><span>17 de oct de 2026</span></p><div><p class=\"ds-quien\">Estudiante de Prueba Uno</p><p class=\"ds-meta\"><code>E-04</code> Crisis de pánico aguda · Terminada · 00:30</p></div><a href=\"#\">Revisar →</a></li></ol>",
+      "css": ".ds-registro{list-style:none;margin:0;padding:0;max-width:640px;border:1px solid #d5dad0;border-radius:14px;background:#fbfcf9;overflow:hidden;font-family:Archivo,ui-sans-serif,system-ui,sans-serif;color:#1f1b17}.ds-registro li{display:grid;grid-template-columns:6.5rem minmax(0,1fr) auto;gap:4px 16px;align-items:center;padding:14px 16px;transition:background-color .15s}.ds-registro li+li{border-top:1px solid #d5dad0}.ds-registro li:hover{background:rgb(231 235 227/0.6)}.ds-cuando{display:flex;flex-direction:column;margin:0;line-height:1.25}.ds-cuando b{font-size:0.875rem;font-stretch:82%}.ds-cuando span{font-size:0.75rem;color:#5a5650}.ds-quien{margin:0;font-weight:600}.ds-meta{margin:2px 0 0;font-size:0.875rem;color:#5a5650}.ds-meta code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:0.75rem;color:#1f1b17}.ds-borrador{padding:2px 8px;border-radius:9999px;background:#f6ead2;color:#9a5b06;font-size:0.75rem;font-weight:500}.ds-registro a{font-size:0.875rem;font-weight:600;color:#1f1b17;text-decoration:none;text-underline-offset:4px;border-radius:6px}.ds-registro a:hover{text-decoration:underline}.ds-registro a:focus-visible{outline:2px solid #3a2418;outline-offset:2px}"
+    },
+    {
+      "name": "Franja de indicadores",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Cifras clave como ficha con filetes: etiqueta condensada sobre el valor, sin íconos ni tarjetas sueltas.",
+      "html": "<dl class=\"ds-franja\"><div><dt>Prácticas</dt><dd>12</dd></div><div><dt>Por revisar</dt><dd>3</dd></div><div><dt>Tiempo de práctica</dt><dd>1 h 24 min</dd></div><div><dt>Promedio</dt><dd>4,2</dd></div></dl>",
+      "css": ".ds-franja{display:flex;margin:0;border:1px solid #d5dad0;border-radius:14px;background:#fbfcf9;overflow:hidden;font-family:Archivo,ui-sans-serif,system-ui,sans-serif}.ds-franja div{flex:1;padding:12px 16px}.ds-franja div+div{border-left:1px solid #d5dad0}.ds-franja dt{font-size:0.875rem;font-stretch:82%;color:#5a5650}.ds-franja dd{margin:2px 0 0;font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums;color:#1f1b17}"
+    },
+    {
+      "name": "Vano en arco",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "La silueta firma: arco de medio punto con jamba oscura y filo de latón que enmarca el consultorio, con la frase del paciente debajo.",
+      "html": "<figure class=\"ds-vano\"><div class=\"ds-jamba\"><div class=\"ds-hueco\"></div></div><figcaption><blockquote>«Buenas… la verdad no sé muy bien por dónde empezar.»</blockquote><span>Marta Lucía, 58 años · E-01 Duelo y pérdida</span></figcaption></figure>",
+      "css": ".ds-vano{margin:0;padding:24px;width:280px;background-color:#3a2418;background-image:repeating-linear-gradient(91deg,transparent 0 11px,rgb(0 0 0/0.07) 11px 12px,transparent 12px 29px,rgb(0 0 0/0.05) 29px 31px,transparent 31px 37px),repeating-linear-gradient(89.4deg,transparent 0 23px,rgb(255 255 255/0.03) 23px 24px,transparent 24px 47px,rgb(0 0 0/0.06) 47px 50px,transparent 50px 61px),repeating-linear-gradient(90deg,rgb(0 0 0/0.08) 0 5px,transparent 5px 71px,rgb(255 255 255/0.02) 71px 74px,transparent 74px 113px),linear-gradient(180deg,#4d3221,#3a2418);color:#efe7da;font-family:Archivo,ui-sans-serif,system-ui,sans-serif}.ds-jamba{padding:12px;border-radius:999px 999px 0 0;background:#2a190f;box-shadow:0 40px 80px -40px rgb(0 0 0/0.7)}.ds-hueco{aspect-ratio:4/5;border:2px solid #b88a3b;border-radius:999px 999px 0 0;background:radial-gradient(70% 60% at 50% 70%,rgb(255 214 150/0.85),rgb(201 154 107/0.5) 55%,#4d3221 85%)}.ds-vano figcaption{display:flex;flex-direction:column;gap:8px;margin-top:20px}.ds-vano blockquote{margin:0;font-size:1.125rem;line-height:1.35;font-weight:500}.ds-vano span{font-size:0.875rem;color:#bfae99}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Nogal y salvia: la interfaz está hecha con el mobiliario del consultorio",
+    "overview": "PsySim se construye con los materiales del cuarto donde ocurre la práctica. El nogal oscuro con su veta es el armazón: el menú lateral del docente, la barra del estudiante, la franja del inicio público, la cabecera de las instrucciones del caso y la pantalla de carga. El lino salvia pálido es la mesa de trabajo donde viven tablas, registros y formularios. El latón es el herraje: se reserva para la única acción principal de cada vista, para el símbolo de la marca y para el filo de los arcos. La terracota es la voz del paciente y nada más. La forma que se repite es el vano de puerta en arco: enmarca el consultorio 3D en la landing, cada miniatura de escenario, el avatar del paciente en las instrucciones, el panel de marca del ingreso, la pantalla de carga y la página 404.\n\nLa densidad es de oficina, no de folleto. Los paneles (modo Operate) heredan del mundo solo el tipo, la paleta, la madera del menú y los arcos; el resto son registros con filetes, filas compactas y una sola acción de latón arriba a la derecha. La landing (modo Persuade) es la única superficie que despliega la madera a sangre y la puerta grande. La voz tipográfica es una sola familia, Archivo, que cambia de ancho según el rol: expandida para identidad y títulos, normal para el trabajo, condensada para metadatos.\n\nRechazos confirmados en el contrato de dirección: el hero SaaS centrado con captura y fila de beneficios, y el cliché cálido de crema, lámpara y serifa. El rojo institucional anterior quedó como evidencia, no como identidad; la Universidad del Valle aparece como respaldo (logo en placa blanca), nunca como color de marca.",
+    "keyCharacteristics": [
+      "Madera con veta para el armazón; lino salvia para trabajar.",
+      "Una acción de latón por vista; el resto son botones de nogal, contorno o fantasma.",
+      "Terracota exclusiva del paciente; rojo exclusivo de errores y acciones destructivas.",
+      "Una sola familia (Archivo) modulada por su eje de ancho; mono solo para códigos.",
+      "El arco de puerta como silueta recurrente.",
+      "Foco sólido de 2 px que cambia de color según el material (nogal sobre claro, latón claro sobre madera).",
+      "Movimiento lento y respetuoso de «reducir movimiento»."
+    ],
+    "rules": [
+      {
+        "name": "The One Brass Rule",
+        "body": "El latón marca la única acción principal de cada vista (botón `accion`: «Asignar práctica», «Empezar la práctica», «Entrar», «Tengo un código»). Fuera de esa acción solo aparece en el símbolo de la marca, en el filo de los arcos, en la regla del registro por etapas, en la barra de carga y como señal de lugar en el menú de nogal (ícono de la sección activa). Si una pantalla tiene dos rellenos de latón, una sobra.",
+        "section": "colors"
+      },
+      {
+        "name": "The Patient's Voice Rule",
+        "body": "La terracota pertenece al paciente: su nombre, su rostro, su frase. Ningún botón, estado, error ni decoración la usa.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Means Wrong Rule",
+        "body": "El rojo aparece solo en errores y en acciones destructivas. El velo emocional de la simulación oscurece hacia nogal o hacia gris azulado, nunca hacia rojo, porque refleja el ánimo del paciente y no evalúa al estudiante.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wood Changes the Ring Rule",
+        "body": "El foco es nogal sobre superficies claras y latón claro sobre la madera; las tarjetas claras dentro de la madera recuperan el nogal. La utilidad de la veta lo hace sola al redefinir el anillo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Width Is the Voice Rule",
+        "body": "Los encabezados h1-h3 usan ancho 112 % por defecto; la marca y el display, 118 %; los metadatos, 82 %. No se introduce otra familia para lograr contraste.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Is Data Rule",
+        "body": "JetBrains Mono solo para cadenas que se copian o se teclean. «Propio» (caso del docente) es una palabra y va en Archivo aunque ocupe el lugar de un código.",
+        "section": "typography"
+      },
+      {
+        "name": "The Title Speaks Alone Rule",
+        "body": "Ningún título lleva etiqueta encima; el contexto va debajo, en la descripción.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Linen Rule",
+        "body": "Sobre el lino nada flota en reposo: filete de 1 px y tarjeta un tono más clara. Las sombras son de tono nogal o negro, difusas y con desplazamiento negativo; nunca duras ni desplazadas en diagonal.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar el botón `accion` de latón para una sola acción por vista y dejar el resto en nogal, contorno o fantasma.",
+      "Do construir toda superficie de madera con la utilidad de veta, que además cambia el anillo de foco a latón claro.",
+      "Do usar `laton-texto` para cualquier texto pequeño de latón sobre la madera.",
+      "Do reservar la terracota y la terracota suave para el nombre, el rostro y la frase del paciente.",
+      "Do mostrar el foco como contorno sólido de 2 px: nogal sobre claro, latón claro sobre madera.",
+      "Do modular Archivo con su eje de ancho (118 % marca, 112 % títulos, 82 % metadatos) en lugar de añadir familias.",
+      "Do enmarcar el consultorio y al paciente con el arco de medio punto.",
+      "Do presentar listas como registros (una tarjeta con divisores) y cifras como franja con filetes.",
+      "Do condicionar toda animación a `prefers-reduced-motion: no-preference` (pulsos, entradas, respiración, carga, despliegue de preguntas).",
+      "Do verificar AA en cada par nuevo y comprobar 390 y 768 px sin desborde horizontal."
+    ],
+    "donts": [
+      "Don't usar latón como relleno de insignias, fondos decorativos o segundas acciones.",
+      "Don't usar rojo para el estado emocional del paciente, para la nota ni para nada que no sea error o destrucción.",
+      "Don't usar la terracota en botones, estados o decoración.",
+      "Don't poner etiquetas en mayúsculas encima de títulos o bloques; el contexto va debajo del título.",
+      "Don't usar mono para palabras («Propio») ni para texto corrido.",
+      "Don't dar sombra a las tarjetas en reposo sobre el lino ni usar sombras duras desplazadas.",
+      "Don't volver al hero SaaS centrado con captura y fila de beneficios, ni al cliché cálido de crema, lámpara y serifa.",
+      "Don't usar el rojo institucional como color de marca; la universidad aparece con su logo en placa blanca."
+    ]
+  }
+}

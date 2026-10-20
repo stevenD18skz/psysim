@@ -48,8 +48,9 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
     );
   }
 
-  // La conversación guardada permite retomar la sesión tras recargar la página.
-  const historial = await obtenerMensajesSesion(sesion.id);
+  // La conversación guardada permite retomar la sesión tras recargar la página (sin los intentos
+  // que el estudiante reformuló: el paciente ya no los recuerda).
+  const historial = (await obtenerMensajesSesion(sesion.id)).filter(m => !m.descartadoEn);
 
   return <SimulacionCliente sesion={sesion} historial={historial} />;
 }

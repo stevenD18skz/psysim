@@ -14,15 +14,10 @@ function leerEscena(nombre: string): unknown {
 }
 
 describe('archivos de escena en public/scenes', () => {
-  it('existe una escena para cada uno de los seis escenarios', () => {
-    expect(archivos.sort()).toEqual([
-      'e-01.json',
-      'e-02.json',
-      'e-03.json',
-      'e-04.json',
-      'e-05.json',
-      'e-06.json',
-    ]);
+  it('existe una escena para cada uno de los doce escenarios', () => {
+    expect(archivos.sort()).toEqual(
+      Array.from({ length: 12 }, (_, i) => `e-${String(i + 1).padStart(2, '0')}.json`)
+    );
   });
 
   it.each(archivos)('%s cumple el esquema', nombre => {

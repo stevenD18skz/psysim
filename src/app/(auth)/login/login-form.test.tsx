@@ -15,7 +15,7 @@ function llenarFormulario(correo: string, contrasena: string) {
   return (async () => {
     if (correo) await usuario.type(screen.getByLabelText('Correo institucional'), correo);
     if (contrasena) await usuario.type(screen.getByLabelText('Contraseña'), contrasena);
-    await usuario.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
   })();
 }
 
@@ -59,10 +59,10 @@ describe('LoginForm', () => {
     render(<LoginForm siguiente={null} />);
     await llenarFormulario('docente@psysim.test', 'secreta123');
 
-    const boton = await screen.findByRole('button', { name: 'Ingresando…' });
+    const boton = await screen.findByRole('button', { name: 'Entrando…' });
     expect(boton).toBeDisabled();
 
     resolver({ error: 'fin' });
-    expect(await screen.findByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Entrar' })).toBeEnabled();
   });
 });

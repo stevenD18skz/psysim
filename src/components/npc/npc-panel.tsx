@@ -193,7 +193,7 @@ export function NpcPanel({ npc, modelo }: { npc: NpcControlador; modelo: ModeloN
             id={idHueso}
             value={estado.huesoPose}
             onChange={e => controlador.seleccionarHueso(e.target.value)}
-            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
           >
             {controlador.nombresHuesos.map(nombre => (
               <option key={nombre} value={nombre}>

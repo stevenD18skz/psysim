@@ -74,7 +74,7 @@ export default async function DocentePage({ params }: PageProps<'/admin/docentes
                 }
               />
               {docente.rol === 'superadmin' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                <span className="inline-flex items-center gap-1 rounded-full bg-laton/20 px-2.5 py-0.5 text-xs font-medium text-nogal">
                   <ShieldCheck className="size-3.5" aria-hidden />
                   Administrador
                 </span>

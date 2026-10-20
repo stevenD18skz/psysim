@@ -150,7 +150,7 @@ describe('canjearCodigo', () => {
     ['invalido', /no existe o no es para tu cuenta/],
     ['vencido', /ya venció/],
     ['anulado', /anuló ese código/],
-    ['usado', /Ya usaste ese código/],
+    ['usado', /Ese código ya se usó/],
     ['desconocido', /no existe o no es para tu cuenta/],
   ])('explica el resultado %s', async (resultado, mensaje) => {
     db.responder('rpc:canjear_codigo', { data: [{ resultado, sesion_id: null }] });
@@ -169,7 +169,8 @@ describe('canjearCodigo', () => {
   it('si falla la base de datos responde un mensaje genérico', async () => {
     db.responder('rpc:canjear_codigo', { error: { code: '500' } });
     expect(await canjearCodigo({ codigo: 'abc-defg-hij' })).toEqual({
-      error: 'No fue posible validar el código. Inténtalo de nuevo.',
+      error:
+        'No pudimos comprobar el código. No se ha usado: revisa tu conexión e inténtalo de nuevo.',
     });
   });
 

@@ -31,6 +31,36 @@ export const CONSULTORIOS = [
     detalle: 'Atardecer, ambiente cercano',
   },
   { ruta: 'scenes/e-06.json', nombre: 'Oficina de bienestar', detalle: 'Entorno universitario' },
+  {
+    ruta: 'scenes/e-07.json',
+    nombre: 'Consultorio de consejería',
+    detalle: 'Luz fría de mañana, tonos azulados',
+  },
+  {
+    ruta: 'scenes/e-08.json',
+    nombre: 'Sala de acogida',
+    detalle: 'Luz cálida de tarde, ambiente sereno',
+  },
+  {
+    ruta: 'scenes/e-09.json',
+    nombre: 'Orientación escolar',
+    detalle: 'Entorno de colegio, luminoso',
+  },
+  {
+    ruta: 'scenes/e-10.json',
+    nombre: 'Consultorio de salud',
+    detalle: 'Luz de mediodía, tonos claros',
+  },
+  {
+    ruta: 'scenes/e-11.json',
+    nombre: 'Consultorio reservado',
+    detalle: 'Tarde tranquila, ambiente discreto',
+  },
+  {
+    ruta: 'scenes/e-12.json',
+    nombre: 'Sala para adultos mayores',
+    detalle: 'Luz de tarde, ambiente de hogar',
+  },
 ] as const;
 
 type RutaConsultorio = (typeof CONSULTORIOS)[number]['ruta'];
@@ -97,16 +127,87 @@ export const SINTOMAS = [
   { id: 'desinteres', texto: 'pérdida de interés' },
 ] as const;
 
+/**
+ * Actitudes del paciente. Además del adjetivo, cada una describe cómo conversa: los pacientes
+ * simulados son más fieles cuando su estilo se define como conducta (estilos de conversación de
+ * Patient-Ψ: reservado, verborreico, tangencial, complaciente, molesto).
+ */
 export const ACTITUDES = [
-  { id: 'reservado', texto: 'reservado' },
-  { id: 'hablador', texto: 'muy hablador' },
-  { id: 'desconfiado', texto: 'desconfiado' },
-  { id: 'ansioso', texto: 'inquieto y ansioso' },
-  { id: 'emotivo', texto: 'emotivo, al borde del llanto' },
-  { id: 'irritable', texto: 'irritable' },
-  { id: 'evasivo', texto: 'evasivo con los temas dolorosos' },
-  { id: 'colaborador', texto: 'colaborador y dispuesto' },
-  { id: 'resignado', texto: 'resignado, con poca energía' },
+  {
+    id: 'reservado',
+    texto: 'reservado',
+    conducta: 'das respuestas breves o vagas y necesitas que te animen para hablar de lo personal',
+  },
+  {
+    id: 'hablador',
+    texto: 'muy hablador',
+    conducta: 'das respuestas largas, con detalles que no hacen falta, y cuesta encauzarte',
+  },
+  {
+    id: 'desconfiado',
+    texto: 'desconfiado',
+    conducta: 'dudas de las intenciones del estudiante y pruebas si de verdad te escucha',
+  },
+  {
+    id: 'ansioso',
+    texto: 'inquieto y ansioso',
+    conducta: 'hablas rápido, saltas entre preocupaciones y te anticipas a lo peor',
+  },
+  {
+    id: 'emotivo',
+    texto: 'emotivo, al borde del llanto',
+    conducta: 'te quiebras con facilidad y a veces necesitas una pausa para seguir',
+  },
+  {
+    id: 'irritable',
+    texto: 'irritable',
+    conducta: 'contestas con brusquedad cuando algo te molesta',
+  },
+  {
+    id: 'evasivo',
+    texto: 'evasivo con los temas dolorosos',
+    conducta: 'cambias de tema o restas importancia cuando la conversación toca lo que más duele',
+  },
+  {
+    id: 'tangencial',
+    texto: 'disperso, se va por las ramas',
+    conducta: 'empiezas a responder y pronto te desvías a otros temas; necesitas que te reencaucen',
+  },
+  {
+    id: 'complaciente',
+    texto: 'complaciente',
+    conducta:
+      'minimizas lo que te pasa y buscas la aprobación del estudiante; dices que estás bien aunque no sea así',
+  },
+  {
+    id: 'resistente',
+    texto: 'resistente al proceso',
+    conducta: 'cuestionas las propuestas del estudiante, te quejas del proceso y te cuesta confiar',
+  },
+  {
+    id: 'colaborador',
+    texto: 'colaborador y dispuesto',
+    conducta: 'respondes con disposición, aunque te cuesta nombrar lo que sientes',
+  },
+  {
+    id: 'resignado',
+    texto: 'resignado, con poca energía',
+    conducta: 'hablas despacio y con pocas palabras, como si nada fuera a cambiar',
+  },
+] as const;
+
+/** Datos que el paciente guarda y la condición para contarlos (máximo por caso). */
+export const MAXIMO_SECRETOS = 4;
+
+export const EJEMPLOS_SECRETOS = [
+  {
+    dato: 'Desde hace meses toma alcohol casi todas las noches para dormir',
+    condicion: 'le preguntan con calma cómo maneja las noches',
+  },
+  {
+    dato: 'Se siente culpable por una discusión con su hijo antes de que se fuera',
+    condicion: 'siente que no la van a juzgar',
+  },
 ] as const;
 
 export const SUGERENCIAS_SE_ABRE = [

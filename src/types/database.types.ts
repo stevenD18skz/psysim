@@ -4,7 +4,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5';
+    PostgrestVersion: '14.1';
   };
   public: {
     Tables: {
@@ -236,6 +236,7 @@ export type Database = {
         Row: {
           contenido: string;
           creado_en: string;
+          descartado_en: string | null;
           emocion: string | null;
           id: string;
           latencia_ms: number | null;
@@ -247,6 +248,7 @@ export type Database = {
         Insert: {
           contenido: string;
           creado_en?: string;
+          descartado_en?: string | null;
           emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
@@ -258,6 +260,7 @@ export type Database = {
         Update: {
           contenido?: string;
           creado_en?: string;
+          descartado_en?: string | null;
           emocion?: string | null;
           id?: string;
           latencia_ms?: number | null;
@@ -310,6 +313,32 @@ export type Database = {
             columns: ['escenario_id'];
             isOneToOne: true;
             referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      peticion_ia: {
+        Row: {
+          creada_en: string;
+          id: number;
+          usuario_id: string;
+        };
+        Insert: {
+          creada_en?: string;
+          id?: never;
+          usuario_id: string;
+        };
+        Update: {
+          creada_en?: string;
+          id?: never;
+          usuario_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'peticion_ia_usuario_id_fkey';
+            columns: ['usuario_id'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
             referencedColumns: ['id'];
           },
         ];
@@ -532,10 +561,12 @@ export type Database = {
       es_estudiante: { Args: never; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
       id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
+      reformular_desde: { Args: { p_mensaje_id: string }; Returns: number };
       registrar_actividad_sesion: {
         Args: { p_sesion_id: string };
         Returns: boolean;
       };
+      reservar_peticion_ia: { Args: never; Returns: number };
       sesion_limite_inactividad: { Args: never; Returns: string };
     };
     Enums: {

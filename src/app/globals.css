@@ -7,10 +7,23 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-source-serif);
-  --font-serif: var(--font-source-serif);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-archivo);
+  /* Materiales del consultorio. */
+  --color-nogal: var(--nogal);
+  --color-nogal-claro: var(--nogal-claro);
+  --color-lino: var(--lino);
+  --color-laton: var(--laton);
+  --color-laton-claro: var(--laton-claro);
+  --color-laton-texto: var(--laton-texto);
+  --color-salvia: var(--salvia);
+  --color-salvia-oscuro: var(--salvia-oscuro);
+  --color-salvia-suave: var(--salvia-suave);
+  --color-terracota: var(--terracota);
+  --color-terracota-suave: var(--terracota-suave);
+  --color-ambar: var(--ambar);
+  --color-ambar-suave: var(--ambar-suave);
   --color-marca: var(--marca);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -23,6 +36,7 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -52,90 +66,98 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*
- * Tema institucional "Univalle": blanco, grises neutros y el rojo de la Universidad del Valle.
- * El manual de identidad define el rojo web como #FF0000 (`--marca`), que se usa en elementos
- * de identidad (sello, filetes). Para botones, enlaces y texto se usa un rojo más profundo
- * derivado de él (`--primary`), que cumple el contraste WCAG AA con texto blanco (≈ 6:1).
+ * Tema «Nogal y salvia»: la interfaz se construye con los materiales del consultorio de la
+ * simulación. El nogal es el armazón (menú, franjas), el lino salvia es el fondo de trabajo, el
+ * latón se reserva para la acción principal de cada pantalla, la terracota es la voz del paciente y
+ * el rojo solo aparece en errores y acciones destructivas. Todos los pares de texto superan WCAG AA
+ * (tinta/fondo 15,3:1; apagado/fondo 6,5:1; tinta/latón 5,5:1; borde de campo/fondo 3,2:1).
  */
 :root {
-  --marca: #ff0000;
-  --background: oklch(0.985 0.002 60);
-  --foreground: oklch(0.22 0.006 30);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.006 30);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.006 30);
-  --primary: oklch(0.5 0.2 27);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.955 0.003 30);
-  --secondary-foreground: oklch(0.27 0.006 30);
-  --muted: oklch(0.965 0.002 60);
-  --muted-foreground: oklch(0.47 0.008 30);
-  --accent: oklch(0.955 0.018 25);
-  --accent-foreground: oklch(0.42 0.16 27);
-  --destructive: oklch(0.55 0.21 29);
-  --success: oklch(0.5 0.1 155);
-  --success-foreground: oklch(1 0 0);
-  --sage: oklch(0.95 0.025 160);
-  --sage-foreground: oklch(0.38 0.07 160);
-  --border: oklch(0.91 0.003 30);
-  --input: oklch(0.87 0.004 30);
-  --ring: oklch(0.5 0.2 27);
-  --chart-1: oklch(0.5 0.2 27);
-  --chart-2: oklch(0.45 0.01 30);
-  --chart-3: oklch(0.65 0.12 40);
-  --chart-4: oklch(0.5 0.08 250);
-  --chart-5: oklch(0.7 0.01 30);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.975 0.002 60);
-  --sidebar-foreground: oklch(0.27 0.006 30);
-  --sidebar-primary: oklch(0.5 0.2 27);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.935 0.004 30);
-  --sidebar-accent-foreground: oklch(0.22 0.006 30);
-  --sidebar-border: oklch(0.91 0.003 30);
-  --sidebar-ring: oklch(0.5 0.2 27);
+  --nogal: #3a2418;
+  --nogal-claro: #4d3221;
+  --lino: #f1f3ee;
+  --laton: #b88a3b;
+  --laton-claro: #c99b4b;
+  /* Latón para texto pequeño sobre la madera: ≥4,9:1 incluso en la veta más clara. */
+  --laton-texto: #d4a85a;
+  --salvia: #5f7f63;
+  --salvia-oscuro: #3e5a44;
+  --salvia-suave: #e2eadf;
+  --terracota: #a4472a;
+  --terracota-suave: #f3e3db;
+  --ambar: #9a5b06;
+  --ambar-suave: #f6ead2;
+  --marca: var(--laton);
+
+  --background: #f1f3ee;
+  --foreground: #1f1b17;
+  --card: #fbfcf9;
+  --card-foreground: #1f1b17;
+  --popover: #fbfcf9;
+  --popover-foreground: #1f1b17;
+  --primary: var(--nogal);
+  --primary-foreground: var(--lino);
+  --secondary: var(--salvia-suave);
+  --secondary-foreground: var(--salvia-oscuro);
+  --muted: #e7ebe3;
+  --muted-foreground: #5a5650;
+  --accent: var(--salvia-suave);
+  --accent-foreground: var(--salvia-oscuro);
+  --destructive: #b42318;
+  --success: var(--salvia-oscuro);
+  --success-foreground: var(--lino);
+  --sage: var(--salvia-suave);
+  --sage-foreground: var(--salvia-oscuro);
+  --border: #d5dad0;
+  --input: #858a80;
+  --ring: var(--nogal);
+  --chart-1: var(--salvia);
+  --chart-2: var(--laton);
+  --chart-3: var(--terracota);
+  --chart-4: var(--nogal-claro);
+  --chart-5: #8c9488;
+  --radius: 0.625rem;
+  --sidebar: var(--nogal);
+  --sidebar-foreground: #efe7da;
+  --sidebar-muted: #bfae99;
+  --sidebar-primary: var(--laton);
+  --sidebar-primary-foreground: #1f1b17;
+  --sidebar-accent: var(--nogal-claro);
+  --sidebar-accent-foreground: #f6efe4;
+  --sidebar-border: rgb(255 255 255 / 0.1);
+  --sidebar-ring: var(--laton);
 }
 
+/* Modo oscuro (sin interruptor en la interfaz): el consultorio de noche. */
 .dark {
-  --background: oklch(0.2 0.004 30);
-  --foreground: oklch(0.96 0.002 60);
-  --card: oklch(0.24 0.005 30);
-  --card-foreground: oklch(0.96 0.002 60);
-  --popover: oklch(0.24 0.005 30);
-  --popover-foreground: oklch(0.96 0.002 60);
-  --primary: oklch(0.64 0.2 27);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.3 0.005 30);
-  --secondary-foreground: oklch(0.96 0.002 60);
-  --muted: oklch(0.28 0.005 30);
-  --muted-foreground: oklch(0.72 0.006 30);
-  --accent: oklch(0.32 0.05 27);
-  --accent-foreground: oklch(0.9 0.04 25);
-  --destructive: oklch(0.68 0.19 29);
-  --success: oklch(0.7 0.1 155);
-  --success-foreground: oklch(0.2 0.004 30);
-  --sage: oklch(0.32 0.04 160);
-  --sage-foreground: oklch(0.85 0.06 160);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.64 0.2 27);
-  --chart-1: oklch(0.64 0.2 27);
-  --chart-2: oklch(0.75 0.01 30);
-  --chart-3: oklch(0.75 0.12 40);
-  --chart-4: oklch(0.65 0.08 250);
-  --chart-5: oklch(0.55 0.01 30);
-  --sidebar: oklch(0.22 0.005 30);
-  --sidebar-foreground: oklch(0.96 0.002 60);
-  --sidebar-primary: oklch(0.64 0.2 27);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.3 0.005 30);
-  --sidebar-accent-foreground: oklch(0.96 0.002 60);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.64 0.2 27);
+  --background: #1b1612;
+  --foreground: #efe9df;
+  --card: #241d17;
+  --card-foreground: #efe9df;
+  --popover: #241d17;
+  --popover-foreground: #efe9df;
+  --primary: var(--laton-claro);
+  --primary-foreground: #1f1b17;
+  --secondary: #2c3a2f;
+  --secondary-foreground: #d3e0cf;
+  --muted: #2b241d;
+  --muted-foreground: #b7ad9f;
+  --accent: #2c3a2f;
+  --accent-foreground: #d3e0cf;
+  --destructive: #f07a6a;
+  --success: #9cbf9f;
+  --success-foreground: #1b1612;
+  --sage: #2c3a2f;
+  --sage-foreground: #d3e0cf;
+  --border: rgb(255 255 255 / 0.1);
+  --input: rgb(255 255 255 / 0.35);
+  --ring: var(--laton-claro);
+  --sidebar: #140f0b;
+  --sidebar-accent: #2a1f17;
 }
 
 /* Barra de progreso indeterminada de la pantalla de carga del escenario. */
@@ -148,23 +170,14 @@
   }
 }
 
-/* Latido del velo emocional de la simulación (doble pulso, como "lub-dub"). */
-@keyframes latido {
+/* Respiración lenta del ambiente emocional (sin latido ni rojo: no es una señal de evaluación). */
+@keyframes respiracion {
   0%,
   100% {
-    opacity: 0.75;
+    opacity: 0.85;
   }
-  12% {
+  50% {
     opacity: 1;
-  }
-  24% {
-    opacity: 0.8;
-  }
-  36% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.75;
   }
 }
 
@@ -174,6 +187,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    caret-color: var(--laton);
+    font-variant-numeric: lining-nums;
   }
   button:not(:disabled),
   [role='button']:not(:disabled) {
@@ -181,15 +196,75 @@
   }
   html {
     @apply font-sans;
+    scrollbar-color: color-mix(in oklch, var(--nogal) 35%, transparent) transparent;
   }
+  /* Los títulos usan el ancho expandido de Archivo: la voz de la marca. */
   h1,
   h2,
   h3 {
     @apply font-heading;
+    font-stretch: 112%;
     text-wrap: balance;
   }
   ::selection {
-    background-color: color-mix(in oklch, var(--primary) 25%, transparent);
+    background-color: color-mix(in oklch, var(--laton) 35%, transparent);
+    color: var(--foreground);
+  }
+  a {
+    text-underline-offset: 0.2em;
+  }
+  /* Foco visible sólido de 2 px (≥ 3:1 sobre cualquier fondo del tema). */
+  :focus-visible {
+    outline-color: var(--ring);
+  }
+}
+
+/* Utilidades del eje de ancho de Archivo. */
+@utility ancho-expandido {
+  font-stretch: 118%;
+}
+@utility ancho-semiexpandido {
+  font-stretch: 108%;
+}
+@utility ancho-condensado {
+  font-stretch: 82%;
+}
+
+/* Vetas del nogal: bandas finas que dan materia a las superficies de madera. */
+@utility vetas-nogal {
+  background-color: var(--nogal);
+  background-image:
+    /* Tres periodos primos (37, 61 y 113 px) que no coinciden: la veta varía en lugar de repetir
+       una raya regular, que se leía como pana. */
+    repeating-linear-gradient(
+      91deg,
+      transparent 0 11px,
+      rgb(0 0 0 / 0.07) 11px 12px,
+      transparent 12px 29px,
+      rgb(0 0 0 / 0.05) 29px 31px,
+      transparent 31px 37px
+    ),
+    repeating-linear-gradient(
+      89.4deg,
+      transparent 0 23px,
+      rgb(255 255 255 / 0.03) 23px 24px,
+      transparent 24px 47px,
+      rgb(0 0 0 / 0.06) 47px 50px,
+      transparent 50px 61px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(0 0 0 / 0.08) 0 5px,
+      transparent 5px 71px,
+      rgb(255 255 255 / 0.02) 71px 74px,
+      transparent 74px 113px
+    ),
+    linear-gradient(180deg, var(--nogal-claro), var(--nogal));
+  /* El anillo de foco nogal desaparece sobre la madera: aquí es latón claro (5,7:1). Las tarjetas
+     claras dentro de la madera recuperan el anillo nogal. */
+  --ring: var(--laton-claro);
+  & :where(.bg-card, .bg-background, .bg-popover, .bg-muted) {
+    --ring: var(--nogal);
   }
 }
 
@@ -198,6 +273,8 @@
   :root {
     interpolate-size: allow-keywords;
   }
+}
+@media (prefers-reduced-motion: no-preference) {
   details::details-content {
     block-size: 0;
     overflow: hidden;
@@ -207,5 +284,27 @@
   }
   details[open]::details-content {
     block-size: auto;
+  }
+}
+
+/* Las barras pegajosas (arriba) y la barra «Tengo un código» de la landing (abajo, en móvil) no
+   deben tapar el elemento enfocado (WCAG 2.4.11). */
+html {
+  scroll-padding-top: 4.5rem;
+}
+@media (max-width: 767px) {
+  html {
+    scroll-padding-bottom: 5.5rem;
+  }
+}
+
+@media print {
+  html {
+    scrollbar-color: auto;
+  }
+  /* Papel blanco aunque se impriman los gráficos de fondo (si no, el lino asoma al pie). */
+  html,
+  body {
+    background: #fff;
   }
 }

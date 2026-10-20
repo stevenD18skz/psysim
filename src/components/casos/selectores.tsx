@@ -43,10 +43,8 @@ export function GrupoChips({
             disabled={deshabilitado}
             onClick={() => alternar(opcion.id)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50',
-              activa
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'bg-card text-foreground hover:bg-muted'
+              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden disabled:opacity-50',
+              activa ? 'border-nogal bg-nogal text-lino' : 'bg-card text-foreground hover:bg-muted'
             )}
           >
             {activa && <Check className="size-3.5" aria-hidden />}
@@ -77,7 +75,7 @@ export function Sugerencias({ etiqueta, sugerencias, texto, onAgregar }: Sugeren
           key={sugerencia}
           type="button"
           onClick={() => onAgregar(sugerencia)}
-          className="rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
         >
           + {sugerencia}
         </button>
@@ -120,8 +118,8 @@ export function SelectorOpciones<T extends string>({
           <label
             key={opcion.valor}
             className={cn(
-              'flex cursor-pointer flex-col gap-0.5 rounded-xl border bg-card px-3 py-2 text-sm transition-[border-color,background-color] hover:border-primary/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
-              activa && 'border-primary bg-accent/50 ring-1 ring-primary',
+              'flex cursor-pointer flex-col gap-0.5 rounded-xl border bg-card px-3 py-2 text-sm transition-[border-color,background-color] hover:border-nogal/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring',
+              activa && 'border-nogal bg-salvia-suave/45 ring-1 ring-nogal',
               deshabilitado && 'cursor-not-allowed opacity-50'
             )}
           >

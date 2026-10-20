@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { COOKIE_ENTREGA, serializarEntrega } from '@/lib/equipo-compartido/entrega';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../../test/supabase-falso';
@@ -17,9 +18,19 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-function peticion(query: string) {
-  return new NextRequest(new URL(`/auth/callback${query}`, 'http://localhost:3000'));
+function peticion(query: string, cookie?: string) {
+  return new NextRequest(new URL(`/auth/callback${query}`, 'http://localhost:3000'), {
+    headers: cookie ? { cookie } : undefined,
+  });
 }
+
+/** Cookie de un equipo que el docente entregó a un estudiante (modo presencial). */
+const CON_ENTREGA = `${COOKIE_ENTREGA}=${serializarEntrega({
+  codigo: 'abc-defg-hij',
+  estudiante: 'María José Ríos',
+  caso: 'Estrés académico',
+  docenteConGoogle: true,
+})}`;
 
 function destino(respuesta: Response) {
   const url = new URL(respuesta.headers.get('location')!);
@@ -47,7 +58,7 @@ describe('GET /auth/callback (acceso con Google)', () => {
     accesoExitoso('estudiante');
     expect(destino(await GET(peticion('?code=abc')))).toBe('/practicas');
     accesoExitoso('docente');
-    expect(destino(await GET(peticion('?code=abc&siguiente=%2Fpracticas')))).toBe('/configuracion');
+    expect(destino(await GET(peticion('?code=abc&siguiente=%2Fpracticas')))).toBe('/inicio');
   });
 
   it('una cuenta sin perfil cierra la sesión y ve acceso denegado', async () => {
@@ -84,5 +95,24 @@ describe('GET /auth/callback (acceso con Google)', () => {
     db.responder('usuario', { error: { code: '500' } });
     expect(destino(await GET(peticion('?code=abc')))).toBe('/login?error=fallo');
     expect(db.auth.signOut).toHaveBeenCalled();
+  });
+
+  describe('en un equipo entregado a un estudiante (modo presencial)', () => {
+    it('rechaza la cuenta de un docente, cierra su sesión y vuelve a la entrega', async () => {
+      accesoExitoso('docente');
+      const respuesta = await GET(peticion('?code=abc', CON_ENTREGA));
+
+      expect(destino(respuesta)).toBe('/entrega?cuenta-rechazada=1');
+      expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    });
+
+    it('el estudiante entra y llega a su código', async () => {
+      accesoExitoso('estudiante');
+      const respuesta = await GET(
+        peticion('?code=abc&siguiente=%2Funirse%2Fabc-defg-hij', CON_ENTREGA)
+      );
+      expect(destino(respuesta)).toBe('/unirse/abc-defg-hij');
+      expect(db.auth.signOut).not.toHaveBeenCalled();
+    });
   });
 });

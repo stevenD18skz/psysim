@@ -1,7 +1,13 @@
-import { type EmocionNpc } from '@/lib/conversacion/emociones';
+import {
+  type EmocionNpc,
+  INTENSIDAD_POR_DEFECTO,
+  type IntensidadEmocion,
+} from '@/lib/conversacion/emociones';
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
 
 import { type AccionNpc } from './acciones';
+import { reaccionAlInicio } from './gestos-habla';
+import { type GestoProcedural } from './repertorio-gestos';
 
 /**
  * Lenguaje no verbal del paciente 3D. Es lógica pura (sin Three.js): decide qué clip suena en
@@ -181,6 +187,30 @@ export const EMOCIONES_CON_SUSPIRO: ReadonlySet<EmocionNpc> = new Set([
   'aliviado',
 ]);
 
+/** Cuánto de la expresión de cada emoción se muestra según su intensidad (1–3). */
+const FACTOR_INTENSIDAD: Readonly<Record<IntensidadEmocion, number>> = { 1: 0.55, 2: 1, 3: 1.35 };
+
+/** La expresión de una emoción con la intensidad indicada (alejándose más o menos de la neutra). */
+export function expresionDeEmocion(
+  emocion: EmocionNpc,
+  intensidad: IntensidadEmocion = INTENSIDAD_POR_DEFECTO
+): Expresion {
+  const factor = FACTOR_INTENSIDAD[intensidad];
+  const e: Expresion = { ...EXPRESION_NEUTRA };
+  for (const [clave, valor] of Object.entries(POR_EMOCION[emocion]) as [
+    keyof Expresion,
+    number,
+  ][]) {
+    e[clave] = EXPRESION_NEUTRA[clave] + (valor - EXPRESION_NEUTRA[clave]) * factor;
+  }
+  e.contactoVisual = Math.min(1, Math.max(0, e.contactoVisual));
+  e.inquietud = Math.min(1, Math.max(0, e.inquietud));
+  e.ojosHumedos = Math.min(1, Math.max(0, e.ojosHumedos));
+  e.apertura = Math.max(0.3, e.apertura);
+  e.periodoRespiracion = Math.max(1.6, e.periodoRespiracion);
+  return e;
+}
+
 /**
  * Expresión del paciente para un estado de la conversación y una emoción. La emoción da la
  * postura de fondo; el estado ajusta la mirada y el habla:
@@ -189,8 +219,12 @@ export const EMOCIONES_CON_SUSPIRO: ReadonlySet<EmocionNpc> = new Set([
  * - respondiendo: habla mirando al estudiante en la medida en que la emoción lo permite;
  * - sin conexión: ladea la cabeza, desconcertado.
  */
-export function expresionPara(estado: EstadoNpc, emocion: EmocionNpc): Expresion {
-  const e: Expresion = { ...EXPRESION_NEUTRA, ...POR_EMOCION[emocion] };
+export function expresionPara(
+  estado: EstadoNpc,
+  emocion: EmocionNpc,
+  intensidad: IntensidadEmocion = INTENSIDAD_POR_DEFECTO
+): Expresion {
+  const e = expresionDeEmocion(emocion, intensidad);
   switch (estado) {
     case 'esperando_input':
     case 'sesion_finalizada':
@@ -214,6 +248,9 @@ export function expresionPara(estado: EstadoNpc, emocion: EmocionNpc): Expresion
   }
 }
 
+/** Un gesto del paciente: un clip del GLB (saludar, asentir…) o uno procedural (`repertorio-gestos`). */
+export type GestoPaciente = AccionNpc | GestoProcedural;
+
 /** Clip que suena en bucle en cada estado: pensar mientras procesa, reposo el resto. */
 export function clipEnBucle(estado: EstadoNpc): AccionNpc {
   return estado === 'procesando' ? 'think' : 'idle';
@@ -235,7 +272,7 @@ export function gestoDeTransicion(
   desde: EstadoNpc,
   hacia: EstadoNpc,
   { primerEncuentro, respuesta = '' }: ContextoTransicion
-): AccionNpc | null {
+): GestoPaciente | null {
   if (desde === hacia) return null;
   if (hacia === 'sesion_finalizada') return 'wave';
   if (desde === 'inactivo' && hacia === 'esperando_input') return primerEncuentro ? 'wave' : 'yes';
@@ -247,14 +284,35 @@ const AFIRMACION = /^(si|claro|exacto|asi es|correcto|tal cual|de acuerdo|cierto
 /** "No", "No, no…", "No quiero…"; pero no "No sé" (duda) ni "No me…" (relato). */
 const NEGACION = /^no\b(?!\s+(se|me|te|le|lo|la|he|ha|es|era|puedo|tengo|estoy|creo)\b)/;
 
-/** Asiente si la respuesta empieza afirmando y niega si empieza negando. */
-export function gestoDeRespuesta(respuesta: string): AccionNpc | null {
+/**
+ * Mientras el estudiante escribe, el paciente lo escucha: sostiene más la mirada (en la medida en
+ * que su emoción lo deja), ladea un poco la cabeza y se aquieta. La mirada sola no basta para
+ * generar sintonía (Wang & Gratch, CHI 2010): va acompañada de asentimientos en las pausas.
+ */
+export function expresionEscuchando(e: Expresion): Expresion {
+  return {
+    ...e,
+    contactoVisual: Math.min(1, e.contactoVisual + 0.2),
+    ladeo: e.ladeo + 0.05,
+    inquietud: e.inquietud * 0.6,
+    cejaAltura: e.cejaAltura + 0.08,
+  };
+}
+
+/**
+ * Gesto al empezar a responder: asiente si la respuesta empieza afirmando, se encoge de hombros
+ * si empieza dudando («No sé…»), se lleva la mano al pecho si empieza por un dolor y niega si
+ * empieza negando. Las frases clave de más adelante las marca `momentosClave` mientras habla.
+ */
+export function gestoDeRespuesta(respuesta: string): GestoPaciente | null {
   const inicio = respuesta
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .replace(/^[\s¿¡"'«“(.…-]+/u, '');
   if (AFIRMACION.test(inicio)) return 'yes';
+  const reaccion = reaccionAlInicio(respuesta);
+  if (reaccion) return reaccion;
   if (NEGACION.test(inicio)) return 'no';
   return null;
 }

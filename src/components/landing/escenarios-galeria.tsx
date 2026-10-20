@@ -55,7 +55,7 @@ export function EscenariosGaleria() {
                 if (evento.key === 'ArrowLeft') mover(-1);
                 if (evento.key === 'ArrowRight') mover(1);
               }}
-              className="fixed top-1/2 left-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-card shadow-2xl ring-1 ring-foreground/10 duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+              className="fixed top-1/2 left-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-card shadow-2xl ring-1 ring-foreground/10 outline-hidden duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
             >
               <DetalleEscenario
                 escenario={actual}
@@ -82,7 +82,7 @@ function NivelPuntos({ nivel }: { nivel: 1 | 2 | 3 }) {
         {[1, 2, 3].map(paso => (
           <span
             key={paso}
-            className={cn('h-3 w-1.5 rounded-full', paso <= nivel ? 'bg-primary' : 'bg-border')}
+            className={cn('h-3 w-1.5 rounded-full', paso <= nivel ? 'bg-nogal' : 'bg-border')}
           />
         ))}
       </span>
@@ -104,9 +104,10 @@ function TarjetaEscenarioPublico({
       onClick={onAbrir}
       aria-haspopup="dialog"
       aria-label={`${escenario.codigo}: ${escenario.titulo}. Ver detalle del escenario`}
-      className="group flex w-full flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-xs transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-[border-color,box-shadow] hover:border-nogal/40 hover:shadow-[0_10px_28px_-14px_rgb(58_36_24/0.4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
     >
-      <span className="relative block aspect-16/10 overflow-hidden bg-muted">
+      {/* El vano de la puerta de cada consultorio: el mismo arco del inicio y de las instrucciones. */}
+      <span className="relative mx-4 mt-4 block aspect-[4/3] overflow-hidden rounded-t-[999px] border-2 border-nogal/80 bg-muted">
         <Image
           src={escenario.imagen.src}
           alt=""
@@ -116,15 +117,8 @@ function TarjetaEscenarioPublico({
         />
         <span
           aria-hidden
-          className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent"
+          className="absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent"
         />
-        <span className="absolute top-3 left-3 rounded-md bg-white/90 px-2 py-0.5 font-mono text-xs font-medium text-neutral-900">
-          {escenario.codigo}
-        </span>
-        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-neutral-900">
-          <IconoCategoria categoria={escenario.categoria} className="size-3" />
-          {escenario.categoria}
-        </span>
         <span className="absolute bottom-3 left-4 flex items-center gap-1.5 text-sm font-medium text-white">
           <AvatarPaciente
             src={escenario.paciente.foto}
@@ -136,16 +130,23 @@ function TarjetaEscenarioPublico({
       </span>
 
       <span className="flex flex-1 flex-col gap-3 p-5">
-        <span className="font-heading text-xl font-semibold">{escenario.titulo}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-mono font-medium text-foreground">{escenario.codigo}</span>
+          <span className="inline-flex items-center gap-1">
+            <IconoCategoria categoria={escenario.categoria} className="size-3" />
+            {escenario.categoria}
+          </span>
+        </span>
+        <span className="-mt-1 text-xl font-bold tracking-[-0.01em]">{escenario.titulo}</span>
         <span className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {escenario.resumen}
         </span>
         <span className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-dashed pt-3 text-sm">
           <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Target className="size-4 shrink-0 text-primary" aria-hidden />
+            <Target className="size-4 shrink-0 text-salvia" aria-hidden />
             {escenario.competencia}
           </span>
-          <span className="inline-flex items-center gap-1 font-medium text-primary">
+          <span className="inline-flex items-center gap-1 font-semibold">
             Ver detalle
             <ArrowRight className="size-4" aria-hidden />
           </span>
@@ -202,7 +203,7 @@ function DetalleEscenario({
       <div className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1.15fr_1fr]">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <DialogPrimitive.Title className="font-heading text-3xl leading-tight font-semibold">
+            <DialogPrimitive.Title className="text-3xl leading-tight font-bold tracking-[-0.02em]">
               {escenario.titulo}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="leading-relaxed text-muted-foreground">
@@ -226,7 +227,7 @@ function DetalleEscenario({
         <div className="flex flex-col gap-4">
           <section
             aria-label="Paciente virtual"
-            className="flex flex-col gap-3 rounded-2xl border bg-muted/40 p-5"
+            className="flex flex-col gap-3 rounded-xl border bg-muted/50 p-5"
           >
             <div className="flex items-center gap-3">
               <AvatarPaciente
@@ -235,19 +236,19 @@ function DetalleEscenario({
                 className="size-14 text-base ring-4 ring-card"
               />
               <div className="leading-tight">
-                <p className="font-heading text-lg font-semibold">{escenario.paciente.nombre}</p>
+                <p className="text-lg font-bold text-terracota">{escenario.paciente.nombre}</p>
                 <p className="text-sm text-muted-foreground">{escenario.paciente.edad} años</p>
               </div>
             </div>
             <p className="text-sm leading-relaxed">{escenario.paciente.perfil}</p>
           </section>
 
-          <figure className="rounded-2xl border border-l-4 border-l-primary bg-card p-5">
-            <figcaption className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <MessageSquareQuote className="size-4 text-primary" aria-hidden />
+          <figure className="rounded-xl bg-terracota-suave/60 p-5">
+            <figcaption className="mb-2 flex items-center gap-2 text-sm font-semibold text-terracota">
+              <MessageSquareQuote className="size-4 text-terracota" aria-hidden />
               Primera frase del paciente
             </figcaption>
-            <blockquote className="font-heading text-lg leading-snug">
+            <blockquote className="text-lg leading-snug font-medium">
               «{escenario.paciente.apertura}»
             </blockquote>
           </figure>
@@ -287,7 +288,7 @@ function DatoDetalle({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:text-primary">
+      <dt className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground [&_svg]:size-3.5 [&_svg]:text-salvia">
         {icono}
         {etiqueta}
       </dt>

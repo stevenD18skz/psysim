@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [".impeccable/mocks/decision/**"],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [".impeccable/mocks/decision/canon.html"],
+        "createdAt": "2026-10-17T21:33:32.287Z",
+        "reason": "Claude: la tarjeta canon representa a propósito el estándar SaaS de la categoría (Inter)"
+      }
+    ]
+  }
+}

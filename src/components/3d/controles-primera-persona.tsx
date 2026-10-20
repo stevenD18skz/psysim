@@ -87,6 +87,9 @@ export function ControlesPrimeraPersona({
 
   const controles = useRef<ComponentRef<typeof PointerLockControls>>(null);
   const veniaDeConversar = useRef(false);
+  // Deshabilitado antes de haber explorado (las instrucciones abiertas) no es «volver de
+  // conversar»: al empezar, el estudiante ve primero la tarjeta que le enseña los controles.
+  const yaExploro = useRef(false);
 
   // Al empezar a conversar se libera el ratón para poder escribir y usar el panel. Al volver a
   // explorar se recaptura solo: el clic que cerró la conversación es el gesto que el navegador
@@ -95,10 +98,11 @@ export function ControlesPrimeraPersona({
   useEffect(() => {
     if (!habilitado) {
       velocidad.current.set(0, 0, 0);
-      veniaDeConversar.current = true;
+      veniaDeConversar.current = yaExploro.current;
       if (document.pointerLockElement) document.exitPointerLock();
       return;
     }
+    yaExploro.current = true;
     if (!veniaDeConversar.current) return;
     veniaDeConversar.current = false;
     try {

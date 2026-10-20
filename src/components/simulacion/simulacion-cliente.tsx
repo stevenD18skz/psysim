@@ -3,9 +3,12 @@
 import { useProgress } from '@react-three/drei';
 import {
   AlertTriangle,
-  ArrowLeft,
+  Check,
   Compass,
+  Copy,
+  Mail,
   MessageCircle,
+  Monitor,
   MousePointer2,
   RotateCw,
 } from 'lucide-react';
@@ -22,20 +25,41 @@ import {
 } from '@/components/3d/interaccion-paciente';
 import { LoadingScreen } from '@/components/3d/loading-screen';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
+import { audioEspacialStore } from '@/components/3d/oyente-audio';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
+import { BotonAmbiente, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
+import {
+  BotonHerramienta,
+  type Herramienta,
+  HojaRemision,
+  LibretaNotas,
+} from '@/components/simulacion/herramientas-consulta';
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
-import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
+import {
+  BotonSonido,
+  BotonVoz,
+  useSonidoSimulacion,
+} from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
@@ -62,6 +86,7 @@ interface SimulacionClienteProps {
 export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
+  const esComputador = useEsComputador();
 
   // Tras una recarga o al abrir la URL directamente, el store está vacío. En todos los casos se
   // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del estudiante), con la
@@ -69,6 +94,9 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   useEffect(() => {
     iniciarSesion(sesion, historial);
   }, [sesion, historial, iniciarSesion]);
+
+  // En un celular o tableta no se monta la escena (ni corre el latido): se explica dónde abrirla.
+  if (esComputador === false) return <AvisoSimulacionMovil sesion={sesion} />;
 
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-background">
@@ -141,6 +169,19 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     comenzada,
     voz: personaje ? buscarModeloNpc(personaje).voz : VOZ_POR_DEFECTO,
   });
+  const [herramientas, setHerramientas] = useState<Record<Herramienta, boolean>>({
+    remision: false,
+    notas: false,
+  });
+  const alternarHerramienta = (herramienta: Herramienta) =>
+    setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
+  const enConsulta = lista && comenzada && !resumen;
+
+  // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
+  useEffect(() => {
+    audioEspacialStore.setState({ posicionar: motorAudio.posicionar });
+    return () => audioEspacialStore.setState({ posicionar: null });
+  }, [motorAudio]);
 
   return (
     <>
@@ -158,10 +199,31 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
-          <HudSesion sesion={sesion} duracionFinalSegundos={resumen?.duracionSegundos} />
-          <div className="flex items-start gap-2">
+          <HudSesion
+            sesion={sesion}
+            duracionFinalSegundos={resumen?.duracionSegundos}
+            compacto={conversando}
+          />
+          <div className="flex flex-wrap items-start justify-end gap-2">
             {depuracion && <IndicadorFps />}
+            {enConsulta && (
+              <>
+                <BotonHerramienta
+                  herramienta="remision"
+                  abierta={herramientas.remision}
+                  onAlternar={() => alternarHerramienta('remision')}
+                />
+                <BotonHerramienta
+                  herramienta="notas"
+                  abierta={herramientas.notas}
+                  onAlternar={() => alternarHerramienta('notas')}
+                />
+              </>
+            )}
             <BotonSonido motor={motorAudio} />
+            <BotonVoz />
+            <BotonAmbiente />
+            {!conversando && <BotonControles />}
             {lista && comenzada && !resumen && (
               <BotonFinalizar
                 onFinalizar={finalizar}
@@ -170,19 +232,9 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
                 deshabilitado={estadoNpc === 'procesando'}
               />
             )}
-            {/* Sin menú en la simulación: salida discreta al panel. La sesión sigue en curso y
-                se retoma desde "Mis prácticas". */}
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="pointer-events-auto bg-card/90 backdrop-blur"
-            >
-              <Link href="/practicas">
-                <ArrowLeft aria-hidden />
-                Salir al panel
-              </Link>
-            </Button>
+            {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
+                confirmación dice la hora. */}
+            {!resumen && <BotonSalir compacto={conversando} />}
           </div>
         </div>
 
@@ -197,34 +249,52 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         )}
       </div>
 
+      {enConsulta && herramientas.remision && (
+        <HojaRemision
+          sesion={sesion}
+          conversando={conversando}
+          onCerrar={() => alternarHerramienta('remision')}
+        />
+      )}
+      {enConsulta && herramientas.notas && (
+        <LibretaNotas
+          sesionId={sesion.id}
+          conversando={conversando}
+          onCerrar={() => alternarHerramienta('notas')}
+        />
+      )}
+
       {lista && conversando && (
         <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
       )}
       {lista && comenzada && !resumen && <AvisoPantallaCompleta />}
-      {lista && !comenzada && <InstruccionesCaso sesion={sesion} />}
-      {segundosParaCierre !== null && !resumen && (
-        <AvisoInactividad segundosRestantes={segundosParaCierre} />
+      {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
+      {lista && !comenzada && !resumen && (
+        <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
+      )}
+      {segundosParaCierre !== null && comenzada && !resumen && (
+        <AvisoInactividad segundosRestantes={segundosParaCierre} comenzada={comenzada} />
       )}
       {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}
 
       {estado.estado === 'error' && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
           <div role="alert" className="flex max-w-sm flex-col items-center gap-4 text-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+            <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
               <AlertTriangle className="size-6" aria-hidden />
             </span>
-            <h2 className="text-xl font-semibold">{estado.mensaje}</h2>
+            <h2 className="text-xl font-bold">No pudimos cargar el consultorio</h2>
             <p className="text-sm text-muted-foreground">
-              Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, vuelve a tus
-              prácticas y avísale a tu docente.
+              Revisa tu conexión e inténtalo de nuevo. Tu práctica sigue abierta mientras no pasen
+              10 minutos sin actividad.
             </p>
             <div className="flex gap-2">
-              <Button onClick={reintentar}>
+              <Button variant="accion" onClick={reintentar}>
                 <RotateCw aria-hidden />
                 Reintentar
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/practicas">Volver a mis prácticas</Link>
+                <Link href="/practicas">Ir a Mis prácticas</Link>
               </Button>
             </div>
           </div>
@@ -251,16 +321,16 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
 
   return (
     <div className="mt-auto flex justify-center pb-6">
-      <div className="pointer-events-auto flex max-w-md animate-in flex-col items-center gap-4 rounded-2xl border bg-card/95 p-6 text-center shadow-xl backdrop-blur fade-in-0 slide-in-from-bottom-4">
+      <div className="pointer-events-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border bg-card/95 p-6 text-center shadow-xl backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4">
         <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
           <Compass className="size-5" aria-hidden />
         </span>
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Explora el consultorio</h2>
+          <h2 className="text-xl font-bold tracking-[-0.01em]">Explora el consultorio</h2>
           <p className="text-sm text-muted-foreground">
             {cerca
-              ? `Estás frente a ${nombreCorto}. Cuando quieras, inicia la conversación.`
-              : `Acércate a ${nombreCorto} y ubícate frente a su silla para iniciar la conversación.`}
+              ? `Estás frente a ${nombreCorto}. Empieza cuando quieras.`
+              : `Acércate a ${nombreCorto} y ubícate frente a su silla para conversar.`}
           </p>
         </div>
         <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -285,24 +355,127 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
           </li>
         </ul>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button id={ID_BOTON_EXPLORAR} size="lg" variant={cerca ? 'outline' : 'default'}>
+          <Button id={ID_BOTON_EXPLORAR} size="lg" variant={cerca ? 'outline' : 'accion'}>
             Comenzar a explorar
           </Button>
           {cerca && (
-            <Button size="lg" onClick={() => iniciarConversacion(store)}>
+            <Button size="lg" variant="accion" onClick={() => iniciarConversacion(store)}>
               <MessageCircle aria-hidden />
               Conversar con {nombreCorto}
             </Button>
           )}
         </div>
+        {!cerca && (
+          <button
+            type="button"
+            onClick={() => iniciarConversacion(store, { directo: true })}
+            className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Ir directo a la conversación
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
+/**
+ * En un celular o tableta la simulación no se monta: necesita teclado y ratón. La práctica sigue
+ * abierta, así que se dice cómo llevarla al computador antes del cierre por inactividad.
+ */
+function AvisoSimulacionMovil({ sesion }: { sesion: SesionActiva }) {
+  const enlace = typeof window === 'undefined' ? '' : window.location.href;
+  const [copia, setCopia] = useState<'copiado' | 'fallo' | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(enlace);
+      setCopia('copiado');
+    } catch {
+      setCopia('fallo');
+    }
+  };
+
+  return (
+    <main className="flex min-h-dvh items-center justify-center vetas-nogal px-4 py-10">
+      <section className="flex w-full max-w-md flex-col gap-5 rounded-2xl bg-card p-6 shadow-xl">
+        <span className="flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
+          <Monitor className="size-6" aria-hidden />
+        </span>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl leading-tight font-bold tracking-[-0.02em]">
+            La simulación se abre en tu computador
+          </h1>
+          <p className="text-muted-foreground">
+            Necesitas teclado y ratón. Tu práctica de «{sesion.escenario.titulo}» sigue abierta:
+            ábrela desde un computador antes de que pasen 10 minutos sin actividad.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button variant="accion" size="lg" onClick={() => void copiar()}>
+            {copia === 'copiado' ? <Check aria-hidden /> : <Copy aria-hidden />}
+            {copia === 'copiado' ? 'Enlace copiado' : 'Copiar enlace'}
+          </Button>
+          <Button variant="outline" size="lg" asChild>
+            <a
+              href={`mailto:?subject=${encodeURIComponent('Mi práctica en PsySim')}&body=${encodeURIComponent(enlace)}`}
+            >
+              <Mail aria-hidden />
+              Enviármelo por correo
+            </a>
+          </Button>
+          <Button variant="ghost" size="lg" asChild>
+            <Link href="/practicas">Ir a Mis prácticas</Link>
+          </Button>
+          <p role="status" className="min-h-5 text-center text-sm text-salvia-oscuro">
+            {copia === 'copiado' && 'Pégalo en el navegador de tu computador.'}
+            {copia === 'fallo' && (
+              <span className="break-all">
+                No se pudo copiar. Mantén pulsado el enlace: {enlace}
+              </span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setConfirmando(true)}
+          className="mx-auto w-fit text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          Estoy en un computador con teclado y ratón
+        </button>
+      </section>
+      <Dialog open={confirmando} onOpenChange={setConfirmando}>
+        <DialogContent role="alertdialog" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Estás en un computador?</DialogTitle>
+            <DialogDescription>
+              La simulación se maneja con teclado y ratón. Si sigues en el celular, no podrás
+              moverte por el consultorio.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmando(false)}>
+              No, lo abriré después
+            </Button>
+            <Button
+              onClick={() => {
+                confirmarComputador();
+                setConfirmando(false);
+              }}
+            >
+              Sí, abrir la simulación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+
 function Tecla({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-b-2 bg-background px-1.5 font-mono text-xs text-foreground">
+    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border bg-background px-1.5 font-mono text-xs text-foreground shadow-[inset_0_-2px_0_var(--border)]">
       {children}
     </kbd>
   );
@@ -316,7 +489,7 @@ function Mira({ resaltada }: { resaltada: boolean }) {
       className={cn(
         'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-all duration-200',
         resaltada
-          ? 'size-4 border-2 border-white bg-primary/60 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
+          ? 'size-4 border-2 border-white bg-laton/80 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
           : 'size-1.5 bg-white/90 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
       )}
     />

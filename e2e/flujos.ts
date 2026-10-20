@@ -193,7 +193,7 @@ export async function canjearCodigoEnPracticas(page: Page, codigo: string): Prom
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto('/practicas');
   await page.getByLabel('Código de acceso').fill(codigo);
-  await page.getByRole('button', { name: 'Entrar a la simulación' }).click();
+  await page.getByRole('button', { name: 'Usar el código y entrar' }).click();
 
   await expect(page).toHaveURL(/\/simulacion\?sesion=[0-9a-f-]{36}$/);
   return new URL(page.url()).searchParams.get('sesion')!;
@@ -219,7 +219,10 @@ export async function comenzarSimulacion(page: Page, tituloCaso: RegExp) {
   });
   const instrucciones = page.getByRole('dialog', { name: tituloCaso });
   await expect(instrucciones).toBeVisible();
-  await page.getByRole('button', { name: 'Entendido · Iniciar simulación' }).click();
+  // La primera vez en este navegador se acepta el aviso de privacidad.
+  const privacidad = page.getByRole('checkbox', { name: /Leí el aviso de privacidad/ });
+  if (await privacidad.count()) await privacidad.check();
+  await page.getByRole('button', { name: 'Empezar la práctica' }).click();
   await expect(instrucciones).toBeHidden();
   await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
 }
@@ -266,10 +269,10 @@ export async function conversar(panel: Locator, nombreCompleto: string, texto: s
  * pantalla de resultados.
  */
 export async function finalizarDesdeHud(page: Page, sesionId: string) {
-  await page.getByRole('button', { name: 'Finalizar sesión' }).click();
+  await page.getByRole('button', { name: 'Terminar práctica' }).click();
   const confirmacion = page.getByRole('alertdialog');
-  await expect(confirmacion).toContainText('no podrá reanudarse');
-  await confirmacion.getByRole('button', { name: 'Confirmar finalización' }).click();
+  await expect(confirmacion).toContainText('No se puede reanudar');
+  await confirmacion.getByRole('button', { name: 'Terminar práctica' }).click();
   await expect(page).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
     timeout: 30_000,
   });

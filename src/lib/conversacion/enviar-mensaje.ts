@@ -1,3 +1,4 @@
+import { type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import {
   LIMITES_CHAT,
   type MensajeHistorial,
@@ -81,6 +82,7 @@ export async function enviarMensaje(
       remitente: 'estudiante',
       contenido,
       timestamp: new Date().toISOString(),
+      sinGuardar: true,
     };
     estado.conversacion.agregarMensaje(mensaje);
   } else {
@@ -131,20 +133,32 @@ export async function enviarMensaje(
   if (!respuesta.ok) {
     const error = npcChatErrorSchema.safeParse(json);
     const detalle = error.success ? error.data.error : null;
-    return fallar(respuesta.status === 401 && detalle ? detalle : MENSAJE_NO_DISPONIBLE);
+    // La sesión vencida (401) y el límite de mensajes (429) tienen un aviso propio para el estudiante.
+    const conAviso = respuesta.status === 401 || respuesta.status === 429;
+    return fallar(conAviso && detalle ? detalle : MENSAJE_NO_DISPONIBLE);
   }
 
   const datos = npcChatResponseSchema.safeParse(json);
   if (!datos.success) return fallar(MENSAJE_NO_DISPONIBLE);
 
   const final = store.getState();
+  const idRespuesta = crypto.randomUUID();
   final.conversacion.agregarMensaje({
-    id: crypto.randomUUID(),
+    id: idRespuesta,
     remitente: 'npc',
     contenido: datos.data.respuesta_npc,
     timestamp: datos.data.timestamp_respuesta,
     latencia_ms: latencia,
+    sinGuardar: true,
     ...(datos.data.emocion_npc && { emocion: datos.data.emocion_npc }),
+    ...(datos.data.intensidad_npc && {
+      intensidad: datos.data.intensidad_npc as IntensidadEmocion,
+    }),
+  });
+  // Con los ids de la base de datos se puede volver a este momento para ensayar otra respuesta.
+  final.conversacion.confirmarGuardado({
+    [mensaje.id]: datos.data.id_mensaje_estudiante,
+    [idRespuesta]: datos.data.id_mensaje_npc,
   });
   final.metricas.registrarTokens(datos.data.tokens_entrada, datos.data.tokens_salida);
   final.conversacion.establecerPendiente(null);

@@ -45,11 +45,19 @@ export const npcChatResponseSchema = z.object({
   respuesta_npc: z.string().min(1),
   /** Emoción que el paciente expresa con el cuerpo (no se muestra como texto). */
   emocion_npc: z.enum(EMOCIONES_NPC).nullable().default(null),
+  /** Intensidad de esa emoción (1–3): cuánto se le nota en el cuerpo. */
+  intensidad_npc: z.number().int().min(1).max(3).nullable().default(null),
   /** Momento (ISO 8601) en que el servidor recibió la respuesta de la IA. */
   timestamp_respuesta: z.iso.datetime(),
   /** Consumo de la IA: no se muestra en la interfaz, se acumula para el cierre (Sprint 4). */
   tokens_entrada: z.number().int().nonnegative().nullable(),
   tokens_salida: z.number().int().nonnegative().nullable(),
+  /**
+   * Ids con que se guardaron la intervención y la respuesta (`null` si no se pudieron guardar):
+   * permiten volver a ese momento para ensayar otra respuesta.
+   */
+  id_mensaje_estudiante: z.uuid().nullable().default(null),
+  id_mensaje_npc: z.uuid().nullable().default(null),
 });
 
 /** Cuerpo de las respuestas de error (400, 401, 403, 404, 409, 502, 503, 504). */

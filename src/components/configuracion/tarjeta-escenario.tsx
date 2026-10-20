@@ -1,11 +1,13 @@
 import { Check, Coffee, HeartPulse, Target } from 'lucide-react';
 import { type ReactNode } from 'react';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import {
   ETIQUETA_CATEGORIA,
   ETIQUETA_DIFICULTAD,
   NIVEL_DIFICULTAD,
 } from '@/lib/escenarios/etiquetas';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { type EscenarioCatalogo } from '@/types';
 
@@ -46,11 +48,11 @@ export function TarjetaEscenario({
   return (
     <div
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-xs transition-[border-color,box-shadow,background-color]',
-        'hover:border-primary/40 hover:shadow-md',
+        'flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-[border-color,box-shadow,background-color]',
+        'hover:border-nogal/40 hover:shadow-[0_6px_18px_-10px_rgb(58_36_24/0.35)]',
         // Solo el foco del radio resalta la tarjeta; el de las acciones lleva su propio anillo.
-        'has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50',
-        seleccionado && 'border-primary bg-accent/50 shadow-md ring-1 ring-primary'
+        'has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring has-[input:focus-visible]:ring-offset-2',
+        seleccionado && 'border-nogal bg-salvia-suave/45 ring-1 ring-nogal'
       )}
     >
       <label
@@ -74,7 +76,7 @@ export function TarjetaEscenario({
 
         <div className="flex items-center gap-2">
           {escenario.propio ? (
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <span className="rounded-md bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro">
               Propio
             </span>
           ) : (
@@ -98,8 +100,8 @@ export function TarjetaEscenario({
             className={cn(
               'ml-auto flex size-6 items-center justify-center rounded-full border transition-colors',
               seleccionado
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-transparent'
+                ? 'border-nogal bg-nogal text-lino'
+                : 'border-input/60 bg-background text-transparent'
             )}
           >
             <Check className="size-3.5" />
@@ -107,20 +109,28 @@ export function TarjetaEscenario({
         </div>
 
         <div className="flex flex-col gap-1">
-          <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-semibold">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AvatarPaciente
+              src={avatarDeEscena(escenario.configuracion3d)}
+              nombre={escenario.npc.nombre}
+              className="size-7 text-[0.65rem]"
+            />
+            <span>
+              <span className="font-medium text-terracota">{escenario.npc.nombre}</span>,{' '}
+              {escenario.npc.edad} años
+            </span>
+          </p>
+          <h3 id={`${idBase}-titulo`} className="text-lg leading-snug font-bold tracking-[-0.01em]">
             {!escenario.propio && <span className="sr-only">{escenario.codigo}: </span>}
             {escenario.titulo}
           </h3>
           <p className="line-clamp-3 text-sm text-muted-foreground">{escenario.descripcion}</p>
         </div>
 
-        <dl
-          id={`${idBase}-detalle`}
-          className="mt-auto flex flex-col gap-2 border-t border-dashed pt-3 text-sm"
-        >
+        <dl id={`${idBase}-detalle`} className="mt-auto flex flex-col gap-2 border-t pt-3 text-sm">
           <div className="flex items-center gap-2">
-            <dt className="sr-only">Competencia central</dt>
-            <Target className="size-4 shrink-0 text-primary" aria-hidden />
+            <dt className="sr-only">Competencia que entrena</dt>
+            <Target className="size-4 shrink-0 text-salvia" aria-hidden />
             <dd className="font-medium">{escenario.competenciaCentral}</dd>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -131,7 +141,7 @@ export function TarjetaEscenario({
                   key={paso}
                   className={cn(
                     'h-2.5 w-1.5 rounded-full',
-                    paso <= nivel ? 'bg-primary' : 'bg-border'
+                    paso <= nivel ? 'bg-nogal' : 'bg-border'
                   )}
                 />
               ))}
@@ -144,7 +154,7 @@ export function TarjetaEscenario({
         <div
           className={cn(
             'flex min-h-11 items-center gap-1 border-t px-2 py-1.5 transition-colors',
-            seleccionado ? 'border-primary/30 bg-card/60' : 'bg-muted/30'
+            seleccionado ? 'border-nogal/25 bg-card/60' : 'bg-muted/40'
           )}
         >
           {acciones}

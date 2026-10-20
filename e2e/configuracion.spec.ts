@@ -24,6 +24,12 @@ const PREFIJO = 'E2E';
 const PREFIJO_CODIGOS = 'cfg';
 /** Nombre del estudiante de prueba (E2E_ESTUDIANTE_*, creado por pnpm db:seed). */
 const ESTUDIANTE = { codigo: '209990001', nombre: 'Estudiante de Prueba Uno' };
+
+/** Escenarios oficiales sembrados en la base (E-01 a E-12). */
+const CODIGOS_OFICIALES = Array.from(
+  { length: 12 },
+  (_, i) => `E-${String(i + 1).padStart(2, '0')}`
+);
 /** Códigos generados desde la interfaz (aleatorios): se limpian por su valor. */
 const codigosGenerados: string[] = [];
 
@@ -55,32 +61,40 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
   test.beforeEach(async ({ page }) => {
     await iniciarSesionComoDocente(page);
+    // El docente aterriza en su bandeja; asignar una práctica es otra página.
+    await page.goto('/configuracion');
   });
 
-  test('HU-06 · T02: muestra los seis escenarios y expande el perfil del NPC', async ({ page }) => {
-    // Los seis escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
-    await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(6);
-    for (const codigo of ['E-01', 'E-02', 'E-03', 'E-04', 'E-05', 'E-06']) {
+  test('HU-06 · T02: muestra los doce escenarios y expande el perfil del NPC', async ({ page }) => {
+    // Los doce escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
+    await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(12);
+    for (const codigo of CODIGOS_OFICIALES) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
     }
     await expect(page.getByTestId('escenario-E-05')).toContainText('Cotidiano');
     await expect(page.getByTestId('escenario-E-04')).toContainText('Nivel avanzado');
 
-    await expect(page.getByLabel('Comportamiento del paciente')).toBeHidden();
+    // El comportamiento es opcional: queda plegado tras «Ajustar» hasta que el docente lo pide.
+    const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
+    await expect(comportamiento).toBeHidden();
     await page.getByTestId('escenario-E-01').click();
     await expect(page.getByRole('heading', { name: 'Marta Lucía' })).toBeVisible();
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(/Eres Marta Lucía/);
+    await ajustar.click();
+    await page.getByText('Ver o editar el texto completo (avanzado)').click();
+    await expect(comportamiento).toHaveValue(/Eres Marta Lucía/);
 
     // Solo un escenario seleccionado a la vez.
     await page.getByTestId('escenario-E-02').click();
     await expect(
-      page.getByRole('radiogroup', { name: /Elige el caso/ }).getByRole('radio', { checked: true })
+      page.getByRole('radiogroup', { name: /\bCaso\b/ }).getByRole('radio', { checked: true })
     ).toHaveCount(1);
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(/Eres Andrés Felipe/);
+    if (await ajustar.isVisible()) await ajustar.click();
+    await expect(comportamiento).toHaveValue(/Eres Andrés Felipe/);
   });
 
   test('HU-06 · T03: exige el caso y el estudiante con mensajes inline', async ({ page }) => {
-    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
+    await page.getByRole('button', { name: 'Generar código' }).click();
     await expect(page.getByText('Selecciona un escenario para continuar.')).toBeVisible();
     await expect(page.getByText('Elige al estudiante que va a practicar.')).toBeVisible();
     await expect(page).toHaveURL(/\/configuracion$/);
@@ -92,13 +106,17 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
     await page.getByTestId('escenario-E-01').click();
+    // Ajuste guiado, sin escribir instrucciones: viaja con el código.
+    await page.getByRole('button', { name: 'Ajustar para esta práctica' }).click();
+    await page.getByText('Más reservado', { exact: true }).click();
+    await expect(page.getByText(/Así cambiará Marta en esta práctica/)).toBeVisible();
     await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill(ESTUDIANTE.codigo);
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE.nombre) }).click();
     await expect(page.getByTestId('estudiante-elegido')).toHaveText(ESTUDIANTE.nombre);
     await page.getByRole('radio', { name: '1 día' }).check({ force: true });
-    await page.getByRole('button', { name: 'Generar código de acceso' }).click();
+    await page.getByRole('button', { name: 'Generar código' }).click();
 
-    const dialogo = page.getByRole('dialog', { name: 'Código de acceso listo' });
+    const dialogo = page.getByRole('dialog', { name: /Código listo para/ });
     const codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
     codigosGenerados.push(codigo);
     expect(codigo).toMatch(/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/);
@@ -115,6 +133,8 @@ test.describe('configuración del escenario (Sprint 2)', () => {
         .eq('codigo', codigo)
         .single();
       expect(data?.prompt_sistema).toContain('Eres Marta Lucía');
+      expect(data?.prompt_sistema).toContain('Ajustes del docente para esta práctica');
+      expect(data?.prompt_sistema).toContain('te cuesta más abrirte');
       expect(data?.sesion_id).toBeNull();
       const horas =
         (new Date(data!.expira_en).getTime() - new Date(data!.creado_en).getTime()) / 3_600_000;
@@ -129,9 +149,14 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     const guardar = page.getByRole('button', { name: 'Guardar como mi caso' });
     await expect(guardar).toBeDisabled();
 
+    const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
+    const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
     await page.getByTestId('escenario-E-01').click();
-    await page.getByLabel('Comportamiento del paciente').fill(prompt);
-    await expect(page.getByText('Personalizado', { exact: true })).toBeVisible();
+    await ajustar.click();
+    // El texto completo es la opción avanzada, plegada bajo los ajustes guiados.
+    await page.getByText('Ver o editar el texto completo (avanzado)').click();
+    await comportamiento.fill(prompt);
+    await expect(page.getByText('Usará el texto que editaste.')).toBeVisible();
     await guardar.click();
     await page.getByLabel('Nombre del caso').fill(nombre);
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -145,7 +170,11 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
     await page.getByTestId('escenario-E-03').click();
     await propio.check({ force: true });
-    await expect(page.getByLabel('Comportamiento del paciente')).toHaveValue(prompt);
+    if (await ajustar.isVisible()) await ajustar.click();
+    if (!(await comportamiento.isVisible())) {
+      await page.getByText('Ver o editar el texto completo (avanzado)').click();
+    }
+    await expect(comportamiento).toHaveValue(prompt);
 
     await page.getByRole('button', { name: `Eliminar el caso ${nombre}` }).click();
     await page.getByRole('button', { name: 'Sí, eliminar' }).click();
@@ -169,8 +198,12 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await page.getByRole('button', { name: 'reservado' }).click();
     await page.getByLabel('Frase de apertura').fill('Hola, no sé por dónde empezar.');
 
-    // La vista previa se arma con los campos y no incluye las reglas fijas.
-    const vista = page.getByLabel('Prompt generado');
+    // La ficha cuenta al paciente en lenguaje cotidiano.
+    await expect(page.getByText('Para guardar te falta')).toBeHidden();
+    await expect(page.getByText('Todo listo.', { exact: false })).toBeVisible();
+
+    // El texto para la IA se arma con los campos y no incluye las reglas fijas.
+    const vista = page.getByLabel('Comportamiento generado');
     await expect(vista).toContainText('Eres Camila Rojas, una persona de 29 años.');
     await expect(vista).toContainText('tristeza persistente');
     await expect(vista).not.toContainText('Reglas de interpretación');
@@ -207,7 +240,7 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
 
     const sesionId = await prepararSesion(page, PREFIJO_CODIGOS);
 
-    const hud = page.getByRole('complementary', { name: 'Datos de la sesión' });
+    const hud = page.getByRole('complementary', { name: 'Datos de la práctica' });
 
     // La pantalla de carga desaparece cuando la escena está lista.
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
@@ -229,8 +262,12 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     await expect(instrucciones).toContainText('Viuda desde hace cuatro meses');
     await expect(page.getByRole('button', { name: 'Revisar nuevamente' })).toHaveCount(0);
 
-    // Es obligatorio: Escape no lo cierra.
+    // Escape no lo cierra en silencio: pregunta si se deja para después, con la hora límite.
     await page.keyboard.press('Escape');
+    const ahoraNo = page.getByRole('alertdialog', { name: '¿Dejarla para después?' });
+    await expect(ahoraNo).toContainText('Tienes hasta las');
+    await ahoraNo.getByRole('button', { name: 'Seguir leyendo' }).click();
+    await expect(ahoraNo).toBeHidden();
     await expect(instrucciones).toBeVisible();
 
     // El registro existe en Supabase con estado en_curso, el prompt copiado y sin comenzar.
@@ -258,14 +295,16 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     }
 
     // Al confirmar, la simulación comienza: el tiempo corre desde ahora (hora del servidor).
-    await page.getByRole('button', { name: 'Entendido · Iniciar simulación' }).click();
+    await page.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }).check();
+    await page.getByRole('button', { name: 'Empezar la práctica' }).click();
     await expect(instrucciones).toBeHidden();
     await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comenzar a explorar' })).toBeVisible();
     await expect(hud).toContainText('E-01');
     await expect(hud).toContainText('Duelo y pérdida');
     await expect(hud).toContainText('Marta Lucía');
-    await expect(hud).toContainText(ESTUDIANTE.nombre);
+    // El HUD ya no repite los datos del estudiante (están en las instrucciones).
+    await expect(hud).not.toContainText(ESTUDIANTE.nombre);
     await expect(hud).not.toContainText('Sin iniciar');
     if (admin) {
       const comenzada = await leerSesion();
@@ -277,7 +316,7 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
 
     // Recargar conserva la sesión (se hidrata desde el servidor) y no repite las instrucciones.
     await page.reload();
-    await expect(hud).toContainText(ESTUDIANTE.nombre);
+    await expect(hud).toContainText('Duelo y pérdida');
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
       timeout: 60_000,
     });

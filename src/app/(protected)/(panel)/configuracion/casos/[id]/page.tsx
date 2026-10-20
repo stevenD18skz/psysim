@@ -23,11 +23,11 @@ export default async function EditarCasoPage({ params }: PageProps<'/configuraci
   if (!caso) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
         sobretitulo="Mis casos"
         titulo={`Editar «${caso.titulo}»`}
-        descripcion="Los cambios aplican a las sesiones nuevas. Las sesiones ya realizadas conservan el prompt que usaron."
+        descripcion="Los cambios valen para las prácticas que asignes desde ahora. Las ya asignadas conservan su copia del caso."
       />
       <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />
     </div>

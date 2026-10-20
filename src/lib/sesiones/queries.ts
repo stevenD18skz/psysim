@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
+import { separarIntentos } from '@/lib/conversacion/intentos';
 import { obtenerMensajesSesion } from '@/lib/escenarios/queries';
 import {
   CASO_NO_DISPONIBLE,
@@ -12,7 +13,9 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import {
   type Asignacion,
+  type CodigoPendiente,
   type DetalleSesion,
+  type SesionDocente,
   type SesionHistorial,
   type SesionInforme,
 } from '@/types';
@@ -25,7 +28,7 @@ import {
  */
 
 const COLUMNAS_HISTORIAL = `
-  id, estado, comenzada, inicio, fin, escenario_id,
+  id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
   usuario ( nombre ),
   retroalimentacion ( publicada_en, nota )
 ` as const;
@@ -37,6 +40,7 @@ interface FilaHistorial {
   inicio: string;
   fin: string | null;
   escenario_id: string;
+  ultima_actividad: string;
   usuario: { nombre: string } | null;
   retroalimentacion: { publicada_en: string | null; nota: number | null } | null;
 }
@@ -49,6 +53,7 @@ async function aHistorial(filas: FilaHistorial[]): Promise<SesionHistorial[]> {
     comenzada: fila.comenzada,
     inicio: fila.inicio,
     fin: fila.fin,
+    ultimaActividad: fila.ultima_actividad,
     escenario: titulos.get(fila.escenario_id) ?? CASO_NO_DISPONIBLE,
     docente: fila.usuario?.nombre ?? null,
     retroalimentacion: fila.retroalimentacion
@@ -101,7 +106,7 @@ export const obtenerInformeDeEstudiante = cache(
     const { data, error } = await supabase
       .from('sesion')
       .select(
-        `id, estado, comenzada, inicio, fin, escenario_id,
+        `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
          usuario ( nombre ),
          retroalimentacion ( publicada_en, nota, comentario_general )`
       )
@@ -123,6 +128,86 @@ export const obtenerInformeDeEstudiante = cache(
     });
   }
 );
+
+/**
+ * Todas las sesiones del docente autenticado (RLS solo deja ver las suyas) con su estudiante, de la
+ * más reciente a la más antigua. Alimenta la bandeja de inicio y la página de revisiones.
+ */
+export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]> => {
+  const supabase = await createClient();
+  // El conteo de intervenciones va embebido (una sola consulta) y solo cuenta las vigentes.
+  const { data, error } = await supabase
+    .from('sesion')
+    .select(
+      `${COLUMNAS_HISTORIAL}, estudiante_id, nombre_estudiante, codigo_estudiante,
+       intervenciones:mensaje ( count )`
+    )
+    .eq('mensaje.remitente', 'estudiante')
+    .is('mensaje.descartado_en', null)
+    .order('inicio', { ascending: false });
+
+  if (error) {
+    throw new Error('No fue posible cargar las sesiones.', { cause: error });
+  }
+
+  const historial = await aHistorial(data);
+  return historial.map((sesion, indice) => {
+    const fila = data[indice];
+    return {
+      ...sesion,
+      estudiante: {
+        id: fila?.estudiante_id ?? '',
+        nombre: fila?.nombre_estudiante ?? '',
+        codigo: fila?.codigo_estudiante ?? '',
+      },
+      intervenciones: fila?.intervenciones[0]?.count ?? 0,
+    };
+  });
+});
+
+/**
+ * Códigos del docente que aún se pueden usar (sin canjear, sin anular y vigentes), del que vence
+ * primero al último, con el estudiante al que pertenecen.
+ */
+export const obtenerCodigosPendientes = cache(async (): Promise<CodigoPendiente[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('asignacion')
+    .select('id, codigo, expira_en, creado_en, escenario_id, estudiante ( id, nombre, codigo )')
+    .is('sesion_id', null)
+    .is('anulada_en', null)
+    .gt('expira_en', new Date().toISOString())
+    .order('expira_en', { ascending: true });
+
+  if (error) {
+    throw new Error('No fue posible cargar los códigos de acceso.', { cause: error });
+  }
+
+  const titulos = await leerTitulosDeEscenarios(data.map(f => f.escenario_id));
+  return data.map(fila => ({
+    id: fila.id,
+    codigo: fila.codigo,
+    expiraEn: fila.expira_en,
+    creadoEn: fila.creado_en,
+    escenario: titulos.get(fila.escenario_id) ?? CASO_NO_DISPONIBLE,
+    estudiante: fila.estudiante
+      ? { id: fila.estudiante.id, nombre: fila.estudiante.nombre, codigo: fila.estudiante.codigo }
+      : null,
+  }));
+});
+
+/** Cuántos códigos generó el docente con cada caso (por id del escenario), para la biblioteca. */
+export const obtenerAsignacionesPorCaso = cache(async (): Promise<Map<string, number>> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('asignacion').select('escenario_id');
+  if (error) {
+    throw new Error('No fue posible cargar el uso de los casos.', { cause: error });
+  }
+  const conteo = new Map<string, number>();
+  for (const { escenario_id } of data)
+    conteo.set(escenario_id, (conteo.get(escenario_id) ?? 0) + 1);
+  return conteo;
+});
 
 /** Códigos de acceso que el docente generó para un estudiante, del más reciente al más antiguo. */
 export const obtenerAsignacionesDeEstudiante = cache(
@@ -180,10 +265,11 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
   }
   if (!data) return null;
 
-  const [escenario, mensajes] = await Promise.all([
+  const [escenario, todos] = await Promise.all([
     leerEscenarioDeSesion(data.escenario_id),
     obtenerMensajesSesion(data.id),
   ]);
+  const { vigentes: mensajes, intentos } = separarIntentos(todos);
   const retro = data.retroalimentacion;
 
   return {
@@ -210,6 +296,7 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
       ? { nombre: escenario.npc.nombre, edad: escenario.npc.edad }
       : { nombre: 'Paciente', edad: 0 },
     mensajes,
+    intentos,
     retroalimentacion: retro
       ? {
           comentarioGeneral: retro.comentario_general,

@@ -14,9 +14,8 @@ import {
 } from '@/components/ui/dialog';
 
 /**
- * HU-17 (versión mínima) — El estudiante termina la simulación desde el HUD. Pide confirmación
- * porque la sesión no se puede reanudar: queda lista para que el docente la revise. El Sprint 4
- * amplía el cierre con las métricas y la pantalla de resultados.
+ * HU-17 — El estudiante termina la práctica desde el HUD. Pide confirmación porque no se puede
+ * reanudar: queda lista para que el docente la revise. Se deshabilita mientras el paciente responde.
  */
 export function BotonFinalizar({
   onFinalizar,
@@ -34,24 +33,24 @@ export function BotonFinalizar({
       <Button
         variant="outline"
         size="sm"
-        className="pointer-events-auto bg-card/90 backdrop-blur"
+        className="pointer-events-auto bg-card/90 font-semibold backdrop-blur"
         onClick={() => {
           // Con el ratón capturado no se puede usar el diálogo: se libera primero.
           document.exitPointerLock?.();
           setAbierto(true);
         }}
         disabled={deshabilitado || finalizando}
+        title={deshabilitado ? 'Espera a que el paciente termine de responder.' : undefined}
       >
         {finalizando ? <Loader2 className="animate-spin" aria-hidden /> : <Flag aria-hidden />}
-        Finalizar sesión
+        {finalizando ? 'Terminando…' : 'Terminar práctica'}
       </Button>
       <Dialog open={abierto} onOpenChange={setAbierto}>
         <DialogContent role="alertdialog" className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>¿Finalizar la simulación?</DialogTitle>
+            <DialogTitle>¿Terminar la práctica?</DialogTitle>
             <DialogDescription>
-              La sesión terminará y no podrá reanudarse. Tu docente revisará la conversación y te
-              dejará su retroalimentación.
+              No se puede reanudar. Tu docente leerá la conversación y te dejará sus comentarios.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -65,7 +64,7 @@ export function BotonFinalizar({
               }}
               disabled={finalizando}
             >
-              Confirmar finalización
+              Terminar práctica
             </Button>
           </DialogFooter>
         </DialogContent>

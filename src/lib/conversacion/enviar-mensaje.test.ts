@@ -195,4 +195,18 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     });
     expect(resultado).toEqual({ ok: false, motivo: 'Tu sesión expiró. Vuelve a iniciar sesión.' });
   });
+
+  it('RNF-03.7: muestra cuánto esperar cuando se alcanza el límite de mensajes (429)', async () => {
+    const store = storeListo();
+    const aviso = 'Estás enviando mensajes muy seguido. Espera 30 s antes de volver a escribir.';
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () => jsonResponse({ error: aviso }, 429)),
+      ahora,
+    });
+    expect(resultado).toEqual({ ok: false, motivo: aviso });
+    // El mensaje queda pendiente: el estudiante lo reintenta cuando pase la espera.
+    const { conversacion, npc } = store.getState();
+    expect(npc.estado).toBe('error_comunicacion');
+    expect(conversacion.pendiente?.contenido).toBe('Hola');
+  });
 });

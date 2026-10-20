@@ -5,9 +5,10 @@ import { use, useEffect, useMemo, useState } from 'react';
 import { Vector3 } from 'three';
 
 import { medidasPacienteStore } from '@/components/3d/medidas-paciente';
+import { senalesConversacion } from '@/components/simulacion/senales-conversacion';
 import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
 import { planVoz, type Voz } from '@/lib/audio/voz';
-import { emocionActual } from '@/lib/conversacion/emociones';
+import { emocionActual, intensidadActual } from '@/lib/conversacion/emociones';
 import { AnimadorPaciente } from '@/lib/npc/animador-paciente';
 import { cargarGlb } from '@/lib/npc/cargar-glb';
 import { type ModeloNpc, urlModeloNpc } from '@/lib/npc/catalogo';
@@ -25,15 +26,20 @@ function ultimaRespuesta({ conversacion }: AppState): string | undefined {
 /**
  * Conecta el animador con el store de Zustand sin re-renderizar React: en cada cambio del estado
  * del NPC o de la conversación ajusta el bucle y la expresión, y en cada transición decide el
- * gesto (saludar al llegar, asentir o negar al responder, despedirse al terminar). Al empezar a
- * responder, la boca sigue el mismo plan de sílabas que suena (`useSonidoSimulacion`).
+ * gesto (saludar al llegar, asentir, negar o encogerse al responder, despedirse al terminar). Al
+ * empezar a responder, la boca y los ademanes siguen el mismo plan de sílabas que suena
+ * (`useSonidoSimulacion`), y las frases clave del texto marcan sus gestos.
  */
 function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
   const store = useAppStoreApi();
 
   useEffect(() => {
     let previo = store.getState();
-    animador.actualizarConducta(previo.npc.estado, emocionActual(previo.conversacion.mensajes));
+    animador.actualizarConducta(
+      previo.npc.estado,
+      emocionActual(previo.conversacion.mensajes),
+      intensidadActual(previo.conversacion.mensajes)
+    );
 
     return store.subscribe(actual => {
       const desde = previo.npc.estado;
@@ -44,6 +50,9 @@ function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
         return;
       }
 
+      // El estudiante volvió a un momento anterior (ensayar otra respuesta).
+      if (mensajes.length < previo.conversacion.mensajes.length) animador.reiniciarMomento();
+
       // Primero el gesto: así el bucle nuevo espera a que termine en lugar de mezclarse con él.
       const gesto = gestoDeTransicion(desde, hacia, {
         primerEncuentro: mensajes.length === 0,
@@ -51,14 +60,25 @@ function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
       });
       if (gesto) animador.hacerGesto(gesto);
       const emocion = emocionActual(mensajes);
-      animador.actualizarConducta(hacia, emocion);
+      animador.actualizarConducta(hacia, emocion, intensidadActual(mensajes));
       if (hacia === 'respondiendo' && desde !== hacia) {
         const respuesta = ultimaRespuesta(actual) ?? '';
-        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)));
+        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)), respuesta);
       }
       previo = actual;
     });
   }, [store, animador, voz]);
+
+  // Escucha activa: atento mientras el estudiante escribe y un asentimiento en cada pausa.
+  useEffect(
+    () =>
+      senalesConversacion.subscribe((actual, previo) => {
+        if (actual.escribiendo !== previo.escribiendo) animador.escuchar(actual.escribiendo);
+        else if (actual.ultimaActividad !== previo.ultimaActividad) animador.escuchar(false);
+        if (actual.pausas > previo.pausas) animador.asentirLeve();
+      }),
+    [animador]
+  );
 }
 
 /**
@@ -77,6 +97,8 @@ export function PacientePersonaje({ npc, personaje }: { npc: ConfigNpc; personaj
         postura: npc.postura,
         alturaAsiento: npc.alturaAsiento,
         piernas: npc.piernas,
+        movimientoReducido:
+          window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
       })
   );
   const camara = useMemo(() => new Vector3(), []);

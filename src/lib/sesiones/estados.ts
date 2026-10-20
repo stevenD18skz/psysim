@@ -1,3 +1,4 @@
+import { cierrePorInactividad } from '@/lib/fechas';
 import { type SesionHistorial } from '@/types';
 
 /** Tono visual del estado (se traduce a colores en la interfaz). */
@@ -10,44 +11,82 @@ export interface EstadoVisible {
 
 type DatosEstado = Pick<SesionHistorial, 'estado' | 'comenzada' | 'retroalimentacion'>;
 
+interface ContextoEstado {
+  /** Última actividad de una práctica en curso: permite saber si ya se está cerrando. */
+  ultimaActividad?: string;
+  ahora?: Date;
+}
+
 /**
- * Qué está pasando con la sesión, en palabras del docente o del estudiante:
- * en progreso, pendiente de retroalimentación, borrador o retroalimentación publicada.
+ * Qué está pasando con la práctica, con la misma regla para los dos roles y la voz de cada uno
+ * (tabla de estados de docs/rediseno/fase-2-flujos-y-copy.md, §2.1). Una práctica en curso cuyo
+ * plazo de inactividad ya venció se muestra «cerrándose» hasta que el servidor la cierre.
  */
 export function estadoVisibleSesion(
   sesion: DatosEstado,
-  para: 'docente' | 'estudiante'
+  para: 'docente' | 'estudiante',
+  { ultimaActividad, ahora = new Date() }: ContextoEstado = {}
 ): EstadoVisible {
+  const docente = para === 'docente';
+
   if (sesion.estado === 'en_curso') {
-    if (!sesion.comenzada) {
-      return {
-        texto: para === 'docente' ? 'Leyendo las instrucciones' : 'Sin comenzar',
-        tono: 'en-curso',
-      };
+    if (ultimaActividad && cierrePorInactividad(ultimaActividad) < ahora) {
+      return { texto: 'Cerrándose por inactividad', tono: 'neutro' };
     }
-    return { texto: 'Simulación en progreso', tono: 'en-curso' };
+    if (!sesion.comenzada) {
+      return { texto: docente ? 'Abrió la práctica' : 'Abierta, sin empezar', tono: 'en-curso' };
+    }
+    return { texto: docente ? 'Practicando ahora' : 'En curso', tono: 'en-curso' };
   }
 
-  const publicada = sesion.retroalimentacion?.publicada ?? false;
-  if (publicada) {
-    return {
-      texto: para === 'docente' ? 'Retroalimentación publicada' : 'Retroalimentación disponible',
-      tono: 'listo',
-    };
+  if (sesion.estado === 'interrumpida' && !sesion.comenzada) {
+    return { texto: 'Sin conversación', tono: 'neutro' };
   }
-  if (para === 'docente') {
-    return sesion.retroalimentacion
-      ? { texto: 'Borrador de retroalimentación', tono: 'pendiente' }
-      : { texto: 'Pendiente de retroalimentación', tono: 'pendiente' };
+
+  if (sesion.retroalimentacion?.publicada) {
+    return { texto: docente ? 'Publicada' : 'Retroalimentación lista', tono: 'listo' };
   }
+
+  if (!docente) return { texto: 'Esperando retroalimentación', tono: 'pendiente' };
+  if (sesion.retroalimentacion) return { texto: 'Borrador guardado', tono: 'pendiente' };
   return {
-    texto:
-      sesion.estado === 'interrumpida'
-        ? 'Interrumpida · en revisión'
-        : 'Pendiente de retroalimentación',
+    texto: sesion.estado === 'interrumpida' ? 'Por revisar · sin terminar' : 'Por revisar',
     tono: 'pendiente',
   };
 }
+
+/**
+ * ¿Le toca al docente revisarla? Terminó (finalizada o interrumpida), llegó a comenzar (hay una
+ * conversación que leer) y su retroalimentación aún no está publicada.
+ */
+export function estaPorRevisar(
+  sesion: Pick<SesionHistorial, 'estado' | 'comenzada' | 'retroalimentacion'>
+): boolean {
+  return (
+    sesion.estado !== 'en_curso' &&
+    sesion.comenzada &&
+    !(sesion.retroalimentacion?.publicada ?? false)
+  );
+}
+
+/** Filtros por estado de una lista de prácticas (ficha del estudiante, Mis prácticas). */
+export const FILTROS_PRACTICAS = [
+  { valor: 'todas', etiqueta: 'Todas', predicado: () => true },
+  { valor: 'por-revisar', etiqueta: 'Por revisar', predicado: estaPorRevisar },
+  {
+    valor: 'publicadas',
+    etiqueta: 'Con retroalimentación',
+    predicado: (s: DatosEstado) => s.retroalimentacion?.publicada ?? false,
+  },
+  {
+    valor: 'en-curso',
+    etiqueta: 'En curso',
+    predicado: (s: DatosEstado) => s.estado === 'en_curso',
+  },
+] as const;
+
+export type FiltroPracticas = (typeof FILTROS_PRACTICAS)[number]['valor'];
+export const IDS_FILTRO_PRACTICAS = FILTROS_PRACTICAS.map(f => f.valor);
 
 /** Estado de la sesión en una palabra, para tablas e informes. */
 export function estadoCortoSesion(sesion: Pick<SesionHistorial, 'estado' | 'comenzada'>): string {

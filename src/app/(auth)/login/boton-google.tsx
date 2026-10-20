@@ -57,13 +57,13 @@ export function BotonGoogle({ siguiente }: { siguiente: string | null }) {
         type="button"
         variant="outline"
         size="lg"
-        className="h-11 text-base"
+        className="h-12 border-2 border-nogal/70 bg-card text-base font-semibold shadow-[0_1px_2px_rgb(58_36_24/0.12)] hover:border-nogal hover:bg-card"
         onClick={continuar}
         disabled={conectando}
         aria-busy={conectando}
       >
         {conectando ? <Loader2 className="animate-spin" aria-hidden /> : <LogoGoogle />}
-        {conectando ? 'Conectando con Google…' : 'Continuar con Google'}
+        {conectando ? 'Abriendo Google…' : 'Continuar con Google'}
       </Button>
     </div>
   );

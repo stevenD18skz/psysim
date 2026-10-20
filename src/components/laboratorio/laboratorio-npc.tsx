@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 
 // Three.js necesita el DOM: el visor no se renderiza en el servidor y va en un chunk aparte.
 const NpcVisor = dynamic(() => import('@/components/npc/npc-visor'), { ssr: false });
+const PacienteVisor = dynamic(() => import('@/components/npc/paciente-visor'), { ssr: false });
+
+type Vista = 'clips' | 'paciente';
 
 function Cargando({ nombre }: { nombre: string }) {
   return (
@@ -84,7 +87,7 @@ function SelectorNpc({
             onPointerEnter={() => void cargarGlb(urlModeloNpc(modelo)).catch(() => {})}
             onFocus={() => void cargarGlb(urlModeloNpc(modelo)).catch(() => {})}
             className={cn(
-              'flex items-center gap-2 rounded-full border py-1 pr-3.5 pl-1 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+              'flex items-center gap-2 rounded-full border py-1 pr-3.5 pl-1 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden',
               activo
                 ? 'border-primary bg-accent font-medium text-accent-foreground'
                 : 'bg-background hover:bg-muted'
@@ -108,12 +111,15 @@ function SelectorNpc({
 /**
  * Laboratorio de NPC: elige un personaje del catálogo (GLB con esqueleto y 13 animaciones) y
  * pruébalo con su panel o con la API pública (`play`, `say`, `setSpeed`, `onActionEnd`), tal como
- * lo haría la simulación.
+ * lo haría la simulación. La vista «Paciente sentado» (`?vista=paciente`) muestra al mismo
+ * personaje como paciente, con su lenguaje no verbal y sus gestos.
  */
 export function LaboratorioNpc() {
   const router = useRouter();
   const pathname = usePathname();
-  const modelo = buscarModeloNpc(useSearchParams().get('npc'));
+  const parametros = useSearchParams();
+  const modelo = buscarModeloNpc(parametros.get('npc'));
+  const vista: Vista = parametros.get('vista') === 'paciente' ? 'paciente' : 'clips';
 
   const api = useRef<NpcApi>(null);
   const [accion, setAccion] = useState<AccionNpc>('wave');
@@ -122,10 +128,15 @@ export function LaboratorioNpc() {
   const idAccion = useId();
   const idFrase = useId();
 
+  const navegar = (npc: string, siguienteVista: Vista) =>
+    router.replace(
+      `${pathname}?npc=${npc}${siguienteVista === 'paciente' ? '&vista=paciente' : ''}`,
+      { scroll: false }
+    );
   const seleccionar = (siguiente: ModeloNpc) => {
     if (siguiente.id === modelo.id) return;
     setRegistro([]);
-    router.replace(`${pathname}?npc=${siguiente.id}`, { scroll: false });
+    navegar(siguiente.id, vista);
   };
 
   const alTerminar = (terminada: AccionNpc) =>
@@ -142,9 +153,33 @@ export function LaboratorioNpc() {
             </Link>
           </Button>
           <SelectorNpc seleccionado={modelo} onSeleccionar={seleccionar} />
+          <div role="radiogroup" aria-label="Vista" className="ml-auto flex gap-1">
+            {(
+              [
+                ['clips', 'De pie (clips)'],
+                ['paciente', 'Paciente sentado'],
+              ] as const
+            ).map(([id, etiqueta]) => (
+              <Button
+                key={id}
+                size="sm"
+                role="radio"
+                aria-checked={vista === id}
+                variant={vista === id ? 'default' : 'outline'}
+                onClick={() => navegar(modelo.id, id)}
+              >
+                {etiqueta}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-x-4 gap-y-2 text-sm',
+            vista === 'paciente' && 'hidden'
+          )}
+        >
           <span className="font-medium text-muted-foreground">API:</span>
           <div className="flex items-center gap-1.5">
             <label htmlFor={idAccion} className="sr-only">
@@ -204,14 +239,18 @@ export function LaboratorioNpc() {
       </div>
 
       {/* `key`: cada NPC monta su propio visor y controlador (el anterior se libera). */}
-      <LimiteErrorNpc key={modelo.id} nombre={modelo.nombre}>
+      <LimiteErrorNpc key={`${modelo.id}-${vista}`} nombre={modelo.nombre}>
         <Suspense fallback={<Cargando nombre={modelo.nombre} />}>
-          <NpcVisor
-            modelo={modelo}
-            apiRef={api}
-            onActionEnd={alTerminar}
-            className="min-h-0 flex-1"
-          />
+          {vista === 'paciente' ? (
+            <PacienteVisor modelo={modelo} className="min-h-0 flex-1" />
+          ) : (
+            <NpcVisor
+              modelo={modelo}
+              apiRef={api}
+              onActionEnd={alTerminar}
+              className="min-h-0 flex-1"
+            />
+          )}
         </Suspense>
       </LimiteErrorNpc>
     </div>

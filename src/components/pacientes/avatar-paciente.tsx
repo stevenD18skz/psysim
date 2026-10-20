@@ -30,7 +30,7 @@ export function AvatarPaciente({ src, nombre, className }: AvatarPacienteProps) 
     <span
       aria-hidden
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-semibold text-primary-foreground',
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-terracota-suave font-semibold text-terracota',
         className
       )}
     >

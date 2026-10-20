@@ -1,25 +1,43 @@
-import { ArrowLeft, CalendarClock, Clock, MessageSquareText, UserRound } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
+import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import { Indicadores } from '@/components/comun/indicadores';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
+import { intervencionesDe } from '@/lib/conversacion/intentos';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { duracionSesion, estadoVisibleSesion } from '@/lib/sesiones/estados';
 import { type DetalleSesion } from '@/types';
 
-/** Encabezado común de la revisión (docente) y del detalle de la práctica (estudiante). */
+/** Posición en la cola de revisión: «2 de 5 por revisar», con anterior y siguiente. */
+export interface PosicionRevision {
+  indice: number;
+  total: number;
+  anterior: string | null;
+  siguiente: string | null;
+}
+
+/** Encabezado común de la revisión (docente) y de la relectura de la práctica (estudiante). */
 export function EncabezadoSesion({
   sesion,
   para,
   volver,
+  posicion = null,
 }: {
   sesion: DetalleSesion;
   para: 'docente' | 'estudiante';
   volver: { href: Route; etiqueta: string };
+  posicion?: PosicionRevision | null;
 }) {
   const duracion = duracionSesion(sesion);
   const intervenciones = sesion.mensajes.filter(m => m.remitente === 'estudiante').length;
+  const reformuladas = sesion.intentos.reduce(
+    (total, intento) => total + intervencionesDe(intento),
+    0
+  );
   const estado = estadoVisibleSesion(
     {
       ...sesion,
@@ -33,62 +51,99 @@ export function EncabezadoSesion({
     para
   );
 
-  const datos = [
-    para === 'docente'
-      ? {
-          icono: UserRound,
-          etiqueta: 'Estudiante',
-          valor: `${sesion.estudiante.nombre} · ${sesion.estudiante.codigo}`,
-        }
-      : { icono: UserRound, etiqueta: 'Docente', valor: sesion.docente ?? '—' },
-    { icono: CalendarClock, etiqueta: 'Fecha', valor: formatearFechaHora(sesion.inicio) },
-    {
-      icono: Clock,
-      etiqueta: 'Duración',
-      valor: duracion === null ? '—' : formatearDuracion(duracion),
-    },
-    { icono: MessageSquareText, etiqueta: 'Intervenciones', valor: String(intervenciones) },
-  ];
-
   return (
-    <div className="flex flex-col gap-4">
-      <Link
-        href={volver.href}
-        className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+    <div className="flex flex-col gap-5">
+      <EncabezadoPagina
+        volver={volver}
+        titulo={
+          <>
+            <CodigoCaso
+              codigo={sesion.escenario.codigo}
+              className="mr-3 align-middle font-mono text-base font-medium text-muted-foreground"
+            />
+            {sesion.escenario.titulo}
+          </>
+        }
+        acciones={
+          posicion && posicion.total > 0 ? (
+            <nav aria-label="Prácticas por revisar" className="flex items-center gap-1">
+              <span className="mr-2 text-sm text-muted-foreground tabular-nums">
+                {posicion.indice} de {posicion.total} por revisar
+              </span>
+              <EnlaceCola
+                href={posicion.anterior}
+                etiqueta="Práctica anterior por revisar"
+                icono="anterior"
+              />
+              <EnlaceCola
+                href={posicion.siguiente}
+                etiqueta="Siguiente práctica por revisar"
+                icono="siguiente"
+              />
+            </nav>
+          ) : undefined
+        }
       >
-        <ArrowLeft className="size-4" aria-hidden />
-        {volver.etiqueta}
-      </Link>
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium">
-            {sesion.escenario.codigo}
-          </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-muted-foreground">
           <InsigniaEstado estado={estado} />
+          <span>
+            Paciente: <span className="font-medium text-terracota">{sesion.npc.nombre}</span>
+            {sesion.npc.edad > 0 && `, ${sesion.npc.edad} años`}
+          </span>
+          <span aria-hidden>·</span>
+          <span>
+            {para === 'estudiante' ? 'Competencia que practicaste' : 'Competencia'}:{' '}
+            {sesion.escenario.competenciaCentral}
+          </span>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {sesion.escenario.titulo}
-        </h1>
-        <p className="text-muted-foreground">
-          Paciente: {sesion.npc.nombre}
-          {sesion.npc.edad > 0 && `, ${sesion.npc.edad} años`} · Se entrena:{' '}
-          {sesion.escenario.competenciaCentral}
-        </p>
-      </header>
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {datos.map(({ icono: Icono, etiqueta, valor }) => (
-          <div
-            key={etiqueta}
-            className="flex flex-col gap-1 rounded-2xl border bg-card p-3.5 shadow-xs"
-          >
-            <dt className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <Icono className="size-3.5 text-primary" aria-hidden />
-              {etiqueta}
-            </dt>
-            <dd className="truncate font-medium tabular-nums">{valor}</dd>
-          </div>
-        ))}
-      </dl>
+      </EncabezadoPagina>
+      <Indicadores
+        indicadores={[
+          para === 'docente'
+            ? {
+                etiqueta: 'Estudiante',
+                valor: `${sesion.estudiante.nombre} · ${sesion.estudiante.codigo}`,
+              }
+            : { etiqueta: 'Docente', valor: sesion.docente ?? '—' },
+          { etiqueta: 'Fecha', valor: formatearFechaHora(sesion.inicio) },
+          { etiqueta: 'Duración', valor: duracion === null ? '—' : formatearDuracion(duracion) },
+          {
+            etiqueta: 'Intervenciones',
+            valor:
+              reformuladas > 0
+                ? `${intervenciones} · ${reformuladas} ${reformuladas === 1 ? 'reformulada' : 'reformuladas'}`
+                : intervenciones,
+          },
+        ]}
+      />
     </div>
+  );
+}
+
+function EnlaceCola({
+  href,
+  etiqueta,
+  icono,
+}: {
+  href: string | null;
+  etiqueta: string;
+  icono: 'anterior' | 'siguiente';
+}) {
+  const Icono = icono === 'anterior' ? ChevronLeft : ChevronRight;
+  const clases =
+    'flex size-9 items-center justify-center rounded-lg border bg-card transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden';
+  if (!href) {
+    return (
+      <span aria-disabled className={`${clases} text-muted-foreground/50`}>
+        <Icono className="size-4" aria-hidden />
+        <span className="sr-only">{etiqueta} (no hay)</span>
+      </span>
+    );
+  }
+  return (
+    <Link href={href as Route} className={`${clases} hover:bg-muted`} title={etiqueta}>
+      <Icono className="size-4" aria-hidden />
+      <span className="sr-only">{etiqueta}</span>
+    </Link>
   );
 }

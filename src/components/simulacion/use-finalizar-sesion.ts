@@ -1,5 +1,6 @@
 'use client';
 
+import { unstable_rethrow } from 'next/navigation';
 import { useCallback, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
@@ -41,7 +42,14 @@ export function useFinalizarSesion() {
     const sesionId = sesion.activa.id;
 
     startTransition(async () => {
-      const resultado = await finalizarSesion({ sesionId });
+      let resultado;
+      try {
+        resultado = await finalizarSesion({ sesionId });
+      } catch (error) {
+        unstable_rethrow(error);
+        toast.error('No pudimos terminar la práctica: revisa tu conexión e inténtalo de nuevo.');
+        return;
+      }
       if (!resultado.ok) {
         toast.error(resultado.error);
         return;
@@ -55,7 +63,12 @@ export function useFinalizarSesion() {
     const sesionId = store.getState().sesion.activa?.id;
     if (!sesionId) return false;
 
-    const resultado = await cerrarSesionPorInactividad({ sesionId });
+    let resultado;
+    try {
+      resultado = await cerrarSesionPorInactividad({ sesionId });
+    } catch {
+      return false;
+    }
     if (!resultado.ok) return false;
     const { inicio, fin, estado } = resultado.datos;
     mostrarCierre(inicio, fin, estado === 'interrumpida' ? 'inactividad' : 'finalizada');

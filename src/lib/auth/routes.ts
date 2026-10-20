@@ -22,8 +22,12 @@ export const ROLES_DOCENTE: readonly RolUsuario[] = ['superadmin', 'docente'];
 export const CLAIM_ROL = 'rol_usuario';
 
 export const RUTA_LOGIN = '/login' satisfies Route;
-export const RUTA_INICIO_ADMIN = '/admin' satisfies Route;
-export const RUTA_INICIO_DOCENTE = '/configuracion' satisfies Route;
+/**
+ * El docente y el Administrador aterrizan en su bandeja de trabajo (lo pendiente de revisar, quién
+ * practica ahora y los códigos por vencer); el Administrador la ve con su franja de administración.
+ */
+export const RUTA_INICIO_ADMIN = '/inicio' satisfies Route;
+export const RUTA_INICIO_DOCENTE = '/inicio' satisfies Route;
 export const RUTA_INICIO_ESTUDIANTE = '/practicas' satisfies Route;
 export const RUTA_ACCESO_DENEGADO = '/acceso-denegado' satisfies Route;
 
