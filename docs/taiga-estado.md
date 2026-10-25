@@ -34,13 +34,13 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, falta una acción externa o una veri
 
 ## Sprint 4 — HUD, métricas y cierre de sesión (implementado en esta revisión)
 
-| HU    | Historia                  | Taiga | Real | Qué se hizo                                                                                   |
-| ----- | ------------------------- | ----- | ---- | --------------------------------------------------------------------------------------------- |
-| HU-17 | HUD de la simulación      | New   | ✅   | Estado del paciente en el HUD (`hud-sesion.tsx`); barra y «Terminar práctica» ya existían     |
-| HU-18 | Captura de métricas       | New   | ✅   | `lib/metrics.ts`, muestreo de proximidad (`use-proximidad.ts`), slice de métricas             |
-| HU-19 | Route Handler de métricas | New   | 🟡   | `app/api/metrics/save` + migración `20261025010000_metricas_sesion.sql` (**falta aplicarla**) |
-| HU-20 | Flujo de cierre de sesión | New   | ✅   | `use-finalizar-sesion.ts` guarda y redirige; si el guardado falla, cierra sin métricas        |
-| HU-21 | Pantalla de resultados    | New   | ✅   | `/resultados`: indicadores, historial y acciones, para el estudiante y su docente             |
+| HU    | Historia                  | Taiga | Real | Qué se hizo                                                                                     |
+| ----- | ------------------------- | ----- | ---- | ----------------------------------------------------------------------------------------------- |
+| HU-17 | HUD de la simulación      | New   | ✅   | Estado del paciente en el HUD (`hud-sesion.tsx`); barra y «Terminar práctica» ya existían       |
+| HU-18 | Captura de métricas       | New   | ✅   | `lib/metrics.ts`, muestreo de proximidad (`use-proximidad.ts`), slice de métricas               |
+| HU-19 | Route Handler de métricas | New   | ✅   | `app/api/metrics/save` + migración `20261025010000_metricas_sesion.sql` (aplicada y verificada) |
+| HU-20 | Flujo de cierre de sesión | New   | ✅   | `use-finalizar-sesion.ts` guarda y redirige; si el guardado falla, cierra sin métricas          |
+| HU-21 | Pantalla de resultados    | New   | ✅   | `/resultados`: indicadores, historial y acciones, para el estudiante y su docente               |
 
 Detalle y escenarios: [`docs/pruebas/sprint-4.md`](pruebas/sprint-4.md).
 
