@@ -84,7 +84,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "raw-loader": "^4.0.2",
     "shadcn": "^4.22.1",
-    "sharp": "^0.35.5",
+    "sharp": ">=0.35.5",
     "supabase": "^2.117.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
