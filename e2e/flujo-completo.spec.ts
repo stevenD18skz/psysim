@@ -102,7 +102,7 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await expect(confirmacion).toContainText('No se puede reanudar');
     await confirmacion.getByRole('button', { name: 'Terminar práctica' }).click();
     // HU-20: llega a los resultados con las métricas de la sesión.
-    await expect(alumno).toHaveURL(new RegExp(`/resultados\?sesion=${sesionId}`), {
+    await expect(alumno).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
       timeout: 30_000,
     });
     await expect(alumno.getByRole('region', { name: 'Total de intervenciones' })).toContainText(
