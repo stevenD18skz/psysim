@@ -287,6 +287,26 @@
   }
 }
 
+/* Doherty (< 400 ms): sin el retraso táctil de 300 ms al tocar controles; el zoom con dos dedos
+   sigue disponible. Los diálogos no pasan el desplazamiento a la página que tienen detrás. */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+[role='button'],
+[role='radio'],
+[role='tab'] {
+  touch-action: manipulation;
+}
+[role='dialog'],
+[role='alertdialog'],
+[data-slot='sheet-content'] {
+  overscroll-behavior: contain;
+}
+
 /* Las barras pegajosas (arriba) y la barra «Tengo un código» de la landing (abajo, en móvil) no
    deben tapar el elemento enfocado (WCAG 2.4.11). */
 html {

@@ -103,11 +103,22 @@ describe('InstruccionesCaso (HU-23)', () => {
       montar();
       const empezar = screen.getByRole('button', { name: 'Empezar la práctica' });
       expect(empezar).toBeDisabled();
-      expect(screen.getByText('Marca la casilla de privacidad para empezar.')).toBeInTheDocument();
+      expect(empezar).toHaveAttribute('title', 'Marca la casilla de privacidad para empezar.');
 
       await userEvent.click(screen.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }));
       expect(empezar).toBeEnabled();
-      expect(screen.queryByText('Marca la casilla de privacidad para empezar.')).toBeNull();
+      expect(empezar).not.toHaveAttribute('title');
+    });
+
+    it('la casilla de privacidad está en el pie, junto al botón, y no dentro del texto que se desplaza', () => {
+      montar();
+      const casilla = screen.getByRole('checkbox', { name: /Leí el aviso de privacidad/ });
+      const texto = screen.getByRole('region', { name: 'Contenido de las instrucciones' });
+      expect(texto).not.toContainElement(casilla);
+      const empezar = screen.getByRole('button', { name: 'Empezar la práctica' });
+      expect(casilla.closest('[data-slot="dialog-footer"]')).toBe(
+        empezar.closest('[data-slot="dialog-footer"]')
+      );
     });
 
     it('enlaza el aviso de privacidad en otra pestaña', () => {
