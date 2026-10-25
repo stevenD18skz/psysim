@@ -21,20 +21,29 @@ function tarjetasDe(metricas: MetricasSesion): Tarjeta[] {
       id: 'latencia-promedio',
       titulo: 'Latencia promedio',
       valor: formatearLatencia(metricas.latenciaPromedioMs),
-      ayuda: 'Lo que tardó en responderte, en promedio',
+      ayuda:
+        metricas.latenciaPromedioMs === null
+          ? 'El paciente aún no respondió'
+          : 'Lo que tardó en responderte, en promedio',
     },
     {
       id: 'latencia-maxima',
       titulo: 'Latencia máxima',
       valor: formatearLatencia(metricas.latenciaMaximaMs),
-      ayuda: 'La respuesta que más tardó',
+      ayuda:
+        metricas.latenciaMaximaMs === null
+          ? 'El paciente aún no respondió'
+          : 'La respuesta que más tardó',
     },
     {
       id: 'duracion',
       titulo: 'Duración de la sesión',
       valor:
         metricas.duracionSegundos === null ? '—' : formatearDuracion(metricas.duracionSegundos),
-      ayuda: 'Desde que empezaste hasta que terminaste',
+      ayuda:
+        metricas.duracionSegundos === null
+          ? 'La práctica no llegó a empezar'
+          : 'Desde que empezaste hasta que terminaste',
     },
   ];
   if (metricas.proximidadPromedioM !== null) {
