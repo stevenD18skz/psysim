@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
+import { log } from '@/lib/log';
 import { separarIntentos } from '@/lib/conversacion/intentos';
 import { obtenerMensajesSesion } from '@/lib/escenarios/queries';
 import {
@@ -333,7 +334,10 @@ export const obtenerMetricasGuardadas = cache(
       .maybeSingle();
 
     if (error) {
-      throw new Error('No fue posible cargar las métricas de la práctica.', { cause: error });
+      // Las métricas son un complemento: sin ellas, los resultados se reconstruyen con la
+      // conversación. Un fallo aquí (p. ej. la migración sin aplicar) no debe romper la pantalla.
+      log.error('resultados.metricas_no_leidas', { codigo: error.code, sesion_id: sesionId });
+      return null;
     }
     return data;
   }
