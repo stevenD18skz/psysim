@@ -2,15 +2,18 @@
 
 > Plataforma web 3D de la Universidad del Valle (Cali, Colombia) para practicar la entrevista clínica con pacientes virtuales guiados por inteligencia artificial. Proyecto de trabajo de grado de la Escuela de Ingeniería de Sistemas y Computación.
 
-PsySim permite a un docente de psicología configurar un escenario (paciente, contexto y consultorio 3D), y a los estudiantes conversar en lenguaje natural con un paciente virtual. La sesión registra métricas como duración, número de intervenciones y latencia de respuesta. El acceso a la plataforma es solo para docentes con cuenta.
+Un docente de psicología elige un caso (o crea el suyo), asigna una práctica a un estudiante y le envía un código de un solo uso. El estudiante entra con su correo institucional, lee las instrucciones y conversa en lenguaje natural con un paciente simulado en un consultorio 3D. Al terminar, el docente lee la conversación y deja su retroalimentación; el estudiante ve sus resultados y escribe una reflexión.
 
 ## Páginas públicas
 
-- [Inicio](https://psysim.vercel.app/): descripción, escenarios disponibles, tecnología y preguntas frecuentes.
+- [Inicio](https://psysim.vercel.app/): cómo funciona, casos disponibles, tecnología y preguntas frecuentes.
+- [Aviso de privacidad](https://psysim.vercel.app/privacidad): qué datos trata PsySim, para qué y cómo ejercer los derechos (Ley 1581 de 2012).
 
 ## Datos clave
 
-- Escenarios: seis (duelo y pérdida, ansiedad generalizada, episodio depresivo leve, crisis de pánico aguda, conflicto de pareja y estrés académico).
-- Funciona en el navegador, sin gafas de realidad virtual ni instalaciones.
-- IA conversacional: Google Gemini mediante Vercel AI SDK.
+- Casos de ejemplo en la portada: duelo y pérdida, ansiedad generalizada, episodio depresivo leve, crisis de pánico aguda, conflicto de pareja y estrés académico.
+- Funciona en el navegador de un computador con teclado y ratón, sin gafas de realidad virtual ni instalaciones.
+- IA conversacional: Google Gemini mediante Vercel AI SDK. El paciente es una IA, no una persona.
+- Es una práctica formativa: no reemplaza la práctica con personas ni da un diagnóstico.
+- Las páginas de las prácticas, los resultados y el panel del docente son privadas y no se indexan.
 - Autor: Brayan Steven Narváez Valdés.
