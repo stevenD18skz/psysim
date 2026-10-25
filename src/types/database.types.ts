@@ -390,6 +390,38 @@ export type Database = {
           },
         ];
       };
+      reflexion: {
+        Row: {
+          actualizado_en: string;
+          contenido: string;
+          creado_en: string;
+          id: string;
+          sesion_id: string;
+        };
+        Insert: {
+          actualizado_en?: string;
+          contenido: string;
+          creado_en?: string;
+          id?: string;
+          sesion_id: string;
+        };
+        Update: {
+          actualizado_en?: string;
+          contenido?: string;
+          creado_en?: string;
+          id?: string;
+          sesion_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reflexion_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       retroalimentacion: {
         Row: {
           actualizado_en: string;
@@ -607,6 +639,10 @@ export type Database = {
       es_docente: { Args: never; Returns: boolean };
       es_estudiante: { Args: never; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
+      guardar_reflexion: {
+        Args: { p_contenido: string; p_sesion_id: string };
+        Returns: undefined;
+      };
       guardar_metricas_cierre: {
         Args: {
           p_indicadores?: Json;

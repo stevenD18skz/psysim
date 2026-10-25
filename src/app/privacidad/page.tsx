@@ -147,6 +147,10 @@ export default function PrivacidadPage() {
                 uso.
               </li>
               <li>
+                Tu reflexión, si decides escribirla al terminar la práctica (es opcional y puedes
+                corregirla o borrarla). La lee tu docente al revisar.
+              </li>
+              <li>
                 La retroalimentación de tu docente: comentario general, comentarios sobre tus frases
                 y nota.
               </li>
@@ -190,8 +194,8 @@ export default function PrivacidadPage() {
             <ul>
               <li>
                 <strong>Tu docente</strong> (quien te registró y te asignó la práctica): tus datos,
-                tus conversaciones cuando terminas, tus métricas y la retroalimentación. No ve el
-                chat en vivo.
+                tus conversaciones cuando terminas, tus métricas, tu reflexión (si la escribiste) y
+                la retroalimentación. No ve el chat en vivo.
               </li>
               <li>
                 <strong>El administrador de PsySim:</strong> gestiona las cuentas de los docentes y

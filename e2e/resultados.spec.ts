@@ -119,6 +119,39 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     expect(metrica?.duracion_segundos).toBeGreaterThanOrEqual(0);
   });
 
+  test('el estudiante escribe su reflexión y su docente la lee (INACSL)', async ({
+    page,
+    browser,
+  }) => {
+    await abrirResultados(page);
+    await page
+      .getByRole('textbox', { name: 'Tu reflexión' })
+      .fill('Me sirvió saludar con calma antes de preguntar.');
+    await page.getByRole('button', { name: 'Guardar reflexión' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Guardada el' })).toBeVisible();
+
+    // Queda guardada: al volver a abrir la pantalla sigue ahí.
+    await page.reload();
+    await expect(page.getByRole('textbox', { name: 'Tu reflexión' })).toHaveValue(
+      'Me sirvió saludar con calma antes de preguntar.'
+    );
+
+    // El docente la lee en los resultados y en su revisión.
+    const contexto = await browser.newContext();
+    const docente = await contexto.newPage();
+    await iniciarSesionComoDocente(docente);
+    for (const ruta of [`/resultados?sesion=${sesionId}`, `/sesiones/${sesionId}`]) {
+      await docente.goto(ruta);
+      await expect(
+        docente.getByRole('heading', { name: `Reflexión de ${ESTUDIANTE.nombre}` })
+      ).toBeVisible();
+      await expect(
+        docente.getByText('Me sirvió saludar con calma antes de preguntar.')
+      ).toBeVisible();
+    }
+    await contexto.close();
+  });
+
   test('«Ir a Mis prácticas» vuelve al listado y la práctica terminada no se retoma', async ({
     page,
   }) => {

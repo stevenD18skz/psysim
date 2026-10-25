@@ -2,7 +2,11 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requerirUsuario } from '@/lib/auth/dal';
-import { obtenerDetalleSesion, obtenerMetricasGuardadas } from '@/lib/sesiones/queries';
+import {
+  obtenerDetalleSesion,
+  obtenerMetricasGuardadas,
+  obtenerReflexion,
+} from '@/lib/sesiones/queries';
 import { AppStoreProvider } from '@/store/app-store-provider';
 import { type PerfilUsuario } from '@/types';
 
@@ -28,7 +32,9 @@ vi.mock('@/lib/auth/dal', () => ({ requerirUsuario: vi.fn() }));
 vi.mock('@/lib/sesiones/queries', () => ({
   obtenerDetalleSesion: vi.fn(),
   obtenerMetricasGuardadas: vi.fn(),
+  obtenerReflexion: vi.fn(),
 }));
+vi.mock('@/lib/reflexion/actions', () => ({ guardarReflexion: vi.fn() }));
 vi.mock('@/lib/auth/actions', () => ({ cerrarSesion: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ cerrarSesionEquipoCompartido: vi.fn() }));
 
@@ -71,6 +77,7 @@ describe('página /resultados (HU-21)', () => {
     vi.mocked(requerirUsuario).mockResolvedValue(perfil('estudiante'));
     vi.mocked(obtenerDetalleSesion).mockResolvedValue(DETALLE_SESION);
     vi.mocked(obtenerMetricasGuardadas).mockResolvedValue(null);
+    vi.mocked(obtenerReflexion).mockResolvedValue(null);
   });
 
   describe('qué hace con una sesión que no puede mostrar', () => {
@@ -207,6 +214,43 @@ describe('página /resultados (HU-21)', () => {
       vi.mocked(requerirUsuario).mockResolvedValue(perfil('superadmin'));
       mostrar(await pagina());
       expect(screen.getByRole('link', { name: 'Nueva sesión' })).toBeInTheDocument();
+    });
+  });
+
+  describe('reflexión del estudiante (INACSL)', () => {
+    const REFLEXION = { contenido: 'Hablé poco.', actualizadoEn: '2026-10-25T15:00:00.000Z' };
+
+    it('el estudiante puede escribirla o corregirla', async () => {
+      mostrar(await pagina());
+      expect(screen.getByLabelText('Tu reflexión')).toHaveValue('');
+
+      vi.mocked(obtenerReflexion).mockResolvedValue(REFLEXION);
+      mostrar(await pagina());
+      expect(screen.getAllByLabelText('Tu reflexión')[1]).toHaveValue('Hablé poco.');
+    });
+
+    it('si la práctica no llegó a empezar no se ofrece', async () => {
+      vi.mocked(obtenerDetalleSesion).mockResolvedValue({ ...DETALLE_SESION, comenzada: false });
+      mostrar(await pagina());
+      expect(screen.queryByLabelText('Tu reflexión')).not.toBeInTheDocument();
+    });
+
+    it('el docente la lee, sin poder editarla', async () => {
+      vi.mocked(requerirUsuario).mockResolvedValue(perfil('docente'));
+      vi.mocked(obtenerReflexion).mockResolvedValue(REFLEXION);
+      mostrar(await pagina());
+
+      expect(
+        screen.getByRole('heading', { name: 'Reflexión de Ana María Pérez' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Hablé poco.')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Tu reflexión')).not.toBeInTheDocument();
+    });
+
+    it('al docente no le aparece nada si el estudiante no escribió', async () => {
+      vi.mocked(requerirUsuario).mockResolvedValue(perfil('docente'));
+      mostrar(await pagina());
+      expect(screen.queryByText(/Reflexión de/)).not.toBeInTheDocument();
     });
   });
 });

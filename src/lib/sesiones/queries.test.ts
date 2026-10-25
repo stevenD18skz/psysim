@@ -12,6 +12,7 @@ import {
   obtenerDetalleSesion,
   obtenerMetricasGuardadas,
   obtenerPracticas,
+  obtenerReflexion,
   obtenerSesionesDeEstudiante,
 } from './queries';
 
@@ -261,5 +262,28 @@ describe('métricas guardadas de una sesión (HU-21)', () => {
       error: { code: 'PGRST205', message: "Could not find the table 'public.metrica'" },
     });
     await expect(obtenerMetricasGuardadas('s-error')).resolves.toBeNull();
+  });
+});
+
+describe('reflexión del estudiante', () => {
+  it('devuelve la reflexión de la sesión', async () => {
+    db.responder('reflexion', {
+      data: { contenido: 'Hablé poco.', actualizado_en: '2026-10-25T15:00:00.000Z' },
+    });
+    await expect(obtenerReflexion('s-con-reflexion')).resolves.toEqual({
+      contenido: 'Hablé poco.',
+      actualizadoEn: '2026-10-25T15:00:00.000Z',
+    });
+    expect(db.de('reflexion')[0]?.filtros).toContainEqual(['eq', 'sesion_id', 's-con-reflexion']);
+  });
+
+  it('sin reflexión devuelve null', async () => {
+    db.responder('reflexion', { data: null });
+    await expect(obtenerReflexion('s-sin-reflexion')).resolves.toBeNull();
+  });
+
+  it('si no se puede leer devuelve null en vez de romper la pantalla', async () => {
+    db.responder('reflexion', { error: { code: 'PGRST205', message: 'x' } });
+    await expect(obtenerReflexion('s-error')).resolves.toBeNull();
   });
 });
