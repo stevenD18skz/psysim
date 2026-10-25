@@ -10,6 +10,7 @@ import {
   leerEscenarioDeSesion,
   leerTitulosDeEscenarios,
 } from '@/lib/sesiones/datos-privados';
+import { type FilaMetrica } from '@/lib/sesiones/resultados';
 import { createClient } from '@/lib/supabase/server';
 import {
   type Asignacion,
@@ -315,3 +316,25 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
       : null,
   };
 });
+
+/**
+ * Métricas que el navegador guardó al terminar la práctica (HU-19), o `null` si no hay (cierre por
+ * inactividad, error al guardar o práctica anterior a las métricas). RLS las entrega con la sesión.
+ */
+export const obtenerMetricasGuardadas = cache(
+  async (sesionId: string): Promise<FilaMetrica | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('metrica')
+      .select(
+        'total_mensajes, latencia_promedio_ms, latencia_maxima_ms, duracion_segundos, indicadores'
+      )
+      .eq('sesion_id', sesionId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error('No fue posible cargar las métricas de la práctica.', { cause: error });
+    }
+    return data;
+  }
+);

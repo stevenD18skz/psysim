@@ -52,8 +52,11 @@ export const PREFIJOS_POR_ROL: Record<RolUsuario, readonly string[]> = {
   estudiante: ['/practicas', '/simulacion', '/unirse'],
 };
 
-/** Rutas protegidas para cualquier rol (redirigen a la ruta de inicio de cada uno). */
-const PREFIJOS_COMUNES = ['/inicio'] as const;
+/**
+ * Rutas protegidas para cualquier rol (redirigen a la ruta de inicio de cada uno). Los resultados
+ * de una práctica los ven el estudiante que la hizo y el docente que la asignó: RLS decide cuáles.
+ */
+const PREFIJOS_COMUNES = ['/inicio', '/resultados'] as const;
 
 /** Parámetro de búsqueda con la ruta a la que volver tras iniciar sesión. */
 export const PARAM_SIGUIENTE = 'siguiente';
