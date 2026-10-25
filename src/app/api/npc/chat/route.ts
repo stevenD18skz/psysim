@@ -1,4 +1,10 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import {
+  contarIntervenciones,
+  type FilaMensaje,
+  historialDesdeFilas,
+  MAX_INTERVENCIONES_POR_SESION,
+} from '@/lib/ia/historial';
 import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
 import { log } from '@/lib/log';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
@@ -28,6 +34,11 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
   autenticacion: { status: 502, mensaje: 'El servicio de IA no está disponible.' },
   limite: { status: 503, mensaje: 'El servicio de IA está saturado. Inténtalo en unos segundos.' },
   respuesta_invalida: {
+    status: 502,
+    mensaje: 'El servicio de IA devolvió una respuesta inválida.',
+  },
+  // Al estudiante no le explicamos por qué: se le pide reintentar como ante cualquier respuesta rara.
+  fuga_de_instrucciones: {
     status: 502,
     mensaje: 'El servicio de IA devolvió una respuesta inválida.',
   },
@@ -68,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
     const campos = datos.error.flatten().fieldErrors as Record<string, string[]>;
     return responderError(400, 'Los datos de la petición no son válidos.', campos);
   }
-  const { sesion_id, npc_id, mensaje_usuario, historial } = datos.data;
+  const { sesion_id, npc_id, mensaje_usuario } = datos.data;
 
   const supabase = await createClient();
   const { data: sesion, error: errorSesion } = await supabase
@@ -110,6 +121,27 @@ export async function POST(request: Request): Promise<Response> {
     return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
   }
 
+  // LLM01: el contexto sale de lo que el servidor guardó, no del historial que mande el navegador
+  // (podría traer turnos del paciente fabricados). LLM10: tope de intervenciones por práctica.
+  const { data: filas, error: errorHistorial } = await supabase
+    .from('mensaje')
+    .select('remitente, contenido, descartado_en')
+    .eq('sesion_id', sesion_id)
+    .order('creado_en')
+    .order('remitente');
+  if (errorHistorial) {
+    log.error('npc_chat.historial_no_leido', { codigo: errorHistorial.code, sesion_id });
+    return responderError(500, 'No fue posible cargar la sesión.');
+  }
+  const mensajesGuardados: FilaMensaje[] = filas;
+  if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
+    log.info('npc_chat.tope_de_sesion', { sesion_id });
+    return responderError(
+      429,
+      `Llegaste al máximo de ${MAX_INTERVENCIONES_POR_SESION} intervenciones en esta práctica. Termínala para que tu docente la revise.`
+    );
+  }
+
   // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
   // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log).
   const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
@@ -131,7 +163,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     respuesta = await generarRespuestaPaciente({
       promptSistema,
-      historial,
+      historial: historialDesdeFilas(mensajesGuardados),
       mensaje: mensaje_usuario,
       nombrePaciente: npc.nombre,
     });

@@ -21,6 +21,9 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 | [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)          |
 | [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                  |
 | [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados |
+| [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes |
+| [`docs/auditoria-rendimiento.md`](auditoria-rendimiento.md)               | Core Web Vitals y Lighthouse: mediciones y correcciones          |
+| [`docs/reglas-de-calidad.md`](reglas-de-calidad.md)                       | Catálogos de reglas por apartado y cuáles están implementadas    |
 | [`docs/rediseno/ux-escala-inmersion.md`](rediseno/ux-escala-inmersion.md) | Decisiones de UX y estándares INACSL de simulación               |
 | [`README.md`](../README.md)                                               | Instalación, scripts, arquitectura y mapa de tests por feature   |
 
@@ -40,6 +43,11 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
   `node --env-file=.env.local scripts/aplicar-migracion.mjs <archivo>` (requiere
   `SUPABASE_ACCESS_TOKEN` válido en `.env.local`).
 
+- **Seguridad y rendimiento (25-oct):** Next 16.4.3 (la 16.3.6 tenía 2 vulnerabilidades
+  críticas), `pnpm audit` limpio, política de contenido con nonce, contexto de la IA armado en el
+  servidor, filtro de fuga del prompt, tope de 150 intervenciones por práctica, imágenes −70 % y
+  fuentes −85 KiB.
+
 ## Pendiente (no se puede cerrar desde el código)
 
 1. **Vercel (HU-29):** cargar las variables de entorno, correr
@@ -51,6 +59,14 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 4. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
 5. **Actualizar los estados en Taiga** (las historias figuran como `New`).
 6. **Subir `develop` a `main`** cuando se dé por terminada una etapa.
+7. **Reemplazar el logo de Psyduck** (personaje de Pokémon) en `src/app/icon.png` y en las
+   imágenes para compartir (`opengraph-image.png`, `twitter-image.png`); luego
+   `node scripts/optimizar-imagenes.mjs <imagen>`.
+8. **Completar el aviso de privacidad** (los datos «Por confirmar») y pedir revisión legal.
+9. **Correr la regresión E2E completa con el PC en reposo** (`pnpm test:e2e --workers=1`). La del
+   25-oct se cortó por poca memoria tras 73 pruebas aprobadas; faltaron `flujo-completo`,
+   `laboratorio`, `navegacion`, `presencial`, `rendimiento`, `resultados`, `revisiones`, `smoke`
+   y `ux-reglas`.
 
 ## Recomendaciones de UX sin aplicar
 
@@ -59,13 +75,13 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 - **R4:** comprobar que los filtros de Estudiantes y Casos viven en la URL.
 - **R6:** probar con 3 a 5 personas (usar un código, asignar una práctica, revisar una
   conversación).
-- **CSP:** no se añadió una `Content-Security-Policy`; probarla primero en un preview de Vercel
-  porque puede romper la escena 3D.
+- **CSP:** ya existe (con nonce, en `src/proxy.ts`) y se probó con la escena 3D en la build de
+  producción; conviene volver a probarla en el preview de Vercel.
 - **Contraseñas filtradas** (HaveIBeenPwned): requiere el plan Pro de Supabase.
 
 ## Cómo trabajar aquí
 
-- **Comprobar todo:** `pnpm typecheck && pnpm lint && pnpm test` (1 236 tests). Los E2E
+- **Comprobar todo:** `pnpm typecheck && pnpm lint && pnpm test` (1 299 tests). Los E2E
   (`pnpm test:e2e`) usan la base real y la IA real; correrlos de a pocos (`--workers=1`): con dos
   workers el equipo se satura y fallan por tiempo.
 - **Commits:** convencionales, en español, un commit por funcionalidad con sus tests; el cuerpo no

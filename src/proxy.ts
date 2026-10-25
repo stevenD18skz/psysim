@@ -10,10 +10,14 @@ import {
   rolPuedeAbrir,
   esRutaProtegida,
 } from '@/lib/auth/routes';
+import { publicEnv } from '@/lib/env/public';
+import { construirCsp, generarNonce } from '@/lib/seguridad/csp';
 import { redirectWithSession, updateSession } from '@/lib/supabase/proxy';
 
 /**
  * Proxy de Next.js (antes `middleware`). Se ejecuta antes de renderizar cada ruta y:
+ * 0. Genera un nonce por petición y fija la política de seguridad de contenido (CSP): Next.js lo
+ *    lee del encabezado de la petición y lo pone en sus propios scripts (src/lib/seguridad/csp.ts).
  * 1. Refresca la sesión de Supabase en todas las peticiones.
  * 2. En rutas protegidas, redirige a /login si no hay sesión válida.
  * 3. Redirige a /acceso-denegado si el JWT no trae un rol de la plataforma.
@@ -25,7 +29,18 @@ import { redirectWithSession, updateSession } from '@/lib/supabase/proxy';
  * (ver src/lib/auth/dal.ts).
  */
 export async function proxy(request: NextRequest) {
+  const nonce = generarNonce();
+  const csp = construirCsp({
+    nonce,
+    urlSupabase: publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    desarrollo: process.env.NODE_ENV === 'development',
+  });
+  // Next.js extrae el nonce de este encabezado de la petición al renderizar la página.
+  request.headers.set('x-nonce', nonce);
+  request.headers.set('Content-Security-Policy', csp);
+
   const { response, claims } = await updateSession(request);
+  response.headers.set('Content-Security-Policy', csp);
   const { pathname, search } = request.nextUrl;
 
   if (!esRutaProtegida(pathname)) {
