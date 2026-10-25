@@ -118,7 +118,7 @@ describe('página /resultados (HU-21)', () => {
         'Total de intervenciones',
         'Latencia promedio',
         'Latencia máxima',
-        'Duración de la sesión',
+        'Duración de la práctica',
       ]) {
         expect(screen.getByRole('region', { name: titulo })).toBeInTheDocument();
       }
@@ -135,7 +135,7 @@ describe('página /resultados (HU-21)', () => {
       const { unmount } = mostrar(await pagina());
       const intervenciones = screen.getByRole('region', { name: 'Total de intervenciones' });
       expect(within(intervenciones).getByText('7')).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Duración de la sesión' })).toHaveTextContent(
+      expect(screen.getByRole('region', { name: 'Duración de la práctica' })).toHaveTextContent(
         '02:05'
       );
       expect(screen.queryByText(/se calcularon con la conversación/)).not.toBeInTheDocument();
@@ -171,7 +171,7 @@ describe('página /resultados (HU-21)', () => {
       expect(screen.getByText('Ahora le toca a tu docente.')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Ir a Mis prácticas' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'Nueva sesión' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Asignar otra práctica' })).not.toBeInTheDocument();
     });
 
     it('el estudiante con la retroalimentación publicada ve el enlace para leerla', async () => {
@@ -194,16 +194,16 @@ describe('página /resultados (HU-21)', () => {
       );
     });
 
-    it('el docente: enlace a la revisión, «Nueva sesión» y «Cerrar»', async () => {
+    it('el docente: enlace a la revisión, «Asignar otra práctica» y «Cerrar»', async () => {
       vi.mocked(requerirUsuario).mockResolvedValue(perfil('docente'));
       mostrar(await pagina());
 
       expect(screen.queryByText('Ahora le toca a tu docente.')).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'revisión de esta sesión' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'revisión de esta práctica' })).toHaveAttribute(
         'href',
         `/sesiones/${SESION_ID}`
       );
-      expect(screen.getByRole('link', { name: 'Nueva sesión' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Asignar otra práctica' })).toHaveAttribute(
         'href',
         '/configuracion'
       );
@@ -213,7 +213,7 @@ describe('página /resultados (HU-21)', () => {
     it('el Administrador se trata como docente', async () => {
       vi.mocked(requerirUsuario).mockResolvedValue(perfil('superadmin'));
       mostrar(await pagina());
-      expect(screen.getByRole('link', { name: 'Nueva sesión' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Asignar otra práctica' })).toBeInTheDocument();
     });
   });
 

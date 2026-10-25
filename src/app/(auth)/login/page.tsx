@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: 'Entrar',
   description: 'Acceso a PsySim para estudiantes y docentes.',
   alternates: { canonical: '/login' },
+  // Los enlaces de práctica (/unirse/…) llevan aquí: así se ven al compartirlos por WhatsApp o correo.
+  openGraph: {
+    title: 'Entrar a PsySim',
+    description:
+      'Entra con tu correo institucional para empezar tu práctica con un paciente simulado.',
+    url: '/login',
+  },
   robots: { index: false, follow: false },
 };
 

@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   description:
     'Qué datos trata PsySim, para qué, quién los ve y cómo ejercer tus derechos según la Ley 1581 de 2012.',
   alternates: { canonical: '/privacidad' },
+  openGraph: {
+    title: 'Aviso de privacidad · PsySim',
+    description:
+      'Qué datos trata PsySim, para qué, quién los ve y cómo ejercer tus derechos según la Ley 1581 de 2012.',
+    url: '/privacidad',
+  },
 };
 
 /** Dato que el autor debe confirmar con la universidad antes de publicar el aviso definitivo. */

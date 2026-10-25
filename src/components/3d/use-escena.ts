@@ -42,7 +42,7 @@ export function useEscena(ruta: string): { estado: EstadoEscena; reintentar: () 
         const resultado = escenaSchema.safeParse(await respuesta.json());
         if (!resultado.success) {
           console.error('[escena] Configuración inválida:', resultado.error.issues);
-          setEstado({ estado: 'error', mensaje: 'La configuración del escenario no es válida.' });
+          setEstado({ estado: 'error', mensaje: 'La configuración del consultorio no es válida.' });
           return;
         }
         rutasModelos(resultado.data).forEach(precargarModelo);
@@ -53,8 +53,8 @@ export function useEscena(ruta: string): { estado: EstadoEscena; reintentar: () 
       })
       .catch((error: unknown) => {
         if (controlador.signal.aborted) return;
-        console.error('[escena] No se pudo cargar la configuración:', error);
-        setEstado({ estado: 'error', mensaje: 'No fue posible cargar el escenario.' });
+        console.error('[escena] No pudimos cargar la configuración:', error);
+        setEstado({ estado: 'error', mensaje: 'No pudimos cargar el consultorio.' });
       });
 
     return () => controlador.abort();

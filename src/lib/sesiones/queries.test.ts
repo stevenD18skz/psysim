@@ -233,7 +233,7 @@ describe('obtenerDetalleSesion', () => {
 
   it('propaga los errores de la base de datos', async () => {
     db.responder('sesion', { error: { code: '500' } });
-    await expect(obtenerDetalleSesion('s1')).rejects.toThrow('No fue posible cargar la sesión');
+    await expect(obtenerDetalleSesion('s1')).rejects.toThrow('No pudimos cargar la sesión');
   });
 });
 

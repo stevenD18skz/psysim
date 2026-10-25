@@ -30,7 +30,8 @@ export async function guardarMetricas(
   { fetch: hacerFetch = fetch }: OpcionesGuardado = {}
 ): Promise<ResultadoGuardado> {
   const { sesion, metricas } = store.getState();
-  if (!sesion.activa) return { estado: 'fallo', motivo: 'No hay una sesión activa.' };
+  if (!sesion.activa)
+    return { estado: 'fallo', motivo: 'No hay una práctica abierta. Vuelve a Mis prácticas.' };
 
   let respuesta: Response;
   try {
@@ -55,6 +56,8 @@ export async function guardarMetricas(
   const error = metricsSaveErrorSchema.safeParse(json);
   return {
     estado: 'fallo',
-    motivo: error.success ? error.data.error : 'No fue posible guardar los resultados.',
+    motivo: error.success
+      ? error.data.error
+      : 'No pudimos guardar los resultados. Inténtalo de nuevo.',
   };
 }

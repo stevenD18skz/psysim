@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { enviarTelemetria } from '@/lib/observabilidad/enviar';
 
 /**
  * Error inesperado en cualquier página (p. ej. la base de datos no respondió). En lugar del error
@@ -20,6 +21,7 @@ export default function ErrorPagina({
 }) {
   useEffect(() => {
     console.error(error);
+    enviarTelemetria({ tipo: 'error', mensaje: error.message, digest: error.digest });
   }, [error]);
 
   return (

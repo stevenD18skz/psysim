@@ -37,7 +37,7 @@ const CASO = {
 const PROMPT = 'Eres Camila, una mujer de 29 años que perdió su empleo hace un mes.';
 const GUARDADO_FALLIDO = {
   ok: false,
-  error: 'No fue posible guardar el caso. Inténtalo de nuevo.',
+  error: 'No pudimos guardar el caso. Inténtalo de nuevo.',
 };
 
 let db: SupabaseFalso;
@@ -203,7 +203,7 @@ describe('guardarVariante', () => {
     db.responder('escenario', { data: null });
     expect(await guardarVariante(VARIANTE)).toEqual({
       ok: false,
-      error: 'El escenario seleccionado ya no está disponible.',
+      error: 'El caso seleccionado ya no está disponible.',
     });
   });
 });

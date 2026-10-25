@@ -225,7 +225,7 @@ function DetalleEscenario({
 
         <div className="flex flex-col gap-4">
           <section
-            aria-label="Paciente virtual"
+            aria-label="Paciente simulado"
             className="flex flex-col gap-3 rounded-xl border bg-muted/50 p-5"
           >
             <div className="flex items-center gap-3">

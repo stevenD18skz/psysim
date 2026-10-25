@@ -76,7 +76,7 @@ export const obtenerPracticas = cache(async (): Promise<SesionHistorial[]> => {
     .order('inicio', { ascending: false });
 
   if (error) {
-    throw new Error('No fue posible cargar tus prácticas.', { cause: error });
+    throw new Error('No pudimos cargar tus prácticas.', { cause: error });
   }
   return aHistorial(data);
 });
@@ -92,7 +92,7 @@ export const obtenerSesionesDeEstudiante = cache(
       .order('inicio', { ascending: false });
 
     if (error) {
-      throw new Error('No fue posible cargar las sesiones del estudiante.', { cause: error });
+      throw new Error('No pudimos cargar las sesiones del estudiante.', { cause: error });
     }
     return aHistorial(data);
   }
@@ -116,7 +116,7 @@ export const obtenerInformeDeEstudiante = cache(
       .order('inicio', { ascending: true });
 
     if (error) {
-      throw new Error('No fue posible cargar las notas del estudiante.', { cause: error });
+      throw new Error('No pudimos cargar las notas del estudiante.', { cause: error });
     }
 
     const historial = await aHistorial(data);
@@ -149,7 +149,7 @@ export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]
     .order('inicio', { ascending: false });
 
   if (error) {
-    throw new Error('No fue posible cargar las sesiones.', { cause: error });
+    throw new Error('No pudimos cargar las sesiones.', { cause: error });
   }
 
   const historial = await aHistorial(data);
@@ -182,7 +182,7 @@ export const obtenerCodigosPendientes = cache(async (): Promise<CodigoPendiente[
     .order('expira_en', { ascending: true });
 
   if (error) {
-    throw new Error('No fue posible cargar los códigos de acceso.', { cause: error });
+    throw new Error('No pudimos cargar los códigos de acceso.', { cause: error });
   }
 
   const titulos = await leerTitulosDeEscenarios(data.map(f => f.escenario_id));
@@ -203,7 +203,7 @@ export const obtenerAsignacionesPorCaso = cache(async (): Promise<Map<string, nu
   const supabase = await createClient();
   const { data, error } = await supabase.from('asignacion').select('escenario_id');
   if (error) {
-    throw new Error('No fue posible cargar el uso de los casos.', { cause: error });
+    throw new Error('No pudimos cargar el uso de los casos.', { cause: error });
   }
   const conteo = new Map<string, number>();
   for (const { escenario_id } of data)
@@ -222,7 +222,7 @@ export const obtenerAsignacionesDeEstudiante = cache(
       .order('creado_en', { ascending: false });
 
     if (error) {
-      throw new Error('No fue posible cargar los códigos de acceso.', { cause: error });
+      throw new Error('No pudimos cargar los códigos de acceso.', { cause: error });
     }
 
     const titulos = await leerTitulosDeEscenarios(data.map(f => f.escenario_id));
@@ -263,7 +263,7 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar la sesión.', { cause: error });
+    throw new Error('No pudimos cargar la sesión.', { cause: error });
   }
   if (!data) return null;
 

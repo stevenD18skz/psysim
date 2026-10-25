@@ -10,6 +10,7 @@ import {
   reformularSchema,
 } from '@/schemas/configuracion.schema';
 import { type EstadoSesion } from '@/types';
+import { log } from '@/lib/log';
 
 export type { ResultadoAccion } from '@/lib/acciones';
 
@@ -45,8 +46,8 @@ export async function finalizarSesion(
     .maybeSingle();
 
   if (error || !data?.fin) {
-    if (error) console.error('[sesion] No se pudo finalizar:', error.code);
-    return { ok: false, error: 'No fue posible finalizar la sesión. Inténtalo de nuevo.' };
+    if (error) log.error('practica.no_terminada', { codigo: error.code });
+    return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
   }
 
   return { ok: true, datos: { inicio: data.inicio, fin: data.fin } };
@@ -77,8 +78,8 @@ export async function comenzarSesion(
     .maybeSingle();
 
   if (error || !data) {
-    if (error) console.error('[sesion] No se pudo comenzar:', error.code);
-    return { ok: false, error: 'No fue posible comenzar la simulación. Inténtalo de nuevo.' };
+    if (error) log.error('practica.no_comenzada', { codigo: error.code });
+    return { ok: false, error: 'No pudimos comenzar la simulación. Inténtalo de nuevo.' };
   }
 
   return { ok: true, datos: { inicio: data.inicio } };
@@ -105,8 +106,8 @@ export async function registrarActividad(
   });
 
   if (error) {
-    console.error('[sesion] No se pudo registrar la actividad:', error.code);
-    return { ok: false, error: 'No fue posible registrar la actividad.' };
+    log.error('practica.actividad_no_registrada', { codigo: error.code });
+    return { ok: false, error: 'No pudimos registrar la actividad.' };
   }
   return { ok: true, datos: { enCurso: data === true } };
 }
@@ -133,7 +134,7 @@ export async function reformularIntervencion(
   });
 
   if (error || !data) {
-    if (error) console.error('[sesion] No se pudo reformular:', error.code);
+    if (error) log.error('practica.no_reformulada', { codigo: error.code });
     return {
       ok: false,
       error: 'No pudimos volver a ese momento. Tu conversación sigue igual; inténtalo de nuevo.',
@@ -178,8 +179,8 @@ export async function cerrarSesionPorInactividad(
   }
 
   if (error || !sesion?.fin) {
-    if (error) console.error('[sesion] No se pudo cerrar por inactividad:', error.code);
-    return { ok: false, error: 'No fue posible cerrar la sesión. Inténtalo de nuevo.' };
+    if (error) log.error('practica.no_cerrada_por_inactividad', { codigo: error.code });
+    return { ok: false, error: 'No pudimos cerrar la sesión. Inténtalo de nuevo.' };
   }
 
   return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };

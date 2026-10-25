@@ -61,7 +61,7 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
         volver={
           rol === 'estudiante'
             ? { href: '/practicas', etiqueta: 'Mis prácticas' }
-            : { href: '/sesiones', etiqueta: 'Sesiones' }
+            : { href: '/sesiones', etiqueta: 'Revisiones' }
         }
         titulo={
           <>
@@ -148,7 +148,7 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
             href={`/sesiones/${sesion.id}`}
             className="font-medium underline underline-offset-4"
           >
-            revisión de esta sesión
+            revisión de esta práctica
           </Link>
           .
         </p>

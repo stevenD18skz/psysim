@@ -274,5 +274,5 @@ export const TARJETAS_RESULTADOS = [
   'Total de intervenciones',
   'Latencia promedio',
   'Latencia máxima',
-  'Duración de la sesión',
+  'Duración de la práctica',
 ] as const;

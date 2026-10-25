@@ -1,5 +1,6 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
+import { idPeticion } from '@/lib/observabilidad/peticion';
 import { createClient } from '@/lib/supabase/server';
 import {
   type MetricsSaveError,
@@ -26,6 +27,7 @@ function responderError(status: number, error: string, campos?: MetricsSaveError
  *    internos y la sesión sigue en curso, así que el estudiante puede reintentar.
  */
 export async function POST(request: Request): Promise<Response> {
+  const peticion = idPeticion(request);
   const usuario = await obtenerSesionUsuario();
   if (usuario.estado === 'sin-sesion') {
     return responderError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -57,11 +59,11 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
 
   if (errorSesion) {
-    log.error('metrics_save.sesion_no_leida', { codigo: errorSesion.code, sesion_id });
-    return responderError(500, 'No fue posible guardar los resultados de la práctica.');
+    log.error('metrics_save.sesion_no_leida', { peticion, codigo: errorSesion.code, sesion_id });
+    return responderError(500, 'No pudimos guardar los resultados de la práctica.');
   }
   if (!sesion) {
-    return responderError(404, 'La sesión de simulación no existe.');
+    return responderError(404, 'La práctica no existe.');
   }
   if (sesion.estado !== 'en_curso') {
     return responderError(409, 'La práctica ya terminó.');
@@ -79,11 +81,11 @@ export async function POST(request: Request): Promise<Response> {
   if (error) {
     // 55000: otra pestaña la cerró entre la lectura y el guardado.
     if (error.code === '55000') return responderError(409, 'La práctica ya terminó.');
-    log.error('metrics_save.no_guardadas', { codigo: error.code, sesion_id });
-    return responderError(500, 'No fue posible guardar los resultados de la práctica.');
+    log.error('metrics_save.no_guardadas', { peticion, codigo: error.code, sesion_id });
+    return responderError(500, 'No pudimos guardar los resultados de la práctica.');
   }
 
-  log.info('metrics_save.guardadas', { sesion_id, total_mensajes });
+  log.info('metrics_save.guardadas', { peticion, sesion_id, total_mensajes });
   const respuesta: MetricsSaveResponse = { sesion_id, metrica_id: metricaId };
   return Response.json(respuesta, { status: 200, headers: SIN_CACHE });
 }

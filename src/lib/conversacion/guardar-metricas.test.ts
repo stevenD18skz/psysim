@@ -125,11 +125,11 @@ describe('guardarMetricas (HU-20 · T02)', () => {
 
   it('un error del servidor devuelve su mensaje', async () => {
     const resultado = await guardarMetricas(storeConConversacion(), {
-      fetch: async () => respuesta({ error: 'No fue posible guardar los resultados.' }, 500),
+      fetch: async () => respuesta({ error: 'No pudimos guardar los resultados.' }, 500),
     });
     expect(resultado).toEqual({
       estado: 'fallo',
-      motivo: 'No fue posible guardar los resultados.',
+      motivo: 'No pudimos guardar los resultados.',
     });
   });
 

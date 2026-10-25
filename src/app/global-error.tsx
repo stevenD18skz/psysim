@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
+
+import { enviarTelemetria } from '@/lib/observabilidad/enviar';
+
 import './globals.css';
 
 /**
@@ -13,6 +17,10 @@ export default function ErrorGlobal({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  useEffect(() => {
+    enviarTelemetria({ tipo: 'error', mensaje: error.message, digest: error.digest });
+  }, [error]);
+
   return (
     <html lang="es">
       <body className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground antialiased">

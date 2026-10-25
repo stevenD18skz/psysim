@@ -110,7 +110,7 @@ describe('obtenerEstudiantes', () => {
 
   it('propaga los errores de la base de datos', async () => {
     db.responder('estudiante_resumen', { error: { code: '500' } });
-    await expect(obtenerEstudiantes()).rejects.toThrow('No fue posible cargar los estudiantes');
+    await expect(obtenerEstudiantes()).rejects.toThrow('No pudimos cargar los estudiantes');
   });
 });
 
@@ -124,6 +124,6 @@ describe('obtenerEstudiante', () => {
 
   it('propaga los errores de la base de datos', async () => {
     db.responder('estudiante_resumen', { error: { code: '500' } });
-    await expect(obtenerEstudiante('e1')).rejects.toThrow('No fue posible cargar al estudiante');
+    await expect(obtenerEstudiante('e1')).rejects.toThrow('No pudimos cargar al estudiante');
   });
 });

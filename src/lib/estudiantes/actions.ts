@@ -13,7 +13,7 @@ import {
 } from '@/schemas/estudiante.schema';
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del estudiante.';
-const MENSAJE_GENERICO = 'No fue posible guardar al estudiante. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos guardar al estudiante. Inténtalo de nuevo.';
 const MENSAJE_CORREO_REPETIDO = 'Ya registraste a otro estudiante con ese correo.';
 
 /**

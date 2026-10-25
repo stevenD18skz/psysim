@@ -1,1 +1,1 @@
-PsySim: simulador de entrevista clínica con pacientes virtuales de inteligencia artificial
+PsySim: practica la entrevista clínica con pacientes virtuales de IA. Universidad del Valle.

@@ -126,7 +126,13 @@ describe('Route Handlers', () => {
   const handlers = archivos(path.join(RAIZ, 'src/app'), /^route\.ts$/);
 
   it('los que modifican datos exigen una sesión válida', () => {
-    const publicos = new Set(['src/app/auth/callback/route.ts']);
+    // Públicos a propósito: el retorno de Google; la salud (solo dice «ok») y la telemetría del
+    // navegador, que no leen ni guardan datos de personas y se protegen por origen, tamaño y tasa.
+    const publicos = new Set([
+      'src/app/auth/callback/route.ts',
+      'src/app/api/salud/route.ts',
+      'src/app/api/telemetria/route.ts',
+    ]);
     const sinSesion = handlers
       .map(relativa)
       .filter(ruta => !publicos.has(ruta))

@@ -103,7 +103,7 @@ describe('asegurarCuentaEstudiante', () => {
     preparar();
     expect(await asegurarCuentaEstudiante(DATOS)).toEqual({
       ok: false,
-      error: 'No fue posible crear la cuenta del estudiante. Inténtalo de nuevo.',
+      error: 'No pudimos crear la cuenta del estudiante. Inténtalo de nuevo.',
     });
   });
 });

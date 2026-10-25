@@ -83,12 +83,12 @@ describe('useFinalizarSesion · finalizar (HU-20)', () => {
 
   it('si tampoco se puede cerrar, avisa y deja la práctica abierta', async () => {
     vi.mocked(guardarMetricas).mockResolvedValue({ estado: 'fallo', motivo: 'x' });
-    vi.mocked(finalizarSesion).mockResolvedValue({ ok: false, error: 'No fue posible cerrar.' });
+    vi.mocked(finalizarSesion).mockResolvedValue({ ok: false, error: 'No pudimos cerrar.' });
     const { result } = montar();
 
     await act(async () => result.current.cierre.finalizar());
 
-    expect(toast.error).toHaveBeenCalledWith('No fue posible cerrar.');
+    expect(toast.error).toHaveBeenCalledWith('No pudimos cerrar.');
     expect(push).not.toHaveBeenCalled();
     expect(result.current.store.getState().npc.estado).not.toBe('sesion_finalizada');
   });

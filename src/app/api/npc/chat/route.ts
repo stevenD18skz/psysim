@@ -7,6 +7,7 @@ import {
 } from '@/lib/ia/historial';
 import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
 import { log } from '@/lib/log';
+import { idPeticion } from '@/lib/observabilidad/peticion';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -30,7 +31,7 @@ function responderError(status: number, error: string, campos?: NpcChatError['ca
 
 /** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
 const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
-  tiempo_agotado: { status: 504, mensaje: 'El paciente virtual tardó demasiado en responder.' },
+  tiempo_agotado: { status: 504, mensaje: 'El paciente tardó demasiado en responder.' },
   autenticacion: { status: 502, mensaje: 'El servicio de IA no está disponible.' },
   limite: { status: 503, mensaje: 'El servicio de IA está saturado. Inténtalo en unos segundos.' },
   respuesta_invalida: {
@@ -59,6 +60,7 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
  *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
 export async function POST(request: Request): Promise<Response> {
+  const peticion = idPeticion(request);
   const usuario = await obtenerSesionUsuario();
   if (usuario.estado === 'sin-sesion') {
     return responderError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -89,18 +91,18 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
 
   if (errorSesion) {
-    log.error('npc_chat.sesion_no_leida', { codigo: errorSesion.code });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    log.error('npc_chat.sesion_no_leida', { peticion, codigo: errorSesion.code });
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   if (!sesion) {
-    return responderError(404, 'La sesión de simulación no existe.');
+    return responderError(404, 'La práctica no existe.');
   }
   if (sesion.estado !== 'en_curso') {
-    return responderError(409, 'La sesión de simulación ya finalizó.');
+    return responderError(409, 'La práctica ya terminó.');
   }
   // HU-23: no se conversa hasta que el estudiante confirma las instrucciones del caso.
   if (!sesion.comenzada) {
-    return responderError(409, 'La simulación aún no ha comenzado.');
+    return responderError(409, 'La práctica aún no ha comenzado.');
   }
 
   let npc: { id: string; nombre: string } | undefined;
@@ -114,11 +116,11 @@ export async function POST(request: Request): Promise<Response> {
     npc = escenario?.npc;
     promptSistema = prompt;
   } catch {
-    log.error('npc_chat.caso_no_leido', { sesion_id });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    log.error('npc_chat.caso_no_leido', { peticion, sesion_id });
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   if (!npc || npc.id !== npc_id || !promptSistema) {
-    return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
+    return responderError(404, 'El paciente no pertenece a esta práctica.');
   }
 
   // LLM01: el contexto sale de lo que el servidor guardó, no del historial que mande el navegador
@@ -130,12 +132,12 @@ export async function POST(request: Request): Promise<Response> {
     .order('creado_en')
     .order('remitente');
   if (errorHistorial) {
-    log.error('npc_chat.historial_no_leido', { codigo: errorHistorial.code, sesion_id });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    log.error('npc_chat.historial_no_leido', { peticion, codigo: errorHistorial.code, sesion_id });
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   const mensajesGuardados: FilaMensaje[] = filas;
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
-    log.info('npc_chat.tope_de_sesion', { sesion_id });
+    log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
     return responderError(
       429,
       `Llegaste al máximo de ${MAX_INTERVENCIONES_POR_SESION} intervenciones en esta práctica. Termínala para que tu docente la revise.`
@@ -146,9 +148,9 @@ export async function POST(request: Request): Promise<Response> {
   // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log).
   const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
   if (errorLimite) {
-    log.error('npc_chat.limite_no_verificado', { codigo: errorLimite.code, sesion_id });
+    log.error('npc_chat.limite_no_verificado', { peticion, codigo: errorLimite.code, sesion_id });
   } else if (esperaS > 0) {
-    log.info('npc_chat.limite_alcanzado', { sesion_id, espera_s: esperaS });
+    log.info('npc_chat.limite_alcanzado', { peticion, sesion_id, espera_s: esperaS });
     const cuerpoLimite: NpcChatError = {
       error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
     };
@@ -169,7 +171,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   } catch (error) {
     const tipo = error instanceof ErrorIA ? error.tipo : 'proveedor';
-    log.error('npc_chat.ia_fallo', { tipo, sesion_id });
+    log.error('npc_chat.ia_fallo', { peticion, tipo, sesion_id });
     const { status, mensaje } = ERRORES_IA[tipo];
     return responderError(status, mensaje);
   }
@@ -194,13 +196,18 @@ export async function POST(request: Request): Promise<Response> {
     ])
     .select('id, remitente');
   if (errorGuardado) {
-    log.error('npc_chat.mensajes_no_guardados', { codigo: errorGuardado.code, sesion_id });
+    log.error('npc_chat.mensajes_no_guardados', {
+      peticion,
+      codigo: errorGuardado.code,
+      sesion_id,
+    });
   }
   const idGuardado = (remitente: 'estudiante' | 'npc') =>
     guardados?.find(fila => fila.remitente === remitente)?.id ?? null;
 
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
   log.info('npc_chat.respuesta', {
+    peticion,
     sesion_id,
     modelo: respuesta.modelo,
     latencia_ms: latenciaMs,

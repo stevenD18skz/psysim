@@ -22,7 +22,7 @@ import {
  */
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos de la retroalimentación.';
-const MENSAJE_GENERICO = 'No fue posible guardar la retroalimentación. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos guardar la retroalimentación. Inténtalo de nuevo.';
 const MENSAJE_EN_CURSO = 'La sesión sigue en curso: podrás revisarla cuando el estudiante termine.';
 
 type Cliente = Awaited<ReturnType<typeof createClient>>;
@@ -148,7 +148,7 @@ export async function crearAnotacion(valores: unknown): Promise<ResultadoAccion<
       return { ok: false, error: 'Solo puedes subrayar las intervenciones del estudiante.' };
     }
     log.error('anotacion.no_creada', { codigo: error.code });
-    return { ok: false, error: 'No fue posible guardar el comentario. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos guardar el comentario. Inténtalo de nuevo.' };
   }
 
   return {
@@ -185,7 +185,7 @@ export async function actualizarAnotacion(
 
   if (error || !data) {
     if (error) log.error('anotacion.no_actualizada', { codigo: error.code });
-    return { ok: false, error: 'No fue posible guardar el comentario. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos guardar el comentario. Inténtalo de nuevo.' };
   }
   return { ok: true, datos: { id: data.id } };
 }
@@ -205,7 +205,7 @@ export async function eliminarAnotacion(
   const { error } = await supabase.from('anotacion').delete().eq('id', datos.data.id);
   if (error) {
     log.error('anotacion.no_eliminada', { codigo: error.code });
-    return { ok: false, error: 'No fue posible quitar el comentario. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos quitar el comentario. Inténtalo de nuevo.' };
   }
   return { ok: true, datos: { id: datos.data.id } };
 }
@@ -235,7 +235,7 @@ export async function interrumpirSesion(
 
   if (error || !data) {
     if (error) log.error('sesion.no_interrumpida', { codigo: error.code });
-    return { ok: false, error: 'La sesión ya no está en curso. Recarga la página.' };
+    return { ok: false, error: 'La práctica ya no está en curso. Recarga la página.' };
   }
   return { ok: true, datos: { id: data.id } };
 }

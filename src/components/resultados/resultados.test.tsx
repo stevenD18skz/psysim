@@ -42,7 +42,7 @@ describe('TarjetasMetricas (HU-21 · T02)', () => {
       'Total de intervenciones': '4',
       'Latencia promedio': '1,8 s',
       'Latencia máxima': '3,4 s',
-      'Duración de la sesión': '05:23',
+      'Duración de la práctica': '05:23',
     };
     for (const [titulo, valor] of Object.entries(esperado)) {
       const region = screen.getByRole('region', { name: titulo });
@@ -95,7 +95,7 @@ describe('TarjetasMetricas (HU-21 · T02)', () => {
   it('sin duración (no llegó a comenzar) muestra «—»', () => {
     render(<TarjetasMetricas metricas={{ ...METRICAS, duracionSegundos: null }} para="docente" />);
     expect(
-      within(screen.getByRole('region', { name: 'Duración de la sesión' })).getByText('—')
+      within(screen.getByRole('region', { name: 'Duración de la práctica' })).getByText('—')
     ).toBeInTheDocument();
   });
 });
@@ -141,7 +141,7 @@ describe('AccionesResultados (HU-21 · T04)', () => {
         <AccionesResultados rol="docente" />
       </AppStoreProvider>
     );
-    expect(screen.getByRole('link', { name: 'Nueva sesión' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Asignar otra práctica' })).toHaveAttribute(
       'href',
       '/configuracion'
     );
@@ -159,7 +159,7 @@ describe('AccionesResultados (HU-21 · T04)', () => {
       '/practicas'
     );
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Nueva sesión' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Asignar otra práctica' })).not.toBeInTheDocument();
   });
 
   it('en el computador del docente (modo presencial) cerrar la sesión es la acción principal', async () => {

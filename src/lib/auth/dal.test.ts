@@ -94,7 +94,7 @@ describe('obtenerSesionUsuario (DAL)', () => {
   it('un fallo de la base de datos no se confunde con "sin permiso"', async () => {
     conUsuario();
     db.responder('usuario', { error: { code: '500' } });
-    await expect(obtenerSesionUsuario()).rejects.toThrow('No fue posible cargar el perfil');
+    await expect(obtenerSesionUsuario()).rejects.toThrow('No pudimos cargar el perfil');
   });
 });
 
