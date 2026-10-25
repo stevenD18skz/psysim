@@ -103,7 +103,6 @@ function TarjetaEscenarioPublico({
       type="button"
       onClick={onAbrir}
       aria-haspopup="dialog"
-      aria-label={`${escenario.codigo}: ${escenario.titulo}. Ver detalle del escenario`}
       className="group flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-[border-color,box-shadow] hover:border-nogal/40 hover:shadow-[0_10px_28px_-14px_rgb(58_36_24/0.4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
     >
       {/* El vano de la puerta de cada consultorio: el mismo arco del inicio y de las instrucciones. */}
