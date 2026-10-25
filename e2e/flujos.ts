@@ -1,8 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { expect, type Locator, type Page } from '@playwright/test';
 
-import { existe } from '../test/pendiente';
-
 import { docente, estudiante } from './helpers';
 
 /**
@@ -10,16 +8,6 @@ import { docente, estudiante } from './helpers';
  * para Playwright: cada paso se verifica con el DOM que lo rodea (pantalla de carga, modales,
  * HUD, panel de conversación).
  */
-
-/**
- * Sprint 4 (HUD con "Finalizar sesión", cierre con métricas y /resultados). Los tests que lo
- * necesitan se omiten hasta que exista la página de resultados y se activan solos después.
- */
-export const SPRINT_4_LISTO = existe(
-  'src/app/(protected)/resultados/page.tsx',
-  'src/app/(protected)/(panel)/resultados/page.tsx'
-);
-export const MOTIVO_SPRINT_4 = 'Pendiente del Sprint 4 (HU-17 a HU-21): finalizar y /resultados';
 
 /** Cliente con la clave secreta para preparar y limpiar datos (o `null` si no está definida). */
 export function clienteAdmin() {
@@ -265,8 +253,8 @@ export async function conversar(panel: Locator, nombreCompleto: string, texto: s
 }
 
 /**
- * Sprint 4 (HU-17 · T03, HU-20): finaliza desde el HUD con su modal de confirmación y espera la
- * pantalla de resultados.
+ * HU-17 · T03 y HU-20: finaliza desde el HUD con su modal de confirmación y espera la pantalla de
+ * resultados.
  */
 export async function finalizarDesdeHud(page: Page, sesionId: string) {
   await page.getByRole('button', { name: 'Terminar práctica' }).click();
