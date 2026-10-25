@@ -27,7 +27,7 @@ export function PiePagina({ className }: { className?: string }) {
         <div className="flex flex-col gap-1 text-xs sm:items-end">
           <Link
             href="/privacidad"
-            className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
+            className="-my-1.5 inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
           >
             Privacidad y tratamiento de datos
           </Link>

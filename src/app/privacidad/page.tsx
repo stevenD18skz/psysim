@@ -68,7 +68,10 @@ export default function PrivacidadPage() {
           <ol className="flex flex-col gap-1 text-sm text-muted-foreground">
             {SECCIONES.map(([id, titulo], i) => (
               <li key={id}>
-                <a href={`#${id}`} className="hover:text-foreground hover:underline">
+                <a
+                  href={`#${id}`}
+                  className="inline-flex min-h-7 items-center hover:text-foreground hover:underline"
+                >
                   {i + 1}. {titulo}
                 </a>
               </li>

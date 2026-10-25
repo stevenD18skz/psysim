@@ -119,14 +119,14 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <Link
                   href="/"
-                  className="inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
+                  className="inline-flex min-h-8 w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   <ArrowLeft className="size-4" aria-hidden />
                   Volver al inicio
                 </Link>
                 <Link
                   href="/privacidad"
-                  className="underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex min-h-8 items-center underline-offset-4 hover:text-foreground hover:underline"
                 >
                   Privacidad
                 </Link>
