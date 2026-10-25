@@ -57,7 +57,7 @@ export async function iniciarSesion(
     if (error.status === 429) {
       return { error: MENSAJE_LIMITE };
     }
-    console.error('[auth] Error inesperado al iniciar sesión:', error.code ?? error.status);
+    log.error('auth.login_fallo', { codigo: error.code ?? error.status });
     return { error: MENSAJE_GENERICO };
   }
 
@@ -69,7 +69,7 @@ export async function iniciarSesion(
 
   if (errorPerfil) {
     await supabase.auth.signOut({ scope: 'local' });
-    console.error('[auth] No pudimos leer el perfil tras el login:', errorPerfil.code);
+    log.error('auth.perfil_no_leido', { origen: 'formulario', codigo: errorPerfil.code });
     return { error: MENSAJE_GENERICO };
   }
 
@@ -143,7 +143,7 @@ export async function iniciarSesionConGoogle(siguiente?: string | null): Promise
   });
 
   if (error || !data.url) {
-    console.error('[auth] No pudimos iniciar el acceso con Google:', error?.code ?? error?.status);
+    log.error('auth.google_no_iniciado', { codigo: error?.code ?? error?.status });
     return { error: 'No pudimos conectar con Google. Inténtalo de nuevo.' };
   }
 
@@ -197,6 +197,6 @@ export async function cerrarSesion(): Promise<void> {
 
   if (error) {
     // signOut elimina las cookies locales aunque falle la revocación remota.
-    console.error('[auth] Error al revocar la sesión:', error.code ?? error.status);
+    log.warn('auth.cierre_no_revocado', { codigo: error.code ?? error.status });
   }
 }

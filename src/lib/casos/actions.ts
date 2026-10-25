@@ -64,7 +64,7 @@ async function insertarCaso(
     if (!error) {
       id = data.id;
     } else if (error.code !== UNIQUE_VIOLATION) {
-      console.error('[caso] No pudimos crear el escenario:', error.code);
+      log.error('caso.no_creado', { codigo: error.code });
       return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
     }
   }
@@ -72,7 +72,7 @@ async function insertarCaso(
 
   const { error } = await supabase.from('npc').insert({ ...npc, escenario_id: id });
   if (error) {
-    console.error('[caso] No pudimos crear el paciente:', error.code);
+    log.error('caso.paciente_no_creado', { codigo: error.code });
     await supabase.from('escenario').update({ activo: false }).eq('id', id);
     return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
   }
@@ -107,7 +107,7 @@ export async function actualizarCaso(valores: unknown): Promise<ResultadoAccion<
     .eq('activo', true)
     .select('id');
   if (error || actualizado.length === 0) {
-    if (error) console.error('[caso] No pudimos actualizar el escenario:', error.code);
+    if (error) log.error('caso.no_actualizado', { codigo: error.code });
     return { ok: false, error: 'No pudimos guardar los cambios del caso. Inténtalo de nuevo.' };
   }
 
@@ -116,7 +116,7 @@ export async function actualizarCaso(valores: unknown): Promise<ResultadoAccion<
     .update(npc)
     .eq('escenario_id', datos.data.id);
   if (errorNpc) {
-    console.error('[caso] No pudimos actualizar el paciente:', errorNpc.code);
+    log.error('caso.paciente_no_actualizado', { codigo: errorNpc.code });
     return { ok: false, error: 'No pudimos guardar los cambios del caso. Inténtalo de nuevo.' };
   }
 
@@ -142,7 +142,7 @@ export async function archivarCaso(valores: unknown): Promise<ResultadoAccion<{ 
     .select('id');
 
   if (error || data.length === 0) {
-    if (error) console.error('[caso] No pudimos archivar:', error.code);
+    if (error) log.error('caso.no_archivado', { codigo: error.code });
     return { ok: false, error: 'No pudimos eliminar el caso. Inténtalo de nuevo.' };
   }
   return { ok: true, datos: { id: datos.data.id } };

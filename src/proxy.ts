@@ -11,6 +11,7 @@ import {
   esRutaProtegida,
 } from '@/lib/auth/routes';
 import { publicEnv } from '@/lib/env/public';
+import { ENCABEZADO_PETICION, resolverIdPeticion } from '@/lib/observabilidad/peticion';
 import { construirCsp, generarNonce } from '@/lib/seguridad/csp';
 import { redirectWithSession, updateSession } from '@/lib/supabase/proxy';
 
@@ -38,9 +39,13 @@ export async function proxy(request: NextRequest) {
   // Next.js extrae el nonce de este encabezado de la petición al renderizar la página.
   request.headers.set('x-nonce', nonce);
   request.headers.set('Content-Security-Policy', csp);
+  // Un identificador por petición: va a los registros de la API y a la respuesta, para seguir un caso.
+  const idPeticion = resolverIdPeticion(request.headers.get('x-vercel-id'));
+  request.headers.set(ENCABEZADO_PETICION, idPeticion);
 
   const { response, claims } = await updateSession(request);
   response.headers.set('Content-Security-Policy', csp);
+  response.headers.set(ENCABEZADO_PETICION, idPeticion);
   const { pathname, search } = request.nextUrl;
 
   if (!esRutaProtegida(pathname)) {
