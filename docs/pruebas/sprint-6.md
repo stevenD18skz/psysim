@@ -143,4 +143,15 @@ rendimiento de un computador real.
 
 ## Resultado de la corrida completa
 
-RESULTADO_E2E
+Corrida completa (`pnpm test:e2e --workers=2`, 92 tests): **72 aprobados**; los 7 que fallaron
+se debieron a la sobrecarga del PC (cierres del navegador y tiempos agotados con dos workers a la
+vez) y, uno, a un clic bloqueado por el lienzo 3D en `resultados.spec.ts`. Reejecutados en serie
+(`--workers=1`) tras corregirlos: configuración, conversación, estudiantes, flujo completo,
+laboratorio y modo presencial **aprobados (28/28)** y `resultados.spec.ts` **5 aprobados y 1
+omitido**: la comprobación de la fila de `metrica` en Supabase se omite sola mientras la migración
+`20261025010000_metricas_sesion.sql` no esté aplicada (el resto de la pantalla funciona con las
+métricas reconstruidas).
+
+Hallazgos de esta corrida: la pantalla de resultados lanzaba un error si la tabla `metrica` no
+existía (corregido: devuelve «sin métricas» y reconstruye), y `finalizarDesdeHud` debe soltar el
+puntero antes de pulsar «Terminar práctica».
