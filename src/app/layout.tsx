@@ -23,6 +23,12 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
 });
 
+/**
+ * El nonce de la política de seguridad de contenido llega con cada petición, así que las páginas
+ * se renderizan en el servidor en cada visita (una página estática no podría llevarlo).
+ */
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   metadataBase: new URL(URL_SITIO),
   title: {
