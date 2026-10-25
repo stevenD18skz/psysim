@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, JetBrains_Mono } from 'next/font/google';
 
+import { ConfigurarZod } from '@/components/layout/configurar-zod';
 import { Toaster } from '@/components/ui/sonner';
 import { DESCRIPCION_SITIO, NOMBRE_SITIO, TITULO_SITIO, URL_SITIO } from '@/lib/sitio';
 
@@ -13,7 +14,8 @@ import './globals.css';
  */
 const archivo = Archivo({
   variable: '--font-archivo',
-  subsets: ['latin', 'latin-ext'],
+  // Solo `latin`: cubre todo el español (ñ, tildes, ¿ ¡ « »). `latin-ext` sumaba ~85 KiB a cada visita.
+  subsets: ['latin'],
   axes: ['wdth'],
 });
 
@@ -21,6 +23,8 @@ const archivo = Archivo({
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   subsets: ['latin'],
+  // Solo se ve en códigos de acceso y de caso: no se precarga en las páginas que no la usan.
+  preload: false,
 });
 
 /**
@@ -64,6 +68,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${archivo.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        <ConfigurarZod />
         {children}
         <Toaster position="bottom-right" richColors closeButton />
       </body>
