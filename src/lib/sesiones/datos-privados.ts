@@ -36,7 +36,7 @@ export async function leerEscenarioDeSesion(
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar el caso de la sesión.', { cause: error });
+    throw new Error('No pudimos cargar el caso de la sesión.', { cause: error });
   }
   if (!data?.npc) return null;
 
@@ -71,7 +71,7 @@ export async function leerTitulosDeEscenarios(
     .in('id', unicos);
 
   if (error) {
-    throw new Error('No fue posible cargar los casos.', { cause: error });
+    throw new Error('No pudimos cargar los casos.', { cause: error });
   }
   return new Map(data.map(fila => [fila.id, { codigo: fila.codigo, titulo: fila.titulo }]));
 }
@@ -85,7 +85,7 @@ export async function leerPromptDeSesion(sesionId: string): Promise<string | nul
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar el prompt de la sesión.', { cause: error });
+    throw new Error('No pudimos cargar el prompt de la sesión.', { cause: error });
   }
   return data?.prompt_sistema ?? null;
 }

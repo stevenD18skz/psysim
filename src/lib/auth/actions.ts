@@ -24,7 +24,7 @@ export interface ResultadoLogin {
 
 const MENSAJE_CREDENCIALES = 'Correo o contraseña incorrectos.';
 const MENSAJE_LIMITE = 'Demasiados intentos de inicio de sesión. Espera unos minutos.';
-const MENSAJE_GENERICO = 'No fue posible iniciar sesión. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos iniciar sesión. Inténtalo de nuevo.';
 
 /**
  * HU-02: inicia la sesión con correo y contraseña (docentes y cuentas de prueba).
@@ -69,7 +69,7 @@ export async function iniciarSesion(
 
   if (errorPerfil) {
     await supabase.auth.signOut({ scope: 'local' });
-    console.error('[auth] No se pudo leer el perfil tras el login:', errorPerfil.code);
+    console.error('[auth] No pudimos leer el perfil tras el login:', errorPerfil.code);
     return { error: MENSAJE_GENERICO };
   }
 
@@ -143,8 +143,8 @@ export async function iniciarSesionConGoogle(siguiente?: string | null): Promise
   });
 
   if (error || !data.url) {
-    console.error('[auth] No se pudo iniciar el acceso con Google:', error?.code ?? error?.status);
-    return { error: 'No fue posible conectar con Google. Inténtalo de nuevo.' };
+    console.error('[auth] No pudimos iniciar el acceso con Google:', error?.code ?? error?.status);
+    return { error: 'No pudimos conectar con Google. Inténtalo de nuevo.' };
   }
 
   redirect(data.url as never);
@@ -173,7 +173,7 @@ export async function cambiarContrasena(valores: unknown): Promise<ResultadoAcci
       return { ok: false, error: 'Esa contraseña es muy débil. Elige una más larga o variada.' };
     }
     log.error('auth.contrasena_no_cambiada', { codigo: error.code ?? error.status });
-    return { ok: false, error: 'No fue posible cambiar la contraseña. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos cambiar la contraseña. Inténtalo de nuevo.' };
   }
 
   if (perfil.contrasenaTemporal) {

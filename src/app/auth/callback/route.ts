@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(codigo);
   if (error || !data.user) {
     console.error(
-      '[auth] No se pudo completar el acceso con Google:',
+      '[auth] No pudimos completar el acceso con Google:',
       error?.code ?? error?.status
     );
     return aLogin('fallo');
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
   if (errorPerfil) {
     await supabase.auth.signOut({ scope: 'local' });
-    console.error('[auth] No se pudo leer el perfil tras el acceso con Google:', errorPerfil.code);
+    console.error('[auth] No pudimos leer el perfil tras el acceso con Google:', errorPerfil.code);
     return aLogin('fallo');
   }
 

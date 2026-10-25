@@ -96,7 +96,7 @@ describe('obtenerCatalogoEscenarios', () => {
 
   it('propaga los errores de la base de datos al error boundary', async () => {
     db.responder('escenario', { error: { code: '500' } });
-    await expect(obtenerCatalogoEscenarios()).rejects.toThrow('No fue posible cargar');
+    await expect(obtenerCatalogoEscenarios()).rejects.toThrow('No pudimos cargar');
   });
 });
 
@@ -158,7 +158,7 @@ describe('obtenerSesionEnCurso', () => {
 
   it('propaga los errores de la base de datos', async () => {
     db.responder('sesion', { error: { code: '500' } });
-    await expect(obtenerSesionEnCurso('s1')).rejects.toThrow('No fue posible cargar la sesión');
+    await expect(obtenerSesionEnCurso('s1')).rejects.toThrow('No pudimos cargar la sesión');
   });
 });
 

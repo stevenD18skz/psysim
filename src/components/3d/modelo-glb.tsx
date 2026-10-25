@@ -85,7 +85,7 @@ export class LimiteErrorModelo extends Component<LimiteErrorModeloProps, LimiteE
 
   componentDidCatch(error: unknown) {
     console.warn(
-      `[escena] No se pudo cargar el modelo "${this.props.ruta}"; se usa la versión procedural.`,
+      `[escena] No pudimos cargar el modelo "${this.props.ruta}"; se usa la versión procedural.`,
       error
     );
   }

@@ -40,7 +40,7 @@ export function AccionesResultados({ rol }: { rol: 'docente' | 'estudiante' }) {
         <Button variant="accion" size="lg" asChild>
           <Link href="/configuracion">
             <Plus aria-hidden />
-            Nueva sesión
+            Asignar otra práctica
           </Link>
         </Button>
       ) : (

@@ -41,7 +41,7 @@ export const obtenerDocentes = cache(async (): Promise<DocenteAdmin[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('admin_docentes');
   if (error) {
-    throw new Error('No fue posible cargar los docentes.', { cause: error });
+    throw new Error('No pudimos cargar los docentes.', { cause: error });
   }
   return data.map(aDocente);
 });
@@ -77,7 +77,7 @@ export async function obtenerFichaDocente(id: string): Promise<{
       .order('creado_en', { ascending: false }),
   ]);
   if (registros.error || casos.error) {
-    throw new Error('No fue posible cargar la ficha del docente.', {
+    throw new Error('No pudimos cargar la ficha del docente.', {
       cause: registros.error ?? casos.error,
     });
   }
@@ -92,7 +92,7 @@ export async function obtenerFichaDocente(id: string): Promise<{
       .order('ultima_sesion', { ascending: false, nullsFirst: false })
       .order('nombre');
     if (error) {
-      throw new Error('No fue posible cargar los estudiantes del docente.', { cause: error });
+      throw new Error('No pudimos cargar los estudiantes del docente.', { cause: error });
     }
     estudiantes = data.flatMap(fila => aEstudiante(fila) ?? []);
   }

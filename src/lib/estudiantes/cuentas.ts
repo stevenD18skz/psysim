@@ -4,7 +4,7 @@ import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const MENSAJE_GENERICO = 'No fue posible crear la cuenta del estudiante. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos crear la cuenta del estudiante. Inténtalo de nuevo.';
 
 interface DatosCuenta {
   correo: string;

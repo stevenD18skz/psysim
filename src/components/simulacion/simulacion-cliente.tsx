@@ -430,7 +430,7 @@ function AvisoSimulacionMovil({ sesion }: { sesion: SesionActiva }) {
             {copia === 'copiado' && 'Pégalo en el navegador de tu computador.'}
             {copia === 'fallo' && (
               <span className="break-all">
-                No se pudo copiar. Mantén pulsado el enlace: {enlace}
+                No pudimos copiar. Mantén pulsado el enlace: {enlace}
               </span>
             )}
           </p>

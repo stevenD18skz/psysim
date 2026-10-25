@@ -54,8 +54,8 @@ export function formatearTiempoPractica(segundos: number): string {
 }
 
 /** "1 sesión", "3 sesiones". */
-export function contarSesiones(total: number): string {
-  return `${total} ${total === 1 ? 'sesión' : 'sesiones'}`;
+export function contarPracticas(total: number): string {
+  return `${total} ${total === 1 ? 'práctica' : 'prácticas'}`;
 }
 
 const formatoDia = new Intl.DateTimeFormat('es-CO', {

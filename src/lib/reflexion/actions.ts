@@ -6,7 +6,7 @@ import { log } from '@/lib/log';
 import { createClient } from '@/lib/supabase/server';
 import { guardarReflexionSchema } from '@/schemas/reflexion.schema';
 
-const MENSAJE_GENERICO = 'No fue posible guardar tu reflexión. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos guardar tu reflexión. Inténtalo de nuevo.';
 
 /**
  * Guarda, corrige o retira (texto vacío) la reflexión del estudiante sobre una práctica ya

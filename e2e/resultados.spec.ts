@@ -77,7 +77,7 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
       await expect(tarjeta).toContainText(/\d/);
     }
     // Duración en formato MM:SS.
-    await expect(page.getByRole('region', { name: 'Duración de la sesión' })).toContainText(
+    await expect(page.getByRole('region', { name: 'Duración de la práctica' })).toContainText(
       /\d{2}:\d{2}/
     );
     await expect(page.getByRole('region', { name: 'Total de intervenciones' })).toContainText('1');
@@ -162,7 +162,7 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     // La sesión finalizada ya no se retoma desde /simulacion.
     await page.goto(`/simulacion?sesion=${sesionId}`);
     await expect(
-      page.getByRole('heading', { name: 'Esta sesión no está disponible' })
+      page.getByRole('heading', { name: 'Esta práctica no está disponible' })
     ).toBeVisible();
   });
 
@@ -194,7 +194,7 @@ test.describe('pantalla de resultados (HU-27 · T04)', () => {
     // El docente lee al estudiante como «Estudiante», no como «Tú».
     await expect(page.locator('[data-remitente="estudiante"]').first()).toContainText('Estudiante');
 
-    await page.getByRole('link', { name: 'Nueva sesión' }).click();
+    await page.getByRole('link', { name: 'Asignar otra práctica' }).click();
     await expect(page).toHaveURL(/\/configuracion$/);
     await expect(page.getByRole('combobox', { name: 'Busca al estudiante' })).toBeVisible();
   });

@@ -58,10 +58,10 @@ export async function POST(request: Request): Promise<Response> {
 
   if (errorSesion) {
     log.error('metrics_save.sesion_no_leida', { codigo: errorSesion.code, sesion_id });
-    return responderError(500, 'No fue posible guardar los resultados de la práctica.');
+    return responderError(500, 'No pudimos guardar los resultados de la práctica.');
   }
   if (!sesion) {
-    return responderError(404, 'La sesión de simulación no existe.');
+    return responderError(404, 'La práctica no existe.');
   }
   if (sesion.estado !== 'en_curso') {
     return responderError(409, 'La práctica ya terminó.');
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
     // 55000: otra pestaña la cerró entre la lectura y el guardado.
     if (error.code === '55000') return responderError(409, 'La práctica ya terminó.');
     log.error('metrics_save.no_guardadas', { codigo: error.code, sesion_id });
-    return responderError(500, 'No fue posible guardar los resultados de la práctica.');
+    return responderError(500, 'No pudimos guardar los resultados de la práctica.');
   }
 
   log.info('metrics_save.guardadas', { sesion_id, total_mensajes });

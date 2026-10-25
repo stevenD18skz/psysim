@@ -30,7 +30,7 @@ function responderError(status: number, error: string, campos?: NpcChatError['ca
 
 /** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
 const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
-  tiempo_agotado: { status: 504, mensaje: 'El paciente virtual tardó demasiado en responder.' },
+  tiempo_agotado: { status: 504, mensaje: 'El paciente tardó demasiado en responder.' },
   autenticacion: { status: 502, mensaje: 'El servicio de IA no está disponible.' },
   limite: { status: 503, mensaje: 'El servicio de IA está saturado. Inténtalo en unos segundos.' },
   respuesta_invalida: {
@@ -90,17 +90,17 @@ export async function POST(request: Request): Promise<Response> {
 
   if (errorSesion) {
     log.error('npc_chat.sesion_no_leida', { codigo: errorSesion.code });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   if (!sesion) {
-    return responderError(404, 'La sesión de simulación no existe.');
+    return responderError(404, 'La práctica no existe.');
   }
   if (sesion.estado !== 'en_curso') {
-    return responderError(409, 'La sesión de simulación ya finalizó.');
+    return responderError(409, 'La práctica ya terminó.');
   }
   // HU-23: no se conversa hasta que el estudiante confirma las instrucciones del caso.
   if (!sesion.comenzada) {
-    return responderError(409, 'La simulación aún no ha comenzado.');
+    return responderError(409, 'La práctica aún no ha comenzado.');
   }
 
   let npc: { id: string; nombre: string } | undefined;
@@ -115,10 +115,10 @@ export async function POST(request: Request): Promise<Response> {
     promptSistema = prompt;
   } catch {
     log.error('npc_chat.caso_no_leido', { sesion_id });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   if (!npc || npc.id !== npc_id || !promptSistema) {
-    return responderError(404, 'El paciente virtual no pertenece a esta sesión.');
+    return responderError(404, 'El paciente no pertenece a esta práctica.');
   }
 
   // LLM01: el contexto sale de lo que el servidor guardó, no del historial que mande el navegador
@@ -131,7 +131,7 @@ export async function POST(request: Request): Promise<Response> {
     .order('remitente');
   if (errorHistorial) {
     log.error('npc_chat.historial_no_leido', { codigo: errorHistorial.code, sesion_id });
-    return responderError(500, 'No fue posible cargar la sesión.');
+    return responderError(500, 'No pudimos cargar la sesión.');
   }
   const mensajesGuardados: FilaMensaje[] = filas;
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {

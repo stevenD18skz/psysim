@@ -16,7 +16,7 @@ export const RUTA_CHAT = '/api/npc/chat';
  */
 export const TIEMPO_MAXIMO_CLIENTE_MS = 35_000;
 
-export const MENSAJE_NO_DISPONIBLE = 'El paciente virtual no está disponible temporalmente.';
+export const MENSAJE_NO_DISPONIBLE = 'El paciente no está disponible por ahora.';
 
 export type ResultadoEnvio = { ok: true } | { ok: false; motivo: string };
 
@@ -47,7 +47,7 @@ export async function enviarMensaje(
 ): Promise<ResultadoEnvio> {
   const estado = store.getState();
   const sesion = estado.sesion.activa;
-  if (!sesion) return { ok: false, motivo: 'No hay una sesión activa.' };
+  if (!sesion) return { ok: false, motivo: 'No hay una práctica abierta. Vuelve a Mis prácticas.' };
 
   let mensaje: MensajeConversacion;
   if (typeof texto === 'string') {

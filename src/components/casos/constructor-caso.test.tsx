@@ -112,14 +112,14 @@ describe('ConstructorCaso', () => {
   });
 
   it('muestra el error del servidor sin salir de la página', async () => {
-    mockCrear.mockResolvedValue({ ok: false, error: 'No fue posible guardar el caso.' });
+    mockCrear.mockResolvedValue({ ok: false, error: 'No pudimos guardar el caso.' });
     const usuario = userEvent.setup();
     render(<ConstructorCaso />);
 
     await completarCaso(usuario);
     await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No fue posible guardar el caso.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos guardar el caso.');
     expect(push).not.toHaveBeenCalled();
   });
 

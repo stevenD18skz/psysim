@@ -37,7 +37,7 @@ function tarjetasDe(metricas: MetricasSesion): Tarjeta[] {
     },
     {
       id: 'duracion',
-      titulo: 'Duración de la sesión',
+      titulo: 'Duración de la práctica',
       valor:
         metricas.duracionSegundos === null ? '—' : formatearDuracion(metricas.duracionSegundos),
       ayuda:

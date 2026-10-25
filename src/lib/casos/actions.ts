@@ -64,17 +64,17 @@ async function insertarCaso(
     if (!error) {
       id = data.id;
     } else if (error.code !== UNIQUE_VIOLATION) {
-      console.error('[caso] No se pudo crear el escenario:', error.code);
-      return { ok: false, error: 'No fue posible guardar el caso. Inténtalo de nuevo.' };
+      console.error('[caso] No pudimos crear el escenario:', error.code);
+      return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
     }
   }
-  if (!id) return { ok: false, error: 'No fue posible guardar el caso. Inténtalo de nuevo.' };
+  if (!id) return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
 
   const { error } = await supabase.from('npc').insert({ ...npc, escenario_id: id });
   if (error) {
-    console.error('[caso] No se pudo crear el paciente:', error.code);
+    console.error('[caso] No pudimos crear el paciente:', error.code);
     await supabase.from('escenario').update({ activo: false }).eq('id', id);
-    return { ok: false, error: 'No fue posible guardar el caso. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
   }
   return { ok: true, datos: { id } };
 }
@@ -107,8 +107,8 @@ export async function actualizarCaso(valores: unknown): Promise<ResultadoAccion<
     .eq('activo', true)
     .select('id');
   if (error || actualizado.length === 0) {
-    if (error) console.error('[caso] No se pudo actualizar el escenario:', error.code);
-    return { ok: false, error: 'No fue posible guardar los cambios del caso.' };
+    if (error) console.error('[caso] No pudimos actualizar el escenario:', error.code);
+    return { ok: false, error: 'No pudimos guardar los cambios del caso. Inténtalo de nuevo.' };
   }
 
   const { error: errorNpc } = await supabase
@@ -116,8 +116,8 @@ export async function actualizarCaso(valores: unknown): Promise<ResultadoAccion<
     .update(npc)
     .eq('escenario_id', datos.data.id);
   if (errorNpc) {
-    console.error('[caso] No se pudo actualizar el paciente:', errorNpc.code);
-    return { ok: false, error: 'No fue posible guardar los cambios del caso.' };
+    console.error('[caso] No pudimos actualizar el paciente:', errorNpc.code);
+    return { ok: false, error: 'No pudimos guardar los cambios del caso. Inténtalo de nuevo.' };
   }
 
   return { ok: true, datos: { id: datos.data.id } };
@@ -142,8 +142,8 @@ export async function archivarCaso(valores: unknown): Promise<ResultadoAccion<{ 
     .select('id');
 
   if (error || data.length === 0) {
-    if (error) console.error('[caso] No se pudo archivar:', error.code);
-    return { ok: false, error: 'No fue posible eliminar el caso.' };
+    if (error) console.error('[caso] No pudimos archivar:', error.code);
+    return { ok: false, error: 'No pudimos eliminar el caso. Inténtalo de nuevo.' };
   }
   return { ok: true, datos: { id: datos.data.id } };
 }
@@ -169,7 +169,7 @@ export async function guardarVariante(valores: unknown): Promise<ResultadoAccion
     .maybeSingle();
 
   if (error || !base?.npc) {
-    return { ok: false, error: 'El escenario seleccionado ya no está disponible.' };
+    return { ok: false, error: 'El caso seleccionado ya no está disponible.' };
   }
 
   return insertarCaso(
@@ -192,7 +192,7 @@ export async function guardarVariante(valores: unknown): Promise<ResultadoAccion
 }
 
 const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
-  tiempo_agotado: 'El paciente virtual tardó demasiado en responder. Inténtalo de nuevo.',
+  tiempo_agotado: 'El paciente tardó demasiado en responder. Inténtalo de nuevo.',
   autenticacion: 'El servicio de IA no está disponible.',
   limite: 'El servicio de IA está saturado. Inténtalo en unos segundos.',
   respuesta_invalida: 'El servicio de IA devolvió una respuesta inválida.',

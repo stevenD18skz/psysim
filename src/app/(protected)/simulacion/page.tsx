@@ -30,7 +30,7 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
     if (ultima) redirect(`/simulacion?sesion=${ultima}`);
     return (
       <EstadoVacio
-        titulo="No hay ninguna simulación en curso"
+        titulo="No hay ninguna práctica en curso"
         descripcion="Para empezar una, escribe en Mis prácticas el código que te envió tu docente."
       />
     );
@@ -42,8 +42,8 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
   if (!sesion) {
     return (
       <EstadoVacio
-        titulo="Esta sesión no está disponible"
-        descripcion="Puede que ya haya finalizado o que el enlace no sea correcto. Revisa tus prácticas o pide un código nuevo a tu docente."
+        titulo="Esta práctica no está disponible"
+        descripcion="Puede que ya haya terminado o que el enlace no sea correcto. Revisa tus prácticas o pide un código nuevo a tu docente."
       />
     );
   }

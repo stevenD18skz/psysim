@@ -243,7 +243,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     const docente = await contexto.newPage();
     await iniciarSesionComoDocente(docente);
     await docente.goto(`/sesiones/${sesionId}`);
-    const conversacion = docente.getByRole('list', { name: 'Conversación de la sesión' });
+    const conversacion = docente.getByRole('list', { name: 'Conversación de la práctica' });
     const intento = conversacion.getByText(/reformuló aquí/);
     await expect(intento).toBeVisible();
     await expect(conversacion.getByText('¿Por qué no lo superó ya?')).toBeHidden();
