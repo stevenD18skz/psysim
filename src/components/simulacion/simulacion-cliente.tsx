@@ -31,7 +31,7 @@ import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
-import { BotonAmbiente, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
+import { BotonAjustes, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import {
   BotonHerramienta,
@@ -42,11 +42,7 @@ import {
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
-import {
-  BotonSonido,
-  BotonVoz,
-  useSonidoSimulacion,
-} from '@/components/simulacion/sonido-simulacion';
+import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
 import { useMuestreoProximidad } from '@/components/simulacion/use-proximidad';
@@ -224,8 +220,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
               </>
             )}
             <BotonSonido motor={motorAudio} />
-            <BotonVoz />
-            <BotonAmbiente />
+            <BotonAjustes />
             {!conversando && <BotonControles />}
             {lista && comenzada && !resumen && (
               <BotonFinalizar
