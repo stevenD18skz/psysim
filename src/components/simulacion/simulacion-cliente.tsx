@@ -49,6 +49,7 @@ import {
 } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
+import { useMuestreoProximidad } from '@/components/simulacion/use-proximidad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
 import {
@@ -176,6 +177,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && comenzada && !resumen;
+  // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
+  useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
 
   // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
   useEffect(() => {
