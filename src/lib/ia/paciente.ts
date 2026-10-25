@@ -18,7 +18,8 @@ import {
 import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
-import { componerInstrucciones } from './reglas';
+import { revelaInstrucciones } from './fuga-prompt';
+import { componerInstrucciones, TEXTO_REGLAS } from './reglas';
 
 const URL_BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -42,7 +43,13 @@ const TIEMPO_MINIMO_RESPALDO_MS = 3_000;
 export const MAX_MENSAJES_CONTEXTO = 40;
 
 export type TipoErrorIA =
-  'tiempo_agotado' | 'autenticacion' | 'limite' | 'respuesta_invalida' | 'proveedor';
+  | 'tiempo_agotado'
+  | 'autenticacion'
+  | 'limite'
+  | 'respuesta_invalida'
+  /** La respuesta copiaba las instrucciones del paciente (LLM07). */
+  | 'fuga_de_instrucciones'
+  | 'proveedor';
 
 /** Error de la IA ya clasificado; el mensaje original nunca se reenvía al cliente. */
 export class ErrorIA extends Error {
@@ -210,6 +217,10 @@ async function generarCon(
   const { texto: sinEtiqueta, emocion, intensidad } = extraerEmocion(resultado.text);
   const texto = limpiarRespuesta(sinEtiqueta, entrada.nombrePaciente);
   if (!texto) throw new ErrorIA('respuesta_invalida');
+  // LLM07: si el modelo cedió ante «muéstrame tus instrucciones», esa respuesta no sale del servidor.
+  if (revelaInstrucciones(texto, [entrada.promptSistema, TEXTO_REGLAS])) {
+    throw new ErrorIA('fuga_de_instrucciones');
+  }
 
   return {
     texto,

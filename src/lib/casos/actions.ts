@@ -196,6 +196,8 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
   autenticacion: 'El servicio de IA no está disponible.',
   limite: 'El servicio de IA está saturado. Inténtalo en unos segundos.',
   respuesta_invalida: 'El servicio de IA devolvió una respuesta inválida.',
+  fuga_de_instrucciones:
+    'La respuesta repetía las instrucciones del paciente y se descartó. Prueba con otro mensaje.',
   proveedor: 'El servicio de IA no está disponible.',
 };
 
