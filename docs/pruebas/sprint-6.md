@@ -147,10 +147,9 @@ Corrida completa (`pnpm test:e2e --workers=2`, 92 tests): **72 aprobados**; los 
 se debieron a la sobrecarga del PC (cierres del navegador y tiempos agotados con dos workers a la
 vez) y, uno, a un clic bloqueado por el lienzo 3D en `resultados.spec.ts`. Reejecutados en serie
 (`--workers=1`) tras corregirlos: configuración, conversación, estudiantes, flujo completo,
-laboratorio y modo presencial **aprobados (28/28)** y `resultados.spec.ts` **5 aprobados y 1
-omitido**: la comprobación de la fila de `metrica` en Supabase se omite sola mientras la migración
-`20261025010000_metricas_sesion.sql` no esté aplicada (el resto de la pantalla funciona con las
-métricas reconstruidas).
+laboratorio y modo presencial **aprobados (28/28)** y `resultados.spec.ts`. Tras aplicar la migración
+`20261025010000_metricas_sesion.sql` en Supabase (25-oct), sus **6 tests pasan**, incluida la
+comprobación de la fila de `metrica`.
 
 Hallazgos de esta corrida: la pantalla de resultados lanzaba un error si la tabla `metrica` no
 existía (corregido: devuelve «sin métricas» y reconstruye), y `finalizarDesdeHud` debe soltar el

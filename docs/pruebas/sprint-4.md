@@ -48,15 +48,15 @@ cuenta y el docente revisa después. Por eso:
 
 ## HU-19 — Route Handler de persistencia (`POST /api/metrics/save`)
 
-| #    | Escenario                                                                | Resultado esperado                                                    | Resultado                                                         |
-| ---- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 19.1 | T01: cuerpo válido                                                       | 200 con `sesion_id` y `metrica_id`; llama a `guardar_metricas_cierre` | ✅ Aprobado (`route.test.ts`)                                     |
-| 19.2 | T01: cuerpo que no pasa Zod (UUID, negativos, decimales, máxima < media) | 400 con el detalle por campo, sin tocar la base de datos              | ✅ Aprobado (`route.test.ts`, `metrics.schema.test.ts`)           |
-| 19.3 | T01: sin sesión, sin rol de estudiante, JSON inválido                    | 401 / 403 / 400                                                       | ✅ Aprobado                                                       |
-| 19.4 | T02: sesión inexistente o ajena, o ya terminada                          | 404 / 409 (no se guardan métricas dos veces)                          | ✅ Aprobado (también el 409 de la función, código `55000`)        |
-| 19.5 | T02: INSERT en `metrica` y UPDATE de la sesión                           | Una sola transacción; duración y tokens los calcula la base de datos  | ⏳ Escrito; verificado con la base remota al aplicar la migración |
-| 19.6 | T02: falla de la base de datos                                           | 500 con mensaje genérico, sin código ni nombres de tablas             | ✅ Aprobado                                                       |
-| 19.7 | T03: tests unitarios del Route Handler                                   | Cubre 200, 400, 401, 403, 404, 409 y 500                              | ✅ 17 tests (cobertura de `app/api`: 97,9 %)                      |
+| #    | Escenario                                                                | Resultado esperado                                                    | Resultado                                                              |
+| ---- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 19.1 | T01: cuerpo válido                                                       | 200 con `sesion_id` y `metrica_id`; llama a `guardar_metricas_cierre` | ✅ Aprobado (`route.test.ts`)                                          |
+| 19.2 | T01: cuerpo que no pasa Zod (UUID, negativos, decimales, máxima < media) | 400 con el detalle por campo, sin tocar la base de datos              | ✅ Aprobado (`route.test.ts`, `metrics.schema.test.ts`)                |
+| 19.3 | T01: sin sesión, sin rol de estudiante, JSON inválido                    | 401 / 403 / 400                                                       | ✅ Aprobado                                                            |
+| 19.4 | T02: sesión inexistente o ajena, o ya terminada                          | 404 / 409 (no se guardan métricas dos veces)                          | ✅ Aprobado (también el 409 de la función, código `55000`)             |
+| 19.5 | T02: INSERT en `metrica` y UPDATE de la sesión                           | Una sola transacción; duración y tokens los calcula la base de datos  | ✅ Aprobado contra Supabase (`resultados.spec.ts`, migración aplicada) |
+| 19.6 | T02: falla de la base de datos                                           | 500 con mensaje genérico, sin código ni nombres de tablas             | ✅ Aprobado                                                            |
+| 19.7 | T03: tests unitarios del Route Handler                                   | Cubre 200, 400, 401, 403, 404, 409 y 500                              | ✅ 17 tests (cobertura de `app/api`: 97,9 %)                           |
 
 ## HU-20 — Flujo de cierre de sesión
 
@@ -70,18 +70,18 @@ cuenta y el docente revisa después. Por eso:
 
 ## HU-21 — Pantalla de resultados (`/resultados?sesion=…`)
 
-| #     | Escenario                                                                       | Resultado esperado                                                           | Resultado                                                                          |
-| ----- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 21.1  | T01: encabezado con el escenario, el estudiante (nombre y código) y el paciente | `h1` con el caso; datos del estudiante visibles                              | ✅ Aprobado (`resultados.spec.ts`)                                                 |
-| 21.2  | T02: cuatro tarjetas (intervenciones, latencia promedio y máxima, duración)     | Regiones con su título como nombre; duración en `MM:SS`; «—» si no hay valor | ✅ Aprobado (`resultados.test.tsx`)                                                |
-| 21.3  | T02: tarjeta de cercanía al paciente cuando se midió                            | Distancia media en metros                                                    | ✅ Aprobado                                                                        |
-| 21.4  | T03: historial completo de la conversación                                      | `[data-remitente]` en orden; el docente lee «Estudiante», el estudiante «Tú» | ✅ Aprobado                                                                        |
-| 21.5  | T04: acciones al pie                                                            | Estudiante: Mis prácticas / Cerrar sesión. Docente: Nueva sesión / Cerrar    | ✅ Aprobado (`resultados.test.tsx`)                                                |
-| 21.6  | T04: modo presencial                                                            | «Cerrar sesión en este equipo» es la acción principal                        | ✅ Aprobado                                                                        |
-| 21.7  | Sesión ajena, inexistente o UUID inválido                                       | Redirige al inicio del rol (`/practicas` o `/inicio`)                        | ✅ Aprobado (E2E)                                                                  |
-| 21.8  | Práctica aún abierta                                                            | Se retoma (`/simulacion`) o, para el docente, se abre la revisión            | ✅ Aprobado (código); sin test dedicado                                            |
-| 21.9  | Sin métricas guardadas (inactividad, error, prácticas anteriores)               | Se reconstruyen con la conversación y la duración; se avisa en pantalla      | ✅ Aprobado (`resultados.test.ts`)                                                 |
-| 21.10 | T05: flujo completo de sesión                                                   | Terminar → resultados con ≥ 1 intervención → métricas en Supabase            | ✅ `flujo-completo.spec.ts` · ⏳ comprobación en `metrica` al aplicar la migración |
+| #     | Escenario                                                                       | Resultado esperado                                                           | Resultado                                                              |
+| ----- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 21.1  | T01: encabezado con el escenario, el estudiante (nombre y código) y el paciente | `h1` con el caso; datos del estudiante visibles                              | ✅ Aprobado (`resultados.spec.ts`)                                     |
+| 21.2  | T02: cuatro tarjetas (intervenciones, latencia promedio y máxima, duración)     | Regiones con su título como nombre; duración en `MM:SS`; «—» si no hay valor | ✅ Aprobado (`resultados.test.tsx`)                                    |
+| 21.3  | T02: tarjeta de cercanía al paciente cuando se midió                            | Distancia media en metros                                                    | ✅ Aprobado                                                            |
+| 21.4  | T03: historial completo de la conversación                                      | `[data-remitente]` en orden; el docente lee «Estudiante», el estudiante «Tú» | ✅ Aprobado                                                            |
+| 21.5  | T04: acciones al pie                                                            | Estudiante: Mis prácticas / Cerrar sesión. Docente: Nueva sesión / Cerrar    | ✅ Aprobado (`resultados.test.tsx`)                                    |
+| 21.6  | T04: modo presencial                                                            | «Cerrar sesión en este equipo» es la acción principal                        | ✅ Aprobado                                                            |
+| 21.7  | Sesión ajena, inexistente o UUID inválido                                       | Redirige al inicio del rol (`/practicas` o `/inicio`)                        | ✅ Aprobado (E2E)                                                      |
+| 21.8  | Práctica aún abierta                                                            | Se retoma (`/simulacion`) o, para el docente, se abre la revisión            | ✅ Aprobado (código); sin test dedicado                                |
+| 21.9  | Sin métricas guardadas (inactividad, error, prácticas anteriores)               | Se reconstruyen con la conversación y la duración; se avisa en pantalla      | ✅ Aprobado (`resultados.test.ts`)                                     |
+| 21.10 | T05: flujo completo de sesión                                                   | Terminar → resultados con ≥ 1 intervención → métricas en Supabase            | ✅ `flujo-completo.spec.ts` y `resultados.spec.ts` (fila en `metrica`) |
 
 ## Degradación elegante
 

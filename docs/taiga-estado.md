@@ -69,13 +69,11 @@ Detalle y escenarios: [`docs/pruebas/sprint-6.md`](pruebas/sprint-6.md).
 
 ## Pendiente (no se puede cerrar desde el código)
 
-1. **Aplicar la migración** `20261025010000_metricas_sesion.sql` en Supabase (HU-19). Sin ella todo
-   funciona, pero las métricas no se guardan y los resultados las reconstruyen.
-2. **Verificar en producción** (HU-29 · T03): correr `pnpm test:e2e` con `PLAYWRIGHT_BASE_URL` del
+1. **Verificar en producción** (HU-29 · T03): correr `pnpm test:e2e` con `PLAYWRIGHT_BASE_URL` del
    despliegue, tras cargar las variables de entorno en Vercel.
-3. **Registrar la URL beta y dar acceso al jurado** (HU-29 · T04).
-4. **Medir el rendimiento en el hardware del usuario objetivo** (HU-28 · T03):
+2. **Registrar la URL beta y dar acceso al jurado** (HU-29 · T04).
+3. **Medir el rendimiento en el hardware del usuario objetivo** (HU-28 · T03):
    `E2E_FPS_MINIMO=30 pnpm test:e2e e2e/rendimiento.spec.ts` en un computador con GPU integrada.
-5. **Conversar con cada uno de los doce pacientes** desde `/laboratorio/npc` (HU-24 · T02).
-6. **Pasada con lector de pantalla** (NVDA o VoiceOver) por el estudiante y el docente (HU-25).
-7. **Actualizar los estados en Taiga** (las historias figuran como `New`).
+4. **Conversar con cada uno de los doce pacientes** desde `/laboratorio/npc` (HU-24 · T02).
+5. **Pasada con lector de pantalla** (NVDA o VoiceOver) por el estudiante y el docente (HU-25).
+6. **Actualizar los estados en Taiga** (las historias figuran como `New`).
