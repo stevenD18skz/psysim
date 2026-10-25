@@ -17,6 +17,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+
+import { useBorrador } from '@/hooks/use-borrador';
+import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { toast } from 'sonner';
 
 import { FichaPaciente } from '@/components/casos/ficha-paciente';
@@ -91,7 +94,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
     getValues,
     reset,
     control,
-    formState: { errors, isSubmitted },
+    formState: { errors, isSubmitted, isDirty },
   } = useForm<CasoFormInput, unknown, CasoFormData>({
     resolver: zodResolver(casoFormSchema),
     mode: 'onTouched',
@@ -99,6 +102,18 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
   });
 
   const valores = useWatch({ control });
+  // Un caso se escribe en varios minutos: se guarda un borrador y se avisa antes de perderlo.
+  const { borrador, descartar, limpiar } = useBorrador({
+    clave: `psysim:borrador-caso:${casoId ?? 'nuevo'}`,
+    valores,
+    sucio: isDirty,
+  });
+  const restaurarBorrador = () => {
+    if (!borrador) return;
+    reset({ ...valoresVacios(), ...(borrador.valores as Partial<CasoFormInput>) });
+    descartar();
+    toast.success('Recuperamos tu borrador.');
+  };
   const modoTexto = valores.modoTexto === true;
 
   // `setValue` con claves dinámicas no infiere el tipo de cada campo: el tipado fino está en el esquema.
@@ -179,6 +194,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
         setErrorServidor(resultado.error);
         return;
       }
+      limpiar();
       toast.success(casoId ? 'Caso actualizado.' : `Caso «${datos.titulo}» guardado en Mis casos.`);
       router.push(`/configuracion?caso=${resultado.datos.id}`);
       router.refresh();
@@ -193,6 +209,25 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
       className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
     >
       <div className="flex flex-col gap-8">
+        {borrador && (
+          <div
+            role="status"
+            className="flex flex-col gap-3 rounded-2xl border border-laton/60 bg-ambar-suave p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-sm">
+              <span className="font-semibold">Tienes un borrador sin guardar</span> de{' '}
+              {formatearFechaHora(borrador.guardadoEn)}. ¿Quieres retomarlo?
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={descartar}>
+                Descartar
+              </Button>
+              <Button type="button" size="sm" onClick={restaurarBorrador}>
+                Recuperar borrador
+              </Button>
+            </div>
+          </div>
+        )}
         {ofrecerEjemplos && (
           <section
             aria-labelledby="ejemplos-titulo"
@@ -653,7 +688,7 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
                   <button
                     type="button"
                     onClick={() => irACampo(campo)}
-                    className="flex items-center gap-2 rounded-md text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                    className="flex min-h-7 items-center gap-2 rounded-md text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                   >
                     <CircleDashed className="size-4 shrink-0" aria-hidden />
                     {texto}
@@ -709,7 +744,7 @@ function Opciones({
             aria-pressed={elegida}
             onClick={() => onElegir(opcion)}
             className={cn(
-              'rounded-full border px-2.5 py-0.5 text-xs transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden',
+              'min-h-7 rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden',
               elegida
                 ? 'border-nogal bg-nogal text-lino'
                 : 'border-dashed text-muted-foreground hover:border-nogal/50 hover:bg-muted hover:text-foreground'

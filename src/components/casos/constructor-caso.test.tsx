@@ -41,6 +41,7 @@ describe('ConstructorCaso', () => {
     mockCrear.mockReset();
     mockActualizar.mockReset();
     mockProbar.mockReset();
+    localStorage.clear();
   });
 
   it('arma la vista previa del comportamiento mientras se completan los campos', async () => {
@@ -254,5 +255,53 @@ describe('ConstructorCaso', () => {
       })
     );
     expect(await screen.findByText('Buenas… no sé qué decir.')).toBeVisible();
+  });
+
+  describe('borrador (no perder lo escrito)', () => {
+    const BORRADOR = JSON.stringify({
+      valores: { titulo: 'Caso a medias', nombre: 'Camila Rojas' },
+      guardadoEn: '2026-10-25T10:00:00.000Z',
+    });
+
+    it('ofrece recuperar el borrador y lo carga en el formulario', async () => {
+      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      const usuario = userEvent.setup();
+      render(<ConstructorCaso />);
+
+      expect(await screen.findByText('Tienes un borrador sin guardar')).toBeInTheDocument();
+      await usuario.click(screen.getByRole('button', { name: 'Recuperar borrador' }));
+
+      expect(screen.getByLabelText('Título del caso')).toHaveValue('Caso a medias');
+      expect(screen.getByLabelText('Nombre', { exact: true })).toHaveValue('Camila Rojas');
+      expect(screen.queryByText('Tienes un borrador sin guardar')).not.toBeInTheDocument();
+    });
+
+    it('descartar lo borra sin tocar el formulario', async () => {
+      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      const usuario = userEvent.setup();
+      render(<ConstructorCaso />);
+
+      await usuario.click(await screen.findByRole('button', { name: 'Descartar' }));
+
+      expect(screen.getByLabelText('Título del caso')).toHaveValue('');
+      expect(localStorage.getItem('psysim:borrador-caso:nuevo')).toBeNull();
+    });
+
+    it('el borrador de un caso es independiente del de un caso nuevo', async () => {
+      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      render(<ConstructorCaso casoId="3f1f1c4e-3c1e-4a1e-8f1e-1a2b3c4d5e6f" />);
+      expect(screen.queryByText('Tienes un borrador sin guardar')).not.toBeInTheDocument();
+    });
+
+    it('al guardar con éxito borra el borrador', async () => {
+      const usuario = userEvent.setup();
+      mockCrear.mockResolvedValue({ ok: true, datos: { id: 'nuevo-id' } } as never);
+      render(<ConstructorCaso />);
+      await completarCaso(usuario);
+      await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
+
+      await vi.waitFor(() => expect(push).toHaveBeenCalled());
+      expect(localStorage.getItem('psysim:borrador-caso:nuevo')).toBeNull();
+    });
   });
 });

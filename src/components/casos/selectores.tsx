@@ -75,7 +75,7 @@ export function Sugerencias({ etiqueta, sugerencias, texto, onAgregar }: Sugeren
           key={sugerencia}
           type="button"
           onClick={() => onAgregar(sugerencia)}
-          className="rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
+          className="min-h-7 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
         >
           + {sugerencia}
         </button>
