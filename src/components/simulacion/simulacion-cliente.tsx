@@ -490,7 +490,7 @@ function Mira({ resaltada }: { resaltada: boolean }) {
     <div
       aria-hidden
       className={cn(
-        'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-all duration-200',
+        'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-[width,height,background-color,border-color] duration-200',
         resaltada
           ? 'size-4 border-2 border-white bg-laton/80 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
           : 'size-1.5 bg-white/90 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
