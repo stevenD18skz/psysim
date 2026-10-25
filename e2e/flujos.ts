@@ -257,6 +257,9 @@ export async function conversar(panel: Locator, nombreCompleto: string, texto: s
  * resultados.
  */
 export async function finalizarDesdeHud(page: Page, sesionId: string) {
+  // Al volver a explorar se recaptura el ratón; el navegador sin interfaz no lo suelta con Escape
+  // y el lienzo intercepta el clic en el HUD.
+  await page.evaluate(() => document.exitPointerLock());
   await page.getByRole('button', { name: 'Terminar práctica' }).click();
   const confirmacion = page.getByRole('alertdialog');
   await expect(confirmacion).toContainText('No se puede reanudar');

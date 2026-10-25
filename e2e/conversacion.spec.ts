@@ -265,7 +265,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await aviso.getByRole('button', { name: 'Sí, terminar práctica' }).click();
 
     // HU-20: al terminar, el estudiante llega a la pantalla de resultados con la sesión ya cerrada.
-    await expect(page).toHaveURL(new RegExp(`/resultados\?sesion=${sesionId}`), {
+    await expect(page).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
       timeout: 30_000,
     });
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Duelo y pérdida');
