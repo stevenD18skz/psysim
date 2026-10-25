@@ -22,6 +22,11 @@ describe('npcChatRequestSchema (HU-12 · T02)', () => {
     expect(npcChatRequestSchema.parse(valido).mensaje_usuario).toBe('Hola, ¿cómo te has sentido?');
   });
 
+  it('el historial es opcional: el servidor ya no lo usa', () => {
+    const { historial: _omitido, ...sinHistorial } = valido;
+    expect(npcChatRequestSchema.safeParse(sinHistorial).success).toBe(true);
+  });
+
   it('acepta un historial vacío (primer mensaje)', () => {
     expect(npcChatRequestSchema.safeParse({ ...valido, historial: [] }).success).toBe(true);
   });
@@ -43,12 +48,7 @@ describe('npcChatRequestSchema (HU-12 · T02)', () => {
   });
 
   it('rechaza un cuerpo sin campos', () => {
-    expect(Object.keys(campos({})).sort()).toEqual([
-      'historial',
-      'mensaje_usuario',
-      'npc_id',
-      'sesion_id',
-    ]);
+    expect(Object.keys(campos({})).sort()).toEqual(['mensaje_usuario', 'npc_id', 'sesion_id']);
   });
 });
 
