@@ -264,9 +264,12 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await expect(aviso).toContainText('la práctica no se podrá reanudar');
     await aviso.getByRole('button', { name: 'Sí, terminar práctica' }).click();
 
-    const cierre = page.getByRole('dialog', { name: 'Práctica terminada' });
-    await expect(cierre).toBeVisible();
-    await expect(cierre).toContainText(/intervenci/);
+    // HU-20: al terminar, el estudiante llega a la pantalla de resultados con la sesión ya cerrada.
+    await expect(page).toHaveURL(new RegExp(`/resultados\?sesion=${sesionId}`), {
+      timeout: 30_000,
+    });
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Duelo y pérdida');
+    await expect(page.getByRole('region', { name: 'Total de intervenciones' })).toBeVisible();
 
     const { data } = await clienteAdmin()
       .from('sesion')
@@ -276,8 +279,7 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     expect(data?.estado).toBe('finalizada');
     expect(data?.fin).not.toBeNull();
 
-    await cierre.getByRole('button', { name: 'Releer la conversación' }).click();
-    await expect(page).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
+    await page.goto(`/practicas/${sesionId}`);
     await expect(page.getByText('Tu docente aún no publica la retroalimentación.')).toBeVisible();
   });
 });

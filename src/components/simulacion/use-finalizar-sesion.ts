@@ -1,10 +1,11 @@
 'use client';
 
-import { unstable_rethrow } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useCallback, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { cerrarSesionPorInactividad, finalizarSesion } from '@/lib/escenarios/actions';
+import { guardarMetricas } from '@/lib/conversacion/guardar-metricas';
 import { type ResumenSesion, resumirSesion } from '@/lib/conversacion/resumen';
 import { useAppStoreApi } from '@/store/app-store-provider';
 
@@ -12,12 +13,15 @@ import { useAppStoreApi } from '@/store/app-store-provider';
 export type MotivoCierre = 'finalizada' | 'inactividad';
 
 /**
- * HU-16 · T02 — Cierra la sesión activa: la marca como finalizada en Supabase (la hora de fin
- * la pone la base de datos), pasa el NPC a `sesion_finalizada` y devuelve el resumen.
- * El Sprint 4 (HU-20) amplía este flujo con la persistencia de métricas y la pantalla de
- * resultados. Tras 10 minutos sin interacción, `cerrarPorInactividad` la da por interrumpida.
+ * HU-20 — Cierra la sesión activa. `finalizar` (el estudiante pulsa «Terminar práctica») envía las
+ * métricas a /api/metrics/save, que las guarda y marca la sesión como finalizada en una sola
+ * operación (la hora de fin la pone la base de datos), pasa el NPC a `sesion_finalizada` y lleva
+ * a la pantalla de resultados. Si el guardado falla, cierra la sesión sin métricas para que nadie
+ * se quede atrapado: los resultados se reconstruyen con la conversación guardada. Tras 10
+ * minutos sin interacción, `cerrarPorInactividad` la da por interrumpida y devuelve el resumen.
  */
 export function useFinalizarSesion() {
+  const router = useRouter();
   const store = useAppStoreApi();
   const [finalizando, startTransition] = useTransition();
   const [resumen, setResumen] = useState<ResumenSesion | null>(null);
@@ -42,19 +46,25 @@ export function useFinalizarSesion() {
     const sesionId = sesion.activa.id;
 
     startTransition(async () => {
-      let resultado;
-      try {
-        resultado = await finalizarSesion({ sesionId });
-      } catch (error) {
-        unstable_rethrow(error);
-        toast.error('No pudimos terminar la práctica: revisa tu conexión e inténtalo de nuevo.');
-        return;
+      const guardado = await guardarMetricas(store);
+      if (guardado.estado === 'fallo') {
+        let resultado;
+        try {
+          resultado = await finalizarSesion({ sesionId });
+        } catch (error) {
+          unstable_rethrow(error);
+          toast.error('No pudimos terminar la práctica: revisa tu conexión e inténtalo de nuevo.');
+          return;
+        }
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          return;
+        }
       }
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      mostrarCierre(resultado.datos.inicio, resultado.datos.fin, 'finalizada');
+      // `limpiar` del store lo hace la pantalla de resultados al montarse: hasta entonces la
+      // simulación sigue en pantalla (sin parpadear a la pantalla de carga).
+      store.getState().npc.actualizarEstadoNPC('sesion_finalizada');
+      router.push(`/resultados?sesion=${sesionId}`);
     });
   };
 

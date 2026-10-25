@@ -27,6 +27,7 @@ describe('esRutaProtegida', () => {
     '/admin',
     '/admin/docentes/1',
     '/inicio',
+    '/resultados',
   ])('protege %s', ruta => {
     expect(esRutaProtegida(ruta)).toBe(true);
   });
@@ -65,6 +66,13 @@ describe('rolesDeRuta y rolPuedeAbrir', () => {
     expect(rolPuedeAbrir('estudiante', '/simulacion')).toBe(true);
     expect(rolPuedeAbrir('estudiante', '/configuracion')).toBe(false);
     expect(rolPuedeAbrir('estudiante', '/inicio')).toBe(true);
+  });
+
+  it('los resultados de una práctica los abren los tres roles (RLS decide cuáles)', () => {
+    expect(rolesDeRuta('/resultados')).toBe('cualquiera');
+    for (const rol of ['estudiante', 'docente', 'superadmin'] as const) {
+      expect(rolPuedeAbrir(rol, '/resultados')).toBe(true);
+    }
   });
 
   it('el Administrador abre su panel y también el del docente', () => {
