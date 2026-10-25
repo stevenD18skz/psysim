@@ -342,3 +342,24 @@ export const obtenerMetricasGuardadas = cache(
     return data;
   }
 );
+
+/**
+ * Reflexión que el estudiante escribió al terminar la práctica (o `null`). RLS la entrega al
+ * estudiante dueño y a su docente; un fallo al leerla no rompe la pantalla.
+ */
+export const obtenerReflexion = cache(
+  async (sesionId: string): Promise<{ contenido: string; actualizadoEn: string } | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('reflexion')
+      .select('contenido, actualizado_en')
+      .eq('sesion_id', sesionId)
+      .maybeSingle();
+
+    if (error) {
+      log.error('reflexion.no_leida', { codigo: error.code, sesion_id: sesionId });
+      return null;
+    }
+    return data ? { contenido: data.contenido, actualizadoEn: data.actualizado_en } : null;
+  }
+);

@@ -11,10 +11,15 @@ import {
   LimpiarSesionActiva,
 } from '@/components/resultados/acciones-resultados';
 import { HistorialResultados } from '@/components/resultados/historial-resultados';
+import { ReflexionEstudiante, ReflexionLeida } from '@/components/resultados/reflexion';
 import { TarjetasMetricas } from '@/components/resultados/tarjetas-metricas';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { RUTA_INICIO } from '@/lib/auth/routes';
-import { obtenerDetalleSesion, obtenerMetricasGuardadas } from '@/lib/sesiones/queries';
+import {
+  obtenerDetalleSesion,
+  obtenerMetricasGuardadas,
+  obtenerReflexion,
+} from '@/lib/sesiones/queries';
 import { metricasDeSesion } from '@/lib/sesiones/resultados';
 
 export const metadata: Metadata = {
@@ -42,7 +47,11 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
     redirect(rol === 'estudiante' ? `/simulacion?sesion=${sesion.id}` : `/sesiones/${sesion.id}`);
   }
 
-  const metricas = metricasDeSesion(sesion, await obtenerMetricasGuardadas(sesion.id));
+  const [filaMetricas, reflexion] = await Promise.all([
+    obtenerMetricasGuardadas(sesion.id),
+    obtenerReflexion(sesion.id),
+  ]);
+  const metricas = metricasDeSesion(sesion, filaMetricas);
   const publicada = sesion.retroalimentacion?.publicadaEn != null;
 
   return (
@@ -108,6 +117,17 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
             </p>
           </div>
         ))}
+
+      {rol === 'estudiante' && sesion.comenzada && (
+        <ReflexionEstudiante sesionId={sesion.id} inicial={reflexion} />
+      )}
+      {rol === 'docente' && reflexion && (
+        <ReflexionLeida
+          contenido={reflexion.contenido}
+          actualizadoEn={reflexion.actualizadoEn}
+          estudiante={sesion.estudiante.nombre}
+        />
+      )}
 
       <section aria-labelledby="historial-titulo" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
