@@ -10,11 +10,13 @@ import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-f
 import {
   obtenerAsignacionesDeEstudiante,
   obtenerDetalleSesion,
+  obtenerMetricasGuardadas,
   obtenerPracticas,
   obtenerSesionesDeEstudiante,
 } from './queries';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('@/lib/escenarios/queries', () => ({ obtenerMensajesSesion: vi.fn() }));
 vi.mock('@/lib/sesiones/datos-privados', async importOriginal => ({
   ...(await importOriginal<typeof DatosPrivados>()),
@@ -231,5 +233,33 @@ describe('obtenerDetalleSesion', () => {
   it('propaga los errores de la base de datos', async () => {
     db.responder('sesion', { error: { code: '500' } });
     await expect(obtenerDetalleSesion('s1')).rejects.toThrow('No fue posible cargar la sesión');
+  });
+});
+
+describe('métricas guardadas de una sesión (HU-21)', () => {
+  const FILA = {
+    total_mensajes: 4,
+    latencia_promedio_ms: 1820,
+    latencia_maxima_ms: 3400,
+    duracion_segundos: 600,
+    indicadores: { proximidad_promedio: 1.8 },
+  };
+
+  it('devuelve la fila de la sesión', async () => {
+    db.responder('metrica', { data: FILA });
+    await expect(obtenerMetricasGuardadas('s-con-metricas')).resolves.toEqual(FILA);
+    expect(db.de('metrica')[0]?.filtros).toContainEqual(['eq', 'sesion_id', 's-con-metricas']);
+  });
+
+  it('devuelve null si la práctica no tiene métricas (inactividad, anterior al sprint)', async () => {
+    db.responder('metrica', { data: null });
+    await expect(obtenerMetricasGuardadas('s-sin-metricas')).resolves.toBeNull();
+  });
+
+  it('si no se pueden leer devuelve null en vez de romper la pantalla de resultados', async () => {
+    db.responder('metrica', {
+      error: { code: 'PGRST205', message: "Could not find the table 'public.metrica'" },
+    });
+    await expect(obtenerMetricasGuardadas('s-error')).resolves.toBeNull();
   });
 });
