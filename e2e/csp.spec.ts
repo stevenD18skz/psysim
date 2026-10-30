@@ -114,26 +114,30 @@ test.describe('política de seguridad de contenido (OWASP A02/A05)', () => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
     test.afterAll(() => limpiarCodigos(PREFIJO_CODIGOS));
 
-    test('la escena (WebAssembly, workers y modelos de Storage) carga sin violar la política', async ({
-      page,
-    }) => {
-      test.setTimeout(120_000);
-      await vigilarViolaciones(page);
-      await page.setViewportSize({ width: 800, height: 600 });
-      const sesionId = await crearSesionEstudiante(PREFIJO_CODIGOS);
-      await iniciarSesionComoEstudiante(page);
+    // E-01 trae los modelos con Draco; E-07 además tazas con texturas incrustadas en el GLB, que
+    // GLTFLoader lee con fetch sobre URL blob: (connect-src).
+    for (const escenario of ['E-01', 'E-07']) {
+      test(`la escena de ${escenario} (WebAssembly, workers y modelos de Storage) carga sin violar la política`, async ({
+        page,
+      }) => {
+        test.setTimeout(120_000);
+        await vigilarViolaciones(page);
+        await page.setViewportSize({ width: 800, height: 600 });
+        const sesionId = await crearSesionEstudiante(PREFIJO_CODIGOS, { escenario });
+        await iniciarSesionComoEstudiante(page);
 
-      await page.goto(`/simulacion?sesion=${sesionId}`);
-      await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
-        timeout: 60_000,
+        await page.goto(`/simulacion?sesion=${sesionId}`);
+        await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
+          timeout: 60_000,
+        });
+        await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
+
+        // Los ajustes (popover) y el panel de conversación también cargan estilos en línea.
+        await page.getByRole('button', { name: 'Ajustes del consultorio' }).click();
+        await expect(page.getByRole('switch', { name: 'Ambiente emocional' })).toBeVisible();
+
+        expect(await violaciones(page)).toEqual([]);
       });
-      await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
-
-      // Los ajustes (popover) y el panel de conversación también cargan estilos en línea.
-      await page.getByRole('button', { name: 'Ajustes del consultorio' }).click();
-      await expect(page.getByRole('switch', { name: 'Ambiente emocional' })).toBeVisible();
-
-      expect(await violaciones(page)).toEqual([]);
-    });
+    }
   });
 });
