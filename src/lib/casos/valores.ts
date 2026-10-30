@@ -52,6 +52,7 @@ export function valoresDeCaso(caso: EscenarioCatalogo): CasoFormInput {
       ...caso.borrador.campos,
       modoTexto: caso.borrador.modoTexto,
       promptManual: caso.borrador.promptManual,
+      perfilHeredado: caso.borrador.perfilHeredado,
     };
   }
 
@@ -62,5 +63,6 @@ export function valoresDeCaso(caso: EscenarioCatalogo): CasoFormInput {
     situacion: caso.descripcion,
     modoTexto: true,
     promptManual: caso.npc.promptSistema,
+    perfilHeredado: caso.npc.perfilClinico,
   };
 }
