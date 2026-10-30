@@ -5,12 +5,14 @@ import type * as ModuloPaciente from '@/lib/ia/paciente';
 import { ErrorIA, generarRespuestaPaciente } from '@/lib/ia/paciente';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { MAX_INTERVENCIONES_POR_SESION } from '@/lib/ia/historial';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import { POST } from './route';
 
 vi.mock('@/lib/auth/dal', () => ({ obtenerSesionUsuario: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/sesiones/datos-privados', () => ({
   leerEscenarioDeSesion: vi.fn(),
   leerPromptDeSesion: vi.fn(),
@@ -57,6 +59,7 @@ function clienteFalso(
   sesion: unknown,
   opciones: {
     errorInsercion?: boolean;
+    codigoErrorGuardado?: string;
     esperaLimite?: number;
     errorLimite?: boolean;
     /** Mensajes ya guardados de la sesión (la IA los recibe como contexto). */
@@ -68,21 +71,18 @@ function clienteFalso(
     errorHistorial?: boolean;
   } = {}
 ) {
-  // La inserción devuelve los ids guardados (para poder ensayar otra respuesta desde ellos).
-  const guardado = {
-    select: vi.fn().mockResolvedValue(
-      opciones.errorInsercion
-        ? { data: null, error: { code: '42501' } }
-        : {
-            data: [
-              { id: ID_MENSAJE_ESTUDIANTE, remitente: 'estudiante' },
-              { id: ID_MENSAJE_NPC, remitente: 'npc' },
-            ],
-            error: null,
-          }
-    ),
-  };
-  const insert = vi.fn().mockReturnValue(guardado);
+  // `guardar_intercambio` (con la clave secreta) devuelve los ids guardados, para poder ensayar
+  // otra respuesta desde ellos.
+  const guardar = vi.fn().mockReturnValue({
+    maybeSingle: vi
+      .fn()
+      .mockResolvedValue(
+        opciones.errorInsercion
+          ? { data: null, error: { code: opciones.codigoErrorGuardado ?? 'XX000' } }
+          : { data: { id_estudiante: ID_MENSAJE_ESTUDIANTE, id_npc: ID_MENSAJE_NPC }, error: null }
+      ),
+  });
+  vi.mocked(createAdminClient).mockReturnValue({ rpc: guardar } as never);
   // Lectura del historial: `select().eq().order().order()` que se resuelve con las filas.
   const historial: Record<string, unknown> = {};
   historial.eq = () => historial;
@@ -108,13 +108,11 @@ function clienteFalso(
         : { data: opciones.esperaLimite ?? 0, error: null }
     );
   const cliente = {
-    from: vi.fn((tabla: string) =>
-      tabla === 'mensaje' ? { insert, select: leerHistorial } : consulta
-    ),
+    from: vi.fn((tabla: string) => (tabla === 'mensaje' ? { select: leerHistorial } : consulta)),
     rpc,
   };
   vi.mocked(createClient).mockResolvedValue(cliente as never);
-  return { insert, consulta, rpc, leerHistorial };
+  return { guardar, consulta, rpc, leerHistorial };
 }
 
 function peticion(cuerpo: unknown) {
@@ -151,7 +149,7 @@ describe('POST /api/npc/chat', () => {
   });
 
   it('HU-12 · T05: con un cuerpo válido responde 200 con la respuesta del NPC', async () => {
-    const { insert } = clienteFalso(sesionEnCurso);
+    const { guardar } = clienteFalso(sesionEnCurso);
     const respuesta = await POST(peticion(cuerpoValido));
 
     expect(respuesta.status).toBe(200);
@@ -178,18 +176,16 @@ describe('POST /api/npc/chat', () => {
       nombrePaciente: 'Marta Lucía',
     });
 
-    // Guarda el intercambio completo en una sola inserción.
-    expect(insert).toHaveBeenCalledWith([
-      { sesion_id: SESION_ID, remitente: 'estudiante', contenido: cuerpoValido.mensaje_usuario },
-      expect.objectContaining({
-        sesion_id: SESION_ID,
-        remitente: 'npc',
-        contenido: 'Buenas... no sé muy bien por dónde empezar.',
-        tokens_entrada: 512,
-        tokens_salida: 21,
-        latencia_ms: expect.any(Number),
-      }),
-    ]);
+    // Guarda el intercambio completo desde el servidor: el estudiante no escribe en `mensaje`.
+    expect(guardar).toHaveBeenCalledWith('guardar_intercambio', {
+      p_sesion_id: SESION_ID,
+      p_mensaje: cuerpoValido.mensaje_usuario,
+      p_respuesta: 'Buenas... no sé muy bien por dónde empezar.',
+      p_emocion: 'ansioso',
+      p_latencia_ms: expect.any(Number),
+      p_tokens_entrada: 512,
+      p_tokens_salida: 21,
+    });
   });
 
   it('HU-12 · T05: con un cuerpo que no pasa Zod responde 400 con el detalle por campo', async () => {
@@ -275,7 +271,7 @@ describe('POST /api/npc/chat', () => {
   ] as const)(
     'HU-16 · T01: un error %s de la IA responde %i sin detalles internos',
     async (tipo, status) => {
-      const { insert } = clienteFalso(sesionEnCurso);
+      const { guardar } = clienteFalso(sesionEnCurso);
       vi.mocked(generarRespuestaPaciente).mockRejectedValueOnce(new ErrorIA(tipo));
 
       const respuesta = await POST(peticion(cuerpoValido));
@@ -283,7 +279,7 @@ describe('POST /api/npc/chat', () => {
       const json = await respuesta.json();
       expect(json.error).not.toMatch(/key|token|401|gemini/i);
       // No se guarda un intercambio incompleto.
-      expect(insert).not.toHaveBeenCalled();
+      expect(guardar).not.toHaveBeenCalled();
     }
   );
 
@@ -295,6 +291,18 @@ describe('POST /api/npc/chat', () => {
     expect(json).toMatchObject({ id_mensaje_estudiante: null, id_mensaje_npc: null });
   });
 
+  it('responde 409 si la práctica terminó mientras respondía la IA', async () => {
+    clienteFalso(sesionEnCurso, { errorInsercion: true, codigoErrorGuardado: '55000' });
+    expect((await POST(peticion(cuerpoValido))).status).toBe(409);
+  });
+
+  it('LLM10: responde 429 si peticiones en paralelo pasaron el tope de la práctica', async () => {
+    clienteFalso(sesionEnCurso, { errorInsercion: true, codigoErrorGuardado: '54000' });
+    const respuesta = await POST(peticion(cuerpoValido));
+    expect(respuesta.status).toBe(429);
+    expect((await respuesta.json()).error).toMatch(/máximo/);
+  });
+
   it('RNF-03.7: reserva un turno del límite antes de llamar a la IA', async () => {
     const { rpc } = clienteFalso(sesionEnCurso);
     expect((await POST(peticion(cuerpoValido))).status).toBe(200);
@@ -302,7 +310,7 @@ describe('POST /api/npc/chat', () => {
   });
 
   it('RNF-03.7: con el límite agotado responde 429 sin llamar a la IA ni guardar', async () => {
-    const { insert } = clienteFalso(sesionEnCurso, { esperaLimite: 42 });
+    const { guardar } = clienteFalso(sesionEnCurso, { esperaLimite: 42 });
     const respuesta = await POST(peticion(cuerpoValido));
 
     expect(respuesta.status).toBe(429);
@@ -310,7 +318,7 @@ describe('POST /api/npc/chat', () => {
     expect(respuesta.headers.get('Cache-Control')).toBe('no-store');
     expect((await respuesta.json()).error).toMatch(/Espera 42 s/);
     expect(generarRespuestaPaciente).not.toHaveBeenCalled();
-    expect(insert).not.toHaveBeenCalled();
+    expect(guardar).not.toHaveBeenCalled();
   });
 
   it('RNF-03.7: si el conteo falla, la práctica sigue', async () => {
