@@ -123,6 +123,34 @@ describe('actualizarEstudiante', () => {
     });
   });
 
+  it('no cambia el correo de un estudiante que ya practicó (su historial cambiaría de cuenta)', async () => {
+    db.responder('estudiante', {
+      data: { codigo: '202012345', correo: 'otro@correounivalle.edu.co' },
+    });
+    db.responder('sesion', { count: 2 });
+
+    const resultado = await actualizarEstudiante({ id: ID, nombre: 'Ana', correo: DATOS.correo });
+    expect(resultado).toMatchObject({ ok: false, error: expect.stringMatching(/ya practicó/) });
+    expect(asegurarCuentaEstudiante).not.toHaveBeenCalled();
+    expect(db.de('estudiante').some(c => c.operacion === 'update')).toBe(false);
+  });
+
+  it('con prácticas sí permite corregir solo el nombre', async () => {
+    db.responder(
+      'estudiante',
+      { data: { codigo: '202012345', correo: DATOS.correo } },
+      { data: null }
+    );
+
+    expect(
+      await actualizarEstudiante({ id: ID, nombre: 'Ana María', correo: DATOS.correo })
+    ).toEqual({
+      ok: true,
+      datos: { id: ID },
+    });
+    expect(db.de('sesion')).toHaveLength(0);
+  });
+
   it('avisa si el estudiante ya no existe', async () => {
     db.responder('estudiante', { data: null });
     expect(await actualizarEstudiante({ id: ID, nombre: 'Ana', correo: DATOS.correo })).toEqual({
