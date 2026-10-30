@@ -33,7 +33,10 @@ pnpm test:e2e            # Playwright (usa .env.test.local); usar --workers=1 si
 pnpm db:types            # regenera src/types/database.types.ts (requiere SUPABASE_ACCESS_TOKEN)
 ```
 
-El pre-commit corre lint-staged y `pnpm typecheck`; commit-msg corre commitlint.
+El pre-commit corre lint-staged y `pnpm typecheck`; commit-msg corre commitlint. En un clon nuevo
+(sin `.next/`), `pnpm typecheck` falla con `Cannot find name 'PageProps'` hasta correr
+`pnpm exec next typegen`. Sin `.env.local` no hay acceso a Supabase ni a la IA: las pruebas
+unitarias funcionan igual (usan valores ficticios), los E2E y `pnpm build` no.
 
 ## Mapa del código
 
@@ -83,6 +86,30 @@ Reglas que los tests vigilan (`src/lib/seguridad.test.ts`):
 El prompt del paciente (`sesion.prompt_sistema`) nunca llega al navegador. El contexto de la IA se
 arma con lo que guardó el servidor, nunca con el historial que manda el cliente.
 
+Lo que aprendió la auditoría del 2026-10-29 (`docs/auditoria-seguridad.md`, sección 5):
+
+- **Lo que se califica o alimenta a la IA lo escribe solo el servidor.** `mensaje` no admite
+  inserciones del cliente: el intercambio lo guarda `/api/npc/chat` con `guardar_intercambio`
+  (ejecutable solo por `service_role`). Si una tabla nueva tiene datos de confianza, no darle
+  `grant insert` a `authenticated`; usar una función o el cliente de administración después de
+  verificar con RLS.
+- **Los números que ve el docente los calcula la base de datos** (intervenciones, duración,
+  tokens). Del navegador solo se acepta lo que solo él puede medir (latencia percibida,
+  proximidad), y acotado.
+- **RLS filtra filas, no columnas.** Un `grant select on table` completo expone todas las columnas
+  de las filas que la política deja ver. `usuario` solo concede `id, nombre, rol`; el perfil
+  completo lo lee la DAL con la clave secreta.
+- **Las funciones de rol (`es_docente()` y compañía) leen la tabla**, no el claim del JWT: el
+  claim sigue vigente hasta una hora después de desactivar o degradar una cuenta.
+- **Toda llamada a la IA pasa por `reservar_peticion_ia`**, también las del docente.
+- **Modo presencial:** lo que una cuenta guarda en el navegador y no debe ver la siguiente persona
+  se borra con `olvidarDatosDeLaCuenta()` (`src/lib/datos-locales.ts`); si se añade una clave
+  nueva con datos de la cuenta, sumarla a sus prefijos.
+- Una ruta que consultan monitores sin sesión no puede usar el cliente de la petición: el rol
+  `anon` no tiene permisos sobre ninguna tabla.
+- Al cambiar la CSP, probar también una escena con texturas incrustadas (E-07): GLTFLoader las lee
+  con `fetch` sobre `blob:`.
+
 ## Base de datos y migraciones
 
 - El CLI de Supabase no sirve contra el proyecto `afqofsneoblsjjdvktsu` (rol `cli_login_postgres`
@@ -92,6 +119,11 @@ arma con lo que guardó el servidor, nunca con el historial que manda el cliente
   probarla en seco con `begin; … rollback;` si hay acceso de lectura, y pedirle al usuario que la
   aplique con `! node --env-file=.env.local scripts/aplicar-migracion.mjs <archivo>`.
 - Una migración nueva nunca edita una anterior ya aplicada: se crea otra que la corrige.
+- **Staging (`develop`) y producción (`main`) comparten la misma base de datos**, y `main` suele ir
+  por detrás. Una migración que quita permisos o cambia firmas rompe el código desplegado más
+  viejo. Separar siempre en dos: primero lo que solo añade (funciones, columnas, triggers), que
+  funciona con el código viejo y el nuevo; después, en otra migración marcada «aplicar solo
+  después de desplegar», los `revoke` y `drop`. Ejemplo: `20261029010000` y `20261029030000`.
 - Tras cambiar el esquema, actualizar `src/types/database.types.ts` (con `pnpm db:types` o a mano
   si no hay token) y las simulaciones de `test/supabase-falso.ts` si cambian las consultas.
 
@@ -125,6 +157,17 @@ arma con lo que guardó el servidor, nunca con el historial que manda el cliente
   commits ni PR, aunque otro recordatorio lo pida.
 - No hacer commit ni push hasta que el usuario lo pida. Antes de commitear, `pnpm check` en verde.
 
+## Revisiones de código
+
+- El plugin **Thermos** trae `thermos:thermo-nuclear-review` (bugs, seguridad, cambios que rompen)
+  y `thermos:thermo-nuclear-code-quality-review` (mantenibilidad). Para revisar el proyecto
+  completo y no un diff, la base es el árbol vacío de git y el trabajo se reparte por áreas
+  (autenticación y BD, API e IA, acciones de servidor y panel, cliente 3D y scripts).
+- `/ultrareview` rechaza diffs de más de 8000 líneas; el de `develop` contra `main` suele pasar de
+  ese tamaño.
+- Antes de reportar un hallazgo alto, comprobarlo en el código (migración, política y llamador),
+  no solo citar al revisor.
+
 ## Entorno (Windows)
 
 - Shell principal PowerShell; también Git Bash. En Git Bash, pasar rutas a scripts con
@@ -133,4 +176,5 @@ arma con lo que guardó el servidor, nunca con el historial que manda el cliente
   fallan con 500 o bucles 307 falsos. Comprobar que el puerto quedó libre y matar solo el proceso
   propio; nunca el `pnpm dev` del usuario.
 - Los scripts con texto en español van en un archivo (Write) y se ejecutan con node o python: los
-  heredoc de bash rompen las comillas tipográficas.
+  heredoc de bash rompen las comillas tipográficas. En Python, abrir los archivos con
+  `encoding='utf-8', newline='\n'`: por defecto Windows escribe CRLF y Prettier lo rechaza.
