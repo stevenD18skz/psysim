@@ -7,7 +7,7 @@ export const PARAM_ERROR_LOGIN = 'error';
 /** Mensajes de /login según el motivo que devuelve /auth/callback. */
 export const ERRORES_GOOGLE = {
   cancelado: 'Cancelaste el acceso con Google. Vuelve a intentarlo cuando quieras.',
-  fallo: 'No fue posible completar el acceso con Google. Inténtalo de nuevo.',
+  fallo: 'No pudimos completar el acceso con Google. Inténtalo de nuevo.',
 } as const;
 
 export type ErrorGoogle = keyof typeof ERRORES_GOOGLE;

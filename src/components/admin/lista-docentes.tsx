@@ -213,7 +213,7 @@ export function ListaDocentes({
                       {metricas.estudiantes === 1 ? 'estudiante' : 'estudiantes'}
                     </span>
                     <span className="block text-xs text-muted-foreground tabular-nums">
-                      {metricas.sesiones} {metricas.sesiones === 1 ? 'sesión' : 'sesiones'}
+                      {metricas.sesiones} {metricas.sesiones === 1 ? 'práctica' : 'prácticas'}
                       {metricas.pendientesRetroalimentacion > 0 &&
                         ` · ${metricas.pendientesRetroalimentacion} por revisar`}
                     </span>

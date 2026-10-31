@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: 'Entrar',
   description: 'Acceso a PsySim para estudiantes y docentes.',
   alternates: { canonical: '/login' },
+  // Los enlaces de práctica (/unirse/…) llevan aquí: así se ven al compartirlos por WhatsApp o correo.
+  openGraph: {
+    title: 'Entrar a PsySim',
+    description:
+      'Entra con tu correo institucional para empezar tu práctica con un paciente simulado.',
+    url: '/login',
+  },
   robots: { index: false, follow: false },
 };
 
@@ -119,14 +126,14 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <Link
                   href="/"
-                  className="inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
+                  className="inline-flex min-h-8 w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   <ArrowLeft className="size-4" aria-hidden />
                   Volver al inicio
                 </Link>
                 <Link
                   href="/privacidad"
-                  className="underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex min-h-8 items-center underline-offset-4 hover:text-foreground hover:underline"
                 >
                   Privacidad
                 </Link>

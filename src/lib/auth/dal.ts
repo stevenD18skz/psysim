@@ -46,7 +46,7 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
 
   if (errorPerfil) {
     // Un fallo de la base de datos no debe interpretarse como "sin permiso".
-    throw new Error('No fue posible cargar el perfil del usuario.', { cause: errorPerfil });
+    throw new Error('No pudimos cargar el perfil del usuario.', { cause: errorPerfil });
   }
 
   if (!perfil || !perfil.activo || !esRol(perfil.rol)) {

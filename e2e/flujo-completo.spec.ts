@@ -101,9 +101,14 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     const confirmacion = alumno.getByRole('alertdialog');
     await expect(confirmacion).toContainText('No se puede reanudar');
     await confirmacion.getByRole('button', { name: 'Terminar práctica' }).click();
-    const cierre = alumno.getByRole('dialog', { name: 'Práctica terminada' });
-    await expect(cierre).toBeVisible({ timeout: 30_000 });
-    await cierre.getByRole('button', { name: 'Releer la conversación' }).click();
+    // HU-20: llega a los resultados con las métricas de la sesión.
+    await expect(alumno).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
+      timeout: 30_000,
+    });
+    await expect(alumno.getByRole('region', { name: 'Total de intervenciones' })).toContainText(
+      '1'
+    );
+    await alumno.goto(`/practicas/${sesionId}`);
     await expect(alumno).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
     await expect(alumno.getByText('Tu docente aún no publica la retroalimentación.')).toBeVisible();
 

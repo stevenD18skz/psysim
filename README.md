@@ -113,23 +113,24 @@ intercambio en la tabla `mensaje`. Responde `respuesta_npc`, `timestamp_respuest
 
 ## Scripts
 
-| Script                         | Descripción                                                  |
-| ------------------------------ | ------------------------------------------------------------ |
-| `pnpm dev`                     | Servidor de desarrollo (Turbopack)                           |
-| `pnpm build` / `start`         | Build de producción / servidor de producción                 |
-| `pnpm lint` / `lint:fix`       | ESLint (cero advertencias permitidas)                        |
-| `pnpm typecheck`               | Verificación de tipos con `tsc`                              |
-| `pnpm format` / `format:check` | Prettier                                                     |
-| `pnpm test`                    | Tests unitarios (Vitest)                                     |
-| `pnpm test:coverage`           | Tests unitarios con cobertura                                |
-| `pnpm test:e2e`                | Tests E2E (Playwright). Levanta `pnpm dev` si hace falta     |
-| `pnpm check`                   | lint + typecheck + formato + tests unitarios                 |
-| `pnpm db:types`                | Regenera los tipos de la base de datos                       |
-| `pnpm db:seed`                 | Crea las cuentas semilla                                     |
-| `pnpm modelos:inspeccionar`    | Informe de los GLB de `public/models` (medidas, animaciones) |
-| `pnpm modelos:subir`           | Optimiza los GLB con Draco y los sube a Supabase Storage     |
-| `pnpm supabase:test`           | Verifica conexión, RLS y claims del JWT con Supabase         |
-| `pnpm ai:test`                 | Verifica la conexión con la API de IA                        |
+| Script                         | Descripción                                                   |
+| ------------------------------ | ------------------------------------------------------------- |
+| `pnpm dev`                     | Servidor de desarrollo (Turbopack)                            |
+| `pnpm build` / `start`         | Build de producción / servidor de producción                  |
+| `pnpm lint` / `lint:fix`       | ESLint (cero advertencias permitidas)                         |
+| `pnpm typecheck`               | Verificación de tipos con `tsc`                               |
+| `pnpm format` / `format:check` | Prettier                                                      |
+| `pnpm test`                    | Tests unitarios (Vitest)                                      |
+| `pnpm test:coverage`           | Tests unitarios con cobertura                                 |
+| `pnpm test:e2e`                | Tests E2E (Playwright). Levanta `pnpm dev` si hace falta      |
+| `pnpm audit:deps`              | Vulnerabilidades conocidas de las dependencias (`pnpm audit`) |
+| `pnpm check`                   | lint + typecheck + formato + tests unitarios                  |
+| `pnpm db:types`                | Regenera los tipos de la base de datos                        |
+| `pnpm db:seed`                 | Crea las cuentas semilla                                      |
+| `pnpm modelos:inspeccionar`    | Informe de los GLB de `public/models` (medidas, animaciones)  |
+| `pnpm modelos:subir`           | Optimiza los GLB con Draco y los sube a Supabase Storage      |
+| `pnpm supabase:test`           | Verifica conexión, RLS y claims del JWT con Supabase          |
+| `pnpm ai:test`                 | Verifica la conexión con la API de IA                         |
 
 ---
 
@@ -142,8 +143,10 @@ src/
 │   ├── (protected)/           ← Rutas que exigen sesión de docente
 │   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
 │   │   ├── configuracion/     ← Escenario o caso propio, paciente virtual y datos del estudiante; /casos crea y edita casos
+│   │   ├── resultados/        ← Resultados de una práctica terminada: indicadores e historial (HU-21)
 │   │   └── simulacion/        ← Simulación 3D de la sesión en curso (HU-08/09/10)
 │   ├── api/npc/chat/          ← Route Handler del paciente virtual (HU-12)
+│   ├── api/metrics/save/      ← Route Handler que guarda las métricas y cierra la sesión (HU-19)
 │   ├── acceso-denegado/       ← Página para cuentas sin rol docente
 │   ├── dev/                   ← Herramientas solo de desarrollo (galería de modelos, escenas)
 │   └── page.tsx               ← Página pública de presentación
@@ -156,7 +159,9 @@ src/
 │   └── ui/                    ← Componentes de shadcn/ui
 ├── lib/
 │   ├── auth/                  ← Rutas, DAL (verificación de sesión/rol), Server Actions
-│   ├── conversacion/          ← Máquina de estados del NPC y envío de mensajes (HU-13/14/16)
+│   ├── conversacion/          ← Máquina de estados del NPC, envío de mensajes y guardado de métricas (HU-13/14/16/20)
+│   ├── metrics.ts             ← Indicadores agregados de la sesión (HU-18)
+│   ├── contraste.ts           ← Razón de contraste WCAG para validar el tema (HU-25)
 │   ├── escena/                ← Colisiones, encuadre, animaciones, ajuste de modelos, Storage
 │   ├── ia/                    ← Llamada al modelo de lenguaje con respaldo y clasificación de errores
 │   ├── escenarios/            ← Consultas y Server Actions de escenarios y sesiones
@@ -255,15 +260,35 @@ Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 ## Pruebas
 
 ```bash
-pnpm test                 # unitarias
+pnpm test                 # unitarias (Vitest)
+pnpm test:coverage        # con cobertura: falla si app/api, lib o store bajan del 70 %
 pnpm test:e2e:install     # (una vez) instala Chromium para Playwright
 pnpm test:e2e             # E2E contra http://localhost:3000
+pnpm test:e2e e2e/accesibilidad.spec.ts   # un solo archivo
 ```
 
-Los tests E2E autenticados usan las credenciales de `.env.test.local`
-(`E2E_DOCENTE_CORREO`, `E2E_DOCENTE_CONTRASENA`, `E2E_SIN_ROL_CORREO`, `E2E_SIN_ROL_CONTRASENA`);
-si no existen, esos tests se omiten. Registro de pruebas del Sprint 1:
-[`docs/pruebas/sprint-1.md`](docs/pruebas/sprint-1.md).
+Los tests están separados **por funcionalidad** (un archivo por historia o módulo), no en una
+suite única:
+
+| Funcionalidad                        | Unitarias                                                                                                                                             | E2E (Playwright)                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Acceso y rutas protegidas (HU-02–04) | `lib/auth/*.test.ts`, `proxy.test.ts`                                                                                                                 | `autenticacion.spec.ts`                          |
+| Configuración y casos (HU-06/07)     | `lib/casos/*.test.ts`, `components/configuracion/*.test.tsx`                                                                                          | `configuracion.spec.ts`                          |
+| Conversación con el paciente (HU-12) | `app/api/npc/chat/route.test.ts`, `lib/conversacion/*.test.ts`                                                                                        | `conversacion.spec.ts`                           |
+| Estado global (HU-14)                | `store/*.test.ts`                                                                                                                                     | —                                                |
+| HUD y cierre de sesión (HU-17, 20)   | `components/simulacion/hud-sesion.test.tsx`, `use-finalizar-sesion.test.tsx`                                                                          | `flujo-completo.spec.ts`                         |
+| Métricas (HU-18, 19)                 | `lib/metrics.test.ts`, `schemas/metrics.schema.test.ts`, `app/api/metrics/save/route.test.ts`                                                         | `resultados.spec.ts`                             |
+| Resultados (HU-21)                   | `lib/sesiones/resultados.test.ts`, `components/resultados/*.test.tsx`                                                                                 | `resultados.spec.ts`                             |
+| Navegación (HU-22)                   | —                                                                                                                                                     | `navegacion.spec.ts`                             |
+| Instrucciones del caso (HU-23)       | `components/simulacion/instrucciones-caso.test.tsx`                                                                                                   | `flujos.ts` (paso común)                         |
+| Escenarios y prompts (HU-24)         | `lib/escenarios/prompts-escenarios.test.ts`, `schemas/escena.schema.test.ts`                                                                          | `laboratorio.spec.ts`                            |
+| Accesibilidad (HU-25)                | `lib/contraste.test.ts` (contraste WCAG AA del tema)                                                                                                  | `accesibilidad.spec.ts` (axe-core, teclado)      |
+| Rendimiento 3D y web (HU-28)         | `lib/rendimiento.test.ts` (presupuestos de peso)                                                                                                      | `rendimiento.spec.ts`, `rendimiento-web.spec.ts` |
+| Despliegue y seguridad (HU-29/30)    | `lib/seguridad.test.ts`, `lib/seguridad/csp.test.ts`, `lib/ia/fuga-prompt.test.ts`, `lib/ia/historial.test.ts`, `lib/env/entorno-documentado.test.ts` | `smoke.spec.ts`, `csp.spec.ts`                   |
+
+Los tests E2E autenticados usan las credenciales de `.env.test.local` (ver `.env.example`:
+`E2E_DOCENTE_*`, `E2E_ESTUDIANTE_*`, `E2E_ADMIN_*`, `E2E_SIN_ROL_*`); si no existen, esos tests
+se omiten. Registros de pruebas por sprint en [`docs/pruebas/`](docs/pruebas).
 
 ### Tests E2E contra staging
 
@@ -288,7 +313,13 @@ pnpm test:e2e e2e/smoke.spec.ts
 - Las respuestas que renuevan la sesión se marcan como `no-store` para que ninguna CDN las
   almacene.
 - Redirección post-login protegida contra _open redirects_ (solo rutas internas protegidas).
+- Política de seguridad de contenido (CSP) con un nonce distinto por petición (`src/proxy.ts`),
+  HSTS y `Cross-Origin-Opener-Policy`; el paciente de IA arma su contexto en el servidor y descarta
+  respuestas que copian sus instrucciones. Detalle en [`docs/auditoria-seguridad.md`](docs/auditoria-seguridad.md).
 - Extensión `pg_graphql` desactivada: la aplicación solo usa la API REST.
+- `pnpm test` incluye un checklist de seguridad automatizado (`src/lib/seguridad.test.ts`): RLS en
+  todas las tablas, funciones `security definer` con `search_path` fijo, ningún permiso al rol
+  anónimo, secretos solo en el servidor y encabezados de seguridad.
 - Pendiente (requiere plan Pro de Supabase): protección contra contraseñas filtradas
   (HaveIBeenPwned).
 

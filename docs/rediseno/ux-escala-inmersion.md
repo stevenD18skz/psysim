@@ -66,6 +66,9 @@ de «N · M reformuladas» en las intervenciones.
 - **Preparación previa (prebriefing):** objetivos de la práctica, acuerdo de ficción, herramientas
   disponibles y seguridad psicológica en la pantalla de instrucciones.
 - **Integridad profesional:** transparencia de los intentos reformulados ante el docente.
+- **Reflexión del estudiante (apoyo a la conversación posterior):** desde el 25-oct-2026 el
+  estudiante puede escribir, de forma opcional, qué funcionó y qué haría distinto; la lee su
+  docente al revisar y le sirve de punto de partida.
 - **Facilitación y conversación posterior:** siguen siendo del docente (fuera del alcance de la
   página, por decisión del proyecto).
 

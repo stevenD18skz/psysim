@@ -460,8 +460,9 @@ Regiones:
 3. Línea de contexto: `E-0X` título · duración · {n} intervenciones. Se quita la latencia media
    del paciente.
 4. **Qué pasa ahora:** 3 pasos numerados.
-5. **Para ti, mientras esperas:** 2 preguntas de reflexión con un campo opcional que **no se
-   guarda**, rotulado así.
+5. **Para ti, mientras esperas:** 2 preguntas de reflexión. _(Actualizado el 25-oct-2026: el
+   campo ya no está aquí; se escribe en la pantalla de resultados, es opcional, se guarda y la
+   lee el docente. Ver `docs/auditoria-ux.md`, R3.)_
 6. Acciones: principal «Ir a Mis prácticas» · secundaria «Releer la conversación»
    (`/practicas/{id}`).
 
@@ -1629,7 +1630,7 @@ director; fecha de vigencia del aviso; analítica.
 - Umbral de 48 h para «Códigos por vencer».
 - Excluir `sin_conversacion` de «Por revisar».
 - Detección de computador por puntero, hover y ancho, con la salida manual con confirmación.
-- La reflexión del cierre no se guarda.
+- ~~La reflexión del cierre no se guarda.~~ Desde el 25-oct-2026 se guarda y la lee el docente.
 - Ambiente emocional activado por defecto.
 - Ocultar «Cambiar contraseña» a los estudiantes. Las cuentas de prueba `@psysim.test` lo
   pierden; si hace falta, se muestra solo a quien tenga identidad con contraseña.

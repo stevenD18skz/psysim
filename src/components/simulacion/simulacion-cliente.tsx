@@ -31,7 +31,7 @@ import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
-import { BotonAmbiente, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
+import { BotonAjustes, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import {
   BotonHerramienta,
@@ -42,13 +42,10 @@ import {
 import { HudSesion } from '@/components/simulacion/hud-sesion';
 import { InstruccionesCaso } from '@/components/simulacion/instrucciones-caso';
 import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
-import {
-  BotonSonido,
-  BotonVoz,
-  useSonidoSimulacion,
-} from '@/components/simulacion/sonido-simulacion';
+import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
+import { useMuestreoProximidad } from '@/components/simulacion/use-proximidad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
 import {
@@ -176,6 +173,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && comenzada && !resumen;
+  // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
+  useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
 
   // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
   useEffect(() => {
@@ -221,8 +220,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
               </>
             )}
             <BotonSonido motor={motorAudio} />
-            <BotonVoz />
-            <BotonAmbiente />
+            <BotonAjustes />
             {!conversando && <BotonControles />}
             {lista && comenzada && !resumen && (
               <BotonFinalizar
@@ -432,7 +430,7 @@ function AvisoSimulacionMovil({ sesion }: { sesion: SesionActiva }) {
             {copia === 'copiado' && 'Pégalo en el navegador de tu computador.'}
             {copia === 'fallo' && (
               <span className="break-all">
-                No se pudo copiar. Mantén pulsado el enlace: {enlace}
+                No pudimos copiar. Mantén pulsado el enlace: {enlace}
               </span>
             )}
           </p>
@@ -487,7 +485,7 @@ function Mira({ resaltada }: { resaltada: boolean }) {
     <div
       aria-hidden
       className={cn(
-        'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-all duration-200',
+        'absolute top-1/2 left-1/2 -translate-1/2 rounded-full transition-[width,height,background-color,border-color] duration-200',
         resaltada
           ? 'size-4 border-2 border-white bg-laton/80 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
           : 'size-1.5 bg-white/90 shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'

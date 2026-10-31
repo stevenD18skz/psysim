@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { contarSesiones } from '@/lib/estudiantes/estudiantes';
+import { contarPracticas } from '@/lib/estudiantes/estudiantes';
 import { eliminarEstudiante } from '@/lib/estudiantes/actions';
 import { type EstudianteRegistrado } from '@/types';
 
@@ -96,7 +96,7 @@ export function AccionesEstudiante({
             <DropdownMenuItem asChild>
               <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
                 <ArrowRight aria-hidden />
-                Asignar simulación
+                Asignar práctica
               </Link>
             </DropdownMenuItem>
           )}
@@ -176,11 +176,11 @@ function EliminarEstudiante({
       <ul className="flex list-disc flex-col gap-1 rounded-lg bg-muted/60 py-3 pr-3 pl-7 text-sm">
         {conHistorial ? (
           <li>
-            Se borrarán sus <strong>{contarSesiones(sesiones)}</strong> con las conversaciones y la
+            Se borrarán sus <strong>{contarPracticas(sesiones)}</strong> con las conversaciones y la
             retroalimentación.
           </li>
         ) : (
-          <li>Aún no tiene sesiones: no se pierde ningún historial.</li>
+          <li>Aún no tiene prácticas: no se pierde ningún historial.</li>
         )}
         {codigosPendientes > 0 && (
           <li>

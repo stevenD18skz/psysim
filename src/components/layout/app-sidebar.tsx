@@ -189,16 +189,20 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
                   <SidebarMenuButton
                     size="lg"
                     tooltip={perfil.nombre}
-                    aria-label={`Cuenta de ${perfil.nombre}`}
                     className="h-14 text-sidebar-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
                   >
+                    {/* Nombre por contenido (no aria-label): coincide con lo visible (WCAG 2.5.3). */}
+                    <span className="sr-only">Cuenta de {perfil.nombre}</span>
                     <span
                       aria-hidden
                       className="flex size-9 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
                     >
                       {iniciales(perfil.nombre)}
                     </span>
-                    <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                    <span
+                      aria-hidden
+                      className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden"
+                    >
                       <span className="truncate font-medium">{perfil.nombre}</span>
                       <span className="truncate text-xs text-sidebar-muted">{etiquetaRol}</span>
                     </span>

@@ -34,7 +34,7 @@ export const obtenerCatalogoEscenarios = cache(async (): Promise<EscenarioCatalo
     .order('codigo');
 
   if (error) {
-    throw new Error('No fue posible cargar los escenarios.', { cause: error });
+    throw new Error('No pudimos cargar los escenarios.', { cause: error });
   }
 
   return data.flatMap(fila => {
@@ -88,7 +88,7 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar la sesión.', { cause: error });
+    throw new Error('No pudimos cargar la sesión.', { cause: error });
   }
   if (!data) return null;
 
@@ -124,7 +124,7 @@ export async function obtenerMensajesSesion(sesionId: string): Promise<MensajeCo
     .order('remitente');
 
   if (error) {
-    throw new Error('No fue posible cargar la conversación.', { cause: error });
+    throw new Error('No pudimos cargar la conversación.', { cause: error });
   }
 
   return data.map(fila => ({
@@ -151,7 +151,7 @@ export async function obtenerIdUltimaSesionEnCurso(): Promise<string | null> {
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible consultar las sesiones en curso.', { cause: error });
+    throw new Error('No pudimos consultar las sesiones en curso.', { cause: error });
   }
   return data?.id ?? null;
 }

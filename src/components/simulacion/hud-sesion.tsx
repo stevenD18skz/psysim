@@ -4,7 +4,10 @@ import { Clock, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { ETIQUETA_ESTADO_HUD } from '@/lib/conversacion/estados-npc';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
+import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
 
 /**
@@ -48,6 +51,28 @@ function Cronometro({
     <time className="tabular-nums" aria-label="Tiempo de práctica">
       {formatearDuracion((ahora - new Date(inicio).getTime()) / 1000)}
     </time>
+  );
+}
+
+/**
+ * HU-17 · T02 — Estado del paciente en palabras («Escuchando», «Pensando…»). Aislado para que los
+ * cambios de estado no re-rendericen el resto del HUD. `role="status"` lo anuncia a los lectores
+ * de pantalla sin interrumpir.
+ */
+function EstadoPaciente() {
+  const estado = useAppStore(state => state.npc.estado);
+  return (
+    <span role="status" data-testid="estado-npc-hud" className="flex items-center gap-1.5">
+      <span
+        aria-hidden
+        className={cn(
+          'size-2 rounded-full',
+          estado === 'error_comunicacion' ? 'bg-destructive' : 'bg-salvia',
+          estado === 'procesando' && 'motion-safe:animate-pulse'
+        )}
+      />
+      {ETIQUETA_ESTADO_HUD[estado]}
+    </span>
   );
 }
 
@@ -120,6 +145,12 @@ export function HudSesion({
           <dd>
             <span className="font-medium text-terracota">{sesion.npc.nombre}</span>,{' '}
             {sesion.npc.edad} años
+          </dd>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <dt className="sr-only">Estado del paciente</dt>
+          <dd className="pl-6">
+            <EstadoPaciente />
           </dd>
         </div>
         <div className="flex items-center gap-2 text-xs">

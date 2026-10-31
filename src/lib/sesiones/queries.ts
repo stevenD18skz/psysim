@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
+import { log } from '@/lib/log';
 import { separarIntentos } from '@/lib/conversacion/intentos';
 import { obtenerMensajesSesion } from '@/lib/escenarios/queries';
 import {
@@ -10,6 +11,7 @@ import {
   leerEscenarioDeSesion,
   leerTitulosDeEscenarios,
 } from '@/lib/sesiones/datos-privados';
+import { type FilaMetrica } from '@/lib/sesiones/resultados';
 import { createClient } from '@/lib/supabase/server';
 import {
   type Asignacion,
@@ -74,7 +76,7 @@ export const obtenerPracticas = cache(async (): Promise<SesionHistorial[]> => {
     .order('inicio', { ascending: false });
 
   if (error) {
-    throw new Error('No fue posible cargar tus prácticas.', { cause: error });
+    throw new Error('No pudimos cargar tus prácticas.', { cause: error });
   }
   return aHistorial(data);
 });
@@ -90,7 +92,7 @@ export const obtenerSesionesDeEstudiante = cache(
       .order('inicio', { ascending: false });
 
     if (error) {
-      throw new Error('No fue posible cargar las sesiones del estudiante.', { cause: error });
+      throw new Error('No pudimos cargar las sesiones del estudiante.', { cause: error });
     }
     return aHistorial(data);
   }
@@ -114,7 +116,7 @@ export const obtenerInformeDeEstudiante = cache(
       .order('inicio', { ascending: true });
 
     if (error) {
-      throw new Error('No fue posible cargar las notas del estudiante.', { cause: error });
+      throw new Error('No pudimos cargar las notas del estudiante.', { cause: error });
     }
 
     const historial = await aHistorial(data);
@@ -147,7 +149,7 @@ export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]
     .order('inicio', { ascending: false });
 
   if (error) {
-    throw new Error('No fue posible cargar las sesiones.', { cause: error });
+    throw new Error('No pudimos cargar las sesiones.', { cause: error });
   }
 
   const historial = await aHistorial(data);
@@ -180,7 +182,7 @@ export const obtenerCodigosPendientes = cache(async (): Promise<CodigoPendiente[
     .order('expira_en', { ascending: true });
 
   if (error) {
-    throw new Error('No fue posible cargar los códigos de acceso.', { cause: error });
+    throw new Error('No pudimos cargar los códigos de acceso.', { cause: error });
   }
 
   const titulos = await leerTitulosDeEscenarios(data.map(f => f.escenario_id));
@@ -201,7 +203,7 @@ export const obtenerAsignacionesPorCaso = cache(async (): Promise<Map<string, nu
   const supabase = await createClient();
   const { data, error } = await supabase.from('asignacion').select('escenario_id');
   if (error) {
-    throw new Error('No fue posible cargar el uso de los casos.', { cause: error });
+    throw new Error('No pudimos cargar el uso de los casos.', { cause: error });
   }
   const conteo = new Map<string, number>();
   for (const { escenario_id } of data)
@@ -220,7 +222,7 @@ export const obtenerAsignacionesDeEstudiante = cache(
       .order('creado_en', { ascending: false });
 
     if (error) {
-      throw new Error('No fue posible cargar los códigos de acceso.', { cause: error });
+      throw new Error('No pudimos cargar los códigos de acceso.', { cause: error });
     }
 
     const titulos = await leerTitulosDeEscenarios(data.map(f => f.escenario_id));
@@ -261,7 +263,7 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar la sesión.', { cause: error });
+    throw new Error('No pudimos cargar la sesión.', { cause: error });
   }
   if (!data) return null;
 
@@ -315,3 +317,49 @@ export const obtenerDetalleSesion = cache(async (id: string): Promise<DetalleSes
       : null,
   };
 });
+
+/**
+ * Métricas que el navegador guardó al terminar la práctica (HU-19), o `null` si no hay (cierre por
+ * inactividad, error al guardar o práctica anterior a las métricas). RLS las entrega con la sesión.
+ */
+export const obtenerMetricasGuardadas = cache(
+  async (sesionId: string): Promise<FilaMetrica | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('metrica')
+      .select(
+        'total_mensajes, latencia_promedio_ms, latencia_maxima_ms, duracion_segundos, indicadores'
+      )
+      .eq('sesion_id', sesionId)
+      .maybeSingle();
+
+    if (error) {
+      // Las métricas son un complemento: sin ellas, los resultados se reconstruyen con la
+      // conversación. Un fallo aquí (p. ej. la migración sin aplicar) no debe romper la pantalla.
+      log.error('resultados.metricas_no_leidas', { codigo: error.code, sesion_id: sesionId });
+      return null;
+    }
+    return data;
+  }
+);
+
+/**
+ * Reflexión que el estudiante escribió al terminar la práctica (o `null`). RLS la entrega al
+ * estudiante dueño y a su docente; un fallo al leerla no rompe la pantalla.
+ */
+export const obtenerReflexion = cache(
+  async (sesionId: string): Promise<{ contenido: string; actualizadoEn: string } | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('reflexion')
+      .select('contenido, actualizado_en')
+      .eq('sesion_id', sesionId)
+      .maybeSingle();
+
+    if (error) {
+      log.error('reflexion.no_leida', { codigo: error.code, sesion_id: sesionId });
+      return null;
+    }
+    return data ? { contenido: data.contenido, actualizadoEn: data.actualizado_en } : null;
+  }
+);

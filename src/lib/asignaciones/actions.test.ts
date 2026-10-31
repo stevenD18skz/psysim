@@ -97,7 +97,7 @@ describe('generarAsignacion', () => {
       error: 'El caso seleccionado ya no está disponible.',
     });
     expect(await generarAsignacion(VALORES)).toMatchObject({
-      error: 'No fue posible generar el código. Inténtalo de nuevo.',
+      error: 'No pudimos generar el código. Inténtalo de nuevo.',
     });
   });
 

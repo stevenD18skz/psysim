@@ -279,6 +279,53 @@ export type Database = {
           },
         ];
       };
+      metrica: {
+        Row: {
+          creado_en: string;
+          duracion_segundos: number;
+          id: string;
+          indicadores: Json | null;
+          latencia_maxima_ms: number | null;
+          latencia_promedio_ms: number | null;
+          sesion_id: string;
+          tokens_entrada: number;
+          tokens_salida: number;
+          total_mensajes: number;
+        };
+        Insert: {
+          creado_en?: string;
+          duracion_segundos: number;
+          id?: string;
+          indicadores?: Json | null;
+          latencia_maxima_ms?: number | null;
+          latencia_promedio_ms?: number | null;
+          sesion_id: string;
+          tokens_entrada?: number;
+          tokens_salida?: number;
+          total_mensajes: number;
+        };
+        Update: {
+          creado_en?: string;
+          duracion_segundos?: number;
+          id?: string;
+          indicadores?: Json | null;
+          latencia_maxima_ms?: number | null;
+          latencia_promedio_ms?: number | null;
+          sesion_id?: string;
+          tokens_entrada?: number;
+          tokens_salida?: number;
+          total_mensajes?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'metrica_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       npc: {
         Row: {
           creado_en: string;
@@ -339,6 +386,38 @@ export type Database = {
             columns: ['usuario_id'];
             isOneToOne: false;
             referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reflexion: {
+        Row: {
+          actualizado_en: string;
+          contenido: string;
+          creado_en: string;
+          id: string;
+          sesion_id: string;
+        };
+        Insert: {
+          actualizado_en?: string;
+          contenido: string;
+          creado_en?: string;
+          id?: string;
+          sesion_id: string;
+        };
+        Update: {
+          actualizado_en?: string;
+          contenido?: string;
+          creado_en?: string;
+          id?: string;
+          sesion_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reflexion_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
             referencedColumns: ['id'];
           },
         ];
@@ -560,6 +639,20 @@ export type Database = {
       es_docente: { Args: never; Returns: boolean };
       es_estudiante: { Args: never; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
+      guardar_reflexion: {
+        Args: { p_contenido: string; p_sesion_id: string };
+        Returns: undefined;
+      };
+      guardar_metricas_cierre: {
+        Args: {
+          p_indicadores?: Json;
+          p_latencia_maxima_ms?: number;
+          p_latencia_promedio_ms?: number;
+          p_sesion_id: string;
+          p_total_mensajes: number;
+        };
+        Returns: string;
+      };
       id_cuenta_por_correo: { Args: { p_correo: string }; Returns: string };
       reformular_desde: { Args: { p_mensaje_id: string }; Returns: number };
       registrar_actividad_sesion: {
