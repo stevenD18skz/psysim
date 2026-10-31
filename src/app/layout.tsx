@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, JetBrains_Mono } from 'next/font/google';
 
-import { ConfigurarZod } from '@/components/layout/configurar-zod';
 import { TelemetriaCliente } from '@/components/layout/telemetria-cliente';
 import { Toaster } from '@/components/ui/sonner';
 import { DESCRIPCION_SITIO, NOMBRE_SITIO, TITULO_SITIO, URL_SITIO } from '@/lib/sitio';
@@ -69,7 +68,6 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${archivo.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <ConfigurarZod />
         <TelemetriaCliente />
         {children}
         <Toaster position="bottom-right" richColors closeButton />
