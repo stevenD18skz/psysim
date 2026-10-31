@@ -10,7 +10,8 @@ let ip = 0;
 function peticion(cuerpo: unknown, encabezados: Record<string, string> = {}) {
   return new Request('http://localhost/api/telemetria', {
     method: 'POST',
-    headers: { 'x-forwarded-for': `10.0.0.${ip}`, ...encabezados },
+    // Lo que manda el navegador con `sendBeacon` desde el propio sitio.
+    headers: { 'x-forwarded-for': `10.0.0.${ip}`, 'sec-fetch-site': 'same-origin', ...encabezados },
     body: typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo),
   });
 }
@@ -73,6 +74,21 @@ describe('POST /api/telemetria', () => {
     );
     expect(respuesta.status).toBe(403);
     expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it('403 si no trae ni Origin ni Sec-Fetch-Site (no viene de un navegador)', async () => {
+    const respuesta = await POST(
+      peticion({ tipo: 'error', ruta: '/', mensaje: 'x' }, { 'sec-fetch-site': '' })
+    );
+    expect(respuesta.status).toBe(403);
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it('413 sin leer el cuerpo si declara más de 2 KiB', async () => {
+    const respuesta = await POST(
+      peticion({ tipo: 'error', ruta: '/', mensaje: 'x' }, { 'content-length': '999999' })
+    );
+    expect(respuesta.status).toBe(413);
   });
 
   it('acepta el envío del propio sitio', async () => {

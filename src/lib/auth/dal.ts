@@ -10,6 +10,7 @@ import {
   RUTA_INICIO,
   RUTA_LOGIN,
 } from '@/lib/auth/routes';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { type PerfilUsuario, type RolUsuario } from '@/types';
 
@@ -25,6 +26,10 @@ export type SesionUsuario =
  * el servidor de Auth con `getUser()` —detecta sesiones cerradas o revocadas— y el rol se
  * lee de la tabla `usuario`. Una cuenta desactivada por el Administrador no tiene permiso aunque
  * su JWT aún no haya caducado. Se memoriza por petición con `cache`.
+ *
+ * El perfil se lee con la clave secreta, filtrado por el id que confirmó el servidor de Auth: el
+ * cliente solo puede leer `id`, `nombre` y `rol` de `usuario` (así el estudiante no ve el correo
+ * ni el estado de la cuenta de sus docentes).
  */
 export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
   const supabase = await createClient();
@@ -38,7 +43,7 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
     return { estado: 'sin-sesion' };
   }
 
-  const { data: perfil, error: errorPerfil } = await supabase
+  const { data: perfil, error: errorPerfil } = await createAdminClient()
     .from('usuario')
     .select('id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal')
     .eq('id', user.id)

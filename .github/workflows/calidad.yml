@@ -1,0 +1,36 @@
+# Lo mismo que `pnpm check`, también para quien no tenga los hooks de Husky. Los E2E no corren aquí:
+# usan la base de datos compartida y la IA real, y consumen la cuota de todos los entornos.
+name: Calidad
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calidad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calidad:
+    name: Lint, tipos, formato y pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # En un clon nuevo `tsc` no encuentra `PageProps` hasta generar los tipos de las rutas.
+      - run: pnpm exec next typegen
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+      # Las pruebas unitarias usan valores ficticios (vitest.config.ts): no necesitan secretos.
+      - run: pnpm test:coverage

@@ -5,6 +5,7 @@ import { useTransition } from 'react';
 
 import { cerrarSesion } from '@/lib/auth/actions';
 import { RUTA_LOGIN } from '@/lib/auth/routes';
+import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { useAppStore } from '@/store/app-store-provider';
 
 /** HU-04: cierra la sesión, limpia el slice `auth` y vuelve a /login. */
@@ -15,6 +16,7 @@ export function useCerrarSesion() {
 
   const salir = () => {
     startTransition(async () => {
+      olvidarDatosDeLaCuenta();
       await cerrarSesion();
       limpiarAuth();
       // `refresh` descarta la caché del router para no mostrar una versión almacenada

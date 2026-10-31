@@ -639,6 +639,21 @@ export type Database = {
       es_docente: { Args: never; Returns: boolean };
       es_estudiante: { Args: never; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
+      guardar_intercambio: {
+        Args: {
+          p_emocion: string | null;
+          p_latencia_ms: number;
+          p_mensaje: string;
+          p_respuesta: string;
+          p_sesion_id: string;
+          p_tokens_entrada: number | null;
+          p_tokens_salida: number | null;
+        };
+        Returns: {
+          id_estudiante: string;
+          id_npc: string;
+        }[];
+      };
       guardar_reflexion: {
         Args: { p_contenido: string; p_sesion_id: string };
         Returns: undefined;

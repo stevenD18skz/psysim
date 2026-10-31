@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /** Para que ningún caché responda por la aplicación: una comprobación de salud debe ser fresca. */
 const SIN_CACHE = { 'Cache-Control': 'no-store' } as const;
@@ -23,7 +23,9 @@ export async function GET(request: Request): Promise<Response> {
 
   const inicio = performance.now();
   try {
-    const supabase = await createClient();
+    // Los monitores llaman sin sesión y el rol anónimo no tiene permisos sobre ninguna tabla: con
+    // el cliente de la petición, la consulta fallaría siempre y la alerta quedaría encendida.
+    const supabase = createAdminClient();
     const { error } = await supabase.from('escenario').select('id', { head: true, count: 'exact' });
     if (error) throw error;
     return Response.json(

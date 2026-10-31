@@ -149,8 +149,12 @@ for (const cuenta of CUENTAS) {
   }
 }
 
-// Verificación: los id de `usuario` deben coincidir con los de Supabase Auth.
-const { data: perfiles, error } = await supabase.from('usuario').select('id, correo');
+// Verificación: los id de `usuario` deben coincidir con los de Supabase Auth. Solo las cuentas de
+// prueba: las de docentes y estudiantes reales no se imprimen en la consola.
+const { data: perfiles, error } = await supabase
+  .from('usuario')
+  .select('id, correo')
+  .like('correo', '%@psysim.test');
 if (error) {
   console.error('✖ No se pudo verificar la tabla usuario:', error.message);
   fallos++;

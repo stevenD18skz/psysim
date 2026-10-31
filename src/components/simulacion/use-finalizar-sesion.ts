@@ -16,8 +16,9 @@ export type MotivoCierre = 'finalizada' | 'inactividad';
  * HU-20 — Cierra la sesión activa. `finalizar` (el estudiante pulsa «Terminar práctica») envía las
  * métricas a /api/metrics/save, que las guarda y marca la sesión como finalizada en una sola
  * operación (la hora de fin la pone la base de datos), pasa el NPC a `sesion_finalizada` y lleva
- * a la pantalla de resultados. Si el guardado falla, cierra la sesión sin métricas para que nadie
- * se quede atrapado: los resultados se reconstruyen con la conversación guardada. Tras 10
+ * a la pantalla de resultados. Si el guardado falla, cierra la sesión sin las medidas del navegador
+ * para que nadie se quede atrapado: la base de datos calcula las demás métricas con la conversación
+ * guardada (trigger `sesion_registrar_metrica`). Tras 10
  * minutos sin interacción, `cerrarPorInactividad` la da por interrumpida y devuelve el resumen.
  */
 export function useFinalizarSesion() {

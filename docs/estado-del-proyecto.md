@@ -50,23 +50,12 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 
 ## Pendiente (no se puede cerrar desde el código)
 
-1. **Vercel (HU-29):** cargar las variables de entorno, correr
-   `PLAYWRIGHT_BASE_URL=<despliegue> pnpm test:e2e`, registrar la URL beta y dar acceso al jurado.
-2. **Rendimiento en hardware real (HU-28):**
-   `E2E_FPS_MINIMO=30 pnpm exec playwright test e2e/rendimiento.spec.ts --workers=1` en un PC con
-   GPU integrada (el caso exigente) y, si se puede, en otro con GPU dedicada.
-3. **Conversar con los 12 pacientes** desde `/laboratorio/npc` (HU-24 · T02).
-4. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
-5. **Actualizar los estados en Taiga** (las historias figuran como `New`).
-6. **Subir `develop` a `main`** cuando se dé por terminada una etapa.
-7. **Reemplazar el logo de Psyduck** (personaje de Pokémon) en `src/app/icon.png` y en las
-   imágenes para compartir (`opengraph-image.png`, `twitter-image.png`); luego
-   `node scripts/optimizar-imagenes.mjs <imagen>`.
-8. **Completar el aviso de privacidad** (los datos «Por confirmar») y pedir revisión legal.
-9. **Correr la regresión E2E completa con el PC en reposo** (`pnpm test:e2e --workers=1`). La del
-   25-oct se cortó por poca memoria tras 73 pruebas aprobadas; faltaron `flujo-completo`,
-   `laboratorio`, `navegacion`, `presencial`, `rendimiento`, `resultados`, `revisiones`, `smoke`
-   y `ux-reglas`.
+1. **Acceso del jurado (HU-29 · T04):** crear sus cuentas y entregarles las credenciales.
+2. **Conversar con los 12 pacientes** desde `/laboratorio/npc` (HU-24 · T02).
+3. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
+4. **Actualizar los estados en Taiga** (las historias figuran como `New`).
+5. **Subir `develop` a `main`** cuando se dé por terminada una etapa.
+6. **Completar el aviso de privacidad** (los datos «Por confirmar») y pedir revisión legal.
 
 ## Recomendaciones de UX sin aplicar
 

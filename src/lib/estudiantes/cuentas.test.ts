@@ -89,6 +89,22 @@ describe('asegurarCuentaEstudiante', () => {
     expect(admin.auth.admin.deleteUser).toHaveBeenCalledWith('n1');
   });
 
+  it('si otro registro simultáneo ya creó el perfil, no borra la cuenta', async () => {
+    admin.auth.admin.createUser.mockResolvedValueOnce({
+      data: { user: { id: 'n1' } },
+      error: null,
+    });
+    admin.responder(
+      'usuario',
+      { data: null },
+      { error: { code: '23505' } },
+      { data: { rol: 'estudiante' } }
+    );
+
+    expect(await asegurarCuentaEstudiante(DATOS)).toEqual({ ok: true, datos: { usuarioId: 'n1' } });
+    expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['falla la consulta del perfil', () => admin.responder('usuario', { error: { code: '500' } })],
     [

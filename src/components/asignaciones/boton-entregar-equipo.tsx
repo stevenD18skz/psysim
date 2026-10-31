@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useEsComputador } from '@/hooks/use-es-computador';
+import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { entregarEquipo } from '@/lib/equipo-compartido/actions';
 import { primerNombre } from '@/lib/equipo-compartido/entrega';
 
@@ -42,6 +43,8 @@ export function BotonEntregarEquipo({
 
   const entregar = () =>
     startTransition(async () => {
+      // El estudiante que recibe el equipo no debe encontrar borradores de retroalimentación.
+      olvidarDatosDeLaCuenta();
       // Si todo va bien, la acción cierra la sesión y redirige a la pantalla de entrega.
       const resultado = await entregarEquipo({ id: asignacionId });
       if (resultado && !resultado.ok) {
