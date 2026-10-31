@@ -50,8 +50,7 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 
 ## Pendiente (no se puede cerrar desde el código)
 
-1. **Vercel (HU-29):** cargar las variables de entorno, correr
-   `PLAYWRIGHT_BASE_URL=<despliegue> pnpm test:e2e`, registrar la URL beta y dar acceso al jurado.
+1. **Acceso del jurado (HU-29 · T04):** crear sus cuentas y entregarles las credenciales.
 2. **Conversar con los 12 pacientes** desde `/laboratorio/npc` (HU-24 · T02).
 3. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
 4. **Actualizar los estados en Taiga** (las historias figuran como `New`).
