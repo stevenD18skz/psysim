@@ -81,7 +81,7 @@ export default function NpcVisor({
         <div className="pointer-events-none absolute top-4 left-4 w-[min(320px,calc(100%-2rem))] rounded-xl border bg-card/90 px-4 py-3 shadow-sm backdrop-blur">
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-heading text-xl leading-none font-semibold">{nombreAccion}</span>
-            <span ref={meta} className="text-[11px] text-muted-foreground tabular-nums" />
+            <span ref={meta} className="text-xs text-muted-foreground tabular-nums" />
           </div>
           <div className="mt-2 h-0.5 bg-border">
             <span ref={barra} className="block h-full w-0 bg-primary" />

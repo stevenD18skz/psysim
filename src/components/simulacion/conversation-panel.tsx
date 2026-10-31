@@ -178,7 +178,7 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
               {nombre}
               <span
                 title={AVISO_IA}
-                className="rounded-md border border-input/60 px-1.5 text-[0.7rem] leading-5 font-semibold text-muted-foreground"
+                className="rounded-md border border-input/60 px-1.5 text-[0.75rem] leading-5 font-semibold text-muted-foreground"
               >
                 IA<span className="sr-only">: {AVISO_IA}</span>
               </span>

@@ -193,7 +193,7 @@ export function ListaDocentes({
                             </span>
                           )}
                           {esPropio && (
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.75rem] font-medium text-secondary-foreground">
                               Tú
                             </span>
                           )}

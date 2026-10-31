@@ -10,6 +10,12 @@
   --font-sans: var(--font-archivo);
   --font-mono: var(--font-jetbrains-mono);
   --font-heading: var(--font-archivo);
+
+  /* Texto secundario mínimo de 14 px (HU-25 · T05). Las piezas de 12 px (insignias, teclas e
+     iniciales) usan `text-[0.75rem]`: un nombre propio como `text-insignia` lo tomaría
+     tailwind-merge por un color y borraría el color real al combinar clases. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
   /* Materiales del consultorio. */
   --color-nogal: var(--nogal);
   --color-nogal-claro: var(--nogal-claro);
