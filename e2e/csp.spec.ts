@@ -31,10 +31,14 @@ async function vigilarViolaciones(page: Page) {
   });
 }
 
+/** La barra de Vercel solo existe en los previews: ni es de la aplicación ni llega a producción. */
+const ES_BARRA_DE_VERCEL = /^frame-src → https:\/\/vercel\.live/;
+
 async function violaciones(page: Page): Promise<string[]> {
-  return page.evaluate(
+  const registradas = await page.evaluate(
     () => (window as unknown as { __violacionesCsp?: string[] }).__violacionesCsp ?? []
   );
+  return registradas.filter(violacion => !ES_BARRA_DE_VERCEL.test(violacion));
 }
 
 test.describe('política de seguridad de contenido (OWASP A02/A05)', () => {
