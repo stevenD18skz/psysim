@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { crearAppStore } from '@/store/app-store';
 import { type SesionActiva } from '@/types';
 
-import { guardarMetricas, RUTA_METRICAS } from './guardar-metricas';
+import { ESPERAS_REINTENTO_MS, guardarMetricas, RUTA_METRICAS } from './guardar-metricas';
 
 const sesion: SesionActiva = {
   id: '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60',
@@ -66,6 +66,8 @@ function storeConConversacion() {
   return store;
 }
 
+const sinEspera = async () => undefined;
+
 function cuerpoEnviado(hacerFetch: ReturnType<typeof vi.fn>) {
   const [, opciones] = hacerFetch.mock.calls[0] as unknown as [string, RequestInit];
   return JSON.parse(opciones.body as string) as unknown;
@@ -126,6 +128,7 @@ describe('guardarMetricas (HU-20 · T02)', () => {
   it('un error del servidor devuelve su mensaje', async () => {
     const resultado = await guardarMetricas(storeConConversacion(), {
       fetch: async () => respuesta({ error: 'No pudimos guardar los resultados.' }, 500),
+      esperar: sinEspera,
     });
     expect(resultado).toEqual({
       estado: 'fallo',
@@ -136,6 +139,7 @@ describe('guardarMetricas (HU-20 · T02)', () => {
   it('un error sin JSON usa un mensaje genérico', async () => {
     const resultado = await guardarMetricas(storeConConversacion(), {
       fetch: async () => new Response('<html>502</html>', { status: 502 }),
+      esperar: sinEspera,
     });
     expect(resultado).toMatchObject({ estado: 'fallo' });
   });
@@ -145,6 +149,7 @@ describe('guardarMetricas (HU-20 · T02)', () => {
       fetch: async () => {
         throw new TypeError('Failed to fetch');
       },
+      esperar: sinEspera,
     });
     expect(resultado).toMatchObject({ estado: 'fallo' });
   });
@@ -154,5 +159,86 @@ describe('guardarMetricas (HU-20 · T02)', () => {
       fetch: async () => respuesta({ ok: true }),
     });
     expect(resultado).toMatchObject({ estado: 'fallo' });
+  });
+
+  describe('reintentos automáticos', () => {
+    it('ante fallos pasajeros reintenta tres veces con espera creciente', async () => {
+      const hacerFetch = vi.fn(async () => respuesta({ error: 'Falló.' }, 503));
+      const esperar = vi.fn(sinEspera);
+
+      const resultado = await guardarMetricas(storeConConversacion(), {
+        fetch: hacerFetch,
+        esperar,
+      });
+
+      expect(resultado).toEqual({ estado: 'fallo', motivo: 'Falló.' });
+      expect(hacerFetch).toHaveBeenCalledTimes(4);
+      expect(esperar.mock.calls.map(([ms]: number[]) => ms)).toEqual([...ESPERAS_REINTENTO_MS]);
+    });
+
+    it('se detiene en cuanto un intento guarda', async () => {
+      const hacerFetch = vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(respuesta(OK));
+
+      const resultado = await guardarMetricas(storeConConversacion(), {
+        fetch: hacerFetch,
+        esperar: sinEspera,
+      });
+
+      expect(resultado).toEqual({ estado: 'guardadas' });
+      expect(hacerFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('si se perdió la respuesta de un guardado, el 409 del reintento cuenta como terminada', async () => {
+      const hacerFetch = vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(respuesta({ error: 'La práctica ya terminó.' }, 409));
+
+      const resultado = await guardarMetricas(storeConConversacion(), {
+        fetch: hacerFetch,
+        esperar: sinEspera,
+      });
+
+      expect(resultado).toEqual({ estado: 'ya_terminada' });
+    });
+
+    it('todos los intentos envían el mismo cuerpo', async () => {
+      const hacerFetch = vi.fn(async () => respuesta({ error: 'Falló.' }, 500));
+
+      await guardarMetricas(storeConConversacion(), { fetch: hacerFetch, esperar: sinEspera });
+
+      const cuerpos = (hacerFetch.mock.calls as unknown as [string, RequestInit][]).map(
+        ([, opciones]) => opciones.body
+      );
+      expect(new Set(cuerpos).size).toBe(1);
+    });
+
+    it.each([400, 401, 403, 404])(
+      'un %i no se reintenta: repetirlo no cambiaría nada',
+      async status => {
+        const hacerFetch = vi.fn(async () => respuesta({ error: 'No.' }, status));
+        const esperar = vi.fn(sinEspera);
+
+        const resultado = await guardarMetricas(storeConConversacion(), {
+          fetch: hacerFetch,
+          esperar,
+        });
+
+        expect(resultado).toEqual({ estado: 'fallo', motivo: 'No.' });
+        expect(hacerFetch).toHaveBeenCalledTimes(1);
+        expect(esperar).not.toHaveBeenCalled();
+      }
+    );
+
+    it('una respuesta 200 con otro formato no se reintenta', async () => {
+      const hacerFetch = vi.fn(async () => respuesta({ ok: true }));
+
+      await guardarMetricas(storeConConversacion(), { fetch: hacerFetch, esperar: sinEspera });
+
+      expect(hacerFetch).toHaveBeenCalledTimes(1);
+    });
   });
 });
