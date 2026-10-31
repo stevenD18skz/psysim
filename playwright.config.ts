@@ -15,6 +15,8 @@ const PUERTO = 3000;
  */
 const urlExterna = process.env.PLAYWRIGHT_BASE_URL || undefined;
 const bypassVercel = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || undefined;
+/** Con `E2E_GPU_REAL=1` abre una ventana y usa la GPU del equipo: para medir FPS reales (HU-28). */
+const gpuReal = process.env.E2E_GPU_REAL === '1';
 
 export default defineConfig({
   testDir: './e2e',
@@ -42,7 +44,11 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // WebGL por software (SwiftShader) para renderizar la escena 3D sin GPU (CI, headless).
-        launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] },
+        ...(gpuReal
+          ? { headless: false, launchOptions: { args: ['--ignore-gpu-blocklist'] } }
+          : {
+              launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] },
+            }),
       },
     },
   ],
