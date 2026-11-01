@@ -203,7 +203,8 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
 
 /**
  * Chat de prueba del constructor: responde con el prompt que se está redactando (más las reglas
- * fijas). No guarda nada ni necesita una sesión.
+ * fijas). No guarda nada ni necesita una sesión, pero cuenta en el límite de llamadas a la IA por
+ * minuto (si el conteo falla, la prueba sigue, igual que en la práctica).
  */
 export async function probarPaciente(
   valores: unknown
@@ -213,6 +214,17 @@ export async function probarPaciente(
   const datos = probarPacienteSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: datos.error.issues[0]?.message ?? MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const supabase = await createClient();
+  const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+  if (errorLimite) {
+    log.error('caso.limite_no_verificado', { codigo: errorLimite.code });
+  } else if (esperaS > 0) {
+    return {
+      ok: false,
+      error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
+    };
   }
 
   try {

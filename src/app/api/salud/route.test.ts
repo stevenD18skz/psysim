@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 import { GET } from './route';
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 
 function baseDeDatos(error: unknown) {
-  vi.mocked(createClient).mockResolvedValue({
+  vi.mocked(createAdminClient).mockReturnValue({
     from: () => ({ select: () => Promise.resolve({ error }) }),
   } as never);
 }
@@ -22,7 +22,7 @@ describe('GET /api/salud', () => {
 
     expect(respuesta.status).toBe(200);
     expect(await respuesta.json()).toMatchObject({ estado: 'ok' });
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it('no se guarda en caché', async () => {

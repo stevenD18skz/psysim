@@ -122,7 +122,7 @@ function TarjetaEscenarioPublico({
           <AvatarPaciente
             src={escenario.paciente.foto}
             nombre={escenario.paciente.nombre}
-            className="size-7 text-[10px] ring-2 ring-white/80"
+            className="size-7 text-[0.75rem] ring-2 ring-white/80"
           />
           {escenario.paciente.nombre}, {escenario.paciente.edad} años
         </span>

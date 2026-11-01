@@ -9,6 +9,7 @@ import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/pa
 import { log } from '@/lib/log';
 import { idPeticion } from '@/lib/observabilidad/peticion';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import {
   type NpcChatError,
@@ -28,6 +29,9 @@ function responderError(status: number, error: string, campos?: NpcChatError['ca
   const cuerpo: NpcChatError = campos ? { error, campos } : { error };
   return Response.json(cuerpo, { status, headers: SIN_CACHE });
 }
+
+const mensajeTope = () =>
+  `Llegaste al máximo de ${MAX_INTERVENCIONES_POR_SESION} intervenciones en esta práctica. Termínala para que tu docente la revise.`;
 
 /** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
 const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
@@ -56,7 +60,7 @@ const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
  *    al generar el código; se lee con la clave secreta porque el estudiante no puede verlo.
  * 4. Reserva un turno del límite de mensajes por minuto (429 si se agotó, RNF-03.7) y llama a la
  *    IA con el prompt, el historial y el mensaje (504/502/503 si falla).
- * 5. Guarda el intercambio en `mensaje` y devuelve la respuesta con su emoción (para el
+ * 5. Guarda el intercambio con `guardar_intercambio` (solo el servidor escribe en `mensaje`) y devuelve la respuesta con su emoción (para el
  *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
  */
 export async function POST(request: Request): Promise<Response> {
@@ -138,10 +142,7 @@ export async function POST(request: Request): Promise<Response> {
   const mensajesGuardados: FilaMensaje[] = filas;
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
     log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
-    return responderError(
-      429,
-      `Llegaste al máximo de ${MAX_INTERVENCIONES_POR_SESION} intervenciones en esta práctica. Termínala para que tu docente la revise.`
-    );
+    return responderError(429, mensajeTope());
   }
 
   // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
@@ -178,32 +179,30 @@ export async function POST(request: Request): Promise<Response> {
   const latenciaMs = Math.round(performance.now() - inicio);
   const timestampRespuesta = new Date().toISOString();
 
-  // Ambos mensajes en una sola inserción (atómica). Si falla, la conversación continúa: el
-  // estudiante ya tiene la respuesta y el error queda registrado para revisarlo.
-  const { data: guardados, error: errorGuardado } = await supabase
-    .from('mensaje')
-    .insert([
-      { sesion_id, remitente: 'estudiante', contenido: mensaje_usuario },
-      {
-        sesion_id,
-        remitente: 'npc',
-        contenido: respuesta.texto,
-        emocion: respuesta.emocion,
-        latencia_ms: latenciaMs,
-        tokens_entrada: respuesta.tokensEntrada,
-        tokens_salida: respuesta.tokensSalida,
-      },
-    ])
-    .select('id, remitente');
+  // El estudiante no puede escribir en `mensaje` (podría fabricar turnos del paciente): el
+  // intercambio lo guarda el servidor con la clave secreta, ya verificada la sesión con RLS. La
+  // función vuelve a comprobar, con la sesión bloqueada, que sigue en curso y el tope de
+  // intervenciones. Si falla por otra causa, la conversación continúa y el error queda registrado.
+  const { data: guardado, error: errorGuardado } = await createAdminClient()
+    .rpc('guardar_intercambio', {
+      p_sesion_id: sesion_id,
+      p_mensaje: mensaje_usuario,
+      p_respuesta: respuesta.texto,
+      p_emocion: respuesta.emocion,
+      p_latencia_ms: latenciaMs,
+      p_tokens_entrada: respuesta.tokensEntrada,
+      p_tokens_salida: respuesta.tokensSalida,
+    })
+    .maybeSingle();
   if (errorGuardado) {
     log.error('npc_chat.mensajes_no_guardados', {
       peticion,
       codigo: errorGuardado.code,
       sesion_id,
     });
+    if (errorGuardado.code === '55000') return responderError(409, 'La práctica ya terminó.');
+    if (errorGuardado.code === '54000') return responderError(429, mensajeTope());
   }
-  const idGuardado = (remitente: 'estudiante' | 'npc') =>
-    guardados?.find(fila => fila.remitente === remitente)?.id ?? null;
 
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
   log.info('npc_chat.respuesta', {
@@ -222,8 +221,8 @@ export async function POST(request: Request): Promise<Response> {
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: respuesta.tokensEntrada,
     tokens_salida: respuesta.tokensSalida,
-    id_mensaje_estudiante: idGuardado('estudiante'),
-    id_mensaje_npc: idGuardado('npc'),
+    id_mensaje_estudiante: guardado?.id_estudiante ?? null,
+    id_mensaje_npc: guardado?.id_npc ?? null,
   };
   return Response.json(cuerpoRespuesta, { status: 200, headers: SIN_CACHE });
 }

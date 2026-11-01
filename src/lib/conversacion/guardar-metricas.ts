@@ -18,46 +18,84 @@ export type ResultadoGuardado =
 
 interface OpcionesGuardado {
   fetch?: typeof fetch;
+  /** Espera entre intentos; se reemplaza en los tests para no depender del reloj. */
+  esperar?: (ms: number) => Promise<void>;
 }
 
-/**
- * HU-20 · T02 — Envía a /api/metrics/save las métricas capturadas en el store (HU-18). El servidor
- * las guarda y cierra la sesión en una sola operación, así que el estudiante puede reintentar si
- * falla sin dejar nada a medias.
- */
-export async function guardarMetricas(
-  store: AppStore,
-  { fetch: hacerFetch = fetch }: OpcionesGuardado = {}
-): Promise<ResultadoGuardado> {
-  const { sesion, metricas } = store.getState();
-  if (!sesion.activa)
-    return { estado: 'fallo', motivo: 'No hay una práctica abierta. Vuelve a Mis prácticas.' };
+/** Esperas antes de cada reintento automático (HU-20 · T02: tres, cada vez más largas). */
+export const ESPERAS_REINTENTO_MS = [1_000, 2_000, 4_000] as const;
 
+const esperarReal = (ms: number) => new Promise<void>(listo => setTimeout(listo, ms));
+
+/** Con sesión inválida, sin permiso o con datos rechazados, repetir la petición no cambia nada. */
+const esPasajero = (status: number) => status === 408 || status === 429 || status >= 500;
+
+interface Intento {
+  resultado: ResultadoGuardado;
+  reintentable: boolean;
+}
+
+/** Un envío. La validez del cuerpo no cambia entre intentos: solo la red y el servidor pueden. */
+async function enviarMetricas(cuerpo: string, hacerFetch: typeof fetch): Promise<Intento> {
   let respuesta: Response;
   try {
     respuesta = await hacerFetch(RUTA_METRICAS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(construirMetricasCierre(sesion.activa.id, metricas)),
+      body: cuerpo,
       signal: AbortSignal.timeout(TIEMPO_MAXIMO_GUARDADO_MS),
     });
   } catch {
-    return { estado: 'fallo', motivo: 'Sin conexión con el servidor.' };
+    return {
+      resultado: { estado: 'fallo', motivo: 'Sin conexión con el servidor.' },
+      reintentable: true,
+    };
   }
 
   const json: unknown = await respuesta.json().catch(() => null);
   if (respuesta.ok) {
-    return metricsSaveResponseSchema.safeParse(json).success
-      ? { estado: 'guardadas' }
-      : { estado: 'fallo', motivo: 'Respuesta inesperada del servidor.' };
+    return {
+      resultado: metricsSaveResponseSchema.safeParse(json).success
+        ? { estado: 'guardadas' }
+        : { estado: 'fallo', motivo: 'Respuesta inesperada del servidor.' },
+      reintentable: false,
+    };
   }
-  if (respuesta.status === 409) return { estado: 'ya_terminada' };
+  if (respuesta.status === 409)
+    return { resultado: { estado: 'ya_terminada' }, reintentable: false };
 
   const error = metricsSaveErrorSchema.safeParse(json);
   return {
-    estado: 'fallo',
-    motivo: error.success
-      ? error.data.error
-      : 'No pudimos guardar los resultados. Inténtalo de nuevo.',
+    resultado: {
+      estado: 'fallo',
+      motivo: error.success
+        ? error.data.error
+        : 'No pudimos guardar los resultados. Inténtalo de nuevo.',
+    },
+    reintentable: esPasajero(respuesta.status),
   };
+}
+
+/**
+ * HU-20 · T02 — Envía a /api/metrics/save las métricas capturadas en el store (HU-18). Ante un
+ * fallo pasajero reintenta hasta tres veces con espera creciente. Repetir es seguro: el servidor
+ * guarda y cierra la sesión en una sola operación, así que si se perdió la respuesta de un intento
+ * que sí se guardó, el siguiente recibe 409 (`ya_terminada`) y nada se duplica.
+ */
+export async function guardarMetricas(
+  store: AppStore,
+  { fetch: hacerFetch = fetch, esperar = esperarReal }: OpcionesGuardado = {}
+): Promise<ResultadoGuardado> {
+  const { sesion, metricas } = store.getState();
+  if (!sesion.activa)
+    return { estado: 'fallo', motivo: 'No hay una práctica abierta. Vuelve a Mis prácticas.' };
+
+  const cuerpo = JSON.stringify(construirMetricasCierre(sesion.activa.id, metricas));
+  let intento = await enviarMetricas(cuerpo, hacerFetch);
+  for (const espera of ESPERAS_REINTENTO_MS) {
+    if (!intento.reintentable) break;
+    await esperar(espera);
+    intento = await enviarMetricas(cuerpo, hacerFetch);
+  }
+  return intento.resultado;
 }

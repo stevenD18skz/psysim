@@ -15,8 +15,10 @@ import {
  *   por software (SwiftShader), así que los números de este test son un piso, no el rendimiento de
  *   un computador real: `E2E_FPS_MINIMO` sube el umbral al correrlo en hardware representativo
  *   (por defecto 5 FPS en software; el objetivo del proyecto es ≥ 30 FPS con GPU integrada).
+ *   `E2E_GPU_REAL=1` usa la GPU del equipo, a tamaño de laptop y durante 30 s; `E2E_CASO` elige
+ *   otro consultorio (por defecto, E-01).
  *
- * Los resultados quedan como anotaciones del test y se resumen en docs/pruebas/sprint-6.md.
+ * Los resultados quedan como anotaciones del test y se resumen en docs/performance.md.
  */
 
 const PREFIJO_CODIGOS = 'rnd';
@@ -25,7 +27,20 @@ const FPS_MINIMO = Number(process.env.E2E_FPS_MINIMO ?? 5);
 const MAXIMO_BYTES_POR_MODELO = 2 * 1024 * 1024;
 const MAXIMO_BYTES_TOTAL = 8 * 1024 * 1024;
 const MAXIMO_CARGA_MS = 60_000;
-const MUESTREO_FPS_MS = 8000;
+const GPU_REAL = process.env.E2E_GPU_REAL === '1';
+const CASO = process.env.E2E_CASO ?? 'E-01';
+const MUESTREO_FPS_MS = GPU_REAL ? 30_000 : 8000;
+
+/** La GPU que usó el navegador: sin esto no se sabe si el número es de hardware o de software. */
+function rendererWebgl(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const extension = gl?.getExtension('WEBGL_debug_renderer_info');
+    return gl && extension
+      ? String(gl.getParameter(extension.UNMASKED_RENDERER_WEBGL))
+      : 'desconocido';
+  });
+}
 
 async function promedioFps(page: Page): Promise<number> {
   const texto = (await page.getByTestId('indicador-fps').textContent()) ?? '';
@@ -43,7 +58,9 @@ test.describe('rendimiento del entorno 3D (HU-28)', () => {
   }, testInfo) => {
     test.setTimeout(180_000);
     // Un viewport pequeño mantiene un FPS útil con el renderizado por software.
-    await page.setViewportSize({ width: 800, height: 600 });
+    await page.setViewportSize(
+      GPU_REAL ? { width: 1366, height: 768 } : { width: 800, height: 600 }
+    );
 
     const modelos: { url: string; bytes: number }[] = [];
     page.on('response', async respuesta => {
@@ -53,7 +70,7 @@ test.describe('rendimiento del entorno 3D (HU-28)', () => {
       if (cuerpo) modelos.push({ url, bytes: cuerpo.length });
     });
 
-    const sesionId = await crearSesionEstudiante(PREFIJO_CODIGOS, { escenario: 'E-01' });
+    const sesionId = await crearSesionEstudiante(PREFIJO_CODIGOS, { escenario: CASO });
     await iniciarSesionComoEstudiante(page);
 
     const inicio = Date.now();
@@ -69,6 +86,7 @@ test.describe('rendimiento del entorno 3D (HU-28)', () => {
     const totalBytes = modelos.reduce((suma, m) => suma + m.bytes, 0);
     const masGrande = Math.max(0, ...modelos.map(m => m.bytes));
     testInfo.annotations.push(
+      { type: 'gpu', description: await rendererWebgl(page) },
       { type: 'carga', description: `${(cargaMs / 1000).toFixed(1)} s hasta ver el consultorio` },
       { type: 'fps', description: `${fps} FPS promedio en ${MUESTREO_FPS_MS / 1000} s` },
       {

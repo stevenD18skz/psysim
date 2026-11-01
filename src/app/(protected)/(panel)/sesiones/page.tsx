@@ -547,7 +547,7 @@ function CeldaMatriz({ sesiones }: { sesiones: SesionDocente[] | undefined }) {
     >
       {contenido}
       {sesiones.length > 1 && (
-        <span className="text-[0.7rem] text-muted-foreground">{sesiones.length} prácticas</span>
+        <span className="text-xs text-muted-foreground">{sesiones.length} prácticas</span>
       )}
       <span className="sr-only">
         : {reciente.estudiante.nombre}, {reciente.escenario.titulo}

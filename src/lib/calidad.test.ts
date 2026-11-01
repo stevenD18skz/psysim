@@ -28,6 +28,17 @@ const FUENTES = archivos(path.join(RAIZ, 'src'), /\.(ts|tsx)$/)
 const sinComentarios = (codigo: string) =>
   codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
+describe('legibilidad (HU-25 · T05)', () => {
+  it('ningún texto baja de 12 px (solo el superíndice de una nota al pie)', () => {
+    const pequenos = FUENTES.flatMap(({ ruta, codigo }) =>
+      [...codigo.matchAll(/(?<!after:)text-\[([\d.]+)(px|rem)\]/g)]
+        .filter(([, valor, unidad]) => Number(valor) * (unidad === 'rem' ? 16 : 1) < 12)
+        .map(([clase]) => `${ruta}: ${clase}`)
+    ).filter(hallazgo => !hallazgo.startsWith('src/components/dev/'));
+    expect(pequenos).toEqual([]);
+  });
+});
+
 describe('mantenibilidad (ISO/IEC 25010)', () => {
   it('hay código que revisar', () => {
     expect(FUENTES.length).toBeGreaterThan(300);

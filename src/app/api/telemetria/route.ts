@@ -25,10 +25,15 @@ function superaElLimite(clave: string, ahora = Date.now()): boolean {
   return actual.total > MAX_POR_VENTANA;
 }
 
-/** Solo acepta envíos del propio sitio: bloquea que otra página llene los registros. */
+/**
+ * Solo acepta envíos del propio sitio: bloquea que otra página llene los registros. `sendBeacon` y
+ * `fetch` del mismo origen pueden omitir `Origin`, pero los navegadores actuales siempre mandan
+ * `Sec-Fetch-Site`; una petición sin ninguno de los dos no viene de un navegador (p. ej. `curl`).
+ * Quien falsifique las cabeceras sigue pasando: el tope por dirección acota el ruido.
+ */
 function esDelMismoSitio(request: Request): boolean {
   const origen = request.headers.get('origin');
-  if (!origen) return true; // `sendBeacon` y `fetch` del mismo origen pueden omitirlo.
+  if (!origen) return request.headers.get('sec-fetch-site') === 'same-origin';
   try {
     return new URL(origen).host === new URL(request.url).host;
   } catch {
@@ -49,6 +54,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const direccion = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'desconocida';
   if (superaElLimite(direccion)) return new Response(null, { status: 429 });
+
+  // Se rechaza antes de leer el cuerpo si declara más de lo permitido.
+  const declarado = Number(request.headers.get('content-length') ?? 0);
+  if (declarado > MAX_BYTES_TELEMETRIA) return new Response(null, { status: 413 });
 
   const texto = await request.text();
   if (texto.length > MAX_BYTES_TELEMETRIA) return new Response(null, { status: 413 });

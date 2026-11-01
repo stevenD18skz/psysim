@@ -46,6 +46,10 @@ export function construirCsp({ nonce, urlSupabase, desarrollo = false }: Opcione
       "'self'",
       origin,
       `wss://${host}`,
+      // GLTFLoader lee las texturas incrustadas en los GLB con `fetch` sobre URL `blob:` (o
+      // `data:`), y eso lo rige connect-src: sin ellas, las tazas de E-07 a E-12 salen sin textura.
+      'blob:',
+      'data:',
       ...(desarrollo ? ['ws://localhost:*', 'http://localhost:*'] : []),
     ],
     'media-src': ["'self'", 'blob:', 'data:'],

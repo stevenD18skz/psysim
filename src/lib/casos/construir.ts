@@ -33,6 +33,7 @@ export function filasDelCaso(caso: CasoFormData) {
     campos,
     modoTexto: caso.modoTexto,
     promptManual: caso.promptManual,
+    ...(caso.perfilHeredado ? { perfilHeredado: caso.perfilHeredado } : {}),
   };
   return {
     escenario: {
@@ -47,7 +48,8 @@ export function filasDelCaso(caso: CasoFormData) {
     npc: {
       nombre: caso.nombre,
       edad: caso.edad,
-      perfil_clinico: componerPerfilClinico(campos),
+      perfil_clinico:
+        caso.modoTexto && caso.perfilHeredado ? caso.perfilHeredado : componerPerfilClinico(campos),
       prompt_sistema: promptDelCaso(caso),
     },
   };

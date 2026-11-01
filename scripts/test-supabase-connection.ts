@@ -116,9 +116,10 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
     .select('id, codigo')
     .is('docente_id', null);
   const { data: npcs } = await cliente.from('npc').select('id');
+  // El catálogo oficial creció de 6 (E-01 a E-06) a 12 (E-07 a E-12): se exige al menos el inicial.
   comprobar(
-    escenarios?.length === 6,
-    `El docente lee los ${escenarios?.length ?? 0} escenarios activos`
+    (escenarios?.length ?? 0) >= 6 && (escenarios ?? []).every(e => /^E-\d{2}$/.test(e.codigo)),
+    `El docente lee los ${escenarios?.length ?? 0} escenarios oficiales activos`
   );
   comprobar((npcs?.length ?? 0) >= 6, `El docente lee los ${npcs?.length ?? 0} NPC`);
   const escenarioId = escenarios?.[0]?.id;
@@ -222,28 +223,22 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
     );
     if (!propia) return;
 
-    // Sprint 3 — el docente escribe y lee la conversación de su sesión en curso.
-    const { error: errorMensaje } = await cliente.from('mensaje').insert([
-      { sesion_id: propia.id, remitente: 'estudiante', contenido: 'Hola' },
-      { sesion_id: propia.id, remitente: 'npc', contenido: 'Buenas', latencia_ms: 900 },
-    ]);
-    const { data: propios } = await cliente
+    // La conversación solo la escribe el servidor (`guardar_intercambio`, desde /api/npc/chat):
+    // ningún cliente inserta en `mensaje`, ni siquiera en una sesión propia en curso.
+    const { error: errorMensaje } = await cliente
       .from('mensaje')
-      .select('remitente')
-      .eq('sesion_id', propia.id)
-      .order('creado_en')
-      .order('remitente');
-    comprobar(
-      !errorMensaje && propios?.map(m => m.remitente).join(',') === 'estudiante,npc',
-      'El docente guarda y lee (en orden) la conversación de su sesión'
-    );
-    const { error: errorMetricaEstudiante } = await cliente
-      .from('mensaje')
-      .insert({ sesion_id: propia.id, remitente: 'estudiante', contenido: 'x', latencia_ms: 5 });
-    comprobar(
-      Boolean(errorMetricaEstudiante),
-      'Solo los mensajes del paciente pueden llevar latencia y tokens'
-    );
+      .insert({ sesion_id: propia.id, remitente: 'npc', contenido: 'Turno fabricado' });
+    comprobar(Boolean(errorMensaje), 'Ningún cliente escribe mensajes (solo el servidor)');
+    const { error: errorIntercambio } = await cliente.rpc('guardar_intercambio', {
+      p_sesion_id: propia.id,
+      p_mensaje: 'Hola',
+      p_respuesta: 'Turno fabricado',
+      p_emocion: null,
+      p_latencia_ms: 1,
+      p_tokens_entrada: null,
+      p_tokens_salida: null,
+    });
+    comprobar(Boolean(errorIntercambio), 'Un cliente no puede llamar a guardar_intercambio');
     const { data: editados } = await cliente
       .from('mensaje')
       .update({ contenido: 'editado' })
@@ -288,6 +283,12 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
   } finally {
     await admin.from('sesion').delete().like('nombre_estudiante', `${PREFIJO}%`);
     await admin.from('estudiante').delete().like('nombre', `${PREFIJO}%`);
-    await admin.from('escenario').delete().like('titulo', `${PREFIJO}%`);
+    // Solo casos propios: si una regresión de RLS dejara renombrar un escenario oficial con el
+    // prefijo de prueba, la limpieza no debe borrarlo (ni a su paciente, en cascada).
+    await admin
+      .from('escenario')
+      .delete()
+      .like('titulo', `${PREFIJO}%`)
+      .not('docente_id', 'is', null);
   }
 }

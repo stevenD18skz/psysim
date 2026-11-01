@@ -55,6 +55,25 @@ describe('base de datos (Supabase)', () => {
     expect(concesiones.map(([texto]) => texto.trim())).toEqual([]);
   });
 
+  it('toda tabla renuncia a los privilegios que Supabase concede por defecto', () => {
+    // Sin `grant` explícito, una tabla nueva igual nacía abierta a `anon`: así quedó `peticion_ia`.
+    const creadas = [...SQL.matchAll(/create table (?:if not exists )?public\.(\w+)/gi)].map(
+      ([, tabla]) => tabla!
+    );
+    const eliminadas = new Set(
+      [...SQL.matchAll(/drop table (?:if exists )?public\.(\w+)/gi)].map(([, tabla]) => tabla!)
+    );
+    const cerradas = new Set(
+      [...SQL.matchAll(/revoke all on table ([^;]*?) from[^;]*\banon\b[^;]*;/gi)].flatMap(
+        ([, tablas]) => [...tablas!.matchAll(/public\.(\w+)/g)].map(([, tabla]) => tabla!)
+      )
+    );
+
+    const abiertas = creadas.filter(tabla => !eliminadas.has(tabla) && !cerradas.has(tabla));
+    expect(creadas.length, 'No se leyó ninguna tabla').toBeGreaterThan(5);
+    expect(abiertas).toEqual([]);
+  });
+
   it('toda función security definer fija su search_path', () => {
     // Cabecera: desde «create function» hasta el cuerpo (`as $$` o `as $f$`).
     const funciones = [

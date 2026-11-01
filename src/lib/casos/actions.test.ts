@@ -252,6 +252,16 @@ describe('probarPaciente', () => {
     });
   });
 
+  it('cuenta en el límite de llamadas a la IA y no llama a la IA si se agotó', async () => {
+    db.responder('rpc:reservar_peticion_ia', { data: 12 });
+    expect(await probarPaciente(PRUEBA)).toEqual({
+      ok: false,
+      error: 'Estás enviando mensajes muy seguido. Espera 12 s antes de volver a escribir.',
+    });
+    expect(db.rpc).toHaveBeenCalledWith('reservar_peticion_ia');
+    expect(generarRespuestaPaciente).not.toHaveBeenCalled();
+  });
+
   it('devuelve el primer error de validación', async () => {
     expect(await probarPaciente({ ...PRUEBA, mensaje: '  ' })).toEqual({
       ok: false,

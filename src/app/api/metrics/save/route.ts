@@ -23,7 +23,9 @@ function responderError(status: number, error: string, campos?: MetricsSaveError
  * 3. Comprueba con RLS que la sesión es suya (404) y sigue en curso (409): las métricas no se
  *    guardan dos veces ni sobre una práctica cerrada por inactividad.
  * 4. Llama a `guardar_metricas_cierre`, que inserta en `metrica` y marca la sesión como
- *    finalizada en una sola transacción (HU-19 · T02). Si falla, responde 500 sin detalles
+ *    finalizada en una sola transacción (HU-19 · T02). Las intervenciones las cuenta la base de
+ *    datos con los mensajes guardados; del navegador solo toma la latencia percibida y los
+ *    indicadores, acotados. Si falla, responde 500 sin detalles
  *    internos y la sesión sigue en curso, así que el estudiante puede reintentar.
  */
 export async function POST(request: Request): Promise<Response> {

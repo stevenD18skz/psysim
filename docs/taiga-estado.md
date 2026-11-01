@@ -1,4 +1,4 @@
-# Estado real del backlog de Taiga (revisión del 25 de octubre de 2026)
+# Estado real del backlog de Taiga (revisión del 31 de octubre de 2026)
 
 Se revisó `taiga.json` (29 historias de usuario y 107 tareas, sprints 0 a 6) contra el código, los
 tests y los registros de `docs/pruebas/`. La columna «Taiga» es lo que decía el archivo exportado;
@@ -39,7 +39,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, falta una acción externa o una veri
 | HU-17 | HUD de la simulación      | New   | ✅   | Estado del paciente en el HUD (`hud-sesion.tsx`); barra y «Terminar práctica» ya existían       |
 | HU-18 | Captura de métricas       | New   | ✅   | `lib/metrics.ts`, muestreo de proximidad (`use-proximidad.ts`), slice de métricas               |
 | HU-19 | Route Handler de métricas | New   | ✅   | `app/api/metrics/save` + migración `20261025010000_metricas_sesion.sql` (aplicada y verificada) |
-| HU-20 | Flujo de cierre de sesión | New   | ✅   | `use-finalizar-sesion.ts` guarda y redirige; si el guardado falla, cierra sin métricas          |
+| HU-20 | Flujo de cierre de sesión | New   | ✅   | `use-finalizar-sesion.ts` guarda, reintenta 3 veces los fallos pasajeros y redirige             |
 | HU-21 | Pantalla de resultados    | New   | ✅   | `/resultados`: indicadores, historial y acciones, para el estudiante y su docente               |
 
 Detalle y escenarios: [`docs/pruebas/sprint-4.md`](pruebas/sprint-4.md).
@@ -57,13 +57,13 @@ Detalle y escenarios: [`docs/pruebas/sprint-5.md`](pruebas/sprint-5.md).
 
 ## Sprint 6 — Testing, optimización y despliegue beta
 
-| HU    | Historia                      | Taiga | Real | Qué se hizo                                                                                                           |
-| ----- | ----------------------------- | ----- | ---- | --------------------------------------------------------------------------------------------------------------------- |
-| HU-26 | Suite de tests unitarios      | New   | ✅   | 1 163 tests; cobertura `app/api` 97,9 %, `lib` 79,9 %, `store` 98,5 % (umbral 70 %)                                   |
-| HU-27 | Tests E2E con Playwright      | New   | ✅   | Flujo completo, autenticación, configuración y resultados (los cuatro de la historia) más seis más                    |
-| HU-28 | Rendimiento del entorno 3D    | New   | 🟡   | DPR adaptativo y Draco ya estaban; `rendimiento.spec.ts` mide carga, FPS y bytes. **T03** en hardware real: pendiente |
-| HU-29 | Despliegue beta en Vercel     | New   | ⏳   | `seguridad.test.ts` y `entorno-documentado.test.ts` cubren T01/T02 en el repositorio; T03/T04 requieren Vercel        |
-| HU-30 | Documentación del repositorio | New   | ✅   | README con el mapa de tests por funcionalidad, `.env.example` completo y verificado por un test                       |
+| HU    | Historia                      | Taiga | Real | Qué se hizo                                                                                                    |
+| ----- | ----------------------------- | ----- | ---- | -------------------------------------------------------------------------------------------------------------- |
+| HU-26 | Suite de tests unitarios      | New   | ✅   | 1 163 tests; cobertura `app/api` 97,9 %, `lib` 79,9 %, `store` 98,5 % (umbral 70 %)                            |
+| HU-27 | Tests E2E con Playwright      | New   | ✅   | Flujo completo, autenticación, configuración y resultados (los cuatro de la historia) más seis más             |
+| HU-28 | Rendimiento del entorno 3D    | New   | ✅   | 73 FPS con GPU integrada en E-01, E-07 y E-12, carga de 2 a 3 s: [`docs/performance.md`](performance.md)       |
+| HU-29 | Despliegue beta en Vercel     | New   | ⏳   | `seguridad.test.ts` y `entorno-documentado.test.ts` cubren T01/T02 en el repositorio; T03/T04 requieren Vercel |
+| HU-30 | Documentación del repositorio | New   | ✅   | README con el mapa de tests por funcionalidad, `.env.example` completo y verificado por un test                |
 
 Detalle y escenarios: [`docs/pruebas/sprint-6.md`](pruebas/sprint-6.md).
 
@@ -72,8 +72,6 @@ Detalle y escenarios: [`docs/pruebas/sprint-6.md`](pruebas/sprint-6.md).
 1. **Verificar en producción** (HU-29 · T03): correr `pnpm test:e2e` con `PLAYWRIGHT_BASE_URL` del
    despliegue, tras cargar las variables de entorno en Vercel.
 2. **Registrar la URL beta y dar acceso al jurado** (HU-29 · T04).
-3. **Medir el rendimiento en el hardware del usuario objetivo** (HU-28 · T03):
-   `E2E_FPS_MINIMO=30 pnpm test:e2e e2e/rendimiento.spec.ts` en un computador con GPU integrada.
-4. **Conversar con cada uno de los doce pacientes** desde `/laboratorio/npc` (HU-24 · T02).
-5. **Pasada con lector de pantalla** (NVDA o VoiceOver) por el estudiante y el docente (HU-25).
-6. **Actualizar los estados en Taiga** (las historias figuran como `New`).
+3. **Conversar con cada uno de los doce pacientes** desde `/laboratorio/npc` (HU-24 · T02).
+4. **Pasada con lector de pantalla** (NVDA o VoiceOver) por el estudiante y el docente (HU-25).
+5. **Actualizar los estados en Taiga** (las historias figuran como `New`).

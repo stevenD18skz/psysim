@@ -15,6 +15,8 @@ import {
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del estudiante.';
 const MENSAJE_GENERICO = 'No pudimos guardar al estudiante. Inténtalo de nuevo.';
 const MENSAJE_CORREO_REPETIDO = 'Ya registraste a otro estudiante con ese correo.';
+const MENSAJE_CORREO_CON_PRACTICAS =
+  'No puedes cambiar el correo de un estudiante que ya practicó: su historial pasaría a la cuenta del correo nuevo. Si el correo está mal, registra al estudiante de nuevo con el correcto.';
 
 /**
  * El docente registra a un estudiante con su código, nombre y correo institucional. Se le crea la
@@ -80,7 +82,8 @@ export async function registrarEstudiante(
 
 /**
  * Corrige el nombre o el correo de un estudiante. Si el correo cambia, el registro pasa a la
- * cuenta de ese correo (que se crea si hace falta).
+ * cuenta de ese correo (que se crea si hace falta). El correo solo se puede corregir mientras el
+ * estudiante no tenga prácticas.
  */
 export async function actualizarEstudiante(
   valores: unknown
@@ -96,12 +99,26 @@ export async function actualizarEstudiante(
   const supabase = await createClient();
   const { data: actual, error: errorActual } = await supabase
     .from('estudiante')
-    .select('codigo')
+    .select('codigo, correo')
     .eq('id', id)
     .maybeSingle();
   if (errorActual || !actual) {
     if (errorActual) log.error('estudiante.no_consultado', { codigo: errorActual.code });
     return { ok: false, error: 'Ese estudiante ya no está disponible.' };
+  }
+
+  // El historial sigue al correo (trigger `estudiante_vincular_cuenta`): con otro correo, las
+  // prácticas, la retroalimentación y los códigos pendientes pasarían a la cuenta de ese correo.
+  if (correo !== actual.correo) {
+    const { count, error: errorPracticas } = await supabase
+      .from('sesion')
+      .select('id', { count: 'exact', head: true })
+      .eq('estudiante_id', id);
+    if (errorPracticas) {
+      log.error('estudiante.practicas_no_contadas', { codigo: errorPracticas.code });
+      return { ok: false, error: MENSAJE_GENERICO };
+    }
+    if ((count ?? 0) > 0) return { ok: false, error: MENSAJE_CORREO_CON_PRACTICAS };
   }
 
   const cuenta = await asegurarCuentaEstudiante({ correo, nombre, codigo: actual.codigo });

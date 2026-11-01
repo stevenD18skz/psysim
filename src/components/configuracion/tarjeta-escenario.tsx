@@ -113,7 +113,7 @@ export function TarjetaEscenario({
             <AvatarPaciente
               src={avatarDeEscena(escenario.configuracion3d)}
               nombre={escenario.npc.nombre}
-              className="size-7 text-[0.65rem]"
+              className="size-7 text-[0.75rem]"
             />
             <span>
               <span className="font-medium text-terracota">{escenario.npc.nombre}</span>,{' '}

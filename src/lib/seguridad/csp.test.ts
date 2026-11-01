@@ -41,7 +41,14 @@ describe('construirCsp (OWASP A02/A05)', () => {
 
   it('limita datos, imágenes y modelos 3D a este sitio y a Supabase', () => {
     expect(produccion['default-src']).toEqual(["'self'"]);
-    expect(produccion['connect-src']).toEqual(["'self'", SUPABASE, 'wss://abcdefgh.supabase.co']);
+    expect(produccion['connect-src']).toEqual([
+      "'self'",
+      SUPABASE,
+      'wss://abcdefgh.supabase.co',
+      // Texturas incrustadas en los GLB (GLTFLoader las lee con fetch sobre blob:).
+      'blob:',
+      'data:',
+    ]);
     expect(produccion['img-src']).toEqual(["'self'", 'data:', 'blob:', SUPABASE]);
   });
 

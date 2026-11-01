@@ -94,7 +94,16 @@ const datosGeneralesSchema = z.object({
  */
 export const casoFormSchema = datosGeneralesSchema
   .extend(camposCasoSchema.shape)
-  .extend({ modoTexto: z.boolean(), promptManual: z.string() })
+  .extend({
+    modoTexto: z.boolean(),
+    promptManual: z.string(),
+    /**
+     * Resumen clínico de un caso sin borrador (una variante de un escenario oficial). En modo
+     * texto se conserva tal cual: los campos del constructor no lo describen y recomponerlo
+     * borraría los síntomas y el nivel de riesgo.
+     */
+    perfilHeredado: z.string().max(2000).optional(),
+  })
   .superRefine((valor, ctx) => {
     if (valor.modoTexto) {
       const resultado = promptSchema.safeParse(valor.promptManual);
@@ -124,6 +133,7 @@ export const borradorCasoSchema = z.object({
   campos: camposCasoSchema,
   modoTexto: z.boolean(),
   promptManual: z.string(),
+  perfilHeredado: z.string().max(2000).optional(),
 });
 
 export type BorradorCaso = z.infer<typeof borradorCasoSchema>;

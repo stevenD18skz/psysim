@@ -256,7 +256,7 @@ Paleta de materiales: madera oscura, herraje de latón, tela salvia, piel terrac
 - **Headline** (700, 1,875 → 2,6 rem, 1,05, −0,025 em, ancho 112 %): el título de cada página de trabajo (encabezado común y saludo de la bandeja).
 - **Section** (700, 1,75 → 2,1 rem, −0,02 em): títulos de sección de la landing; 1,7 rem en la cabecera de instrucciones del caso.
 - **Title** (700, 1,25 rem, −0,015 em): encabezados de bloque en paneles («Por revisar», «Practicando ahora»), con la cantidad al lado en texto apagado y cifras tabulares.
-- **Body** (400, 1 rem, 1,625): texto corrido, máximo 65 ch en respuestas y descripciones (máx. ~42 rem). `body-sm` (0,875 rem) para metadatos de filas, ayudas y pies.
+- **Body** (400, 1 rem, 1,625): texto corrido, máximo 65 ch en respuestas y descripciones (máx. ~42 rem). `body-sm` (0,875 rem) para metadatos de filas, ayudas y pies. Es el mínimo del texto (`text-xs` también mide 0,875 rem); solo las insignias, teclas e iniciales bajan a 12 px.
 - **Label** (600, 0,875 rem, ancho 82 %): etiquetas de la franja de indicadores, tiempo relativo en registros, ordinales («1 ·»). En mayúsculas con espaciado 0,08-0,12 em solo para las etiquetas de grupo del menú lateral y las cabeceras de tabla.
 - **Mono** (500, 0,75 rem en línea; 1,125 rem con espaciado 0,06-0,08 em en el campo de código; 1,875-2,25 rem con 0,12 em en el código recién generado).
 
