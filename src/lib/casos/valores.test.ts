@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { type EscenarioCatalogo } from '@/types';
 
+import { casoFormSchema } from '@/schemas/caso.schema';
+
+import { filasDelCaso } from './construir';
 import { valoresDeCaso, valoresVacios } from './valores';
 
 const CASO: EscenarioCatalogo = {
@@ -37,6 +40,34 @@ describe('valoresDeCaso', () => {
       modoTexto: true,
       promptManual: CASO.npc.promptSistema,
     });
+  });
+
+  it('editar una variante conserva su perfil clínico (síntomas y riesgo incluidos)', () => {
+    const perfil =
+      'Viuda desde hace cuatro meses. Insomnio y aislamiento social. Sin ideación suicida.';
+    const variante = {
+      ...CASO,
+      descripcion: 'Duelo reciente por la muerte de su esposo.',
+      npc: { ...CASO.npc, perfilClinico: perfil, promptSistema: 'Eres Marta Lucía. '.repeat(10) },
+    };
+
+    const primera = filasDelCaso(casoFormSchema.parse(valoresDeCaso(variante)));
+    expect(primera.npc.perfil_clinico).toBe(perfil);
+
+    // Segunda edición: el caso ya tiene borrador y el perfil se sigue conservando.
+    const conBorrador = { ...variante, borrador: primera.escenario.borrador };
+    const segunda = filasDelCaso(casoFormSchema.parse(valoresDeCaso(conBorrador)));
+    expect(segunda.npc.perfil_clinico).toBe(perfil);
+
+    // Si el docente pasa al constructor guiado, el perfil vuelve a salir de los campos.
+    const guiado = {
+      ...valoresDeCaso(conBorrador),
+      modoTexto: false,
+      fraseApertura: 'Hola, ¿qué tal?',
+    };
+    expect(filasDelCaso(casoFormSchema.parse(guiado)).npc.perfil_clinico).toBe(
+      'Duelo reciente por la muerte de su esposo.'
+    );
   });
 
   it('un caso del constructor recupera sus campos del borrador', () => {

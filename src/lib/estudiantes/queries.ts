@@ -70,7 +70,7 @@ export const obtenerEstudiantes = cache(async (): Promise<EstudianteRegistrado[]
     .order('nombre');
 
   if (error) {
-    throw new Error('No fue posible cargar los estudiantes.', { cause: error });
+    throw new Error('No pudimos cargar los estudiantes.', { cause: error });
   }
 
   return data.flatMap(fila => aEstudiante(fila) ?? []);
@@ -86,7 +86,7 @@ export const obtenerEstudiante = cache(async (id: string): Promise<EstudianteReg
     .maybeSingle();
 
   if (error) {
-    throw new Error('No fue posible cargar al estudiante.', { cause: error });
+    throw new Error('No pudimos cargar al estudiante.', { cause: error });
   }
   return data ? aEstudiante(data) : null;
 });

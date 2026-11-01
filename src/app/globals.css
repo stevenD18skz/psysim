@@ -10,6 +10,12 @@
   --font-sans: var(--font-archivo);
   --font-mono: var(--font-jetbrains-mono);
   --font-heading: var(--font-archivo);
+
+  /* Texto secundario mínimo de 14 px (HU-25 · T05). Las piezas de 12 px (insignias, teclas e
+     iniciales) usan `text-[0.75rem]`: un nombre propio como `text-insignia` lo tomaría
+     tailwind-merge por un color y borraría el color real al combinar clases. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
   /* Materiales del consultorio. */
   --color-nogal: var(--nogal);
   --color-nogal-claro: var(--nogal-claro);
@@ -285,6 +291,26 @@
   details[open]::details-content {
     block-size: auto;
   }
+}
+
+/* Doherty (< 400 ms): sin el retraso táctil de 300 ms al tocar controles; el zoom con dos dedos
+   sigue disponible. Los diálogos no pasan el desplazamiento a la página que tienen detrás. */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+[role='button'],
+[role='radio'],
+[role='tab'] {
+  touch-action: manipulation;
+}
+[role='dialog'],
+[role='alertdialog'],
+[data-slot='sheet-content'] {
+  overscroll-behavior: contain;
 }
 
 /* Las barras pegajosas (arriba) y la barra «Tengo un código» de la landing (abajo, en móvil) no

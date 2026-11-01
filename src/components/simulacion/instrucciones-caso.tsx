@@ -384,46 +384,43 @@ export function InstruccionesCaso({
               entra con tu cuenta.
             </p>
 
-            <section className="flex flex-col gap-2 rounded-xl border p-4">
-              {aceptadaAntes ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ShieldCheck className="size-4 shrink-0 text-salvia" aria-hidden />
-                  Aceptaste el aviso de privacidad el {formatearFechaHora(aceptadaAntes)}.
-                </p>
-              ) : (
-                <>
-                  <label
-                    htmlFor={idPrivacidad}
-                    className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed"
-                  >
-                    <input
-                      id={idPrivacidad}
-                      type="checkbox"
-                      checked={aceptaPrivacidad}
-                      onChange={evento => setAceptaPrivacidad(evento.target.checked)}
-                      className="mt-0.5 size-5 shrink-0 accent-nogal"
-                    />
-                    Leí el aviso de privacidad y acepto que mi conversación se procese con Google
-                    Gemini y que la lea mi docente.
-                  </label>
-                  <a
-                    href="/privacidad"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-8 w-fit text-sm font-medium underline underline-offset-4"
-                  >
-                    Leer el aviso de privacidad (se abre en otra pestaña)
-                  </a>
-                </>
-              )}
-            </section>
+            {aceptadaAntes && (
+              <p className="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground">
+                <ShieldCheck className="size-4 shrink-0 text-salvia" aria-hidden />
+                Aceptaste el aviso de privacidad el {formatearFechaHora(aceptadaAntes)}.
+              </p>
+            )}
           </div>
 
-          <DialogFooter className="m-0 flex-col gap-3 border-t bg-muted/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground sm:order-none" aria-live="polite">
-              {!aceptaPrivacidad && 'Marca la casilla de privacidad para empezar.'}
-            </p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          {/* El consentimiento va en el pie, no al final del texto: así se ve sin recorrerlo todo. */}
+          <DialogFooter className="m-0 flex-col items-stretch gap-3 border-t bg-muted/60 px-6 py-4 sm:flex-col">
+            {aceptadaAntes === null && (
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={idPrivacidad}
+                  className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed"
+                >
+                  <input
+                    id={idPrivacidad}
+                    type="checkbox"
+                    checked={aceptaPrivacidad}
+                    onChange={evento => setAceptaPrivacidad(evento.target.checked)}
+                    className="mt-0.5 size-5 shrink-0 accent-nogal"
+                  />
+                  Leí el aviso de privacidad y acepto que mi conversación se procese con Google
+                  Gemini y que la lea mi docente.
+                </label>
+                <a
+                  href="/privacidad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-8 inline-flex min-h-6 w-fit items-center text-sm font-medium underline underline-offset-4"
+                >
+                  Leer el aviso de privacidad (se abre en otra pestaña)
+                </a>
+              </div>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="ghost" size="lg" onClick={pedirSalida} disabled={comenzando}>
                 Ahora no
               </Button>
@@ -432,6 +429,9 @@ export function InstruccionesCaso({
                 size="lg"
                 onClick={comenzar}
                 disabled={comenzando || !aceptaPrivacidad}
+                title={
+                  aceptaPrivacidad ? undefined : 'Marca la casilla de privacidad para empezar.'
+                }
               >
                 {comenzando && <Loader2 className="animate-spin" aria-hidden />}
                 {comenzando ? 'Abriendo el consultorio…' : 'Empezar la práctica'}

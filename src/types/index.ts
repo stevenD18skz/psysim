@@ -262,3 +262,21 @@ export interface DetalleSesion {
   intentos: IntentoDescartado[];
   retroalimentacion: Retroalimentacion | null;
 }
+
+/** Indicadores de desempeño de una práctica terminada (HU-21). */
+export interface MetricasSesion {
+  /** Intervenciones del estudiante. */
+  totalMensajes: number;
+  /** Latencia percibida de las respuestas del paciente, en ms; `null` si no hubo respuestas. */
+  latenciaPromedioMs: number | null;
+  latenciaMaximaMs: number | null;
+  /** Duración de la práctica, en segundos; `null` si no llegó a comenzar. */
+  duracionSegundos: number | null;
+  /** Distancia media al paciente, en metros; `null` si no se midió. */
+  proximidadPromedioM: number | null;
+  /**
+   * `guardadas`: las envió el navegador al terminar. `reconstruidas`: la práctica se cerró sin
+   * ellas (inactividad, error al guardar) y se calcularon con la conversación guardada.
+   */
+  origen: 'guardadas' | 'reconstruidas';
+}

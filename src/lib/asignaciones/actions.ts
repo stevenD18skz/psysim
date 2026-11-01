@@ -72,10 +72,10 @@ export async function generarAsignacion(
       if (error.code === CODIGO_PG.FOREIGN_KEY_VIOLATION) {
         return { ok: false, error: 'El caso seleccionado ya no está disponible.' };
       }
-      return { ok: false, error: 'No fue posible generar el código. Inténtalo de nuevo.' };
+      return { ok: false, error: 'No pudimos generar el código. Inténtalo de nuevo.' };
     }
   }
-  return { ok: false, error: 'No fue posible generar el código. Inténtalo de nuevo.' };
+  return { ok: false, error: 'No pudimos generar el código. Inténtalo de nuevo.' };
 }
 
 /** El docente anula un código que aún no se ha usado (p. ej. lo envió a quien no era). */
@@ -100,7 +100,7 @@ export async function anularAsignacion(valores: unknown): Promise<ResultadoAccio
 
   if (error) {
     log.error('asignacion.no_anulada', { codigo: error.code });
-    return { ok: false, error: 'No fue posible anular el código. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos anular el código. Inténtalo de nuevo.' };
   }
   if (!data) {
     return { ok: false, error: 'Ese código ya se usó o ya estaba anulado.' };

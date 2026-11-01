@@ -37,3 +37,13 @@ export function esTransicionValida(desde: EstadoNpc, hacia: EstadoNpc): boolean 
 export function estaConversando(estado: EstadoNpc): boolean {
   return estado !== 'inactivo' && estado !== 'sesion_finalizada';
 }
+
+/** Texto del estado del paciente en el HUD de la simulación (HU-17 · T02). */
+export const ETIQUETA_ESTADO_HUD: Record<EstadoNpc, string> = {
+  inactivo: 'Esperando que te acerques',
+  esperando_input: 'Escuchando',
+  procesando: 'Pensando…',
+  respondiendo: 'Respondiendo',
+  error_comunicacion: 'Sin conexión',
+  sesion_finalizada: 'Práctica terminada',
+};

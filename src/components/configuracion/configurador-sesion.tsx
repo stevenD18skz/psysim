@@ -259,7 +259,7 @@ export function ConfiguradorSesion({
         noValidate
         onSubmit={handleSubmit(onSubmit)}
         className="flex flex-col"
-        aria-label="Configuración de la simulación"
+        aria-label="Configuración de la práctica"
       >
         {/* Paso 1 — Escenario */}
         <Paso
@@ -267,7 +267,7 @@ export function ConfiguradorSesion({
           id="paso-escenario-titulo"
           titulo="Caso"
           estado={estadoPaso1}
-          descripcion="Un escenario predefinido o uno de tus casos. Pulsa de nuevo el caso elegido para quitar la selección."
+          descripcion="Un caso predefinido o uno de tus casos. Pulsa de nuevo el caso elegido para quitar la selección."
         >
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
@@ -303,9 +303,7 @@ export function ConfiguradorSesion({
             className="flex flex-col gap-8"
           >
             <div className={cn('flex flex-col gap-3', oficiales.length === 0 && 'hidden')}>
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                Escenarios predefinidos
-              </h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">Casos predefinidos</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {oficiales.map(e => (
                   <TarjetaEscenario
@@ -695,7 +693,7 @@ const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[]
   },
   {
     icono: Bookmark,
-    titulo: 'Desde un escenario',
+    titulo: 'Desde un caso predefinido',
     texto: 'Elige uno arriba, ajusta su comportamiento y pulsa «Guardar como mi caso».',
   },
   {
@@ -736,8 +734,8 @@ function EstadoVacioMisCasos() {
         <div className="flex flex-1 flex-col gap-1.5">
           <h4 className="text-xl font-bold">Aquí vivirán tus casos</h4>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Crea un paciente a tu medida, o ajusta un escenario al asignarlo y pulsa «Guardar como
-            mi caso».
+            Crea un paciente a tu medida, o ajusta un caso predefinido al asignarlo y pulsa «Guardar
+            como mi caso».
           </p>
         </div>
         <Button asChild size="lg" variant="outline">

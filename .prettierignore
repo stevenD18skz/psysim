@@ -22,3 +22,9 @@ public/draco
 
 # Material de referencia (prototipos de Claude Design)
 claude_desing
+
+# Herramientas de diseño locales
+.impeccable
+
+# Documento del trabajo de grado: se edita fuera del repositorio
+docs/doc_grado

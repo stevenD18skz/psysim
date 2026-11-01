@@ -1,9 +1,10 @@
 'use client';
 
-import { CircleHelp, LogOut, Sparkles } from 'lucide-react';
+import { CircleHelp, LogOut, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { SelectorVoz } from '@/components/simulacion/sonido-simulacion';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { fijarAmbienteEmocional, useAmbienteEmocional } from '@/hooks/use-ambiente-emocional';
 import { plazoAlSalir } from '@/lib/fechas';
-import { cn } from '@/lib/utils';
 
 const CLASE_BOTON_HUD = 'pointer-events-auto bg-card/90 backdrop-blur';
 
@@ -26,10 +26,12 @@ function liberarRaton() {
 }
 
 /**
- * Interruptor del «Ambiente emocional»: la luz, el velo y el sonido que cambian con el ánimo del
- * paciente. Aclara que no mide al estudiante.
+ * Ajustes del consultorio: el «Ambiente emocional» (la luz, el velo y el sonido que cambian con el
+ * ánimo del paciente; aclara que no mide al estudiante) y la voz del paciente. Un solo botón en
+ * lugar de dos para que la barra de la simulación tenga menos decisiones (Ley de Hick); silenciar
+ * el sonido sigue aparte, a un clic.
  */
-export function BotonAmbiente() {
+export function BotonAjustes() {
   const activado = useAmbienteEmocional();
   return (
     <Popover onOpenChange={abierto => abierto && liberarRaton()}>
@@ -38,39 +40,39 @@ export function BotonAmbiente() {
           type="button"
           variant="outline"
           size="icon-sm"
-          className={cn(CLASE_BOTON_HUD, 'relative', !activado && 'text-muted-foreground')}
-          aria-label={`Ambiente emocional: ${activado ? 'activado' : 'desactivado'}`}
-          title={`Ambiente emocional: ${activado ? 'activado' : 'desactivado'}`}
+          className={CLASE_BOTON_HUD}
+          aria-label="Ajustes del consultorio"
+          title="Ajustes del consultorio"
         >
-          <Sparkles aria-hidden className={cn(!activado && 'opacity-60')} />
-          {!activado && (
-            <span
-              aria-hidden
-              className="pointer-events-none absolute h-0.5 w-5 rotate-45 rounded-full bg-current"
-            />
-          )}
+          <SlidersHorizontal aria-hidden />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72">
-        <label className="flex cursor-pointer items-start justify-between gap-4">
-          <span className="flex flex-col gap-1">
-            <span className="text-sm font-semibold">Ambiente emocional</span>
-            <span className="text-sm text-muted-foreground">
-              La luz y el sonido del consultorio cambian con el ánimo del paciente. No mide tu
-              desempeño.
+      <PopoverContent align="end" className="flex w-80 flex-col gap-4 p-3">
+        <section aria-labelledby="ajuste-ambiente">
+          <label className="flex cursor-pointer items-start justify-between gap-4 px-2 py-1">
+            <span className="flex flex-col gap-1">
+              <span id="ajuste-ambiente" className="text-sm font-semibold">
+                Ambiente emocional
+              </span>
+              <span className="text-sm text-muted-foreground">
+                La luz y el sonido del consultorio cambian con el ánimo del paciente. No mide tu
+                desempeño.
+              </span>
             </span>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            checked={activado}
-            onChange={evento => fijarAmbienteEmocional(evento.target.checked)}
-            className="mt-1 size-5 shrink-0 accent-nogal"
-          />
-        </label>
-        <p className="sr-only" aria-live="polite">
-          {activado ? 'Ambiente emocional activado' : 'Ambiente emocional desactivado'}
-        </p>
+            <input
+              type="checkbox"
+              role="switch"
+              aria-labelledby="ajuste-ambiente"
+              checked={activado}
+              onChange={evento => fijarAmbienteEmocional(evento.target.checked)}
+              className="mt-1 size-5 shrink-0 accent-nogal"
+            />
+          </label>
+          <p className="sr-only" aria-live="polite">
+            {activado ? 'Ambiente emocional activado' : 'Ambiente emocional desactivado'}
+          </p>
+        </section>
+        <SelectorVoz />
       </PopoverContent>
     </Popover>
   );

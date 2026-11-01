@@ -234,7 +234,7 @@ describe('eliminarDocente', () => {
     expect(await eliminarDocente({ id: ID })).toEqual({
       ok: false,
       error:
-        'Esta cuenta ya tiene estudiantes, casos o sesiones. Desactívala para conservar su historial.',
+        'Esta cuenta ya tiene estudiantes, casos o prácticas. Desactívala para conservar su historial.',
     });
     expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
   });

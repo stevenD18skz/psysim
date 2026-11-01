@@ -4,7 +4,7 @@ import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const MENSAJE_GENERICO = 'No fue posible crear la cuenta del estudiante. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos crear la cuenta del estudiante. Inténtalo de nuevo.';
 
 interface DatosCuenta {
   correo: string;
@@ -76,6 +76,16 @@ export async function asegurarCuentaEstudiante({
     rol: 'estudiante',
   });
   if (errorPerfil) {
+    // Dos registros simultáneos del mismo correo: el otro ya creó el perfil de esta cuenta. Borrar
+    // la cuenta aquí se llevaría también ese perfil (`on delete cascade`).
+    if (errorPerfil.code === CODIGO_PG.UNIQUE_VIOLATION) {
+      const { data: ganador } = await admin
+        .from('usuario')
+        .select('rol')
+        .eq('id', usuarioId)
+        .maybeSingle();
+      if (ganador?.rol === 'estudiante') return { ok: true, datos: { usuarioId } };
+    }
     // Sin perfil la cuenta no sirve: se deshace para poder intentarlo de nuevo.
     if (creada) await admin.auth.admin.deleteUser(usuarioId);
     if (errorPerfil.code === CODIGO_PG.UNIQUE_VIOLATION) {

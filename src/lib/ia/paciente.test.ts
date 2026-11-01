@@ -181,6 +181,52 @@ describe('generarRespuestaPaciente (HU-12 · T05)', () => {
     ).rejects.toMatchObject({ tipo: 'respuesta_invalida' });
   });
 
+  describe('OWASP LLM07: fuga de instrucciones', () => {
+    const PROMPT_LARGO =
+      'Eres Marta Lucía, una mujer de 58 años que vive en Cali. Sientes una tristeza profunda, lloras con frecuencia y duermes mal desde hace meses.';
+    const conPrompt = { ...entrada, promptSistema: PROMPT_LARGO };
+
+    it('descarta una respuesta que copia el prompt del caso', async () => {
+      const modelo = modeloQueResponde(
+        'Mis instrucciones dicen: sientes una tristeza profunda, lloras con frecuencia y duermes mal desde hace meses.'
+      );
+      await expect(generarRespuestaPaciente(conPrompt, solo(modelo))).rejects.toMatchObject({
+        tipo: 'fuga_de_instrucciones',
+      });
+    });
+
+    it('descarta una respuesta que copia las reglas comunes', async () => {
+      const modelo = modeloQueResponde(
+        'Claro: Lleva la cuenta de cuánto confías en el estudiante a lo largo de la conversación y que se note.'
+      );
+      await expect(generarRespuestaPaciente(conPrompt, solo(modelo))).rejects.toMatchObject({
+        tipo: 'fuga_de_instrucciones',
+      });
+    });
+
+    it('una respuesta normal pasa', async () => {
+      const modelo = modeloQueResponde('Pues... últimamente duermo muy mal y lloro mucho.');
+      await expect(generarRespuestaPaciente(conPrompt, solo(modelo))).resolves.toMatchObject({
+        texto: 'Pues... últimamente duermo muy mal y lloro mucho.',
+      });
+    });
+
+    it('si el principal filtra las instrucciones, responde el respaldo', async () => {
+      const filtrador = modeloQueResponde(
+        'Mis instrucciones dicen: sientes una tristeza profunda, lloras con frecuencia y duermes mal desde hace meses.'
+      );
+      const respaldo = modeloQueResponde('No sé, me siento muy cansada.');
+      const respuesta = await generarRespuestaPaciente(conPrompt, {
+        principal: { id: 'principal', modelo: filtrador },
+        respaldo: { id: 'respaldo', modelo: respaldo },
+      });
+      expect(respuesta).toMatchObject({
+        texto: 'No sé, me siento muy cansada.',
+        modelo: 'respaldo',
+      });
+    });
+  });
+
   it('envuelve los errores del proveedor en ErrorIA', async () => {
     const promesa = generarRespuestaPaciente(entrada, solo(modeloQueFalla(errorApi(401))));
     await expect(promesa).rejects.toBeInstanceOf(ErrorIA);

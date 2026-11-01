@@ -167,7 +167,7 @@ export function AccionesDocente({
         }
         descripcion={
           docente.activo
-            ? 'No podrá entrar a PsySim, y si tiene una sesión abierta se cerrará en su próximo clic. Sus estudiantes, casos y sesiones se conservan.'
+            ? 'No podrá entrar a PsySim, y si está conectado, se le cerrará la sesión en su próximo clic. Sus estudiantes, casos y prácticas se conservan.'
             : 'Podrá volver a entrar con su cuenta y retomar su trabajo.'
         }
         etiquetaConfirmar={docente.activo ? 'Desactivar' : 'Reactivar'}
@@ -185,7 +185,7 @@ export function AccionesDocente({
         abierto={dialogo === 'eliminar'}
         onAbiertoCambia={cerrar}
         titulo={`¿Eliminar la cuenta de ${docente.nombre}?`}
-        descripcion="Aún no tiene estudiantes, casos ni sesiones. La cuenta se borra por completo y no se puede deshacer."
+        descripcion="Aún no tiene estudiantes, casos ni prácticas. La cuenta se borra por completo y no se puede deshacer."
         etiquetaConfirmar="Eliminar cuenta"
         destructivo
         pendiente={pendiente}

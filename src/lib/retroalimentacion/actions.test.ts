@@ -169,7 +169,7 @@ describe('anotaciones', () => {
   it.each([
     ['23P01', 'Ese fragmento se cruza con otro comentario. Elige otro.'],
     ['23514', 'Solo puedes subrayar las intervenciones del estudiante.'],
-    ['500', 'No fue posible guardar el comentario. Inténtalo de nuevo.'],
+    ['500', 'No pudimos guardar el comentario. Inténtalo de nuevo.'],
   ])('traduce el error %s', async (codigo, mensaje) => {
     db.responder('retroalimentacion', { data: { sesion_id: SESION_ID } }, { data: GUARDADA });
     db.responder('anotacion', { error: { code: codigo } });

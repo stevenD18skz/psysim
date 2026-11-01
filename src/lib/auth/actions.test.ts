@@ -111,7 +111,7 @@ describe('iniciarSesion (HU-02)', () => {
       error: { code: 'unexpected_failure', status: 500 },
     });
     expect(await iniciarSesion(CREDENCIALES)).toEqual({
-      error: 'No fue posible iniciar sesión. Inténtalo de nuevo.',
+      error: 'No pudimos iniciar sesión. Inténtalo de nuevo.',
     });
   });
 
@@ -119,7 +119,7 @@ describe('iniciarSesion (HU-02)', () => {
     loginExitoso();
     db.responder('usuario', { error: { code: '500' } });
     expect(await iniciarSesion(CREDENCIALES)).toEqual({
-      error: 'No fue posible iniciar sesión. Inténtalo de nuevo.',
+      error: 'No pudimos iniciar sesión. Inténtalo de nuevo.',
     });
     expect(db.auth.signOut).toHaveBeenCalled();
   });
@@ -182,7 +182,7 @@ describe('iniciarSesionConGoogle', () => {
       error: { code: 'provider_disabled', status: 400 },
     });
     expect(await iniciarSesionConGoogle()).toEqual({
-      error: 'No fue posible conectar con Google. Inténtalo de nuevo.',
+      error: 'No pudimos conectar con Google. Inténtalo de nuevo.',
     });
     expect(redirect).not.toHaveBeenCalled();
   });
@@ -242,7 +242,7 @@ describe('cambiarContrasena', () => {
   it.each([
     ['same_password', 'La nueva contraseña debe ser distinta de la actual.'],
     ['weak_password', 'Esa contraseña es muy débil. Elige una más larga o variada.'],
-    ['unexpected_failure', 'No fue posible cambiar la contraseña. Inténtalo de nuevo.'],
+    ['unexpected_failure', 'No pudimos cambiar la contraseña. Inténtalo de nuevo.'],
   ])('traduce el error %s de Supabase', async (code, error) => {
     db.auth.updateUser.mockResolvedValueOnce({ data: {}, error: { code } });
     expect(await cambiarContrasena(NUEVA)).toEqual({ ok: false, error });

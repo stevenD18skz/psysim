@@ -24,7 +24,7 @@ export interface ResultadoLogin {
 
 const MENSAJE_CREDENCIALES = 'Correo o contraseña incorrectos.';
 const MENSAJE_LIMITE = 'Demasiados intentos de inicio de sesión. Espera unos minutos.';
-const MENSAJE_GENERICO = 'No fue posible iniciar sesión. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos iniciar sesión. Inténtalo de nuevo.';
 
 /**
  * HU-02: inicia la sesión con correo y contraseña (docentes y cuentas de prueba).
@@ -57,7 +57,7 @@ export async function iniciarSesion(
     if (error.status === 429) {
       return { error: MENSAJE_LIMITE };
     }
-    console.error('[auth] Error inesperado al iniciar sesión:', error.code ?? error.status);
+    log.error('auth.login_fallo', { codigo: error.code ?? error.status });
     return { error: MENSAJE_GENERICO };
   }
 
@@ -69,7 +69,7 @@ export async function iniciarSesion(
 
   if (errorPerfil) {
     await supabase.auth.signOut({ scope: 'local' });
-    console.error('[auth] No se pudo leer el perfil tras el login:', errorPerfil.code);
+    log.error('auth.perfil_no_leido', { origen: 'formulario', codigo: errorPerfil.code });
     return { error: MENSAJE_GENERICO };
   }
 
@@ -143,8 +143,8 @@ export async function iniciarSesionConGoogle(siguiente?: string | null): Promise
   });
 
   if (error || !data.url) {
-    console.error('[auth] No se pudo iniciar el acceso con Google:', error?.code ?? error?.status);
-    return { error: 'No fue posible conectar con Google. Inténtalo de nuevo.' };
+    log.error('auth.google_no_iniciado', { codigo: error?.code ?? error?.status });
+    return { error: 'No pudimos conectar con Google. Inténtalo de nuevo.' };
   }
 
   redirect(data.url as never);
@@ -173,7 +173,7 @@ export async function cambiarContrasena(valores: unknown): Promise<ResultadoAcci
       return { ok: false, error: 'Esa contraseña es muy débil. Elige una más larga o variada.' };
     }
     log.error('auth.contrasena_no_cambiada', { codigo: error.code ?? error.status });
-    return { ok: false, error: 'No fue posible cambiar la contraseña. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos cambiar la contraseña. Inténtalo de nuevo.' };
   }
 
   if (perfil.contrasenaTemporal) {
@@ -197,6 +197,6 @@ export async function cerrarSesion(): Promise<void> {
 
   if (error) {
     // signOut elimina las cookies locales aunque falle la revocación remota.
-    console.error('[auth] Error al revocar la sesión:', error.code ?? error.status);
+    log.warn('auth.cierre_no_revocado', { codigo: error.code ?? error.status });
   }
 }

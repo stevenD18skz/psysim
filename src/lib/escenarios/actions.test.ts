@@ -50,7 +50,7 @@ describe('finalizarSesion (HU-16 · T02)', () => {
     db.responder('sesion', respuesta);
     expect(await finalizarSesion({ sesionId: SESION_ID })).toEqual({
       ok: false,
-      error: 'No fue posible finalizar la sesión. Inténtalo de nuevo.',
+      error: 'No pudimos terminar la práctica. Inténtalo de nuevo.',
     });
   });
 
@@ -164,7 +164,7 @@ describe('cerrarSesionPorInactividad', () => {
     db.responder('sesion', ...respuestas);
     expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toEqual({
       ok: false,
-      error: 'No fue posible cerrar la sesión. Inténtalo de nuevo.',
+      error: 'No pudimos cerrar la sesión. Inténtalo de nuevo.',
     });
   });
 });

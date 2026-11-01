@@ -75,7 +75,6 @@ describe('enviarMensaje (HU-13 · T03)', () => {
       sesion_id: sesion.id,
       npc_id: sesion.npc.id,
       mensaje_usuario: 'Hola, Marta.',
-      historial: [],
     });
 
     const { conversacion, npc, metricas } = store.getState();
@@ -99,7 +98,7 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     });
   });
 
-  it('envía el historial previo sin incluir el mensaje actual', async () => {
+  it('no envía el historial: el servidor lo reconstruye con lo que guardó (LLM01)', async () => {
     const store = storeListo();
     const hacerFetch = vi.fn(async () => jsonResponse(respuestaOk));
     await enviarMensaje(store, 'Primero', { fetch: hacerFetch, ahora });
@@ -110,10 +109,7 @@ describe('enviarMensaje (HU-13 · T03)', () => {
       (hacerFetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string
     );
     expect(cuerpo.mensaje_usuario).toBe('Segundo');
-    expect(cuerpo.historial).toEqual([
-      { rol: 'user', contenido: 'Primero' },
-      { rol: 'assistant', contenido: respuestaOk.respuesta_npc },
-    ]);
+    expect(cuerpo).not.toHaveProperty('historial');
   });
 
   it('impide envíos concurrentes mientras el NPC está procesando', async () => {
@@ -177,7 +173,7 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     const cuerpo = JSON.parse(
       (hacerFetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string
     );
-    expect(cuerpo).toMatchObject({ mensaje_usuario: 'Hola', historial: [] });
+    expect(cuerpo).toMatchObject({ mensaje_usuario: 'Hola' });
     const { conversacion, npc, metricas } = store.getState();
     expect(conversacion.mensajes.map(m => m.remitente)).toEqual(['estudiante', 'npc']);
     expect(conversacion.error).toBeNull();

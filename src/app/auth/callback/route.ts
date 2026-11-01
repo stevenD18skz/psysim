@@ -15,6 +15,7 @@ import {
   RUTA_ENTREGA,
 } from '@/lib/equipo-compartido/entrega';
 import { createClient } from '@/lib/supabase/server';
+import { log } from '@/lib/log';
 
 /**
  * Retorno del inicio de sesión con Google (flujo PKCE de Supabase).
@@ -49,10 +50,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(codigo);
   if (error || !data.user) {
-    console.error(
-      '[auth] No se pudo completar el acceso con Google:',
-      error?.code ?? error?.status
-    );
+    log.error('auth.google_no_completado', { codigo: error?.code ?? error?.status });
     return aLogin('fallo');
   }
 
@@ -64,7 +62,7 @@ export async function GET(request: NextRequest) {
 
   if (errorPerfil) {
     await supabase.auth.signOut({ scope: 'local' });
-    console.error('[auth] No se pudo leer el perfil tras el acceso con Google:', errorPerfil.code);
+    log.error('auth.perfil_no_leido', { origen: 'google', codigo: errorPerfil.code });
     return aLogin('fallo');
   }
 

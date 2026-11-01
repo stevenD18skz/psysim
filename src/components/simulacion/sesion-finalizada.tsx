@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, CheckCircle2, Copy, Hourglass, Loader2, LogOut } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition } from 'react';
 
@@ -8,7 +9,6 @@ import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
 import { type MotivoCierre } from '@/components/simulacion/use-finalizar-sesion';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { formatearDuracion, type ResumenSesion } from '@/lib/conversacion/resumen';
 import { useAppStore } from '@/store/app-store-provider';
@@ -23,8 +23,8 @@ const QUE_SIGUE = [
 /**
  * Cierre de la práctica: reconoce el esfuerzo con calma y dice qué sigue, sin métricas técnicas.
  * Tres variantes: terminada por el estudiante, cerrada por inactividad y cerrada antes de empezar
- * (en ese caso el código ya se usó y se ofrece un mensaje para pedir uno nuevo). La reflexión es
- * solo para el estudiante: no se guarda. En el computador del docente (modo presencial), la acción
+ * (en ese caso el código ya se usó y se ofrece un mensaje para pedir uno nuevo). La reflexión se
+ * escribe en la pantalla de resultados (es opcional y la lee el docente). En el computador del docente (modo presencial), la acción
  * principal es cerrar la sesión, para que el siguiente no vea sus prácticas.
  */
 export function SesionFinalizada({
@@ -147,18 +147,12 @@ export function SesionFinalizada({
                 <li>¿Qué momento de la conversación sentiste que funcionó?</li>
                 <li>¿Qué harías distinto la próxima vez?</li>
               </ul>
-              <label htmlFor={idReflexion} className="sr-only">
-                Tus notas (opcional)
-              </label>
-              <Textarea
-                id={idReflexion}
-                placeholder="Tus notas (opcional)"
-                className="min-h-20 bg-card"
-                aria-describedby={`${idReflexion}-aviso`}
-              />
-              <p id={`${idReflexion}-aviso`} className="text-xs text-salvia-oscuro">
-                Esto no se guarda ni lo ve tu docente. Es solo para ti.
-              </p>
+              <Link
+                href={`/resultados?sesion=${sesion.id}`}
+                className="inline-flex min-h-8 w-fit items-center text-sm font-medium text-salvia-oscuro underline underline-offset-4"
+              >
+                Escribe tu reflexión y compártela con tu docente (opcional)
+              </Link>
             </section>
           </>
         )}

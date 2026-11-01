@@ -234,13 +234,13 @@ describe('ConfiguradorSesion', () => {
   });
 
   it('muestra el error del servidor si no se pudo generar el código', async () => {
-    mockGenerar.mockResolvedValue({ ok: false, error: 'No fue posible generar el código.' });
+    mockGenerar.mockResolvedValue({ ok: false, error: 'No pudimos generar el código.' });
     const usuario = userEvent.setup();
     renderizar([E01], E01.id, [ANA], ANA);
 
     await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No fue posible generar el código.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos generar el código.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

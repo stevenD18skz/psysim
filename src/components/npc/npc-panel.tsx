@@ -43,7 +43,7 @@ function Seccion({
 
 function Tecla({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-grid h-[18px] min-w-[18px] place-items-center rounded border border-current px-1 font-sans text-[10px] font-medium opacity-60">
+    <kbd className="inline-grid h-[18px] min-w-[18px] place-items-center rounded border border-current px-1 font-sans text-[0.75rem] font-medium opacity-60">
       {children}
     </kbd>
   );
@@ -95,7 +95,7 @@ export function NpcPanel({ npc, modelo }: { npc: NpcControlador; modelo: ModeloN
   return (
     <aside className="flex flex-col gap-6 overflow-y-auto border-t bg-background p-6 lg:border-t-0 lg:border-l">
       <header className="flex flex-col gap-1">
-        <p className="text-[10px] font-medium tracking-[0.1em] text-primary uppercase">
+        <p className="text-[0.75rem] font-medium tracking-[0.1em] text-primary uppercase">
           NPC · rig de {controlador.huesos.length} huesos · low poly
         </p>
         <h2 className="text-3xl font-semibold tracking-tight">{modelo.nombre}</h2>

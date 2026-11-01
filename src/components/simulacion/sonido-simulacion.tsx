@@ -1,11 +1,10 @@
 'use client';
 
-import { AudioLines, Check, Volume2, VolumeX } from 'lucide-react';
+import { Check, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
 import { MotorAudio } from '@/lib/audio/motor-audio';
 import { planVoz, type Voz } from '@/lib/audio/voz';
@@ -158,64 +157,55 @@ const OPCIONES_VOZ: readonly { modo: ModoVoz; titulo: string; detalle: string }[
   },
 ];
 
-/** Elegir cómo suena el paciente (se recuerda en este navegador). */
-export function BotonVoz() {
+/**
+ * Elegir cómo suena el paciente (se recuerda en este navegador). Vive dentro de los ajustes del
+ * consultorio; no se muestra si el navegador no trae voz en español.
+ */
+export function SelectorVoz() {
   const modo = useSyncExternalStore(suscribirModoVoz, leerModoVoz, () => 'inventada' as const);
   const disponible = useSyncExternalStore(sinSuscripcion, vozSistemaDisponible, () => false);
   if (!disponible) return null;
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          className="pointer-events-auto bg-card/90 backdrop-blur"
-          aria-label={`Voz del paciente: ${modo === 'sistema' ? 'del sistema' : 'inventada'}`}
-          title="Voz del paciente"
-        >
-          <AudioLines aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-2">
-        <p className="px-2 pt-1 pb-2 text-sm font-semibold">Voz del paciente</p>
-        <div role="radiogroup" aria-label="Voz del paciente" className="flex flex-col gap-1">
-          {OPCIONES_VOZ.map(opcion => {
-            const activa = opcion.modo === modo;
-            return (
-              <button
-                key={opcion.modo}
-                type="button"
-                role="radio"
-                aria-checked={activa}
-                onClick={() => {
-                  guardarModoVoz(opcion.modo);
-                  if (opcion.modo === 'inventada') callarVozSistema();
-                }}
+    <section aria-labelledby="ajuste-voz" className="flex flex-col gap-1">
+      <h3 id="ajuste-voz" className="px-2 pb-1 text-sm font-semibold">
+        Voz del paciente
+      </h3>
+      <div role="radiogroup" aria-labelledby="ajuste-voz" className="flex flex-col gap-1">
+        {OPCIONES_VOZ.map(opcion => {
+          const activa = opcion.modo === modo;
+          return (
+            <button
+              key={opcion.modo}
+              type="button"
+              role="radio"
+              aria-checked={activa}
+              onClick={() => {
+                guardarModoVoz(opcion.modo);
+                if (opcion.modo === 'inventada') callarVozSistema();
+              }}
+              className={cn(
+                'flex items-start gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                activa && 'bg-salvia-suave'
+              )}
+            >
+              <span
+                aria-hidden
                 className={cn(
-                  'flex items-start gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                  activa && 'bg-salvia-suave'
+                  'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
+                  activa && 'border-salvia-oscuro bg-salvia-oscuro text-white'
                 )}
               >
-                <span
-                  aria-hidden
-                  className={cn(
-                    'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
-                    activa && 'border-salvia-oscuro bg-salvia-oscuro text-white'
-                  )}
-                >
-                  {activa && <Check className="size-3" />}
-                </span>
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">{opcion.titulo}</span>
-                  <span className="text-xs text-muted-foreground">{opcion.detalle}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
+                {activa && <Check className="size-3" />}
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">{opcion.titulo}</span>
+                <span className="text-xs text-muted-foreground">{opcion.detalle}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }

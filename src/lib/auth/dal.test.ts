@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
@@ -13,6 +14,7 @@ import {
 } from './dal';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('next/navigation', () => ({
   redirect: vi.fn((ruta: string) => {
     throw new Error(`NEXT_REDIRECT:${ruta}`);
@@ -35,6 +37,8 @@ let db: SupabaseFalso;
 beforeEach(() => {
   db = crearSupabaseFalso();
   vi.mocked(createClient).mockResolvedValue(db.cliente as never);
+  // El perfil completo se lee con la clave secreta (el cliente solo ve id, nombre y rol).
+  vi.mocked(createAdminClient).mockReturnValue(db.cliente as never);
 });
 
 function conUsuario() {
@@ -94,7 +98,7 @@ describe('obtenerSesionUsuario (DAL)', () => {
   it('un fallo de la base de datos no se confunde con "sin permiso"', async () => {
     conUsuario();
     db.responder('usuario', { error: { code: '500' } });
-    await expect(obtenerSesionUsuario()).rejects.toThrow('No fue posible cargar el perfil');
+    await expect(obtenerSesionUsuario()).rejects.toThrow('No pudimos cargar el perfil');
   });
 });
 

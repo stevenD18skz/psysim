@@ -37,7 +37,7 @@ const CASO = {
 const PROMPT = 'Eres Camila, una mujer de 29 años que perdió su empleo hace un mes.';
 const GUARDADO_FALLIDO = {
   ok: false,
-  error: 'No fue posible guardar el caso. Inténtalo de nuevo.',
+  error: 'No pudimos guardar el caso. Inténtalo de nuevo.',
 };
 
 let db: SupabaseFalso;
@@ -203,7 +203,7 @@ describe('guardarVariante', () => {
     db.responder('escenario', { data: null });
     expect(await guardarVariante(VARIANTE)).toEqual({
       ok: false,
-      error: 'El escenario seleccionado ya no está disponible.',
+      error: 'El caso seleccionado ya no está disponible.',
     });
   });
 });
@@ -250,6 +250,16 @@ describe('probarPaciente', () => {
       ok: false,
       error: 'El servicio de IA no está disponible.',
     });
+  });
+
+  it('cuenta en el límite de llamadas a la IA y no llama a la IA si se agotó', async () => {
+    db.responder('rpc:reservar_peticion_ia', { data: 12 });
+    expect(await probarPaciente(PRUEBA)).toEqual({
+      ok: false,
+      error: 'Estás enviando mensajes muy seguido. Espera 12 s antes de volver a escribir.',
+    });
+    expect(db.rpc).toHaveBeenCalledWith('reservar_peticion_ia');
+    expect(generarRespuestaPaciente).not.toHaveBeenCalled();
   });
 
   it('devuelve el primer error de validación', async () => {

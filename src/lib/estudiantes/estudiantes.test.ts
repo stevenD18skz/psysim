@@ -4,7 +4,7 @@ import { type EstudianteRegistrado } from '@/types';
 
 import {
   buscarPorCodigo,
-  contarSesiones,
+  contarPracticas,
   filtrarEstudiantes,
   formatearDia,
   formatearFechaHora,
@@ -88,8 +88,8 @@ describe('formatos', () => {
   });
 
   it('cuenta sesiones en singular y plural', () => {
-    expect(contarSesiones(1)).toBe('1 sesión');
-    expect(contarSesiones(3)).toBe('3 sesiones');
+    expect(contarPracticas(1)).toBe('1 práctica');
+    expect(contarPracticas(3)).toBe('3 prácticas');
   });
 
   it('formatea el día en la hora de Colombia', () => {

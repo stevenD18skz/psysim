@@ -2,15 +2,20 @@ import type { NextConfig } from 'next';
 
 /**
  * Encabezados de seguridad aplicados a todas las respuestas.
- * HSTS lo añade Vercel automáticamente en los dominios HTTPS.
+ * La política de contenido (CSP) lleva un nonce por petición y se fija en src/proxy.ts.
  */
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
+  // Solo https durante dos años (se ignora sobre http, como en localhost).
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  // La página no comparte contexto de navegación con ventanas de otros orígenes.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    // El micrófono queda para este sitio: el dictado por voz de la conversación lo usa.
+    value: 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()',
   },
 ];
 

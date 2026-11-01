@@ -263,7 +263,7 @@ export function RevisionSesion({
         ) : (
           <ol
             ref={raiz}
-            aria-label="Conversación de la sesión"
+            aria-label="Conversación de la práctica"
             className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
           >
             {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {

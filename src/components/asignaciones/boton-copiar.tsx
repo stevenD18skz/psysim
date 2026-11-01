@@ -32,7 +32,7 @@ export function BotonCopiar({
       await navigator.clipboard.writeText(typeof texto === 'function' ? texto() : texto);
       setCopiado(true);
     } catch {
-      toast.error('No se pudo copiar. Selecciona el texto y cópialo a mano.');
+      toast.error('No pudimos copiar. Selecciona el texto y cópialo a mano.');
     }
   };
 

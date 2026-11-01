@@ -58,7 +58,7 @@ export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<
 
   if (error) {
     log.error('entrega.asignacion_no_leida', { codigo: error.code });
-    return { ok: false, error: 'No fue posible preparar el equipo. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos preparar el equipo. Inténtalo de nuevo.' };
   }
   const estado =
     asignacion &&

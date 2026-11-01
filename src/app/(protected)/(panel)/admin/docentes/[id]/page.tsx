@@ -20,7 +20,7 @@ import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { describirAcceso } from '@/lib/admin/docentes';
 import { obtenerFichaDocente } from '@/lib/admin/queries';
 import { requerirSuperadmin } from '@/lib/auth/dal';
-import { contarSesiones, formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { contarPracticas, formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 
 export const metadata: Metadata = {
   title: 'Docente',
@@ -102,7 +102,7 @@ export default async function DocentePage({ params }: PageProps<'/admin/docentes
       <Indicadores
         indicadores={[
           { icono: UsersRound, etiqueta: 'Estudiantes', valor: metricas.estudiantes },
-          { icono: MonitorPlay, etiqueta: 'Sesiones', valor: metricas.sesiones },
+          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.sesiones },
           {
             icono: ClipboardCheck,
             etiqueta: 'Por revisar',
@@ -130,13 +130,13 @@ export default async function DocentePage({ params }: PageProps<'/admin/docentes
                     Estudiante
                   </th>
                   <th scope="col" className="px-4 py-3 font-medium">
-                    Sesiones
+                    Prácticas
                   </th>
                   <th scope="col" className="hidden px-4 py-3 font-medium sm:table-cell">
                     Nota promedio
                   </th>
                   <th scope="col" className="hidden px-4 py-3 font-medium md:table-cell">
-                    Última sesión
+                    Última práctica
                   </th>
                 </tr>
               </thead>
@@ -150,7 +150,7 @@ export default async function DocentePage({ params }: PageProps<'/admin/docentes
                       </span>
                     </th>
                     <td className="px-4 py-3 tabular-nums">
-                      {contarSesiones(estudiante.metricas.sesiones)}
+                      {contarPracticas(estudiante.metricas.sesiones)}
                       {estudiante.metricas.pendientesRetroalimentacion > 0 && (
                         <span className="block text-xs text-muted-foreground">
                           {estudiante.metricas.pendientesRetroalimentacion} por revisar

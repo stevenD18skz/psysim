@@ -43,7 +43,7 @@ class LimiteErrorNpc extends Component<LimiteErrorProps, { fallo: boolean }> {
   }
 
   componentDidCatch(error: unknown) {
-    console.error(`[laboratorio] No se pudo cargar el NPC "${this.props.nombre}":`, error);
+    console.error(`[laboratorio] No pudimos cargar el NPC "${this.props.nombre}":`, error);
   }
 
   render() {
@@ -54,7 +54,7 @@ class LimiteErrorNpc extends Component<LimiteErrorProps, { fallo: boolean }> {
         className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
       >
         <AlertTriangle className="size-6 text-destructive" aria-hidden />
-        <p className="font-medium">No fue posible cargar a {this.props.nombre}.</p>
+        <p className="font-medium">No pudimos cargar a {this.props.nombre}.</p>
         <Button variant="outline" onClick={() => this.setState({ fallo: false })}>
           <RotateCw aria-hidden />
           Reintentar

@@ -1,7 +1,6 @@
 import { type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import {
   LIMITES_CHAT,
-  type MensajeHistorial,
   type NpcChatRequest,
   npcChatErrorSchema,
   npcChatResponseSchema,
@@ -17,7 +16,7 @@ export const RUTA_CHAT = '/api/npc/chat';
  */
 export const TIEMPO_MAXIMO_CLIENTE_MS = 35_000;
 
-export const MENSAJE_NO_DISPONIBLE = 'El paciente virtual no está disponible temporalmente.';
+export const MENSAJE_NO_DISPONIBLE = 'El paciente no está disponible por ahora.';
 
 export type ResultadoEnvio = { ok: true } | { ok: false; motivo: string };
 
@@ -27,25 +26,12 @@ interface OpcionesEnvio {
   ahora?: () => number;
 }
 
-function historialParaContexto(
-  mensajes: readonly MensajeConversacion[],
-  excluirId: string
-): MensajeHistorial[] {
-  return mensajes
-    .filter(m => m.id !== excluirId)
-    .slice(-LIMITES_CHAT.historial)
-    .map(m => ({
-      rol: m.remitente === 'estudiante' ? 'user' : 'assistant',
-      contenido: m.contenido,
-    }));
-}
-
 /**
  * HU-13 · T03 — Envía una intervención del estudiante al paciente virtual.
  *
  * 1. Pasa el NPC a `procesando` (si la transición no es válida, p. ej. un doble envío, no hace
  *    nada) y agrega el mensaje del estudiante al historial.
- * 2. Llama a /api/npc/chat con el historial previo.
+ * 2. Llama a /api/npc/chat con el mensaje: el servidor arma el contexto con lo que guardó.
  * 3. Si responde, agrega el mensaje del NPC con su latencia, acumula los tokens y pasa a
  *    `respondiendo`. Si falla, pasa a `error_comunicacion` sin tocar el historial (HU-16 · T01).
  *
@@ -61,7 +47,7 @@ export async function enviarMensaje(
 ): Promise<ResultadoEnvio> {
   const estado = store.getState();
   const sesion = estado.sesion.activa;
-  if (!sesion) return { ok: false, motivo: 'No hay una sesión activa.' };
+  if (!sesion) return { ok: false, motivo: 'No hay una práctica abierta. Vuelve a Mis prácticas.' };
 
   let mensaje: MensajeConversacion;
   if (typeof texto === 'string') {
@@ -105,7 +91,6 @@ export async function enviarMensaje(
     sesion_id: sesion.id,
     npc_id: sesion.npc.id,
     mensaje_usuario: mensaje.contenido,
-    historial: historialParaContexto(conversacion.mensajes, mensaje.id),
   };
 
   const fallar = (motivo: string): ResultadoEnvio => {

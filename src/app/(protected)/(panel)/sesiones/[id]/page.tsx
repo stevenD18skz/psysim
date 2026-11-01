@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 
+import { ReflexionLeida } from '@/components/resultados/reflexion';
 import { RevisionSesion } from '@/components/retroalimentacion/revision-sesion';
 import { BotonInterrumpir } from '@/components/sesiones/boton-interrumpir';
 import { EncabezadoSesion, type PosicionRevision } from '@/components/sesiones/encabezado-sesion';
@@ -10,7 +11,11 @@ import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { requerirDocente } from '@/lib/auth/dal';
 import { formatearHora } from '@/lib/fechas';
 import { estaPorRevisar } from '@/lib/sesiones/estados';
-import { obtenerDetalleSesion, obtenerSesionesDelDocente } from '@/lib/sesiones/queries';
+import {
+  obtenerDetalleSesion,
+  obtenerReflexion,
+  obtenerSesionesDelDocente,
+} from '@/lib/sesiones/queries';
 
 export const metadata: Metadata = {
   title: 'Revisión de la práctica',
@@ -28,8 +33,9 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [sesion, sesiones] = await Promise.all([
+  const [sesion, reflexion, sesiones] = await Promise.all([
     obtenerDetalleSesion(id),
+    obtenerReflexion(id),
     // La cola de revisión es una ayuda: si falla, la página funciona sin ella.
     obtenerSesionesDelDocente().catch(() => []),
   ]);
@@ -96,10 +102,19 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
           <BotonInterrumpir sesionId={sesion.id} />
         </section>
       ) : (
-        <RevisionSesion
-          sesion={sesion}
-          siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
-        />
+        <>
+          {reflexion && (
+            <ReflexionLeida
+              contenido={reflexion.contenido}
+              actualizadoEn={reflexion.actualizadoEn}
+              estudiante={sesion.estudiante.nombre}
+            />
+          )}
+          <RevisionSesion
+            sesion={sesion}
+            siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
+          />
+        </>
       )}
     </div>
   );

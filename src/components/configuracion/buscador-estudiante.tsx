@@ -4,7 +4,7 @@ import { Search, UserRound } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
-import { contarSesiones, filtrarEstudiantes } from '@/lib/estudiantes/estudiantes';
+import { contarPracticas, filtrarEstudiantes } from '@/lib/estudiantes/estudiantes';
 import { cn } from '@/lib/utils';
 import { type EstudianteRegistrado } from '@/types';
 
@@ -127,7 +127,7 @@ export function BuscadorEstudiante({
                 <span className="min-w-0 flex-1 truncate font-medium">{estudiante.nombre}</span>
                 <span className="font-mono text-xs text-muted-foreground">{estudiante.codigo}</span>
                 <span className="hidden text-xs text-muted-foreground sm:inline">
-                  · {contarSesiones(estudiante.metricas.sesiones)}
+                  · {contarPracticas(estudiante.metricas.sesiones)}
                 </span>
               </li>
             ))

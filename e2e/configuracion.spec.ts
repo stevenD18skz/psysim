@@ -394,11 +394,11 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
   test('una sesión inexistente muestra un estado vacío', async ({ page }) => {
     await page.goto('/simulacion?sesion=00000000-0000-4000-8000-000000000000');
     await expect(
-      page.getByRole('heading', { name: 'Esta sesión no está disponible' })
+      page.getByRole('heading', { name: 'Esta práctica no está disponible' })
     ).toBeVisible();
     await page.goto('/simulacion?sesion=no-es-un-uuid');
     await expect(
-      page.getByRole('heading', { name: 'Esta sesión no está disponible' })
+      page.getByRole('heading', { name: 'Esta práctica no está disponible' })
     ).toBeVisible();
     await page.getByRole('link', { name: 'Ir a mis prácticas' }).click();
     await expect(page).toHaveURL(/\/practicas$/);

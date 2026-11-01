@@ -21,7 +21,7 @@ import {
  */
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del docente.';
-const MENSAJE_GENERICO = 'No fue posible completar la operación. Inténtalo de nuevo.';
+const MENSAJE_GENERICO = 'No pudimos completar la operación. Inténtalo de nuevo.';
 const MENSAJE_NO_DISPONIBLE = 'Esa cuenta ya no está disponible. Recarga la página.';
 const MENSAJE_CORREO_EN_USO = 'Ya existe una cuenta con ese correo.';
 const MENSAJE_CODIGO_EN_USO = 'Ese código institucional ya pertenece a otra cuenta.';
@@ -308,7 +308,7 @@ export async function eliminarDocente(valores: unknown): Promise<ResultadoAccion
     return {
       ok: false,
       error:
-        'Esta cuenta ya tiene estudiantes, casos o sesiones. Desactívala para conservar su historial.',
+        'Esta cuenta ya tiene estudiantes, casos o prácticas. Desactívala para conservar su historial.',
     };
   }
 

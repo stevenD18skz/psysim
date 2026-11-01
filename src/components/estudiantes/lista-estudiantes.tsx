@@ -106,7 +106,7 @@ export function ListaEstudiantes({
                     {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
                     <Link
                       href={ficha}
-                      className="block rounded-sm font-medium outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                      className="block min-h-6 rounded-sm font-medium outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {nombre}
                     </Link>

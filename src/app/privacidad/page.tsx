@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   description:
     'Qué datos trata PsySim, para qué, quién los ve y cómo ejercer tus derechos según la Ley 1581 de 2012.',
   alternates: { canonical: '/privacidad' },
+  openGraph: {
+    title: 'Aviso de privacidad · PsySim',
+    description:
+      'Qué datos trata PsySim, para qué, quién los ve y cómo ejercer tus derechos según la Ley 1581 de 2012.',
+    url: '/privacidad',
+  },
 };
 
 /** Dato que el autor debe confirmar con la universidad antes de publicar el aviso definitivo. */
@@ -68,7 +74,10 @@ export default function PrivacidadPage() {
           <ol className="flex flex-col gap-1 text-sm text-muted-foreground">
             {SECCIONES.map(([id, titulo], i) => (
               <li key={id}>
-                <a href={`#${id}`} className="hover:text-foreground hover:underline">
+                <a
+                  href={`#${id}`}
+                  className="inline-flex min-h-7 items-center hover:text-foreground hover:underline"
+                >
                   {i + 1}. {titulo}
                 </a>
               </li>
@@ -144,6 +153,10 @@ export default function PrivacidadPage() {
                 uso.
               </li>
               <li>
+                Tu reflexión, si decides escribirla al terminar la práctica (es opcional y puedes
+                corregirla o borrarla). La lee tu docente al revisar.
+              </li>
+              <li>
                 La retroalimentación de tu docente: comentario general, comentarios sobre tus frases
                 y nota.
               </li>
@@ -187,8 +200,8 @@ export default function PrivacidadPage() {
             <ul>
               <li>
                 <strong>Tu docente</strong> (quien te registró y te asignó la práctica): tus datos,
-                tus conversaciones cuando terminas, tus métricas y la retroalimentación. No ve el
-                chat en vivo.
+                tus conversaciones cuando terminas, tus métricas, tu reflexión (si la escribiste) y
+                la retroalimentación. No ve el chat en vivo.
               </li>
               <li>
                 <strong>El administrador de PsySim:</strong> gestiona las cuentas de los docentes y

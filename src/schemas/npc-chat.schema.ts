@@ -35,9 +35,15 @@ export const npcChatRequestSchema = z.object({
       LIMITES_CHAT.mensaje,
       `mensaje_usuario no puede superar ${LIMITES_CHAT.mensaje} caracteres.`
     ),
+  /**
+   * Obsoleto: el servidor ya no lo usa. El contexto de la IA sale de los mensajes guardados
+   * (`lib/ia/historial.ts`); si el navegador pudiera fijarlo, podría fabricar turnos del paciente.
+   * Se sigue aceptando (y validando) solo por compatibilidad con clientes anteriores.
+   */
   historial: z
     .array(mensajeHistorialSchema, 'historial debe ser un arreglo.')
-    .max(LIMITES_CHAT.historial, `historial no puede superar ${LIMITES_CHAT.historial} mensajes.`),
+    .max(LIMITES_CHAT.historial, `historial no puede superar ${LIMITES_CHAT.historial} mensajes.`)
+    .optional(),
 });
 
 /** HU-12 · T01/T05 — Respuesta exitosa del Route Handler. */

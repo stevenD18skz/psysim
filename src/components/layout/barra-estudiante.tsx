@@ -90,10 +90,9 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
 
           {perfil && (
             <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label={`Cuenta de ${perfil.nombre}`}
-                className="flex h-10 items-center gap-2 rounded-lg px-1.5 outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent"
-              >
+              <DropdownMenuTrigger className="flex h-10 items-center gap-2 rounded-lg px-1.5 outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
+                {/* Nombre por contenido (no aria-label): así coincide con lo visible (WCAG 2.5.3). */}
+                <span className="sr-only">Cuenta de {perfil.nombre}</span>
                 <span
                   aria-hidden
                   className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro"
