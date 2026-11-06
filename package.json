@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.107",
-    "@hookform/resolvers": "^5.9.1",
+    "@hookform/resolvers": "^7.0.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@supabase/ssr": "^0.12.7",
