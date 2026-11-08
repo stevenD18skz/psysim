@@ -173,7 +173,10 @@ async function subir() {
 
     const { error } = await supabase.storage.from(BUCKET).upload(destino, binario, {
       contentType: 'model/gltf-binary',
-      cacheControl: '31536000',
+      // Un día, no un año: `upsert` reemplaza el modelo en la misma URL y, con un año, los
+      // navegadores que ya lo descargaron seguirían mostrando la versión vieja. Pasado el día, el
+      // navegador revalida con el ETag (un 304 sin volver a descargar si no cambió).
+      cacheControl: '86400',
       upsert: true,
     });
     if (error) throw new Error(`No se pudo subir ${destino}: ${error.message}`);

@@ -58,6 +58,7 @@ import {
   VIGENCIAS_DIAS,
 } from '@/schemas/configuracion.schema';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface ConfiguradorSesionProps {
   /** Catálogo oficial y casos propios del docente. */
@@ -230,27 +231,29 @@ export function ConfiguradorSesion({
     if (!seleccionado || !destinatario) return;
 
     setErrorServidor(null);
-    startTransition(async () => {
-      const resultado = await generarAsignacion(datos);
-      if (!resultado.ok) {
-        setErrorServidor(resultado.error);
-        return;
-      }
-      setCodigoGenerado({
-        id: resultado.datos.id,
-        codigo: resultado.datos.codigo,
-        expiraEn: resultado.datos.expiraEn,
-        estudiante: {
-          id: destinatario.id,
-          nombre: destinatario.nombre,
-          correo: destinatario.correo,
-        },
-        caso: seleccionado.titulo,
-      });
-      // El caso queda elegido para asignárselo enseguida a otro estudiante.
-      quitarEstudiante();
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await generarAsignacion(datos);
+        if (!resultado.ok) {
+          setErrorServidor(resultado.error);
+          return;
+        }
+        setCodigoGenerado({
+          id: resultado.datos.id,
+          codigo: resultado.datos.codigo,
+          expiraEn: resultado.datos.expiraEn,
+          estudiante: {
+            id: destinatario.id,
+            nombre: destinatario.nombre,
+            correo: destinatario.correo,
+          },
+          caso: seleccionado.titulo,
+        });
+        // El caso queda elegido para asignárselo enseguida a otro estudiante.
+        quitarEstudiante();
+        router.refresh();
+      })
+    );
   };
 
   return (

@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/routes';
 import { publicEnv } from '@/lib/env/public';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
+import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -161,6 +162,23 @@ export async function cambiarContrasena(valores: unknown): Promise<ResultadoAcci
   const datos = cambiarContrasenaSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: datos.error.issues[0]?.message ?? 'Revisa la nueva contraseña.' };
+  }
+  // El estudiante entra con Google: una contraseña sería una segunda puerta a su cuenta que otra
+  // persona podría abrir desde un equipo compartido.
+  if (perfil.rol === 'estudiante') {
+    return { ok: false, error: 'Tu cuenta entra con Google: no usa contraseña.' };
+  }
+
+  const fallo = await verificarContrasenaActual(perfil.correo, datos.data.actual);
+  if (fallo) {
+    if (fallo === 'invalid_credentials') {
+      return { ok: false, error: 'Tu contraseña actual no es correcta.' };
+    }
+    if (fallo === 'over_request_rate_limit' || fallo === '429') {
+      return { ok: false, error: 'Demasiados intentos. Espera unos minutos.' };
+    }
+    log.error('auth.contrasena_actual_no_verificada', { codigo: fallo });
+    return { ok: false, error: 'No pudimos cambiar la contraseña. Inténtalo de nuevo.' };
   }
 
   const supabase = await createClient();

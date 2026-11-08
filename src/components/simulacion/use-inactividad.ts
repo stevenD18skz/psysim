@@ -120,7 +120,12 @@ export function useInactividad({
     const revisar = () => {
       const ahora = Date.now();
       const estadoNpc = store.getState().npc.estado;
-      if (estadoNpc === 'procesando' || estadoNpc === 'respondiendo') ultimaInteraccion = ahora;
+      // `respondiendo` termina con requestAnimationFrame, que no corre en una pestaña oculta: si se
+      // contara siempre como actividad, una práctica abandonada en segundo plano nunca se cerraría.
+      const visible = document.visibilityState === 'visible';
+      if (estadoNpc === 'procesando' || (estadoNpc === 'respondiendo' && visible)) {
+        ultimaInteraccion = ahora;
+      }
 
       const restantes = segundosParaCierre(ahora - ultimaInteraccion);
       avisando = restantes !== null;

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { probarPaciente } from '@/lib/casos/actions';
 import { cn } from '@/lib/utils';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface ProbarPacienteProps {
   /** Prompt que se está redactando (sin las reglas fijas, que añade el servidor). */
@@ -42,17 +43,19 @@ export function ProbarPaciente({ prompt, nombre, promptValido }: ProbarPacienteP
     setTexto('');
     setError(null);
 
-    startTransition(async () => {
-      const resultado = await probarPaciente({ prompt, nombre, mensaje, historial });
-      if (!resultado.ok) {
-        setError(resultado.error);
-        return;
-      }
-      setMensajes(actuales => [
-        ...actuales,
-        { rol: 'assistant', contenido: resultado.datos.respuesta },
-      ]);
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await probarPaciente({ prompt, nombre, mensaje, historial });
+        if (!resultado.ok) {
+          setError(resultado.error);
+          return;
+        }
+        setMensajes(actuales => [
+          ...actuales,
+          { rol: 'assistant', contenido: resultado.datos.respuesta },
+        ]);
+      })
+    );
   };
 
   return (

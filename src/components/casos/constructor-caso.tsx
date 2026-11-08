@@ -60,6 +60,7 @@ import {
   LIMITES_CASO,
 } from '@/schemas/caso.schema';
 import { promptSchema } from '@/schemas/configuracion.schema';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface ConstructorCasoProps {
   /** Si se indica, el formulario edita ese caso; si no, crea uno nuevo. */
@@ -186,19 +187,23 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
 
   const onSubmit = (datos: CasoFormData) => {
     setErrorServidor(null);
-    startTransition(async () => {
-      const resultado = casoId
-        ? await actualizarCaso({ id: casoId, caso: datos })
-        : await crearCaso(datos);
-      if (!resultado.ok) {
-        setErrorServidor(resultado.error);
-        return;
-      }
-      limpiar();
-      toast.success(casoId ? 'Caso actualizado.' : `Caso «${datos.titulo}» guardado en Mis casos.`);
-      router.push(`/configuracion?caso=${resultado.datos.id}`);
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = casoId
+          ? await actualizarCaso({ id: casoId, caso: datos })
+          : await crearCaso(datos);
+        if (!resultado.ok) {
+          setErrorServidor(resultado.error);
+          return;
+        }
+        limpiar();
+        toast.success(
+          casoId ? 'Caso actualizado.' : `Caso «${datos.titulo}» guardado en Mis casos.`
+        );
+        router.push(`/configuracion?caso=${resultado.datos.id}`);
+        router.refresh();
+      })
+    );
   };
 
   return (

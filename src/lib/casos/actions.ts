@@ -145,6 +145,18 @@ export async function archivarCaso(valores: unknown): Promise<ResultadoAccion<{ 
     if (error) log.error('caso.no_archivado', { codigo: error.code });
     return { ok: false, error: 'No pudimos eliminar el caso. Inténtalo de nuevo.' };
   }
+
+  // Los códigos sin usar de este caso ya no sirven (el canje exige un caso activo): se anulan para
+  // que el docente no los vea como pendientes ni el estudiante intente usarlos. Si falla, el caso
+  // ya quedó archivado y el canje igual los rechaza.
+  const { error: errorCodigos } = await supabase
+    .from('asignacion')
+    .update({ anulada_en: new Date().toISOString() })
+    .eq('escenario_id', datos.data.id)
+    .is('sesion_id', null)
+    .is('anulada_en', null);
+  if (errorCodigos) log.error('caso.codigos_no_anulados', { codigo: errorCodigos.code });
+
   return { ok: true, datos: { id: datos.data.id } };
 }
 

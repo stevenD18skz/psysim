@@ -38,7 +38,8 @@ export async function GET(request: Request): Promise<Response> {
     orden
   );
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  // Fecha de Bogotá: con la de UTC, después de las 7 p. m. el archivo saldría con la de mañana.
+  const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date());
   return new Response(revisionesCsv(filtradas), {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',

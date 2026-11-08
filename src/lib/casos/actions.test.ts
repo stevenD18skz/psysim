@@ -157,6 +157,21 @@ describe('archivarCaso', () => {
     });
   });
 
+  it('anula los códigos sin usar del caso archivado', async () => {
+    db.responder('escenario', { data: [{ id: CASO_ID }] });
+
+    await archivarCaso({ id: CASO_ID });
+    expect(db.de('asignacion')[0]).toMatchObject({
+      operacion: 'update',
+      valores: { anulada_en: expect.any(String) },
+      filtros: [
+        ['eq', 'escenario_id', CASO_ID],
+        ['is', 'sesion_id', null],
+        ['is', 'anulada_en', null],
+      ],
+    });
+  });
+
   it('falla si no encuentra el caso o el id no es válido', async () => {
     db.responder('escenario', { data: [] });
     expect(await archivarCaso({ id: CASO_ID })).toMatchObject({ ok: false });

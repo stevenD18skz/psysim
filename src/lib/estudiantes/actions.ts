@@ -2,7 +2,7 @@
 
 import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { requerirDocente } from '@/lib/auth/dal';
-import { asegurarCuentaEstudiante } from '@/lib/estudiantes/cuentas';
+import { asegurarCuentaEstudiante, liberarCuentaAnterior } from '@/lib/estudiantes/cuentas';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -109,7 +109,9 @@ export async function actualizarEstudiante(
 
   // El historial sigue al correo (trigger `estudiante_vincular_cuenta`): con otro correo, las
   // prácticas, la retroalimentación y los códigos pendientes pasarían a la cuenta de ese correo.
-  if (correo !== actual.correo) {
+  // Agregar el primer correo a un registro antiguo no le quita el historial a nadie: se permite,
+  // igual que al registrar.
+  if (actual.correo !== null && correo !== actual.correo) {
     const { count, error: errorPracticas } = await supabase
       .from('sesion')
       .select('id', { count: 'exact', head: true })
@@ -119,6 +121,9 @@ export async function actualizarEstudiante(
       return { ok: false, error: MENSAJE_GENERICO };
     }
     if ((count ?? 0) > 0) return { ok: false, error: MENSAJE_CORREO_CON_PRACTICAS };
+
+    const liberada = await liberarCuentaAnterior({ correoAnterior: actual.correo, registroId: id });
+    if (!liberada.ok) return liberada;
   }
 
   const cuenta = await asegurarCuentaEstudiante({ correo, nombre, codigo: actual.codigo });

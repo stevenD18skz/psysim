@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requerirDocente } from '@/lib/auth/dal';
-import { asegurarCuentaEstudiante } from '@/lib/estudiantes/cuentas';
+import { asegurarCuentaEstudiante, liberarCuentaAnterior } from '@/lib/estudiantes/cuentas';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -12,7 +12,10 @@ import { actualizarEstudiante, eliminarEstudiante, registrarEstudiante } from '.
 vi.mock('@/lib/auth/dal', () => ({ requerirDocente: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
-vi.mock('@/lib/estudiantes/cuentas', () => ({ asegurarCuentaEstudiante: vi.fn() }));
+vi.mock('@/lib/estudiantes/cuentas', () => ({
+  asegurarCuentaEstudiante: vi.fn(),
+  liberarCuentaAnterior: vi.fn(),
+}));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 
 const ID = '55555555-5555-4555-8555-555555555555';
@@ -32,6 +35,7 @@ beforeEach(() => {
   vi.mocked(createAdminClient).mockReturnValue(admin.cliente as never);
   vi.mocked(requerirDocente).mockResolvedValue({} as never);
   vi.mocked(asegurarCuentaEstudiante).mockResolvedValue({ ok: true, datos: { usuarioId: 'u1' } });
+  vi.mocked(liberarCuentaAnterior).mockResolvedValue({ ok: true, datos: null });
 });
 
 describe('registrarEstudiante', () => {
@@ -135,6 +139,49 @@ describe('actualizarEstudiante', () => {
     expect(db.de('estudiante').some(c => c.operacion === 'update')).toBe(false);
   });
 
+  it('sin prácticas, libera la cuenta del correo anterior antes de crear la nueva', async () => {
+    const anterior = 'ana.peres@correounivalle.edu.co';
+    db.responder('estudiante', { data: { codigo: '202012345', correo: anterior } }, { data: null });
+    db.responder('sesion', { count: 0 });
+
+    expect(await actualizarEstudiante({ id: ID, nombre: 'Ana', correo: DATOS.correo })).toEqual({
+      ok: true,
+      datos: { id: ID },
+    });
+    expect(liberarCuentaAnterior).toHaveBeenCalledWith({
+      correoAnterior: anterior,
+      registroId: ID,
+    });
+    expect(vi.mocked(liberarCuentaAnterior).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(asegurarCuentaEstudiante).mock.invocationCallOrder[0]!
+    );
+  });
+
+  it('no cambia el correo si la cuenta anterior la usa otro docente', async () => {
+    db.responder('estudiante', {
+      data: { codigo: '202012345', correo: 'ana.peres@correounivalle.edu.co' },
+    });
+    db.responder('sesion', { count: 0 });
+    vi.mocked(liberarCuentaAnterior).mockResolvedValueOnce({ ok: false, error: 'Otro docente…' });
+
+    expect(await actualizarEstudiante({ id: ID, nombre: 'Ana', correo: DATOS.correo })).toEqual({
+      ok: false,
+      error: 'Otro docente…',
+    });
+    expect(asegurarCuentaEstudiante).not.toHaveBeenCalled();
+  });
+
+  it('agrega el primer correo a un registro antiguo aunque ya haya practicado', async () => {
+    db.responder('estudiante', { data: { codigo: '202012345', correo: null } }, { data: null });
+    db.responder('sesion', { count: 2 });
+
+    expect(await actualizarEstudiante({ id: ID, nombre: 'Ana', correo: DATOS.correo })).toEqual({
+      ok: true,
+      datos: { id: ID },
+    });
+    expect(db.de('sesion')).toHaveLength(0);
+  });
+
   it('con prácticas sí permite corregir solo el nombre', async () => {
     db.responder(
       'estudiante',
@@ -149,6 +196,7 @@ describe('actualizarEstudiante', () => {
       datos: { id: ID },
     });
     expect(db.de('sesion')).toHaveLength(0);
+    expect(liberarCuentaAnterior).not.toHaveBeenCalled();
   });
 
   it('avisa si el estudiante ya no existe', async () => {

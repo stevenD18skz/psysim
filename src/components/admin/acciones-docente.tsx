@@ -32,6 +32,7 @@ import {
   restablecerContrasenaDocente,
 } from '@/lib/admin/actions';
 import { type DocenteAdmin } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 type Dialogo = 'editar' | 'contrasena' | 'estado' | 'eliminar' | null;
 
@@ -66,28 +67,32 @@ export function AccionesDocente({
     exito: string,
     despues: () => void = () => router.refresh()
   ) =>
-    startTransition(async () => {
-      const resultado = await accion();
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      toast.success(exito);
-      setDialogo(null);
-      despues();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await accion();
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          return;
+        }
+        toast.success(exito);
+        setDialogo(null);
+        despues();
+      })
+    );
 
   const restablecer = () =>
-    startTransition(async () => {
-      const resultado = await restablecerContrasenaDocente({ id: docente.id });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      setDialogo(null);
-      setContrasena(resultado.datos.contrasena);
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await restablecerContrasenaDocente({ id: docente.id });
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          return;
+        }
+        setDialogo(null);
+        setContrasena(resultado.datos.contrasena);
+        router.refresh();
+      })
+    );
 
   return (
     <>
