@@ -83,7 +83,9 @@ Ordenado por lo que más bloquea la entrega. La historia de Taiga va entre paré
 ### 3. Corto
 
 9. **Aviso de privacidad:** completar los datos «Por confirmar» y pedir revisión legal (HU-52).
-10. **Licencias de los modelos 3D:** origen y atribución en el documento.
+10. **Créditos de los modelos 3D en la aplicación:** el origen y las licencias ya están en
+    [`docs/modelos-3d.md`](modelos-3d.md) y en el Anexo H (8 modelos de Poly Pizza, CC0 y CC BY 3.0;
+    los pacientes son propios). Falta una línea de créditos visible en la plataforma.
 11. **Gemini:** revisar cuota y facturación de la clave de producción antes de la evaluación.
 12. **`deepmerge`** (alerta baja de Dependabot, solo en la CLI de shadcn): sin versión corregida;
     revisarla cuando salga.
