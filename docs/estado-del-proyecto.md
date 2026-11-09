@@ -12,7 +12,7 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 - **`main` está protegida** desde el 5 de noviembre: solo entra por PR y con el check «Lint,
   tipos, formato y pruebas» en verde; sin push forzado ni borrado.
 - **Documento de grado:** `docs/doc_grado/` (LaTeX e instrumentos de evaluación) queda fuera de git a
-  propósito. Se compila en Overleaf (XeLaTeX + Biber, `principal.tex` y `anexos.tex`).
+  propósito. Compila en local con `docs/doc_grado/latex/compilar.ps1` (MiKTeX) o en Overleaf.
 - **Backlog de Taiga:** actualizado el 8 de noviembre con la API: 58 historias (HU-31 a HU-59
   nuevas), Sprint 7 creado y sprints 3, 5 y 6 cerrados. Lo subido y las decisiones están en
   [`docs/taiga-borrador.md`](taiga-borrador.md). Las exportaciones (`taiga*.json`) no van a git.
@@ -63,10 +63,13 @@ Ordenado por lo que más bloquea la entrega. La historia de Taiga va entre paré
 ### 1. Bloquea el grado
 
 1. **Evaluación con usuarios:** cuestionarios en Google Forms, sesiones por videollamada,
-   evidencia en Drive y análisis (`docs/doc_grado/evaluacion/`). Cinco de las 13 marcas
+   evidencia en Drive y análisis (`docs/doc_grado/evaluacion/`). Cinco de las 15 marcas
    `\pendiente{}` dependen de ella.
-2. **Compilar el documento en Overleaf** (ver la sección «Documento de grado»).
-3. **Las demás marcas `\pendiente{}`**, todas decisiones del autor.
+2. **Antes de la primera sesión:** completar en el consentimiento (Anexo J y
+   `evaluacion/01-consentimiento-informado.md`) el correo del director y el contacto del Servicio
+   de Psicología.
+3. **Las demás marcas `\pendiente{}`**, todas decisiones del autor (lista en «Documento de
+   grado»). El documento ya compila sin errores en local.
 
 ### 2. Para la sustentación
 
@@ -108,7 +111,18 @@ pruebas y se actualizan fechas y versiones.
 en «Construcción del sistema» del capítulo 4; la tabla de resultados del capítulo 1 cita el backlog;
 la sección de prototipos enlaza Figma (`\linkfigma`) con la Figura de la paleta, y el Anexo G suma
 las pantallas del estudiante en el celular. La tabla 82 (`generado/tabla-82.tex`) es una copia
-vieja de la tabla de resultados y no se incluye.
+vieja de la tabla de resultados y no se incluye. El capítulo 1 declara Claude Design (personajes
+3D) entre las herramientas de IA; el capítulo 4 y el Anexo H, el origen y las licencias de los
+modelos.
+
+**Compilación (8 de noviembre):** primera compilación completa, con MiKTeX 25.12 (XeLaTeX y Biber
+2.22) en el equipo del autor. Se corrigieron: `amssymb` faltaba en el preámbulo (las casillas
+`\square` de los anexos J a L daban 308 errores), una referencia de los anexos a una tabla del
+documento principal (`tab:w22`, imposible entre dos PDF), y cinco tablas que se salían del margen
+(62, 5.5, C16, I1 y la hoja de tareas del Anexo J). Ahora ambos compilan sin errores, sin
+referencias ni citas sin resolver y sin desbordes: principal 64 páginas, anexos 95. Para
+recompilar: `docs/doc_grado/latex/compilar.ps1` (PDF en `docs/doc_grado/pdf/`, auxiliares en
+`docs/doc_grado/compilacion/`). Overleaf sigue sirviendo para compartir con los directores.
 
 **Pasada APA 7 del 7 de noviembre:** anexos B y C con mayúscula solo inicial, coma decimal,
 espacio fino de miles y términos en inglés en cursiva; citas escritas a mano convertidas a
@@ -118,11 +132,13 @@ dos errores de contenido: el Anexo C decía 4,000 para Babylon.js (la matriz da 
 de T-08 tenía cruzadas las columnas de _scripting_ y latencia en R3F con 16 a 64 agentes (el texto
 del anexo se ajustó). Respaldo previo en el scratchpad de esa sesión.
 
-Quedan 13 marcas `\pendiente{}`, todas del autor:
+Quedan 15 marcas `\pendiente{}` (en el PDF salen en rojo como «[PENDIENTE: …]»), todas del autor:
 
 - Portada: mes y día. Resumen: resultado principal de la evaluación con usuarios.
   Agradecimientos.
-- Cap. 1: si los directores exigen un manual aparte; otras herramientas de IA usadas.
+- Cap. 1: si los directores exigen un manual aparte; otras herramientas de IA usadas (Claude
+  Design ya está declarado; faltan las que solo conoce el autor, como asistentes para la revisión
+  bibliográfica).
 - Cap. 3: confirmar la pantalla de T-01 a T-12 (resultados de 100 FPS con un monitor de 75 Hz;
   el Anexo B decía 120 Hz y se quitó).
 - Anexo C, tabla de T-08: confirmar con los registros las latencias de Babylon.js con 4 o más
@@ -130,11 +146,11 @@ Quedan 13 marcas `\pendiente{}`, todas del autor:
 - Cap. 4: revisar la sección con el profesor Fabián Valencia.
 - Cap. 5: verificación manual (Anexo I), Lighthouse y NVDA, resultados y discusión de la
   evaluación con usuarios. Cap. 6: conclusión sobre usabilidad y satisfacción.
+- Anexo J (consentimiento): correo del director y contacto del Servicio de Psicología.
 
 Las tablas 68 y 71 tienen unos 30 requisitos en «Pendiente: verificación manual» que se cierran
 con la pasada del Anexo I. **Lo que más bloquea es la evaluación con usuarios** (cinco marcas
-dependen de ella). El documento nunca se ha compilado: subirlo a Overleaf (XeLaTeX + Biber,
-`principal.tex` y `anexos.tex`) cuanto antes. No está en git; su único respaldo es OneDrive.
+dependen de ella). El documento no está en git; su único respaldo es OneDrive.
 
 ## Revisión del 7 de noviembre (en producción desde el 8 de noviembre)
 
