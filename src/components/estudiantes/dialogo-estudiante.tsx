@@ -28,6 +28,7 @@ import {
   registrarEstudianteSchema,
 } from '@/schemas/estudiante.schema';
 import { type EstudianteRegistrado } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface DialogoEstudianteProps {
   /** Con un estudiante, edita su nombre y correo (o agrega el correo a un registro antiguo). */
@@ -86,25 +87,27 @@ export function DialogoEstudiante({
 
   const onSubmit = (datos: RegistrarEstudianteData) => {
     setErrorServidor(null);
-    startTransition(async () => {
-      const resultado = editando
-        ? await actualizarEstudiante({
-            id: estudiante.id,
-            nombre: datos.nombre,
-            correo: datos.correo,
-          })
-        : await registrarEstudiante(datos);
-      if (!resultado.ok) {
-        setErrorServidor(resultado.error);
-        return;
-      }
-      toast.success(
-        editando ? 'Datos del estudiante actualizados.' : `${datos.nombre} quedó registrado.`
-      );
-      setAbierto(false);
-      reset(datos);
-      onGuardado?.(resultado.datos.id);
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = editando
+          ? await actualizarEstudiante({
+              id: estudiante.id,
+              nombre: datos.nombre,
+              correo: datos.correo,
+            })
+          : await registrarEstudiante(datos);
+        if (!resultado.ok) {
+          setErrorServidor(resultado.error);
+          return;
+        }
+        toast.success(
+          editando ? 'Datos del estudiante actualizados.' : `${datos.nombre} quedó registrado.`
+        );
+        setAbierto(false);
+        reset(datos);
+        onGuardado?.(resultado.datos.id);
+      })
+    );
   };
 
   return (

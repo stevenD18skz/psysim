@@ -232,10 +232,13 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
                       Ir a la página pública
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setCambiandoContrasena(true)}>
-                    <KeyRound aria-hidden />
-                    Cambiar contraseña
-                  </DropdownMenuItem>
+                  {/* El estudiante entra con Google: no tiene contraseña que cambiar. */}
+                  {rol !== 'estudiante' && (
+                    <DropdownMenuItem onSelect={() => setCambiandoContrasena(true)}>
+                      <KeyRound aria-hidden />
+                      Cambiar contraseña
+                    </DropdownMenuItem>
+                  )}
                   {esAdmin && (
                     <DropdownMenuItem asChild>
                       <Link href="/laboratorio" onClick={alNavegar}>

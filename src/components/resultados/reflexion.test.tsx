@@ -42,8 +42,10 @@ describe('ReflexionEstudiante', () => {
       contenido: 'Hablé poco.',
     });
     expect(toast.success).toHaveBeenCalledWith('Reflexión guardada.');
+    // El aviso sale dentro de la transición; el botón vuelve a su nombre cuando esta se confirma,
+    // y en una máquina cargada eso puede llegar un instante después.
+    expect(await screen.findByRole('button', { name: 'Guardar reflexión' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent(/Guardada el/);
-    expect(screen.getByRole('button', { name: 'Guardar reflexión' })).toBeDisabled();
   });
 
   it('carga la reflexión ya guardada', () => {

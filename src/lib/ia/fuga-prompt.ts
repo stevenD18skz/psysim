@@ -17,9 +17,13 @@ function palabras(texto: string): string[] {
   );
 }
 
-/** La frase de apertura es lo primero que el paciente debe decir: repetirla no es una fuga. */
-function sinFraseDeApertura(fuente: string): string {
-  return fuente.replace(/Frase de apertura[^"\n]*"[^"\n]*"/gi, ' ');
+/**
+ * Lo que el prompt pone entre comillas es lo que el paciente debe decir (la frase de apertura, una
+ * pregunta que repite): decirlo no es una fuga. E-07 le pide a Hernán una pregunta de diez palabras
+ * y, sin esto, cada vez que la hacía la respuesta se descartaba como fuga.
+ */
+function sinFrasesCitadas(fuente: string): string {
+  return fuente.replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/g, ' ');
 }
 
 function ventanas(lista: readonly string[]): Set<string> {
@@ -37,7 +41,7 @@ export function revelaInstrucciones(respuesta: string, fuentes: readonly string[
 
   const conocidas = new Set<string>();
   for (const fuente of fuentes) {
-    for (const ventana of ventanas(palabras(sinFraseDeApertura(fuente)))) conocidas.add(ventana);
+    for (const ventana of ventanas(palabras(sinFrasesCitadas(fuente)))) conocidas.add(ventana);
   }
   for (const ventana of ventanas(enLaRespuesta)) {
     if (conocidas.has(ventana)) return true;

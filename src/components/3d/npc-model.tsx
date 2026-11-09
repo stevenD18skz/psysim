@@ -67,6 +67,14 @@ function NpcGlbAnimado({ npc, ruta }: { npc: ConfigNpc; ruta: string }) {
 export function NPCModel({ npc }: { npc: ConfigNpc }) {
   const store = useAppStoreApi();
   const puedeConversar = useAppStore(state => state.npc.estado === 'inactivo');
+  // Si la escena se desmonta con el puntero sobre el paciente (terminar, salir), `onPointerOut` no
+  // llega y el cursor quedaría como mano en el resto de la página.
+  useEffect(
+    () => () => {
+      document.body.style.cursor = '';
+    },
+    []
+  );
 
   const procedural = (
     <Colisionable id="npc">

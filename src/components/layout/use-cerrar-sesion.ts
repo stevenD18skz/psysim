@@ -7,6 +7,7 @@ import { cerrarSesion } from '@/lib/auth/actions';
 import { RUTA_LOGIN } from '@/lib/auth/routes';
 import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { useAppStore } from '@/store/app-store-provider';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 /** HU-04: cierra la sesión, limpia el slice `auth` y vuelve a /login. */
 export function useCerrarSesion() {
@@ -15,15 +16,17 @@ export function useCerrarSesion() {
   const [cerrando, startTransition] = useTransition();
 
   const salir = () => {
-    startTransition(async () => {
-      olvidarDatosDeLaCuenta();
-      await cerrarSesion();
-      limpiarAuth();
-      // `refresh` descarta la caché del router para no mostrar una versión almacenada
-      // de una ruta protegida.
-      router.replace(RUTA_LOGIN);
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        olvidarDatosDeLaCuenta();
+        await cerrarSesion();
+        limpiarAuth();
+        // `refresh` descarta la caché del router para no mostrar una versión almacenada
+        // de una ruta protegida.
+        router.replace(RUTA_LOGIN);
+        router.refresh();
+      })
+    );
   };
 
   return { salir, cerrando };

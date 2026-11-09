@@ -7,6 +7,7 @@ import {
   type FilaMensaje,
   historialDesdeFilas,
   MAX_INTERVENCIONES_POR_SESION,
+  respuestaYaGuardada,
 } from './historial';
 
 const fila = (
@@ -66,5 +67,20 @@ describe('contarIntervenciones (OWASP LLM10: consumo sin límite)', () => {
   it('el tope por práctica deja margen de sobra para una práctica real', () => {
     expect(MAX_INTERVENCIONES_POR_SESION).toBeGreaterThanOrEqual(60);
     expect(MAX_INTERVENCIONES_POR_SESION).toBeLessThanOrEqual(300);
+  });
+});
+
+describe('respuestaYaGuardada', () => {
+  it('reconoce el reintento de un intercambio que ya terminó de guardarse', () => {
+    const filas = [fila('estudiante', 'Hola'), fila('npc', 'Buenas')];
+    expect(respuestaYaGuardada(filas, ' Hola ')).toEqual({ estudiante: filas[0], npc: filas[1] });
+  });
+
+  it.each([
+    ['otro mensaje', [fila('estudiante', 'Hola'), fila('npc', 'Buenas')], 'Adiós'],
+    ['sin respuesta del paciente', [fila('npc', 'Buenas'), fila('estudiante', 'Hola')], 'Hola'],
+    ['sin conversación', [], 'Hola'],
+  ])('no aplica con %s', (_, filas, mensaje) => {
+    expect(respuestaYaGuardada(filas, mensaje)).toBeNull();
   });
 });

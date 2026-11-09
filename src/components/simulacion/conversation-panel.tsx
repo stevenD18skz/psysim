@@ -589,7 +589,7 @@ function ErrorComunicacion({
             <p id="error-comunicacion-detalle" className="text-sm text-muted-foreground">
               {confirmando
                 ? 'Si terminas ahora, la práctica no se podrá reanudar. Tu docente revisará lo que alcanzaste a conversar.'
-                : `${detalleError(mensaje)} Tu último mensaje se guardó.`}
+                : `${detalleError(mensaje)} Tu mensaje sigue aquí para reintentarlo.`}
             </p>
           </div>
         </div>

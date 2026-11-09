@@ -1,6 +1,8 @@
 'use client';
 
 import { useProgress } from '@react-three/drei';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -9,6 +11,9 @@ interface LoadingScreenProps {
   titulo: string;
   competencia: string;
 }
+
+/** Sin avance de la carga durante este tiempo, se ofrece recargar o salir. */
+export const ESPERA_ATASCADA_MS = 45_000;
 
 const CONSEJOS = [
   'Busca un lugar tranquilo. Si quieres, usa auriculares: el consultorio tiene sonido.',
@@ -31,6 +36,16 @@ export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenPro
   const determinado = active || progress > 0;
   const porcentaje = Math.round(progress);
   const luz = determinado ? Math.max(0.15, porcentaje / 100) : 0.45;
+
+  // Un modelo que no termina de descargar (red caída a medias, Storage lento) dejaba al estudiante
+  // frente a esta pantalla sin salida. El reloj vuelve a empezar cada vez que la carga avanza.
+  const [atascadaEn, setAtascadaEn] = useState<number | null>(null);
+  const atascada = atascadaEn === porcentaje;
+  useEffect(() => {
+    if (!visible) return;
+    const temporizador = setTimeout(() => setAtascadaEn(porcentaje), ESPERA_ATASCADA_MS);
+    return () => clearTimeout(temporizador);
+  }, [visible, porcentaje]);
 
   return (
     <div
@@ -90,6 +105,30 @@ export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenPro
           {visible ? `Preparando el consultorio de «${titulo}»…` : ''}
         </p>
       </div>
+
+      {visible && atascada && (
+        <div role="alert" className="flex max-w-md flex-col items-center gap-3 text-sm">
+          <p>
+            El consultorio está tardando más de lo normal. Tu práctica sigue abierta: puedes
+            recargar la página o volver más tarde.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-md font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid"
+            >
+              Recargar
+            </button>
+            <Link
+              href="/practicas"
+              className="rounded-md font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid"
+            >
+              Ir a Mis prácticas
+            </Link>
+          </div>
+        </div>
+      )}
 
       <ul className="flex max-w-md flex-col gap-1.5 text-sm text-sidebar-foreground/80">
         {CONSEJOS.map(consejo => (

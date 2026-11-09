@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requerirUsuario } from '@/lib/auth/dal';
+import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -13,6 +14,7 @@ import { cambiarContrasena, cerrarSesion, iniciarSesion, iniciarSesionConGoogle 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/auth/dal', () => ({ requerirUsuario: vi.fn() }));
+vi.mock('@/lib/auth/verificar-contrasena', () => ({ verificarContrasenaActual: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ olvidarEntrega: vi.fn() }));
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ origin: 'https://psysim.vercel.app' })),
@@ -201,20 +203,24 @@ describe('cerrarSesion (HU-04)', () => {
 });
 
 describe('cambiarContrasena', () => {
-  const NUEVA = { nueva: 'una-frase-segura', confirmacion: 'una-frase-segura' };
+  const NUEVA = {
+    actual: 'la-de-antes',
+    nueva: 'una-frase-segura',
+    confirmacion: 'una-frase-segura',
+  };
+  const DOCENTE = { id: USUARIO.id, correo: CREDENCIALES.correo, rol: 'docente' };
   let admin: SupabaseFalso;
 
   beforeEach(() => {
     admin = crearSupabaseFalso();
     vi.mocked(createAdminClient).mockReturnValue(admin.cliente as never);
-    vi.mocked(requerirUsuario).mockResolvedValue({
-      id: USUARIO.id,
-      contrasenaTemporal: true,
-    } as never);
+    vi.mocked(requerirUsuario).mockResolvedValue({ ...DOCENTE, contrasenaTemporal: true } as never);
+    vi.mocked(verificarContrasenaActual).mockResolvedValue(null);
   });
 
   it('cambia la contraseña y deja de pedir el cambio de la temporal', async () => {
     expect(await cambiarContrasena(NUEVA)).toEqual({ ok: true, datos: null });
+    expect(verificarContrasenaActual).toHaveBeenCalledWith(CREDENCIALES.correo, NUEVA.actual);
     expect(db.auth.updateUser).toHaveBeenCalledWith({ password: NUEVA.nueva });
     expect(admin.de('usuario')[0]).toMatchObject({
       operacion: 'update',
@@ -224,7 +230,7 @@ describe('cambiarContrasena', () => {
 
   it('sin contraseña temporal no toca el perfil', async () => {
     vi.mocked(requerirUsuario).mockResolvedValueOnce({
-      id: USUARIO.id,
+      ...DOCENTE,
       contrasenaTemporal: false,
     } as never);
     expect(await cambiarContrasena(NUEVA)).toMatchObject({ ok: true });
@@ -232,8 +238,12 @@ describe('cambiarContrasena', () => {
   });
 
   it.each([
-    [{ nueva: 'corta', confirmacion: 'corta' }, 'Usa al menos 8 caracteres.'],
-    [{ nueva: 'una-frase-segura', confirmacion: 'otra-frase' }, 'Las contraseñas no coinciden.'],
+    [{ actual: 'x', nueva: 'corta', confirmacion: 'corta' }, 'Usa al menos 8 caracteres.'],
+    [
+      { actual: 'x', nueva: 'una-frase-segura', confirmacion: 'otra-frase' },
+      'Las contraseñas no coinciden.',
+    ],
+    [{ ...NUEVA, actual: '' }, 'Escribe tu contraseña actual.'],
   ])('valida la nueva contraseña (%o)', async (valores, error) => {
     expect(await cambiarContrasena(valores)).toEqual({ ok: false, error });
     expect(db.auth.updateUser).not.toHaveBeenCalled();
@@ -247,5 +257,21 @@ describe('cambiarContrasena', () => {
     db.auth.updateUser.mockResolvedValueOnce({ data: {}, error: { code } });
     expect(await cambiarContrasena(NUEVA)).toEqual({ ok: false, error });
     expect(admin.consultas).toHaveLength(0);
+  });
+
+  it('exige la contraseña actual (sesión abierta en un equipo compartido)', async () => {
+    vi.mocked(verificarContrasenaActual).mockResolvedValueOnce('invalid_credentials');
+    expect(await cambiarContrasena(NUEVA)).toEqual({
+      ok: false,
+      error: 'Tu contraseña actual no es correcta.',
+    });
+    expect(db.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('una cuenta de estudiante no crea contraseña (entra con Google)', async () => {
+    vi.mocked(requerirUsuario).mockResolvedValueOnce({ ...DOCENTE, rol: 'estudiante' } as never);
+    expect(await cambiarContrasena(NUEVA)).toMatchObject({ ok: false });
+    expect(verificarContrasenaActual).not.toHaveBeenCalled();
+    expect(db.auth.updateUser).not.toHaveBeenCalled();
   });
 });

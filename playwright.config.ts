@@ -45,7 +45,17 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         // WebGL por software (SwiftShader) para renderizar la escena 3D sin GPU (CI, headless).
         ...(gpuReal
-          ? { headless: false, launchOptions: { args: ['--ignore-gpu-blocklist'] } }
+          ? {
+              headless: false,
+              // Si otra ventana tapa la del navegador, Chrome deja de dibujar y los FPS caen a 0.
+              launchOptions: {
+                args: [
+                  '--ignore-gpu-blocklist',
+                  '--disable-backgrounding-occluded-windows',
+                  '--disable-renderer-backgrounding',
+                ],
+              },
+            }
           : {
               launchOptions: { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] },
             }),

@@ -2,7 +2,8 @@
 
 import { PerformanceMonitor } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { type ReactNode, useState } from 'react';
+import Link from 'next/link';
+import { Component, type ReactNode, useState } from 'react';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 
 import { MonitorRendimiento } from '@/components/3d/monitor-rendimiento';
@@ -27,7 +28,50 @@ interface SceneCanvasProps {
  * padre DEBE tener un alto definido (p. ej. `h-dvh`): si mide 0 px antes
  * de la hidratación, el canvas no puede calcular su relación de aspecto.
  */
-export function SceneCanvas({ children, onListo }: SceneCanvasProps) {
+const MENSAJE_SIN_WEBGL =
+  'Tu navegador no puede mostrar gráficos 3D (WebGL). Prueba con una versión reciente de Chrome, Edge o Firefox con la aceleración por hardware activada.';
+
+/**
+ * Si el navegador tiene canvas pero no logra crear el contexto WebGL (aceleración desactivada, GPU
+ * en la lista negra), R3F lanza el error hacia afuera y el `fallback` del Canvas nunca se ve: sin
+ * este límite, el estudiante veía «No pudimos cargar esta página» y un Reintentar que no sirve.
+ * Va por encima de la pantalla de carga, que nunca terminaría.
+ */
+class LimiteErrorWebGL extends Component<{ children: ReactNode }, { fallo: boolean }> {
+  state = { fallo: false };
+
+  static getDerivedStateFromError() {
+    return { fallo: true };
+  }
+
+  render() {
+    if (!this.state.fallo) return this.props.children;
+    return (
+      <div
+        role="alert"
+        className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"
+      >
+        <p className="max-w-md text-muted-foreground">{MENSAJE_SIN_WEBGL}</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Tu práctica sigue abierta: puedes retomarla desde otro computador.
+        </p>
+        <Link href="/practicas" className="font-semibold underline underline-offset-4">
+          Ir a Mis prácticas
+        </Link>
+      </div>
+    );
+  }
+}
+
+export function SceneCanvas(props: SceneCanvasProps) {
+  return (
+    <LimiteErrorWebGL>
+      <LienzoEscena {...props} />
+    </LimiteErrorWebGL>
+  );
+}
+
+function LienzoEscena({ children, onListo }: SceneCanvasProps) {
   const [dpr, setDpr] = useState<number>(DPR_MAXIMO);
 
   return (
@@ -50,8 +94,7 @@ export function SceneCanvas({ children, onListo }: SceneCanvasProps) {
       }}
       fallback={
         <div className="flex h-full items-center justify-center p-6 text-center text-muted-foreground">
-          Tu navegador no puede mostrar gráficos 3D (WebGL). Prueba con una versión reciente de
-          Chrome, Edge o Firefox con la aceleración por hardware activada.
+          {MENSAJE_SIN_WEBGL}
         </div>
       }
     >

@@ -30,6 +30,29 @@ export function historialDesdeFilas(filas: readonly FilaMensaje[]): MensajeHisto
     .slice(-LIMITES_CHAT.historial);
 }
 
+/**
+ * Si la conversación vigente termina con este mismo mensaje del estudiante y su respuesta, devuelve
+ * esa respuesta: es un reintento de un intercambio que ya se guardó (la respuesta se perdió en el
+ * camino). Solo se usa cuando el navegador marca el envío como reintento: un estudiante puede
+ * repetir a propósito lo que acaba de decir.
+ */
+export function respuestaYaGuardada<T extends FilaMensaje>(
+  filas: readonly T[],
+  mensaje: string
+): { estudiante: T; npc: T } | null {
+  const vigentes = filas.filter(fila => fila.descartado_en === null);
+  const estudiante = vigentes.at(-2);
+  const npc = vigentes.at(-1);
+  if (
+    estudiante?.remitente !== 'estudiante' ||
+    npc?.remitente !== 'npc' ||
+    estudiante.contenido.trim() !== mensaje.trim()
+  ) {
+    return null;
+  }
+  return { estudiante, npc };
+}
+
 /** Intervenciones del estudiante en la sesión, vigentes o reformuladas. */
 export function contarIntervenciones(filas: readonly FilaMensaje[]): number {
   return filas.filter(fila => fila.remitente === 'estudiante').length;

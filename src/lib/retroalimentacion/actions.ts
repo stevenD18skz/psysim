@@ -23,7 +23,8 @@ import {
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos de la retroalimentación.';
 const MENSAJE_GENERICO = 'No pudimos guardar la retroalimentación. Inténtalo de nuevo.';
-const MENSAJE_EN_CURSO = 'La sesión sigue en curso: podrás revisarla cuando el estudiante termine.';
+const MENSAJE_EN_CURSO =
+  'La práctica sigue en curso: podrás revisarla cuando el estudiante termine.';
 
 type Cliente = Awaited<ReturnType<typeof createClient>>;
 type CambiosRetroalimentacion = Omit<TablesUpdate<'retroalimentacion'>, 'sesion_id' | 'docente_id'>;

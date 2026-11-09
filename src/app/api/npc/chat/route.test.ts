@@ -67,6 +67,11 @@ function clienteFalso(
       remitente: 'estudiante' | 'npc';
       contenido: string;
       descartado_en: string | null;
+      id?: string;
+      emocion?: string | null;
+      creado_en?: string;
+      tokens_entrada?: number | null;
+      tokens_salida?: number | null;
     }[];
     errorHistorial?: boolean;
   } = {}
@@ -283,12 +288,12 @@ describe('POST /api/npc/chat', () => {
     }
   );
 
-  it('devuelve la respuesta aunque falle el guardado de los mensajes (sin ids)', async () => {
+  it('responde 503 si no pudo guardar el intercambio (no quedaría en la transcripción)', async () => {
     clienteFalso(sesionEnCurso, { errorInsercion: true });
     const respuesta = await POST(peticion(cuerpoValido));
-    expect(respuesta.status).toBe(200);
+    expect(respuesta.status).toBe(503);
     const json = await respuesta.json();
-    expect(json).toMatchObject({ id_mensaje_estudiante: null, id_mensaje_npc: null });
+    expect(json).not.toHaveProperty('respuesta_npc');
   });
 
   it('responde 409 si la práctica terminó mientras respondía la IA', async () => {
@@ -418,6 +423,54 @@ describe('POST /api/npc/chat', () => {
 
       expect(respuesta.status).toBe(502);
       expect(await respuesta.text()).not.toMatch(/instrucciones|prompt|fuga/i);
+    });
+  });
+
+  describe('reintento de un intercambio que ya se guardó', () => {
+    const guardados = [
+      {
+        id: ID_MENSAJE_ESTUDIANTE,
+        remitente: 'estudiante' as const,
+        contenido: cuerpoValido.mensaje_usuario,
+        descartado_en: null,
+        emocion: null,
+        creado_en: '2026-11-07T15:00:00.123456+00:00',
+        tokens_entrada: null,
+        tokens_salida: null,
+      },
+      {
+        id: ID_MENSAJE_NPC,
+        remitente: 'npc' as const,
+        contenido: 'Mal, la verdad.',
+        descartado_en: null,
+        emocion: 'triste',
+        creado_en: '2026-11-07T15:00:02.5+00:00',
+        tokens_entrada: 400,
+        tokens_salida: 12,
+      },
+    ];
+
+    it('devuelve lo guardado sin llamar a la IA ni guardar otra vez', async () => {
+      const { rpc } = clienteFalso(sesionEnCurso, { guardados });
+      const respuesta = await POST(peticion({ ...cuerpoValido, reintento: true }));
+
+      expect(respuesta.status).toBe(200);
+      expect(await respuesta.json()).toMatchObject({
+        respuesta_npc: 'Mal, la verdad.',
+        emocion_npc: 'triste',
+        timestamp_respuesta: '2026-11-07T15:00:02.500Z',
+        id_mensaje_estudiante: ID_MENSAJE_ESTUDIANTE,
+        id_mensaje_npc: ID_MENSAJE_NPC,
+      });
+      expect(generarRespuestaPaciente).not.toHaveBeenCalled();
+      expect(rpc).not.toHaveBeenCalled();
+      expect(createAdminClient).not.toHaveBeenCalled();
+    });
+
+    it('sin la marca de reintento, repetir el mismo mensaje es una intervención nueva', async () => {
+      clienteFalso(sesionEnCurso, { guardados });
+      expect((await POST(peticion(cuerpoValido))).status).toBe(200);
+      expect(generarRespuestaPaciente).toHaveBeenCalledOnce();
     });
   });
 });

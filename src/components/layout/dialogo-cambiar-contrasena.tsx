@@ -26,6 +26,7 @@ import {
   LONGITUD_MAXIMA_CONTRASENA,
   LONGITUD_MINIMA_CONTRASENA,
 } from '@/schemas/auth.schema';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 /** Cambio de contraseña desde el menú de la cuenta (o desde el aviso de contraseña temporal). */
 export function DialogoCambiarContrasena({
@@ -47,7 +48,7 @@ export function DialogoCambiarContrasena({
   } = useForm<CambiarContrasenaInput>({
     resolver: zodResolver(cambiarContrasenaSchema),
     mode: 'onTouched',
-    defaultValues: { nueva: '', confirmacion: '' },
+    defaultValues: { actual: '', nueva: '', confirmacion: '' },
   });
 
   const cambiarAbierto = (valor: boolean) => {
@@ -62,17 +63,19 @@ export function DialogoCambiarContrasena({
 
   const onSubmit = (datos: CambiarContrasenaInput) => {
     setErrorServidor(null);
-    startTransition(async () => {
-      const resultado = await cambiarContrasena(datos);
-      if (!resultado.ok) {
-        setErrorServidor(resultado.error);
-        return;
-      }
-      toast.success('Contraseña actualizada.');
-      onAbiertoCambia(false);
-      reset();
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await cambiarContrasena(datos);
+        if (!resultado.ok) {
+          setErrorServidor(resultado.error);
+          return;
+        }
+        toast.success('Contraseña actualizada.');
+        onAbiertoCambia(false);
+        reset();
+        router.refresh();
+      })
+    );
   };
 
   const tipo = visible ? 'text' : 'password';
@@ -99,6 +102,24 @@ export function DialogoCambiarContrasena({
               <AlertDescription>{errorServidor}</AlertDescription>
             </Alert>
           )}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="contrasena-actual">Contraseña actual</Label>
+            <Input
+              id="contrasena-actual"
+              type={tipo}
+              autoComplete="current-password"
+              maxLength={LONGITUD_MAXIMA_CONTRASENA}
+              aria-invalid={errors.actual ? true : undefined}
+              aria-describedby={errors.actual ? 'contrasena-actual-error' : undefined}
+              disabled={guardando}
+              {...register('actual')}
+            />
+            {errors.actual && (
+              <p id="contrasena-actual-error" className="text-sm text-destructive">
+                {errors.actual.message}
+              </p>
+            )}
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="contrasena-nueva">Nueva contraseña</Label>
             <div className="relative">

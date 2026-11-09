@@ -75,7 +75,7 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
         descripcion={
           sesion.estado === 'interrumpida'
             ? 'La práctica se cerró por inactividad. Esto es lo que alcanzó a quedar registrado.'
-            : 'Práctica terminada. Este es el resumen de la sesión.'
+            : 'Práctica terminada. Este es el resumen de la práctica.'
         }
       >
         <p className="text-muted-foreground">

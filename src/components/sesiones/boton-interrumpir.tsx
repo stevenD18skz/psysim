@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, OctagonX } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
@@ -19,14 +19,20 @@ export function BotonInterrumpir({ sesionId }: { sesionId: string }) {
 
   const interrumpir = () =>
     startTransition(async () => {
-      const resultado = await interrumpirSesion({ sesionId });
-      setConfirmando(false);
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-      } else {
-        toast.success('Cerramos la práctica. Ya puedes revisarla.');
+      try {
+        const resultado = await interrumpirSesion({ sesionId });
+        setConfirmando(false);
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+        } else {
+          toast.success('Terminamos la práctica. Ya puedes revisarla.');
+        }
+        router.refresh();
+      } catch (error) {
+        // Sin esto, un corte de red o un despliegue nuevo reemplaza el panel por la página de error.
+        unstable_rethrow(error);
+        toast.error('No pudimos terminar la práctica: revisa tu conexión e inténtalo de nuevo.');
       }
-      router.refresh();
     });
 
   if (!confirmando) {
@@ -34,10 +40,10 @@ export function BotonInterrumpir({ sesionId }: { sesionId: string }) {
       <div className="flex flex-col items-center gap-1.5">
         <Button variant="outline" onClick={() => setConfirmando(true)}>
           <OctagonX aria-hidden />
-          Cerrar la práctica
+          Terminar la práctica
         </Button>
         <p className="text-xs text-muted-foreground">
-          Normalmente no hace falta: se cierra sola tras 10 minutos sin actividad.
+          Normalmente no hace falta: termina sola tras 10 minutos sin actividad.
         </p>
       </div>
     );
@@ -45,14 +51,21 @@ export function BotonInterrumpir({ sesionId }: { sesionId: string }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border bg-background p-3 text-sm">
-      <p>
-        Si el estudiante sigue practicando, se le cerrará y no podrá continuarla. ¿Cerrar la
-        práctica?
+      <p role="alert">
+        Si el estudiante sigue practicando, la práctica terminará y no podrá continuarla. ¿Terminar
+        la práctica?
       </p>
       <div className="flex gap-2">
-        <Button variant="destructive" size="sm" onClick={interrumpir} disabled={pendiente}>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={interrumpir}
+          disabled={pendiente}
+          // El botón que abrió la confirmación desaparece: el foco pasa a la acción.
+          autoFocus
+        >
           {pendiente && <Loader2 className="animate-spin" aria-hidden />}
-          Sí, cerrar la práctica
+          Sí, terminar la práctica
         </Button>
         <Button
           variant="ghost"
