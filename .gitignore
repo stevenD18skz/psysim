@@ -52,7 +52,7 @@ yarn-error.log*
 next-env.d.ts
 
 # project management export (not source code)
-taiga.json
+taiga*.json
 *-pychsims-*.json
 /claude_desing
 # documento del trabajo de grado (se edita en Google Docs; aquí solo la copia de trabajo)

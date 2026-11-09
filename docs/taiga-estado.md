@@ -74,4 +74,5 @@ Detalle y escenarios: [`docs/pruebas/sprint-6.md`](pruebas/sprint-6.md).
 2. **Registrar la URL beta y dar acceso al jurado** (HU-29 · T04).
 3. **Conversar con cada uno de los doce pacientes** desde `/laboratorio/npc` (HU-24 · T02).
 4. **Pasada con lector de pantalla** (NVDA o VoiceOver) por el estudiante y el docente (HU-25).
-5. **Actualizar los estados en Taiga** (las historias figuran como `New`).
+5. ~~Actualizar los estados en Taiga~~: hecho el 8 de noviembre con la API, junto con HU-31 a
+   HU-59 y el Sprint 7 ([`taiga-borrador.md`](taiga-borrador.md)).

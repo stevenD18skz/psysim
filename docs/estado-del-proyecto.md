@@ -1,30 +1,34 @@
-# Estado del proyecto y cómo retomarlo (5 de noviembre de 2026)
+# Estado del proyecto y cómo retomarlo (8 de noviembre de 2026)
 
 Documento de relevo: lo que se hizo, dónde está cada cosa y lo que sigue. Sirve para retomar el
 trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 
 ## Dónde está todo
 
-- **`develop` va 16 commits por delante de `main`** (`ce3a65c`, 5 de noviembre): la medición de
-  rendimiento (#20) y las actualizaciones de Dependabot (#13 a #16, #18 con TypeScript 6 y #19 con
-  `@hookform/resolvers` 7). Producción sigue en `0e0f66f`. Las migraciones de la auditoría ya están
-  aplicadas; ninguna de estas PR trae migraciones.
+- **`main` y `develop` tienen el mismo contenido.** La PR #25 (`develop` → `main`, 8 de noviembre)
+  desplegó `f518f54` en producción con la revisión del 7 de noviembre y las dependencias al día.
+  Solo existen las ramas `main` y `develop`; las fusionadas se borraron. Todas las migraciones están
+  aplicadas, incluida `20261107010000_revision_7_noviembre`.
 - **`main` está protegida** desde el 5 de noviembre: solo entra por PR y con el check «Lint,
   tipos, formato y pruebas» en verde; sin push forzado ni borrado.
-- **Ramas de feature fusionadas que siguen en GitHub** (se pueden borrar): `feat/accesibilidad-sprint5`,
-  `feat/auditoria-seguridad-ia`, `feat/auditoria-ux`, `feat/despliegue-y-docs-sprint6`,
-  `feat/metricas-sesion`, `feat/pruebas-sprint6`, `feat/redaccion-seo-y-compartir`,
-  `feat/ux-ajustes-y-reflexion` y `fix/auditoria-thermos`.
 - **Documento de grado:** `docs/doc_grado/` (LaTeX e instrumentos de evaluación) queda fuera de git a
   propósito. Se compila en Overleaf (XeLaTeX + Biber, `principal.tex` y `anexos.tex`).
-- **Backlog de Taiga:** `taiga.json` (no se modificó). Su estado real está en
-  [`docs/taiga-estado.md`](taiga-estado.md).
+- **Backlog de Taiga:** actualizado el 8 de noviembre con la API: 58 historias (HU-31 a HU-59
+  nuevas), Sprint 7 creado y sprints 3, 5 y 6 cerrados. Lo subido y las decisiones están en
+  [`docs/taiga-borrador.md`](taiga-borrador.md). Las exportaciones (`taiga*.json`) no van a git.
+- **Diseño:** el archivo de Figma de alta fidelidad
+  (<https://www.figma.com/design/j1xZt7tAwmPSksLlXI9vFG>) está enlazado en el capítulo 4 y el
+  Anexo H del documento.
+- **Servicios externos:** monitor de UptimeRobot sobre `/api/salud?profunda=1`
+  ([`docs/observabilidad.md`](observabilidad.md)) y acceso con Google configurado
+  ([`docs/simulacion-a-distancia.md`](simulacion-a-distancia.md)).
 
 ## Documentos clave
 
 | Documento                                                                 | Para qué                                                         |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)          |
+| [`docs/taiga-borrador.md`](taiga-borrador.md)                             | Lo subido a Taiga el 8 de noviembre: HU-31 a HU-59 y estados     |
 | [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                  |
 | [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados |
 | [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes |
@@ -48,39 +52,61 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 - **CI en GitHub Actions** (lint, tipos, formato y pruebas en cada PR) y **Dependabot** semanal.
 - **Medición de rendimiento con GPU real** contra producción: 75 FPS en E-01, E-04 y E-08 durante
   diez minutos de conversación (`docs/performance.md`).
+- **8 de noviembre:** release a `main` (#25), Taiga al día, monitor externo, acceso con Google
+  configurado (falta la prueba positiva), Figma enlazado en el documento y tabla 62 (plan de
+  sprints) incluida en el capítulo 4.
 
 ## Pendiente
 
-### Lo siguiente, en este orden
+Ordenado por lo que más bloquea la entrega. La historia de Taiga va entre paréntesis.
 
-1. **Probar el preview de `develop` en Vercel a mano:** iniciar sesión, hacer una práctica corta
-   en un consultorio con texturas incrustadas (E-07) y otro cualquiera, conversar con el paciente y
-   terminar. El CI no cubre la escena 3D ni la IA, y entraron React 19.3.1, radix-ui 1.8, el AI SDK,
-   Supabase y TypeScript 6. Si hace falta más, `pnpm test:e2e` contra el preview con `--workers=1`.
-2. **PR de `develop` a `main`** cuando el preview esté bien. Al fusionarla se despliega producción;
-   después, comprobar `/api/salud`.
-3. **Borrar las ramas fusionadas** de la lista de arriba (y `docs/medicion-rendimiento`).
+### 1. Bloquea el grado
 
-### En Vercel
+1. **Evaluación con usuarios:** cuestionarios en Google Forms, sesiones por videollamada,
+   evidencia en Drive y análisis (`docs/doc_grado/evaluacion/`). Cinco de las 13 marcas
+   `\pendiente{}` dependen de ella.
+2. **Compilar el documento en Overleaf** (ver la sección «Documento de grado»).
+3. **Las demás marcas `\pendiente{}`**, todas decisiones del autor.
 
-4. **Crear las alertas** de `docs/observabilidad.md`, sección 5, o un monitor externo sobre
-   `/api/salud`.
+### 2. Para la sustentación
 
-### Fuera del código
+4. **Prueba positiva de Google (HU-32 · T04):** registrar un correo `@correounivalle.edu.co` como
+   estudiante y entrar con Google hasta «Mis prácticas». El rechazo de correos no registrados ya
+   está verificado ([`docs/simulacion-a-distancia.md`](simulacion-a-distancia.md)).
+5. **Acceso del jurado y E2E en producción (HU-29 · T03 y T04):** crear sus cuentas y correr
+   `pnpm test:e2e` con `PLAYWRIGHT_BASE_URL` del despliegue y `--workers=1`.
+6. **Conversar con los 12 pacientes** desde `/laboratorio/npc`, incluido E-07 (HU-24 y HU-49).
+7. **Pasada con lector de pantalla** (NVDA) en la simulación y la revisión del docente (HU-25 ·
+   T07). Con la anterior, cierra los requisitos «Pendiente: verificación manual» del Anexo I.
+8. **Figma:** compartir con «Cualquiera con el enlace · puede ver» (HU-51 · T06).
 
-5. **Acceso del jurado (HU-29 · T04):** crear sus cuentas y entregarles las credenciales.
-6. **Conversar con los 12 pacientes** desde `/laboratorio/npc` (HU-24 · T02).
-7. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
-8. **Actualizar los estados en Taiga** (las historias figuran como `New`).
-9. **Completar el aviso de privacidad** (los datos «Por confirmar») y pedir revisión legal.
-10. **Documento de grado** (ver la sección siguiente).
+### 3. Corto
 
-## Documento de grado (revisado el 7 de noviembre)
+9. **Aviso de privacidad:** completar los datos «Por confirmar» y pedir revisión legal (HU-52).
+10. **Licencias de los modelos 3D:** origen y atribución en el documento.
+11. **Gemini:** revisar cuota y facturación de la clave de producción antes de la evaluación.
+12. **`deepmerge`** (alerta baja de Dependabot, solo en la CLI de shadcn): sin versión corregida;
+    revisarla cuando salga.
 
-Al día con el proyecto: las cifras y el entorno del capítulo 5 son los de la corrida del 3 de
-noviembre sobre `0e0f66f` (1402 unitarias, 115 de 116 E2E, 75 FPS, Playwright 1.63.0, Node
-24.17.0), y nada de lo fusionado el 5 de noviembre las contradice. Si `develop` sube a `main` antes
-de entregar, decidir si se repiten las pruebas y se actualizan fechas y versiones.
+### 4. Opcional
+
+13. **Alertas de Vercel** basadas en registros (`docs/observabilidad.md`, sección 5); el monitor
+    externo ya cubre «aplicación caída» y «base de datos caída».
+14. Que el selector de Google muestre `psysim.vercel.app` en vez del dominio de Supabase (decidido
+    dejarlo así; opciones en `docs/simulacion-a-distancia.md`).
+
+## Documento de grado (revisado el 7 de noviembre; cambios del 8 al final)
+
+Las cifras y el entorno del capítulo 5 son los de la corrida del 3 de noviembre sobre `0e0f66f`
+(1402 unitarias, 115 de 116 E2E, 75 FPS, Playwright 1.63.0, Node 24.17.0). Producción ya está en
+`f518f54` (revisión del 7 de noviembre y dependencias): decidir antes de entregar si se repiten las
+pruebas y se actualizan fechas y versiones.
+
+**8 de noviembre:** la tabla 62 (plan de sprints, ahora con HU-31 a HU-59 y el Sprint 7) se incluye
+en «Construcción del sistema» del capítulo 4; la tabla de resultados del capítulo 1 cita el backlog;
+la sección de prototipos enlaza Figma (`\linkfigma`) con la Figura de la paleta, y el Anexo G suma
+las pantallas del estudiante en el celular. La tabla 82 (`generado/tabla-82.tex`) es una copia
+vieja de la tabla de resultados y no se incluye.
 
 **Pasada APA 7 del 7 de noviembre:** anexos B y C con mayúscula solo inicial, coma decimal,
 espacio fino de miles y términos en inglés en cursiva; citas escritas a mano convertidas a
@@ -108,7 +134,7 @@ con la pasada del Anexo I. **Lo que más bloquea es la evaluación con usuarios*
 dependen de ella). El documento nunca se ha compilado: subirlo a Overleaf (XeLaTeX + Biber,
 `principal.tex` y `anexos.tex`) cuanto antes. No está en git; su único respaldo es OneDrive.
 
-## Revisión del 7 de noviembre (sin commit, rama `docs/agenda-retomar`)
+## Revisión del 7 de noviembre (en producción desde el 8 de noviembre)
 
 Cuatro revisores por áreas. Sin hallazgos críticos ni altos. **Corregido** (con pruebas):
 
@@ -141,14 +167,14 @@ Cuatro revisores por áreas. Sin hallazgos críticos ni altos. **Corregido** (co
 - Pantalla de carga: tras 45 s sin avance ofrece «Recargar» e «Ir a Mis prácticas».
 - `modelos:subir`: caché de un día (antes un año en la misma URL).
 
+**Migración aplicada:** `20261107010000_revision_7_noviembre.sql` (tope de 150 con las
+reformuladas en `guardar_intercambio`; el estudiante solo marca `finalizada` una práctica
+comenzada; trigger que impide cambiar el correo de un registro con prácticas). Desde ella, las
+funciones nuevas no tienen `execute` para `public` por defecto: toda función nueva que use
+`authenticated` necesita su `grant` explícito.
+
 **Pendiente:**
 
-- **Aplicar** `supabase/migrations/20261107010000_revision_7_noviembre.sql` (no se probó en seco):
-  tope de 150 con las reformuladas en `guardar_intercambio`; el estudiante solo marca `finalizada`
-  una práctica comenzada; trigger que impide cambiar el correo de un registro con prácticas;
-  funciones nuevas sin `execute` para `public` por defecto (desde ahí, toda función nueva que use
-  `authenticated` necesita su `grant` explícito). Funciona con el código de `main` y `develop`.
-  `! node --env-file=.env.local scripts/aplicar-migracion.mjs supabase/migrations/20261107010000_revision_7_noviembre.sql`
 - Opcional: activar también «Secure password change» en Supabase (Auth → Providers → Email).
 - Ante una fuga, el respaldo vuelve a llamar a la IA (la prueba lo fija a propósito): decidir si se
   mantiene; el límite real es entonces de 20 llamadas por minuto.
