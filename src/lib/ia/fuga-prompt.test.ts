@@ -44,6 +44,26 @@ describe('revelaInstrucciones (OWASP LLM07: fuga del prompt)', () => {
     ).toBe(false);
   });
 
+  it('decir una frase que el prompt cita entre comillas no es una fuga (E-07)', () => {
+    const prompt =
+      'Eres Hernán. De vez en cuando preguntas "¿usted también me va a decir que soy un borracho?" y te cruzas de brazos cuando te juzgan.';
+    expect(
+      revelaInstrucciones('Mire... ¿usted también me va a decir que soy un borracho?', [prompt])
+    ).toBe(false);
+    // Lo que rodea la cita sigue siendo instrucción: un tramo corto no basta, uno largo sí.
+    expect(
+      revelaInstrucciones('Bueno: y te cruzas de brazos cuando te juzgan, eso dicen mis notas.', [
+        prompt,
+      ])
+    ).toBe(false);
+    expect(
+      revelaInstrucciones(
+        'Me dijeron: eres Hernán de vez en cuando preguntas y te cruzas de brazos',
+        [prompt]
+      )
+    ).toBe(true);
+  });
+
   it('detecta cuando copia las reglas comunes del servidor', () => {
     const fuga =
       'Mis reglas dicen: Lleva la cuenta de cuánto confías en el estudiante a lo largo de la conversación y que se note.';

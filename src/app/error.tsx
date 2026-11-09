@@ -12,12 +12,25 @@ import { enviarTelemetria } from '@/lib/observabilidad/enviar';
  * técnico, el usuario ve qué pasó y puede reintentar. En producción `error.message` es genérico;
  * `digest` permite encontrar el error en los logs de Vercel.
  */
-export default function ErrorPagina({
+export default function ErrorPagina(props: {
+  error: Error & { digest?: string };
+  retry: () => void;
+}) {
+  return <ContenidoError {...props} />;
+}
+
+/**
+ * Cuerpo del aviso. Dentro del panel se usa con `envoltorio="div"`: el layout ya tiene su `<main>` y
+ * el menú lateral sigue visible para que el docente no pierda la navegación.
+ */
+export function ContenidoError({
   error,
   retry,
+  envoltorio: Envoltorio = 'main',
 }: {
   error: Error & { digest?: string };
   retry: () => void;
+  envoltorio?: 'main' | 'div';
 }) {
   useEffect(() => {
     console.error(error);
@@ -25,7 +38,7 @@ export default function ErrorPagina({
   }, [error]);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-16 text-center">
+    <Envoltorio className="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-16 text-center">
       <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
         <TriangleAlert className="size-6" aria-hidden />
       </span>
@@ -50,6 +63,6 @@ export default function ErrorPagina({
           <code className="font-mono">{error.digest}</code>
         </p>
       )}
-    </main>
+    </Envoltorio>
   );
 }

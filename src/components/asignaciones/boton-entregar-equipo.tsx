@@ -17,6 +17,7 @@ import { useEsComputador } from '@/hooks/use-es-computador';
 import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { entregarEquipo } from '@/lib/equipo-compartido/actions';
 import { primerNombre } from '@/lib/equipo-compartido/entrega';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 /**
  * Modo presencial: el estudiante hace la práctica en el computador del docente. Antes de entregarlo
@@ -42,16 +43,18 @@ export function BotonEntregarEquipo({
   if (esComputador !== true) return null;
 
   const entregar = () =>
-    startTransition(async () => {
-      // El estudiante que recibe el equipo no debe encontrar borradores de retroalimentación.
-      olvidarDatosDeLaCuenta();
-      // Si todo va bien, la acción cierra la sesión y redirige a la pantalla de entrega.
-      const resultado = await entregarEquipo({ id: asignacionId });
-      if (resultado && !resultado.ok) {
-        toast.error(resultado.error);
-        setAbierto(false);
-      }
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        // El estudiante que recibe el equipo no debe encontrar borradores de retroalimentación.
+        olvidarDatosDeLaCuenta();
+        // Si todo va bien, la acción cierra la sesión y redirige a la pantalla de entrega.
+        const resultado = await entregarEquipo({ id: asignacionId });
+        if (resultado && !resultado.ok) {
+          toast.error(resultado.error);
+          setAbierto(false);
+        }
+      })
+    );
 
   return (
     <>

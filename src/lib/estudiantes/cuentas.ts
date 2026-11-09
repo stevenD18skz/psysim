@@ -97,3 +97,57 @@ export async function asegurarCuentaEstudiante({
 
   return { ok: true, datos: { usuarioId } };
 }
+
+/**
+ * Antes de corregir el correo de un registro, borra la cuenta del correo anterior si solo la usaba
+ * ese registro. Sin esto, la cuenta nueva no se puede crear: el código institucional es único en
+ * `usuario` y lo sigue teniendo la cuenta del correo equivocado.
+ *
+ * Si otro registro (de otro docente) usa la cuenta anterior, no se toca y se avisa: ese docente
+ * tiene que corregir el correo también. Debe llamarse solo después de verificar que el registro no
+ * tiene prácticas.
+ */
+export async function liberarCuentaAnterior({
+  correoAnterior,
+  registroId,
+}: {
+  correoAnterior: string;
+  registroId: string;
+}): Promise<ResultadoAccion<null>> {
+  const admin = createAdminClient();
+
+  const { data: cuenta, error } = await admin
+    .from('usuario')
+    .select('id, rol')
+    .eq('correo', correoAnterior)
+    .maybeSingle();
+  if (error) {
+    log.error('estudiante.cuenta_anterior_no_consultada', { codigo: error.code });
+    return { ok: false, error: MENSAJE_GENERICO };
+  }
+  if (!cuenta || cuenta.rol !== 'estudiante') return { ok: true, datos: null };
+
+  const { count, error: errorConteo } = await admin
+    .from('estudiante')
+    .select('id', { count: 'exact', head: true })
+    .eq('usuario_id', cuenta.id)
+    .neq('id', registroId);
+  if (errorConteo) {
+    log.error('estudiante.registros_no_contados', { codigo: errorConteo.code });
+    return { ok: false, error: MENSAJE_GENERICO };
+  }
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      error:
+        'Otro docente también registró a este estudiante con el correo anterior. Para cambiarlo, ese docente debe corregirlo primero.',
+    };
+  }
+
+  const { error: errorBorrado } = await admin.auth.admin.deleteUser(cuenta.id);
+  if (errorBorrado) {
+    log.error('estudiante.cuenta_anterior_no_eliminada', { codigo: errorBorrado.code });
+    return { ok: false, error: MENSAJE_GENERICO };
+  }
+  return { ok: true, datos: null };
+}

@@ -65,7 +65,7 @@ describe('guardarRetroalimentacion', () => {
       await guardarRetroalimentacion({ sesionId: SESION_ID, comentarioGeneral: '', nota: null })
     ).toEqual({
       ok: false,
-      error: 'La sesión sigue en curso: podrás revisarla cuando el estudiante termine.',
+      error: 'La práctica sigue en curso: podrás revisarla cuando el estudiante termine.',
     });
   });
 

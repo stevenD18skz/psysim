@@ -32,6 +32,7 @@ export type LoginData = z.output<typeof loginSchema>;
 /** El usuario cambia su contraseña (p. ej. la temporal que le dio el Administrador). */
 export const cambiarContrasenaSchema = z
   .object({
+    actual: z.string().min(1, 'Escribe tu contraseña actual.').max(LONGITUD_MAXIMA_CONTRASENA),
     nueva: z
       .string()
       .min(LONGITUD_MINIMA_CONTRASENA, `Usa al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.`)

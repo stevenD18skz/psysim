@@ -5,6 +5,7 @@ import { useTransition } from 'react';
 import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { cerrarSesionEquipoCompartido } from '@/lib/equipo-compartido/actions';
 import { useAppStore } from '@/store/app-store-provider';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 /**
  * Modo presencial: cierra la sesión del estudiante en el equipo del docente y lleva a la pantalla
@@ -17,12 +18,14 @@ export function useCerrarSesionCompartida() {
   const [cerrando, startTransition] = useTransition();
 
   const salir = () =>
-    startTransition(async () => {
-      olvidarDatosDeLaCuenta();
-      limpiarSesion();
-      limpiarAuth();
-      await cerrarSesionEquipoCompartido();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        olvidarDatosDeLaCuenta();
+        limpiarSesion();
+        limpiarAuth();
+        await cerrarSesionEquipoCompartido();
+      })
+    );
 
   return { salir, cerrando };
 }

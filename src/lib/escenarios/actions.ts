@@ -180,7 +180,7 @@ export async function cerrarSesionPorInactividad(
 
   if (error || !sesion?.fin) {
     if (error) log.error('practica.no_cerrada_por_inactividad', { codigo: error.code });
-    return { ok: false, error: 'No pudimos cerrar la sesión. Inténtalo de nuevo.' };
+    return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
   }
 
   return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };

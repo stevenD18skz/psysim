@@ -1,9 +1,10 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { esEmocionNpc } from '@/lib/conversacion/emociones';
 import {
   contarIntervenciones,
-  type FilaMensaje,
   historialDesdeFilas,
   MAX_INTERVENCIONES_POR_SESION,
+  respuestaYaGuardada,
 } from '@/lib/ia/historial';
 import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
 import { log } from '@/lib/log';
@@ -85,7 +86,7 @@ export async function POST(request: Request): Promise<Response> {
     const campos = datos.error.flatten().fieldErrors as Record<string, string[]>;
     return responderError(400, 'Los datos de la petición no son válidos.', campos);
   }
-  const { sesion_id, npc_id, mensaje_usuario } = datos.data;
+  const { sesion_id, npc_id, mensaje_usuario, reintento } = datos.data;
 
   const supabase = await createClient();
   const { data: sesion, error: errorSesion } = await supabase
@@ -131,7 +132,9 @@ export async function POST(request: Request): Promise<Response> {
   // (podría traer turnos del paciente fabricados). LLM10: tope de intervenciones por práctica.
   const { data: filas, error: errorHistorial } = await supabase
     .from('mensaje')
-    .select('remitente, contenido, descartado_en')
+    .select(
+      'id, remitente, contenido, descartado_en, emocion, creado_en, tokens_entrada, tokens_salida'
+    )
     .eq('sesion_id', sesion_id)
     .order('creado_en')
     .order('remitente');
@@ -139,7 +142,29 @@ export async function POST(request: Request): Promise<Response> {
     log.error('npc_chat.historial_no_leido', { peticion, codigo: errorHistorial.code, sesion_id });
     return responderError(500, 'No pudimos cargar la sesión.');
   }
-  const mensajesGuardados: FilaMensaje[] = filas;
+  const mensajesGuardados = filas;
+
+  // Reintento de un intercambio que sí se guardó (la respuesta se perdió en la red): se devuelve
+  // lo guardado, sin otra llamada a la IA ni un intercambio duplicado en la transcripción.
+  const repetido = reintento ? respuestaYaGuardada(mensajesGuardados, mensaje_usuario) : null;
+  if (repetido) {
+    log.info('npc_chat.reintento_ya_guardado', { peticion, sesion_id });
+    const { estudiante, npc: respuestaGuardada } = repetido;
+    const cuerpoRepetido: NpcChatResponse = {
+      respuesta_npc: respuestaGuardada.contenido,
+      emocion_npc:
+        respuestaGuardada.emocion && esEmocionNpc(respuestaGuardada.emocion)
+          ? respuestaGuardada.emocion
+          : null,
+      intensidad_npc: null,
+      timestamp_respuesta: new Date(respuestaGuardada.creado_en).toISOString(),
+      tokens_entrada: respuestaGuardada.tokens_entrada,
+      tokens_salida: respuestaGuardada.tokens_salida,
+      id_mensaje_estudiante: estudiante.id,
+      id_mensaje_npc: respuestaGuardada.id,
+    };
+    return Response.json(cuerpoRepetido, { status: 200, headers: SIN_CACHE });
+  }
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
     log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
     return responderError(429, mensajeTope());
@@ -202,6 +227,9 @@ export async function POST(request: Request): Promise<Response> {
     });
     if (errorGuardado.code === '55000') return responderError(409, 'La práctica ya terminó.');
     if (errorGuardado.code === '54000') return responderError(429, mensajeTope());
+    // Sin guardar, el docente no vería el intercambio en la transcripción y el paciente lo
+    // olvidaría en el siguiente turno: mejor que el estudiante lo reintente.
+    return responderError(503, 'No pudimos guardar tu mensaje. Inténtalo de nuevo.');
   }
 
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).

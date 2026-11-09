@@ -2,7 +2,7 @@
 
 import { Ban, ChevronDown, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { BotonEntregarEquipo } from '@/components/asignaciones/boton-entregar-equipo';
@@ -13,6 +13,7 @@ import { anularAsignacion } from '@/lib/asignaciones/actions';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { type EstadoVisible } from '@/lib/sesiones/estados';
 import { type Asignacion, type EstadoAsignacion } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 const ESTADOS: Record<EstadoAsignacion, EstadoVisible> = {
   pendiente: { texto: 'Sin usar', tono: 'pendiente' },
@@ -92,18 +93,29 @@ function FilaCodigo({
   const [confirmando, setConfirmando] = useState(false);
   const [anulando, startTransition] = useTransition();
   const pendiente = asignacion.estado === 'pendiente';
+  // Al cancelar, el foco vuelve a «Anular»: el botón «No» que lo tenía desaparece.
+  const botonAnular = useRef<HTMLButtonElement>(null);
+  const volverAlBoton = useRef(false);
+  useEffect(() => {
+    if (!confirmando && volverAlBoton.current) {
+      volverAlBoton.current = false;
+      botonAnular.current?.focus();
+    }
+  }, [confirmando]);
 
   const anular = () =>
-    startTransition(async () => {
-      const resultado = await anularAsignacion({ id: asignacion.id });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-      } else {
-        toast.success(`Anulamos el código ${asignacion.codigo}.`);
-      }
-      setConfirmando(false);
-      router.refresh();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await anularAsignacion({ id: asignacion.id });
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+        } else {
+          toast.success(`Anulamos el código ${asignacion.codigo}.`);
+        }
+        setConfirmando(false);
+        router.refresh();
+      })
+    );
 
   return (
     <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
@@ -123,17 +135,27 @@ function FilaCodigo({
         <div className="flex flex-wrap items-center gap-2">
           {confirmando ? (
             <>
-              <span className="text-sm text-muted-foreground">
+              <span role="alert" className="text-sm text-muted-foreground">
                 ¿Anular el código {asignacion.codigo}? Dejará de funcionar.
               </span>
-              <Button size="sm" variant="destructive" onClick={anular} disabled={anulando}>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={anular}
+                disabled={anulando}
+                // El botón que abrió la confirmación desaparece: el foco pasa a la acción.
+                autoFocus
+              >
                 {anulando && <Loader2 className="animate-spin" aria-hidden />}
                 Sí, anular
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setConfirmando(false)}
+                onClick={() => {
+                  volverAlBoton.current = true;
+                  setConfirmando(false);
+                }}
                 disabled={anulando}
               >
                 No
@@ -148,7 +170,12 @@ function FilaCodigo({
                 estudiante={estudiante}
               />
               <BotonEntregarEquipo asignacionId={asignacion.id} estudiante={estudiante.nombre} />
-              <Button size="sm" variant="ghost" onClick={() => setConfirmando(true)}>
+              <Button
+                ref={botonAnular}
+                size="sm"
+                variant="ghost"
+                onClick={() => setConfirmando(true)}
+              >
                 <Ban aria-hidden />
                 Anular
               </Button>

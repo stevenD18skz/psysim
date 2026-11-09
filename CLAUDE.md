@@ -11,6 +11,12 @@ autoevaluación, ni retroalimentación generada): esa decisión es del autor y d
 El detalle de instalación, scripts y arquitectura está en `README.md`; el sistema visual, en
 `DESIGN.md`; el estado y los pendientes, en `docs/estado-del-proyecto.md`.
 
+**Al empezar una sesión sin una tarea concreta** (o si el usuario pregunta qué sigue), leer la
+sección «Pendiente» de `docs/estado-del-proyecto.md`, comprobar con `git` y `gh` que siga vigente
+(ramas, PR abiertas, distancia entre `develop` y `main`) y proponer el primer paso de «Lo
+siguiente». Mencionar también el estado del documento de grado (sección «Documento de grado» del
+mismo archivo). Al cerrar un pendiente, actualizar ese documento.
+
 ## Stack
 
 Next.js 16 (App Router, Turbopack, `src/proxy.ts` en lugar de middleware) · React 19 · TypeScript

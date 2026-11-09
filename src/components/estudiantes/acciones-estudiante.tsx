@@ -19,6 +19,7 @@ import {
 import { contarPracticas } from '@/lib/estudiantes/estudiantes';
 import { eliminarEstudiante } from '@/lib/estudiantes/actions';
 import { type EstudianteRegistrado } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 type Estudiante = Pick<
   EstudianteRegistrado,
@@ -146,20 +147,22 @@ function EliminarEstudiante({
   alEliminar: () => void;
 }) {
   const [pendiente, startTransition] = useTransition();
-  const { sesiones, codigosPendientes } = estudiante.metricas;
+  const { sesiones, codigosPendientes, enCurso } = estudiante.metricas;
   const conHistorial = sesiones > 0;
 
   const eliminar = () =>
-    startTransition(async () => {
-      const resultado = await eliminarEstudiante({ id: estudiante.id });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      toast.success(`${estudiante.nombre} fue eliminado.`);
-      onAbiertoCambia(false);
-      alEliminar();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await eliminarEstudiante({ id: estudiante.id });
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          return;
+        }
+        toast.success(`${estudiante.nombre} fue eliminado.`);
+        onAbiertoCambia(false);
+        alEliminar();
+      })
+    );
 
   return (
     <DialogoConfirmacion
@@ -174,6 +177,12 @@ function EliminarEstudiante({
       onConfirmar={eliminar}
     >
       <ul className="flex list-disc flex-col gap-1 rounded-lg bg-muted/60 py-3 pr-3 pl-7 text-sm">
+        {enCurso > 0 && (
+          <li>
+            <strong>Tiene una práctica abierta.</strong> Si está practicando ahora, la perderá en el
+            acto.
+          </li>
+        )}
         {conHistorial ? (
           <li>
             Se borrarán sus <strong>{contarPracticas(sesiones)}</strong> con las conversaciones y la

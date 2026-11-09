@@ -91,9 +91,19 @@ export async function enviarMensaje(
     sesion_id: sesion.id,
     npc_id: sesion.npc.id,
     mensaje_usuario: mensaje.contenido,
+    // Si la respuesta anterior se perdió después de guardarse, el servidor devuelve la guardada en
+    // lugar de duplicar el intercambio.
+    ...(typeof texto === 'string' ? {} : { reintento: true }),
   };
 
+  // La respuesta puede llegar cuando el estudiante ya salió o abrió otra práctica (el store vive en
+  // el layout y sobrevive a la navegación): si la práctica abierta ya no es la del envío, se descarta
+  // para no duplicar la burbuja que el historial del servidor ya trae ni mezclar conversaciones.
+  const DESCARTADA: ResultadoEnvio = { ok: false, motivo: 'La práctica ya no está abierta.' };
+  const sigueAbierta = () => store.getState().sesion.activa === sesion;
+
   const fallar = (motivo: string): ResultadoEnvio => {
+    if (!sigueAbierta()) return DESCARTADA;
     const actual = store.getState();
     actual.conversacion.establecerError(motivo);
     actual.npc.actualizarEstadoNPC('error_comunicacion');
@@ -118,14 +128,16 @@ export async function enviarMensaje(
   if (!respuesta.ok) {
     const error = npcChatErrorSchema.safeParse(json);
     const detalle = error.success ? error.data.error : null;
-    // La sesión vencida (401) y el límite de mensajes (429) tienen un aviso propio para el estudiante.
-    const conAviso = respuesta.status === 401 || respuesta.status === 429;
+    // La sesión vencida (401), la práctica ya terminada (409) y el límite de mensajes (429) tienen
+    // un aviso propio: con el genérico, el estudiante reintentaría algo que no puede funcionar.
+    const conAviso = [401, 409, 429].includes(respuesta.status);
     return fallar(conAviso && detalle ? detalle : MENSAJE_NO_DISPONIBLE);
   }
 
   const datos = npcChatResponseSchema.safeParse(json);
   if (!datos.success) return fallar(MENSAJE_NO_DISPONIBLE);
 
+  if (!sigueAbierta()) return DESCARTADA;
   const final = store.getState();
   const idRespuesta = crypto.randomUUID();
   final.conversacion.agregarMensaje({

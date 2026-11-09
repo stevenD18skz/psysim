@@ -38,6 +38,7 @@ import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
 import { type Anotacion, type DetalleSesion, type MensajeConversacion } from '@/types';
+import { MENSAJE_SIN_CONEXION, sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface Seleccion {
   mensajeId: string;
@@ -223,20 +224,52 @@ export function RevisionSesion({
     router.refresh();
   };
 
-  const quitar = async (id: string) => {
-    setQuitando(id);
-    const resultado = await eliminarAnotacion({ id });
-    setQuitando(null);
-    if (!resultado.ok) {
-      toast.error(resultado.error);
-      return;
+  // Sin confirmación previa (el botón está al lado de «Editar» y se usa seguido): el aviso ofrece
+  // deshacer, que vuelve a crear el comentario con el mismo fragmento y texto.
+  const restaurar = async (anotacion: Anotacion) => {
+    try {
+      const resultado = await crearAnotacion({
+        sesionId: sesion.id,
+        mensajeId: anotacion.mensajeId,
+        inicio: anotacion.inicio,
+        fin: anotacion.fin,
+        comentario: anotacion.comentario,
+      });
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      setAnotaciones(actuales => [...actuales, resultado.datos]);
+      router.refresh();
+    } catch {
+      toast.error(MENSAJE_SIN_CONEXION);
     }
-    toast.success('Comentario quitado.');
-    setAnotaciones(actuales => actuales.filter(a => a.id !== id));
-    setBurbuja(actual =>
-      actual?.tipo === 'existente' && actual.anotacionId === id ? null : actual
-    );
-    router.refresh();
+  };
+
+  const quitar = async (id: string) => {
+    const anotacion = anotaciones.find(a => a.id === id);
+    setQuitando(id);
+    try {
+      const resultado = await eliminarAnotacion({ id });
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success('Comentario quitado.', {
+        action: anotacion
+          ? { label: 'Deshacer', onClick: () => void restaurar(anotacion) }
+          : undefined,
+      });
+      setAnotaciones(actuales => actuales.filter(a => a.id !== id));
+      setBurbuja(actual =>
+        actual?.tipo === 'existente' && actual.anotacionId === id ? null : actual
+      );
+      router.refresh();
+    } catch {
+      toast.error(MENSAJE_SIN_CONEXION);
+    } finally {
+      setQuitando(null);
+    }
   };
 
   return (
@@ -446,21 +479,23 @@ function NuevaAnotacion({
 
   const guardar = () => {
     if (!comentario.trim()) return;
-    startTransition(async () => {
-      const resultado = await crearAnotacion({
-        sesionId,
-        mensajeId: seleccion.mensajeId,
-        inicio: seleccion.inicio,
-        fin: seleccion.fin,
-        comentario,
-      });
-      if (!resultado.ok) {
-        setError(resultado.error);
-        return;
-      }
-      toast.success('Comentario agregado.');
-      onCreada(resultado.datos);
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await crearAnotacion({
+          sesionId,
+          mensajeId: seleccion.mensajeId,
+          inicio: seleccion.inicio,
+          fin: seleccion.fin,
+          comentario,
+        });
+        if (!resultado.ok) {
+          setError(resultado.error);
+          return;
+        }
+        toast.success('Comentario agregado.');
+        onCreada(resultado.datos);
+      })
+    );
   };
 
   return (
@@ -542,16 +577,18 @@ function DetalleAnotacion({
 
   const guardar = () => {
     if (!texto.trim()) return;
-    startTransition(async () => {
-      const resultado = await actualizarAnotacion({ id: anotacion.id, comentario: texto });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        return;
-      }
-      onActualizada(texto.trim());
-      onEditar(false);
-      toast.success('Comentario actualizado.');
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await actualizarAnotacion({ id: anotacion.id, comentario: texto });
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          return;
+        }
+        onActualizada(texto.trim());
+        onEditar(false);
+        toast.success('Comentario actualizado.');
+      })
+    );
   };
 
   const cancelar = () => {

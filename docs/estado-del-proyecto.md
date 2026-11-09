@@ -5,9 +5,12 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 
 ## Dónde está todo
 
-- **Producción (`main`) y staging (`develop`) tienen el mismo contenido** desde el 3 de noviembre
-  (PR #11 a `develop` y #12 a `main`, `0e0f66f`). Las migraciones de la auditoría ya están
-  aplicadas.
+- **`develop` va 16 commits por delante de `main`** (`ce3a65c`, 5 de noviembre): la medición de
+  rendimiento (#20) y las actualizaciones de Dependabot (#13 a #16, #18 con TypeScript 6 y #19 con
+  `@hookform/resolvers` 7). Producción sigue en `0e0f66f`. Las migraciones de la auditoría ya están
+  aplicadas; ninguna de estas PR trae migraciones.
+- **`main` está protegida** desde el 5 de noviembre: solo entra por PR y con el check «Lint,
+  tipos, formato y pruebas» en verde; sin push forzado ni borrado.
 - **Ramas de feature fusionadas que siguen en GitHub** (se pueden borrar): `feat/accesibilidad-sprint5`,
   `feat/auditoria-seguridad-ia`, `feat/auditoria-ux`, `feat/despliegue-y-docs-sprint6`,
   `feat/metricas-sesion`, `feat/pruebas-sprint6`, `feat/redaccion-seo-y-compartir`,
@@ -48,13 +51,15 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 
 ## Pendiente
 
-### En GitHub (decide el autor)
+### Lo siguiente, en este orden
 
-1. **Dependabot:** #13, #14 y #15 (acciones de CI) y #16 (21 dependencias menores) tienen CI y el
-   preview de Vercel en verde. #18 (TypeScript 6) y #19 (`@hookform/resolvers` 6) quedan para
-   después de la entrega.
-2. **Proteger `main`** (sin push directo, PR con CI en verde).
-3. **Borrar las ramas fusionadas** de la lista de arriba.
+1. **Probar el preview de `develop` en Vercel a mano:** iniciar sesión, hacer una práctica corta
+   en un consultorio con texturas incrustadas (E-07) y otro cualquiera, conversar con el paciente y
+   terminar. El CI no cubre la escena 3D ni la IA, y entraron React 19.3.1, radix-ui 1.8, el AI SDK,
+   Supabase y TypeScript 6. Si hace falta más, `pnpm test:e2e` contra el preview con `--workers=1`.
+2. **PR de `develop` a `main`** cuando el preview esté bien. Al fusionarla se despliega producción;
+   después, comprobar `/api/salud`.
+3. **Borrar las ramas fusionadas** de la lista de arriba (y `docs/medicion-rendimiento`).
 
 ### En Vercel
 
@@ -68,8 +73,85 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
 7. **Pasada con lector de pantalla** (NVDA o VoiceOver) en la simulación y la revisión del docente.
 8. **Actualizar los estados en Taiga** (las historias figuran como `New`).
 9. **Completar el aviso de privacidad** (los datos «Por confirmar») y pedir revisión legal.
-10. **Documento de grado:** compilarlo en Overleaf y resolver sus marcas `PENDIENTE` (evaluación
-    con usuarios, Lighthouse y NVDA, entre otras).
+10. **Documento de grado** (ver la sección siguiente).
+
+## Documento de grado (revisado el 7 de noviembre)
+
+Al día con el proyecto: las cifras y el entorno del capítulo 5 son los de la corrida del 3 de
+noviembre sobre `0e0f66f` (1402 unitarias, 115 de 116 E2E, 75 FPS, Playwright 1.63.0, Node
+24.17.0), y nada de lo fusionado el 5 de noviembre las contradice. Si `develop` sube a `main` antes
+de entregar, decidir si se repiten las pruebas y se actualizan fechas y versiones.
+
+**Pasada APA 7 del 7 de noviembre:** anexos B y C con mayúscula solo inicial, coma decimal,
+espacio fino de miles y términos en inglés en cursiva; citas escritas a mano convertidas a
+biblatex; lista de referencias propia en `anexos.tex`; tablas de anexo numeradas A1, B2…; Brown et
+al. (2020) con sus 31 autores; normas colombianas como `@misc`; Hall (1966) citado. Se corrigieron
+dos errores de contenido: el Anexo C decía 4,000 para Babylon.js (la matriz da 3,975) y la tabla
+de T-08 tenía cruzadas las columnas de _scripting_ y latencia en R3F con 16 a 64 agentes (el texto
+del anexo se ajustó). Respaldo previo en el scratchpad de esa sesión.
+
+Quedan 13 marcas `\pendiente{}`, todas del autor:
+
+- Portada: mes y día. Resumen: resultado principal de la evaluación con usuarios.
+  Agradecimientos.
+- Cap. 1: si los directores exigen un manual aparte; otras herramientas de IA usadas.
+- Cap. 3: confirmar la pantalla de T-01 a T-12 (resultados de 100 FPS con un monitor de 75 Hz;
+  el Anexo B decía 120 Hz y se quitó).
+- Anexo C, tabla de T-08: confirmar con los registros las latencias de Babylon.js con 4 o más
+  agentes (venían con punto de miles ambiguo; el pico de 64 se leyó como 43 130 ms).
+- Cap. 4: revisar la sección con el profesor Fabián Valencia.
+- Cap. 5: verificación manual (Anexo I), Lighthouse y NVDA, resultados y discusión de la
+  evaluación con usuarios. Cap. 6: conclusión sobre usabilidad y satisfacción.
+
+Las tablas 68 y 71 tienen unos 30 requisitos en «Pendiente: verificación manual» que se cierran
+con la pasada del Anexo I. **Lo que más bloquea es la evaluación con usuarios** (cinco marcas
+dependen de ella). El documento nunca se ha compilado: subirlo a Overleaf (XeLaTeX + Biber,
+`principal.tex` y `anexos.tex`) cuanto antes. No está en git; su único respaldo es OneDrive.
+
+## Revisión del 7 de noviembre (sin commit, rama `docs/agenda-retomar`)
+
+Cuatro revisores por áreas. Sin hallazgos críticos ni altos. **Corregido** (con pruebas):
+
+- Modo presencial: el consentimiento de privacidad y del dictado, la guía vista y los borradores
+  de casos (con lo que guarda el paciente) ahora se borran al entregar el equipo.
+- Filtro de fuga: las frases citadas del prompt ya no cuentan (E-07 fallaba con 502 cada vez que
+  Hernán hacía su pregunta de diez palabras).
+- Chat: una respuesta que llega tras salir o reabrir la práctica se descarta; el 409 muestra «La
+  práctica ya terminó»; el aviso de error ya no dice que el mensaje se guardó.
+- Inactividad: una pestaña oculta en `respondiendo` ya no mantiene la práctica abierta.
+- Sin WebGL: aviso propio con «Ir a Mis prácticas» por encima de la pantalla de carga.
+- Panel: `error.tsx` propio que conserva el menú; «Terminar la práctica» del docente con foco,
+  `role="alert"` y manejo de error de red; textos según la guía; CSV con fecha de Bogotá;
+  «Agregar correo» a un registro antiguo con prácticas; cursor del paciente; prueba intermitente
+  de `reflexion.test.tsx`.
+
+**Segunda pasada (mismo día), corregido** (con pruebas):
+
+- Cambiar la contraseña pide la actual (se comprueba con un cliente aparte, sin tocar la sesión);
+  las cuentas de estudiante ya no pueden crear contraseña y el menú no se lo ofrece.
+- Corregir el correo de un estudiante sin prácticas ya funciona: antes se borra la cuenta del
+  correo anterior si solo la usaba ese registro (si la usa otro docente, se avisa).
+- Chat: si `guardar_intercambio` falla, la ruta responde 503 en vez de 200 (el intercambio no
+  quedaba en la transcripción). Reintentar envía `reintento: true` y, si el intercambio ya se
+  guardó, el servidor devuelve lo guardado sin llamar a la IA ni duplicarlo.
+- Panel: todas las transiciones que llaman Server Actions pasan por `sinPerderElPanel` (un corte
+  de red da un aviso, no la página de error); `loading.tsx` del panel; quitar un comentario ofrece
+  «Deshacer»; «Anular» mueve el foco a la confirmación y lo devuelve al cancelar; eliminar a un
+  estudiante con una práctica abierta lo advierte; archivar un caso anula sus códigos sin usar.
+- Pantalla de carga: tras 45 s sin avance ofrece «Recargar» e «Ir a Mis prácticas».
+- `modelos:subir`: caché de un día (antes un año en la misma URL).
+
+**Pendiente:**
+
+- **Aplicar** `supabase/migrations/20261107010000_revision_7_noviembre.sql` (no se probó en seco):
+  tope de 150 con las reformuladas en `guardar_intercambio`; el estudiante solo marca `finalizada`
+  una práctica comenzada; trigger que impide cambiar el correo de un registro con prácticas;
+  funciones nuevas sin `execute` para `public` por defecto (desde ahí, toda función nueva que use
+  `authenticated` necesita su `grant` explícito). Funciona con el código de `main` y `develop`.
+  `! node --env-file=.env.local scripts/aplicar-migracion.mjs supabase/migrations/20261107010000_revision_7_noviembre.sql`
+- Opcional: activar también «Secure password change» en Supabase (Auth → Providers → Email).
+- Ante una fuga, el respaldo vuelve a llamar a la IA (la prueba lo fija a propósito): decidir si se
+  mantiene; el límite real es entonces de 20 llamadas por minuto.
 
 ## Recomendaciones de UX sin aplicar
 

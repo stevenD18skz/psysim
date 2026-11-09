@@ -36,6 +36,11 @@ export const npcChatRequestSchema = z.object({
       `mensaje_usuario no puede superar ${LIMITES_CHAT.mensaje} caracteres.`
     ),
   /**
+   * El navegador reenvía un mensaje que falló. Si el intercambio ya quedó guardado (se perdió solo
+   * la respuesta), el servidor devuelve lo guardado sin llamar otra vez a la IA.
+   */
+  reintento: z.boolean().optional(),
+  /**
    * Obsoleto: el servidor ya no lo usa. El contexto de la IA sale de los mensajes guardados
    * (`lib/ia/historial.ts`); si el navegador pudiera fijarlo, podría fabricar turnos del paciente.
    * Se sigue aceptando (y validando) solo por compatibilidad con clientes anteriores.

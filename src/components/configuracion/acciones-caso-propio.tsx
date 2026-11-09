@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { archivarCaso } from '@/lib/casos/actions';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface AccionesCasoPropioProps {
   casoId: string;
@@ -23,16 +24,18 @@ export function AccionesCasoPropio({ casoId, titulo, onEliminado }: AccionesCaso
   const [eliminando, startTransition] = useTransition();
 
   const eliminar = () => {
-    startTransition(async () => {
-      const resultado = await archivarCaso({ id: casoId });
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        setConfirmando(false);
-        return;
-      }
-      toast.success(`Caso «${titulo}» eliminado.`);
-      onEliminado(casoId);
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await archivarCaso({ id: casoId });
+        if (!resultado.ok) {
+          toast.error(resultado.error);
+          setConfirmando(false);
+          return;
+        }
+        toast.success(`Caso «${titulo}» eliminado.`);
+        onEliminado(casoId);
+      })
+    );
   };
 
   if (confirmando) {

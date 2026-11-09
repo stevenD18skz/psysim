@@ -37,6 +37,7 @@ import {
   LIMITES_DOCENTE,
 } from '@/schemas/admin.schema';
 import { type DocenteAdmin } from '@/types';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface DialogoDocenteProps {
   /** Con un docente, edita sus datos y su rol. Sin él, crea una cuenta nueva. */
@@ -106,42 +107,44 @@ export function DialogoDocente({
 
   const onSubmit = (datos: CrearDocenteData) => {
     setErrorServidor(null);
-    startTransition(async () => {
-      if (editando) {
-        const resultado = await actualizarDocente({
-          id: docente.id,
-          nombre: datos.nombre,
-          correo: datos.correo,
-          codigo: datos.codigo,
-          rol: datos.rol,
-        });
+    startTransition(
+      sinPerderElPanel(async () => {
+        if (editando) {
+          const resultado = await actualizarDocente({
+            id: docente.id,
+            nombre: datos.nombre,
+            correo: datos.correo,
+            codigo: datos.codigo,
+            rol: datos.rol,
+          });
+          if (!resultado.ok) {
+            setErrorServidor(resultado.error);
+            return;
+          }
+          toast.success('Datos de la cuenta actualizados.');
+          onGuardado?.();
+          cambiarAbierto(false);
+          return;
+        }
+
+        const resultado = await crearDocente(datos);
         if (!resultado.ok) {
           setErrorServidor(resultado.error);
           return;
         }
-        toast.success('Datos de la cuenta actualizados.');
         onGuardado?.();
-        cambiarAbierto(false);
-        return;
-      }
-
-      const resultado = await crearDocente(datos);
-      if (!resultado.ok) {
-        setErrorServidor(resultado.error);
-        return;
-      }
-      onGuardado?.();
-      if (resultado.datos.contrasena) {
-        setCredenciales({
-          nombre: datos.nombre,
-          correo: datos.correo,
-          contrasena: resultado.datos.contrasena,
-        });
-      } else {
-        toast.success(`Cuenta de ${datos.nombre} creada. Ya puede entrar con Google.`);
-        cambiarAbierto(false);
-      }
-    });
+        if (resultado.datos.contrasena) {
+          setCredenciales({
+            nombre: datos.nombre,
+            correo: datos.correo,
+            contrasena: resultado.datos.contrasena,
+          });
+        } else {
+          toast.success(`Cuenta de ${datos.nombre} creada. Ya puede entrar con Google.`);
+          cambiarAbierto(false);
+        }
+      })
+    );
   };
 
   const [rol, acceso] = useWatch({ control, name: ['rol', 'acceso'] });

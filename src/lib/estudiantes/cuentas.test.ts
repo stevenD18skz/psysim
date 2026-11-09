@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
-import { asegurarCuentaEstudiante } from './cuentas';
+import { asegurarCuentaEstudiante, liberarCuentaAnterior } from './cuentas';
 
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
@@ -121,5 +121,38 @@ describe('asegurarCuentaEstudiante', () => {
       ok: false,
       error: 'No pudimos crear la cuenta del estudiante. Inténtalo de nuevo.',
     });
+  });
+});
+
+describe('liberarCuentaAnterior', () => {
+  const ARGS = { correoAnterior: 'ana.peres@correounivalle.edu.co', registroId: 'r1' };
+
+  it('borra la cuenta del correo anterior si solo la usaba ese registro', async () => {
+    admin.responder('usuario', { data: { id: 'u-viejo', rol: 'estudiante' } });
+    admin.responder('estudiante', { count: 0 });
+
+    expect(await liberarCuentaAnterior(ARGS)).toEqual({ ok: true, datos: null });
+    expect(admin.auth.admin.deleteUser).toHaveBeenCalledWith('u-viejo');
+    expect(admin.de('estudiante')[0]!.filtros).toEqual([
+      ['eq', 'usuario_id', 'u-viejo'],
+      ['neq', 'id', 'r1'],
+    ]);
+  });
+
+  it('no toca la cuenta si otro docente la usa', async () => {
+    admin.responder('usuario', { data: { id: 'u-viejo', rol: 'estudiante' } });
+    admin.responder('estudiante', { count: 1 });
+
+    expect(await liberarCuentaAnterior(ARGS)).toMatchObject({ ok: false });
+    expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no hay cuenta', { data: null }],
+    ['es de un docente', { data: { id: 'd1', rol: 'docente' } }],
+  ])('no hace nada si %s', async (_, respuesta) => {
+    admin.responder('usuario', respuesta);
+    expect(await liberarCuentaAnterior(ARGS)).toEqual({ ok: true, datos: null });
+    expect(admin.auth.admin.deleteUser).not.toHaveBeenCalled();
   });
 });

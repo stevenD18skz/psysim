@@ -109,6 +109,7 @@ describe('enviarMensaje (HU-13 · T03)', () => {
       (hacerFetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string
     );
     expect(cuerpo.mensaje_usuario).toBe('Segundo');
+    expect(cuerpo).not.toHaveProperty('reintento');
     expect(cuerpo).not.toHaveProperty('historial');
   });
 
@@ -173,7 +174,8 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     const cuerpo = JSON.parse(
       (hacerFetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string
     );
-    expect(cuerpo).toMatchObject({ mensaje_usuario: 'Hola' });
+    // Si el intercambio sí se guardó y solo se perdió la respuesta, el servidor no lo duplica.
+    expect(cuerpo).toMatchObject({ mensaje_usuario: 'Hola', reintento: true });
     const { conversacion, npc, metricas } = store.getState();
     expect(conversacion.mensajes.map(m => m.remitente)).toEqual(['estudiante', 'npc']);
     expect(conversacion.error).toBeNull();
@@ -204,5 +206,33 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     const { conversacion, npc } = store.getState();
     expect(npc.estado).toBe('error_comunicacion');
     expect(conversacion.pendiente?.contenido).toBe('Hola');
+  });
+
+  it('muestra el aviso del servidor cuando la práctica ya terminó (409)', async () => {
+    const store = storeListo();
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () => jsonResponse({ error: 'La práctica ya terminó.' }, 409)),
+      ahora,
+    });
+    expect(resultado).toEqual({ ok: false, motivo: 'La práctica ya terminó.' });
+  });
+
+  it('descarta una respuesta que llega cuando ya se abrió otra vez la práctica', async () => {
+    const store = storeListo();
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () => {
+        // Mientras el paciente piensa, el estudiante sale y vuelve: el historial del servidor ya
+        // trae el intercambio.
+        store.getState().sesion.iniciar({ ...sesion });
+        return jsonResponse({
+          ...respuestaOk,
+          id_mensaje_estudiante: '11111111-1111-4111-8111-111111111111',
+          id_mensaje_npc: '22222222-2222-4222-8222-222222222222',
+        });
+      }),
+      ahora,
+    });
+    expect(resultado.ok).toBe(false);
+    expect(store.getState().conversacion.mensajes.some(m => m.remitente === 'npc')).toBe(false);
   });
 });

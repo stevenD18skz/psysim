@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { guardarVariante } from '@/lib/casos/actions';
 import { guardarVarianteSchema, LIMITES_CASO } from '@/schemas/caso.schema';
+import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 interface GuardarComoCasoProps {
   escenarioId: string | null;
@@ -55,17 +56,19 @@ export function GuardarComoCaso({
     }
 
     setError(null);
-    startTransition(async () => {
-      const resultado = await guardarVariante(datos.data);
-      if (!resultado.ok) {
-        setError(resultado.error);
-        inputRef.current?.focus();
-        return;
-      }
-      toast.success(`«${datos.data.titulo}» guardado en Mis casos.`);
-      onGuardado();
-      cancelar();
-    });
+    startTransition(
+      sinPerderElPanel(async () => {
+        const resultado = await guardarVariante(datos.data);
+        if (!resultado.ok) {
+          setError(resultado.error);
+          inputRef.current?.focus();
+          return;
+        }
+        toast.success(`«${datos.data.titulo}» guardado en Mis casos.`);
+        onGuardado();
+        cancelar();
+      })
+    );
   };
 
   if (!editando) {

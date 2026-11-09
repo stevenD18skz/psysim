@@ -164,7 +164,7 @@ describe('cerrarSesionPorInactividad', () => {
     db.responder('sesion', ...respuestas);
     expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toEqual({
       ok: false,
-      error: 'No pudimos cerrar la sesión. Inténtalo de nuevo.',
+      error: 'No pudimos terminar la práctica. Inténtalo de nuevo.',
     });
   });
 });
