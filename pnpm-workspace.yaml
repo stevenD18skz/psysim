@@ -8,3 +8,7 @@ overrides:
   undici: '>=8.12.2'
   sharp: '>=0.35.5'
   ip-address: '>=10.7.4'
+  # GHSA-g3hv-75wg-m249 (amplificación de patrones). Solo en herramientas de desarrollo:
+  # typescript-eslint y la CLI de shadcn (ts-morph) piden ^10. Solo se sube la rama vulnerable;
+  # minimatch 3 (ESLint) queda igual. Fijada para no tomar una versión de días.
+  'minimatch@>=7.0.0 <11.0.1': '11.0.3'
