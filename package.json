@@ -23,7 +23,7 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "audit:deps": "pnpm audit",
     "check": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test",
-    "db:types": "supabase gen types typescript --project-id afqofsneoblsjjdvktsu --schema public > src/types/database.types.ts && prettier --write src/types/database.types.ts",
+    "db:types": "supabase gen types typescript --remote=afqofsneoblsjjdvktsu --schema public > src/types/database.types.ts && prettier --write src/types/database.types.ts",
     "ai:test": "node --env-file-if-exists=.env.local scripts/test-ai-connection.ts",
     "supabase:test": "node --env-file-if-exists=.env.local scripts/test-supabase-connection.ts",
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed-docentes.ts",
