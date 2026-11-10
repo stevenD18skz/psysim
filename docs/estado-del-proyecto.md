@@ -124,6 +124,15 @@ referencias ni citas sin resolver y sin desbordes: principal 64 páginas, anexos
 recompilar: `docs/doc_grado/latex/compilar.ps1` (PDF en `docs/doc_grado/pdf/`, auxiliares en
 `docs/doc_grado/compilacion/`). Overleaf sigue sirviendo para compartir con los directores.
 
+**Un solo PDF (9 de noviembre):** la plataforma de entrega acepta un archivo, así que los anexos
+pasaron a `latex/anexos-cuerpo.tex` y van dentro de `principal.tex`, después de las referencias
+(APA 7). `anexos.tex` ya no existe. Ahora «Anexo X» es un vínculo interno; las remisiones de los
+anexos al capítulo 3 son `\ref` (incluida `tab:w22`), y la Tabla 3, que estaba repetida en el
+Anexo B, solo aparece en el capítulo 3. Los anexos tienen anclajes propios (`\theHsection`), porque
+si no los marcadores y la lista de tablas llevaban al capítulo 5. Resultado: `pdf/principal.pdf`,
+160 páginas, sin errores ni desbordes, con los 30 vínculos «Anexo X» y las listas de tablas y
+figuras comprobados.
+
 **Pasada APA 7 del 7 de noviembre:** anexos B y C con mayúscula solo inicial, coma decimal,
 espacio fino de miles y términos en inglés en cursiva; citas escritas a mano convertidas a
 biblatex; lista de referencias propia en `anexos.tex`; tablas de anexo numeradas A1, B2…; Brown et
