@@ -217,8 +217,38 @@ exactamente como la describe su JSON; los cambios tardan unos segundos en asenta
 - Por ahora siempre está activo. Pendiente: que el docente lo configure por sesión ("ambiente
   dinámico", "voz de los pacientes") y, si se prefiere, reemplazar las capas por grabaciones.
 
-## 6. Licencias
+## 6. Origen y licencias (revisado el 8 de noviembre de 2026)
 
-Los modelos de `public/models/muebles` provienen de paquetes de terceros (p. ej. Poly Pizza).
-Antes de publicar la beta, verifica la licencia de cada modelo usado y añade la atribución que
-requiera (CC-BY) en la página de créditos.
+**Pacientes (`personajes/`):** creados para el proyecto. Los seis GLB se exportaron con el
+`GLTFExporter` de Three.js desde los prototipos hechos con Claude Design (ver
+`src/lib/npc/catalogo.ts`); no son de terceros. Los de `npcs/` son la versión anterior, sin
+esqueleto, y ninguna escena los usa.
+
+**Mobiliario (`muebles/`):** de las 99 piezas de la carpeta, las escenas solo cargan **8**; el resto
+del mobiliario se dibuja con código (`muebles-procedurales.tsx`). Las 8 vienen de
+[Poly Pizza](https://poly.pizza). Ningún GLB guarda autor ni licencia en sus metadatos, así que se
+buscaron en Poly Pizza por identificador (cuando el nombre lo trae) o por nombre:
+
+| Archivo                      | Página                                                       | Autor          | Licencia  | Certeza                                                       |
+| ---------------------------- | ------------------------------------------------------------ | -------------- | --------- | ------------------------------------------------------------- |
+| `Houseplant-VtJh4Irl4w.glb`  | [poly.pizza/m/VtJh4Irl4w](https://poly.pizza/m/VtJh4Irl4w)   | Quaternius     | CC0       | Alta (identificador en el nombre)                             |
+| `Houseplant-e9oRt-Ct6js.glb` | [poly.pizza/m/e9oRt-Ct6js](https://poly.pizza/m/e9oRt-Ct6js) | jeremy         | CC BY 3.0 | Alta (identificador en el nombre)                             |
+| `Light Desk.glb`             | [poly.pizza/m/uJDWrSJGVH](https://poly.pizza/m/uJDWrSJGVH)   | Quaternius     | CC0       | Media-alta (único con ese nombre; formato FBX)                |
+| `Magazine.glb`               | [poly.pizza/m/OMzty7kxKo](https://poly.pizza/m/OMzty7kxKo)   | J-Toastie      | CC BY 3.0 | Media-alta (único con ese nombre)                             |
+| `Book Stack.glb`             | [poly.pizza/m/1WggoIFq8tx](https://poly.pizza/m/1WggoIFq8tx) | Danni Bittman  | CC BY 3.0 | Media-baja (también hay «Book» de Poly by Google)             |
+| `Mug.glb`                    | varios «Mug» en Poly Pizza                                   | Poly by Google | CC BY 3.0 | Licencia segura (todos los candidatos son CC BY)              |
+| `Coffee cup.glb`             | varios «Coffee cup» en Poly Pizza                            | Poly by Google | CC BY 3.0 | Licencia segura (todos los candidatos son CC BY)              |
+| `Cup.glb`                    | varios «Cup» en Poly Pizza                                   | Poly by Google | CC BY 3.0 | Probable (un candidato de Kenney es CC0; se trata como CC BY) |
+
+Los casos dudosos se atribuyen como CC BY 3.0: atribuir de más un modelo que fuera CC0 no tiene
+costo; omitir una atribución obligatoria, sí. Para confirmarlos habría que descargar los
+candidatos y comparar los nombres de malla y material (`Mug_1`/`Mat`, `Cup_1`/`Mat`,
+`Cube_Cube.022-Mesh`/`Material.005`, `Node-Mesh`/`mat10`).
+
+**Atribución:** CC BY 3.0 exige citar autor, obra y licencia de forma razonable para el medio. Está
+en este archivo (repositorio público) y en el Anexo H del documento de grado. Pendiente: una línea
+de créditos visible en la aplicación (por ejemplo, en `/privacidad` o en el pie), para que la
+atribución también llegue a quien usa la plataforma.
+
+**Al añadir un modelo:** descargar con el identificador de Poly Pizza en el nombre (o anotar la
+URL aquí) y agregar su fila a esta tabla.
