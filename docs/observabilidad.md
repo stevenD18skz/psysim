@@ -73,6 +73,20 @@ Umbrales iniciales para una beta con pocos usuarios; se ajustan con datos reales
 Un monitor externo gratuito (UptimeRobot, Better Stack) sobre `/api/salud` cubre «aplicación
 caída» sin depender de Vercel.
 
+**Monitor activo desde el 8 de noviembre de 2026:** UptimeRobot (plan gratuito, cuenta del
+autor) consulta `https://psysim.vercel.app/api/salud?profunda=1` cada 5 minutos y avisa por correo
+cuando falla y cuando se recupera. Usa la ruta profunda a propósito:
+
+- Cubre «aplicación caída» y «base de datos caída» con un solo monitor: si la aplicación no
+  responde, la ruta profunda tampoco.
+- Mantiene activa la base de datos. Supabase pausa los proyectos del plan gratuito tras 7 días sin
+  actividad, y una pausa justo antes de la evaluación o de la sustentación dejaría a todos sin
+  poder entrar.
+- La consulta es barata (`select` con `head: true` sobre `escenario`, sin filas) y no escribe
+  nada.
+
+Las demás alertas de la tabla, que dependen de los registros, siguen pendientes en Vercel.
+
 ## 6. Fuera de alcance (a propósito)
 
 - **Trazas distribuidas / OpenTelemetry y Sentry:** con una sola aplicación y pocos usuarios, el

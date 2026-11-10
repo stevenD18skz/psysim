@@ -86,21 +86,50 @@ Migraciones `20261007010000_rol_estudiante`, `20261007020000_codigos_acceso_retr
   después de comprobar con RLS que la sesión es suya (`src/lib/sesiones/datos-privados.ts`).
 - El estudiante solo ve la retroalimentación y las anotaciones publicadas.
 
-## Configuración pendiente: acceso con Google
+## Acceso con Google (configurado el 8 de noviembre de 2026)
 
-El código está listo, pero el proveedor de Google debe activarse en Supabase:
+Supabase hace el flujo con su proveedor nativo; Google solo aporta la identificación de la
+aplicación (Client ID y Client Secret, que viven en Supabase y en ningún archivo del repositorio).
 
-1. En Google Cloud Console, crea un cliente OAuth de tipo «Aplicación web». En «URI de
-   redireccionamiento autorizados» agrega `https://afqofsneoblsjjdvktsu.supabase.co/auth/v1/callback`.
-   Si la universidad lo permite, configura la pantalla de consentimiento como «Interna» para el
-   dominio `correounivalle.edu.co`.
-2. En Supabase → Authentication → Sign In / Providers → Google, actívalo con el Client ID y el
-   Client Secret.
-3. Deja **desactivado** «Allow new users to sign up». Las cuentas las crea el docente al registrar
-   al estudiante; Supabase enlaza la identidad de Google a esa cuenta por el correo. Un correo no
-   registrado vuelve con `signup_disabled` y ve «Acceso denegado».
-4. En URL Configuration, las URL de retorno ya incluyen `http://localhost:3000/**` y
-   `https://psysim.vercel.app/**`, que cubren `/auth/callback`.
+1. **Google Cloud Console**, proyecto «PsySim» en la cuenta personal del autor:
+   - Pantalla de consentimiento (Google Auth Platform → Branding): nombre «PsySim», sin logo (un
+     logo obliga a una verificación de días), página principal `https://psysim.vercel.app`,
+     privacidad `https://psysim.vercel.app/privacidad`, dominio autorizado `psysim.vercel.app`.
+   - Público: «Usuarios externos», **publicada en producción**. En modo de prueba solo entran los
+     usuarios agregados a mano. Con los permisos básicos (`openid`, `email`, `profile`) Google no
+     exige verificación. No se usó «Interna»: limitaría el acceso a cuentas de Univalle y dejaría
+     el proyecto bajo control de los administradores de la universidad.
+   - Cliente OAuth «Aplicación web», sin la opción de agente de IA. Orígenes:
+     `https://psysim.vercel.app` y `http://localhost:3000`. URI de redirección (la de Supabase,
+     no la de la aplicación): `https://afqofsneoblsjjdvktsu.supabase.co/auth/v1/callback`.
+2. **Supabase** → Authentication → Sign In / Providers → Google: activo, con el Client ID y el
+   Client Secret, y la comprobación de _nonce_ encendida.
+3. «Allow new users to sign up» sigue **desactivado** (`disable_signup = true`). Las cuentas las
+   crea el docente al registrar al estudiante; Supabase enlaza la identidad de Google a esa cuenta
+   por el correo verificado. Un correo no registrado vuelve con `signup_disabled` y ve «Acceso
+   denegado».
+4. En URL Configuration, las URL de retorno ya incluyen `http://localhost:3000/**`,
+   `https://psysim.vercel.app/**` y las vistas previas de Vercel, que cubren `/auth/callback`.
+
+**Verificado el 8 de noviembre:** Supabase entrega el enlace de Google con la URI de redirección
+correcta y Google lo acepta; una cuenta de Gmail y una de Univalle sin registrar quedaron en
+«Acceso denegado» (registro de Auth: `422: Signups not allowed`). **Falta** la prueba positiva:
+registrar un correo `@correounivalle.edu.co` como estudiante y entrar con Google hasta «Mis
+prácticas» (HU-32 · T04).
+
+**Para comprobarlo sin la interfaz** (solo lectura, con `SUPABASE_ACCESS_TOKEN`): `GET
+/v1/projects/<ref>/config/auth` debe mostrar `external_google_enabled: true` y
+`disable_signup: true`; tras un ingreso, `auth.identities` tiene una fila con `provider = 'google'`.
+
+**Limitación conocida (decidida el 8 de noviembre):** el selector de cuentas de Google dice «Ir a
+afqofsneoblsjjdvktsu.supabase.co» y no «PsySim», porque Google muestra el dominio al que vuelve y
+el retorno pasa por Supabase. No afecta la seguridad ni el funcionamiento, y se deja así. Si
+molesta más adelante, hay dos salidas: dibujar el botón con Google Identity Services en la propia
+página y entrar con `signInWithIdToken` (gratis, pero hay que mover a ese flujo el _nonce_, el
+rechazo de correos no registrados y la comprobación del modo presencial que hoy hace
+`/auth/callback`, y abrir la CSP al script de Google), o un dominio propio en Supabase (plan Pro
+más el complemento de dominio). Que aparezca el nombre «PsySim» exige además verificar la marca en
+Google, imposible sin ser dueño de los dominios autorizados.
 
 ## Cuentas de prueba
 

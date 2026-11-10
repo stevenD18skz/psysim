@@ -52,11 +52,14 @@ yarn-error.log*
 next-env.d.ts
 
 # project management export (not source code)
-taiga.json
+taiga*.json
 *-pychsims-*.json
 /claude_desing
 # documento del trabajo de grado (se edita en Google Docs; aquí solo la copia de trabajo)
 /docs/trabajo-de-grado/
+# documento de grado vigente: LaTeX, PDF compilados e instrumentos de evaluación con datos
+# personales. Queda fuera del repositorio público a propósito; su respaldo es OneDrive.
+/docs/doc_grado/
 
 # capturas de scripts/capturar-escenas.mjs
 /tmp-capturas
