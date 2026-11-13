@@ -55,3 +55,11 @@ export const actualizarDocenteSchema = datosDocenteSchema.extend({ id: z.uuid() 
 export const idDocenteSchema = z.object({ id: z.uuid() });
 
 export const cambiarEstadoDocenteSchema = z.object({ id: z.uuid(), activo: z.boolean() });
+
+/** Tope de prácticas simultáneas por cuenta del orquestador de NPC. */
+export const LIMITES_TOPE_PRACTICAS = { min: 1, max: 100 } as const;
+
+/** `tope: null` lo desactiva (sin tope, como viene por defecto). */
+export const topePracticasSchema = z.object({
+  tope: z.number().int().min(LIMITES_TOPE_PRACTICAS.min).max(LIMITES_TOPE_PRACTICAS.max).nullable(),
+});

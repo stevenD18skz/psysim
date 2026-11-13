@@ -10,6 +10,8 @@ import {
   cambiarEstadoDocenteSchema,
   crearDocenteSchema,
   idDocenteSchema,
+  LIMITES_TOPE_PRACTICAS,
+  topePracticasSchema,
 } from '@/schemas/admin.schema';
 
 /*
@@ -319,4 +321,42 @@ export async function eliminarDocente(valores: unknown): Promise<ResultadoAccion
   }
 
   return { ok: true, datos: { id } };
+}
+
+/**
+ * Activa, ajusta o desactiva (`tope: null`) el tope de prácticas simultáneas por cuenta del
+ * orquestador de NPC. Con el tope lleno, el estudiante que intenta empezar ve que el consultorio
+ * está ocupado; las prácticas en curso no se interrumpen. El ajuste vive en una tabla sin acceso
+ * desde el navegador: se escribe con la clave secreta, ya verificado el Administrador.
+ */
+export async function fijarTopePracticas(
+  valores: unknown
+): Promise<ResultadoAccion<{ tope: number | null }>> {
+  const yo = await requerirSuperadmin();
+
+  const datos = topePracticasSchema.safeParse(valores);
+  if (!datos.success) {
+    return {
+      ok: false,
+      error: `El tope debe ser un número entero entre ${LIMITES_TOPE_PRACTICAS.min} y ${LIMITES_TOPE_PRACTICAS.max}.`,
+    };
+  }
+  const { tope } = datos.data;
+
+  const { data, error } = await createAdminClient()
+    .from('ajuste_plataforma')
+    .update({
+      tope_practicas_por_cuenta: tope,
+      actualizado_por: yo.id,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq('unica', true)
+    .select('tope_practicas_por_cuenta');
+  if (error || data.length === 0) {
+    log.error('admin.tope_no_guardado', { codigo: error?.code });
+    return { ok: false, error: 'No pudimos guardar el tope. Inténtalo de nuevo.' };
+  }
+
+  log.info('admin.tope_de_practicas', { tope });
+  return { ok: true, datos: { tope } };
 }

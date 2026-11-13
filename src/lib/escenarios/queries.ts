@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 
 import { esEmocionNpc } from '@/lib/conversacion/emociones';
+import { leerSesionIa } from '@/lib/orquestador/datos';
 import { leerEscenarioDeSesion } from '@/lib/sesiones/datos-privados';
 import { createClient } from '@/lib/supabase/server';
 import { borradorCasoSchema } from '@/schemas/caso.schema';
@@ -92,7 +93,12 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
   }
   if (!data) return null;
 
-  const escenario = await leerEscenarioDeSesion(data.escenario_id);
+  const [escenario, sesionIa] = await Promise.all([
+    leerEscenarioDeSesion(data.escenario_id),
+    // Si el paciente ya cerró la consulta y la práctica quedó abierta (se recargó la página), se
+    // termina al abrirla. Es una ayuda: si no se puede leer, el servidor igual rechaza más turnos.
+    leerSesionIa(data.id).catch(() => null),
+  ]);
   if (!escenario) return null;
   const { npc, ...datosEscenario } = escenario;
 
@@ -103,6 +109,7 @@ export const obtenerSesionEnCurso = cache(async (id: string): Promise<SesionActi
     estudiante: { codigo: data.codigo_estudiante, nombre: data.nombre_estudiante },
     escenario: datosEscenario,
     npc,
+    cierre: sesionIa?.cierreMotivo ?? null,
   };
 });
 

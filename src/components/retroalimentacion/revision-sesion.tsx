@@ -34,6 +34,7 @@ import {
   recortarSeleccion,
   seSolapa,
 } from '@/lib/retroalimentacion/fragmentos';
+import { ETIQUETA_CIERRE, type IaDeSesion } from '@/lib/conversacion/cierre';
 import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
@@ -71,6 +72,8 @@ const formatoHora = new Intl.DateTimeFormat('es-CO', {
   minute: '2-digit',
   timeZone: 'America/Bogota',
 });
+
+const formatoSeveridad = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
 
 /**
  * Lee la selección del navegador si cae dentro de una sola intervención del estudiante y la
@@ -134,9 +137,12 @@ function leerSeleccion(
  */
 export function RevisionSesion({
   sesion,
+  ia = null,
   siguiente = null,
 }: {
   sesion: DetalleSesion;
+  /** Severidad del paciente en cada respuesta y cierre automático, si el motor los registró. */
+  ia?: IaDeSesion | null;
   /** Próxima práctica por revisar (para «Publicar y abrir la siguiente»), o `null` si es la última. */
   siguiente?: { id: string; nombre: string } | null;
 }) {
@@ -287,6 +293,13 @@ export function RevisionSesion({
             Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
             verlo o editarlo.
           </p>
+          {ia && Object.keys(ia.severidades).length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Junto a cada respuesta de {sesion.npc.nombre.split(' ')[0]} aparece su severidad: qué
+              tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el
+              motor del paciente, no califica a {nombreEstudiante}.
+            </p>
+          )}
         </div>
 
         {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
@@ -327,6 +340,9 @@ export function RevisionSesion({
                     <time dateTime={mensaje.timestamp}>
                       {formatoHora.format(new Date(mensaje.timestamp))}
                     </time>
+                    {ia?.severidades[mensaje.id] !== undefined && (
+                      <> · severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}</>
+                    )}
                   </span>
                   <p
                     data-texto-mensaje={mensaje.id}
@@ -348,6 +364,17 @@ export function RevisionSesion({
                 </li>
               );
             })}
+            {ia?.cierre && (
+              <li
+                data-testid="cierre-automatico"
+                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
+                <span className="text-muted-foreground">
+                  La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
+                </span>
+              </li>
+            )}
           </ol>
         )}
 

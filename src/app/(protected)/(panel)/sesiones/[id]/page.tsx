@@ -10,6 +10,7 @@ import { EncabezadoSesion, type PosicionRevision } from '@/components/sesiones/e
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { requerirDocente } from '@/lib/auth/dal';
 import { formatearHora } from '@/lib/fechas';
+import { obtenerIaDeSesion } from '@/lib/orquestador/revision';
 import { estaPorRevisar } from '@/lib/sesiones/estados';
 import {
   obtenerDetalleSesion,
@@ -42,6 +43,9 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
   if (!sesion) notFound();
 
   const enCurso = sesion.estado === 'en_curso';
+  // RLS ya mostró que la práctica es de este docente: la severidad de cada respuesta y el cierre
+  // automático (que el estudiante no ve) se leen en el servidor.
+  const ia = enCurso ? null : await obtenerIaDeSesion(sesion.id);
 
   // Cola de pendientes en el mismo orden que la bandeja: la que más espera, primero.
   const cola = sesiones
@@ -112,6 +116,7 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
           )}
           <RevisionSesion
             sesion={sesion}
+            ia={ia}
             siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
           />
         </>

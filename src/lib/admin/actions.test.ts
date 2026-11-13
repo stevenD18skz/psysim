@@ -10,6 +10,7 @@ import {
   cambiarEstadoDocente,
   crearDocente,
   eliminarDocente,
+  fijarTopePracticas,
   restablecerContrasenaDocente,
 } from './actions';
 
@@ -242,5 +243,42 @@ describe('eliminarDocente', () => {
   it('no puede eliminarse a sí mismo', async () => {
     expect(await eliminarDocente({ id: YO })).toMatchObject({ ok: false });
     expect(admin.consultas).toHaveLength(0);
+  });
+});
+
+describe('fijarTopePracticas', () => {
+  it('guarda el tope con la clave secreta, ya verificado el Administrador', async () => {
+    admin.responder('ajuste_plataforma', { data: [{ tope_practicas_por_cuenta: 4 }] });
+
+    expect(await fijarTopePracticas({ tope: 4 })).toEqual({ ok: true, datos: { tope: 4 } });
+    expect(requerirSuperadmin).toHaveBeenCalled();
+    expect(admin.de('ajuste_plataforma')[0]).toMatchObject({
+      operacion: 'update',
+      valores: { tope_practicas_por_cuenta: 4, actualizado_por: YO },
+    });
+  });
+
+  it('con null lo desactiva', async () => {
+    admin.responder('ajuste_plataforma', { data: [{ tope_practicas_por_cuenta: null }] });
+    expect(await fijarTopePracticas({ tope: null })).toEqual({ ok: true, datos: { tope: null } });
+    expect(admin.de('ajuste_plataforma')[0]).toMatchObject({
+      valores: { tope_practicas_por_cuenta: null },
+    });
+  });
+
+  it.each([0, 101, 2.5, '4', undefined])('rechaza un tope no válido (%s)', async tope => {
+    expect(await fijarTopePracticas({ tope })).toMatchObject({ ok: false });
+    expect(admin.de('ajuste_plataforma')).toEqual([]);
+  });
+
+  it('si la base falla o no hay fila de ajustes, avisa sin detalles', async () => {
+    admin.responder('ajuste_plataforma', { error: { code: 'XX000' } });
+    expect(await fijarTopePracticas({ tope: 3 })).toEqual({
+      ok: false,
+      error: 'No pudimos guardar el tope. Inténtalo de nuevo.',
+    });
+
+    admin.responder('ajuste_plataforma', { data: [] });
+    expect(await fijarTopePracticas({ tope: 3 })).toMatchObject({ ok: false });
   });
 });

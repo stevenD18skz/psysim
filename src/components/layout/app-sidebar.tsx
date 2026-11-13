@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Activity,
   ChevronsUpDown,
   ClipboardList,
   FlaskConical,
@@ -70,12 +71,22 @@ const ENLACES_TRABAJO: Enlace[] = [
   { href: '/configuracion/casos', etiqueta: 'Casos', icono: Library },
 ];
 
-const ENLACES_ADMIN: Enlace[] = [{ href: '/admin', etiqueta: 'Docentes', icono: ShieldCheck }];
+const ENLACES_ADMIN: Enlace[] = [
+  // «Docentes» incluye sus fichas, pero no las demás páginas de administración.
+  {
+    href: '/admin',
+    etiqueta: 'Docentes',
+    icono: ShieldCheck,
+    exacto: true,
+    incluye: ['/admin/docentes'],
+  },
+  { href: '/admin/ia', etiqueta: 'Paciente con IA', icono: Activity },
+];
 
 function estaActivo(pathname: string, enlace: Enlace) {
   if (pathname === enlace.href) return true;
-  if (enlace.exacto) return false;
-  return [enlace.href, ...(enlace.incluye ?? [])].some(p => pathname.startsWith(`${p}/`));
+  const prefijos = [...(enlace.exacto ? [] : [enlace.href]), ...(enlace.incluye ?? [])];
+  return prefijos.some(p => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /**
