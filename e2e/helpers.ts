@@ -28,6 +28,28 @@ export const administrador = {
 };
 
 export const hayCredenciales = Boolean(docente.correo && docente.contrasena);
+
+/** Un evento de la respuesta por partes de /api/npc/chat (Server-Sent Events). */
+export const eventoChat = (tipo: string, datos: object = {}) =>
+  `event: ${tipo}\ndata: ${JSON.stringify(datos)}\n\n`;
+
+/**
+ * Respuesta completa del paciente tal como la devuelve /api/npc/chat, llegue como un JSON o por
+ * partes (en ese caso viene en el evento `fin`).
+ */
+export async function respuestaDelChat(respuesta: {
+  text(): Promise<string>;
+  headers(): Record<string, string>;
+}): Promise<{ respuesta_npc: string; tokens_entrada: number | null; cierre: string | null }> {
+  const texto = await respuesta.text();
+  if (!(respuesta.headers()['content-type'] ?? '').includes('text/event-stream')) {
+    return JSON.parse(texto);
+  }
+  const fin = texto.split('\n\n').find(bloque => bloque.startsWith('event: fin\n'));
+  if (!fin) throw new Error('La respuesta por partes terminó sin el evento «fin».');
+  return JSON.parse(fin.slice(fin.indexOf('data: ') + 'data: '.length)).respuesta;
+}
+
 export const hayCredencialesAdmin = Boolean(administrador.correo && administrador.contrasena);
 export const MOTIVO_SIN_ADMIN = 'Define E2E_ADMIN_CORREO y E2E_ADMIN_CONTRASENA (pnpm db:seed)';
 
