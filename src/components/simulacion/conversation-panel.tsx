@@ -19,6 +19,7 @@ import {
 import { useTextoProgresivo } from '@/components/simulacion/use-texto-progresivo';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { AVISO_CIERRE, type MotivoCierre } from '@/lib/conversacion/cierre';
 import { emocionActual } from '@/lib/conversacion/emociones';
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
 import { enviarMensaje, MENSAJE_NO_DISPONIBLE } from '@/lib/conversacion/enviar-mensaje';
@@ -40,7 +41,14 @@ const ETIQUETA_ESTADO: Partial<Record<EstadoNpc, string>> = {
 
 const formatoHora = new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' });
 
-const AVISO_IA = 'Paciente simulado con IA (Google Gemini). Puede equivocarse o salirse del caso.';
+const AVISO_IA = 'Paciente simulado con IA. Puede equivocarse o salirse del caso.';
+
+/**
+ * Mientras el servidor espera cupo con el proveedor de IA, el estudiante solo ve al paciente
+ * pensando: en una consulta real también se toma su tiempo. Pasado este rato, se le dice cuánto
+ * falta.
+ */
+const ESPERA_SIN_AVISO_MS = 10_000;
 
 /** Aviso en línea al pie del panel: confirmaciones que no deben tapar la escena con un modal. */
 type AvisoPanel =
@@ -49,6 +57,28 @@ type AvisoPanel =
 interface ConversationPanelProps {
   onFinalizar: () => void;
   finalizando: boolean;
+  /** El paciente cerró la consulta: lleva al cierre de la práctica. */
+  onContinuar: () => void;
+}
+
+/** Segundos que faltan de una espera que ya se hizo larga, o `null` si no hay nada que avisar. */
+function useEsperaLarga(): number | null {
+  const espera = useAppStore(state => state.conversacion.espera);
+  const [restantes, setRestantes] = useState<number | null>(null);
+  useEffect(() => {
+    if (!espera) return;
+    const revisar = () => {
+      const ahora = Date.now();
+      const faltan = Math.ceil((espera.hasta - ahora) / 1000);
+      setRestantes(ahora - espera.desde >= ESPERA_SIN_AVISO_MS && faltan > 0 ? faltan : null);
+    };
+    const intervalo = setInterval(revisar, 500);
+    return () => {
+      clearInterval(intervalo);
+      setRestantes(null);
+    };
+  }, [espera]);
+  return restantes;
 }
 
 /** `true` cuando el paciente lleva un rato pensando: es el momento de su relleno («mmm…»). */
@@ -72,12 +102,18 @@ function useRelleno(estado: EstadoNpc): boolean {
  * bloquear el canvas que queda alrededor. Además de conversar, deja volver a una intervención
  * para ensayar otra respuesta y dictar con la voz.
  */
-export function ConversationPanel({ onFinalizar, finalizando }: ConversationPanelProps) {
+export function ConversationPanel({
+  onFinalizar,
+  finalizando,
+  onContinuar,
+}: ConversationPanelProps) {
   const store = useAppStoreApi();
   const nombre = useAppStore(state => state.sesion.activa?.npc.nombre ?? 'Paciente');
   const mensajes = useAppStore(state => state.conversacion.mensajes);
   const estado = useAppStore(state => state.npc.estado);
   const error = useAppStore(state => state.conversacion.error);
+  const cierre = useAppStore(state => state.conversacion.cierre);
+  const esperaRestante = useEsperaLarga();
 
   const [texto, setTexto] = useState('');
   const [aviso, setAviso] = useState<AvisoPanel | null>(null);
@@ -91,7 +127,9 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
 
   const ultimo = mensajes.at(-1);
   const escribiendoId = estado === 'respondiendo' && ultimo?.remitente === 'npc' ? ultimo.id : null;
-  const bloqueado = estado !== 'esperando_input' || reformulando;
+  const bloqueado = estado !== 'esperando_input' || reformulando || cierre !== null;
+  // El aviso de cierre aparece cuando la última respuesta del paciente terminó de mostrarse.
+  const cierreVisible = cierre !== null && estado !== 'procesando' && estado !== 'respondiendo';
   const idUltimaPropia = mensajes.findLast(m => m.remitente === 'estudiante')?.id;
 
   // El campo recupera el foco cada vez que el paciente termina de responder.
@@ -203,7 +241,7 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
             size="sm"
             className="ml-auto"
             onClick={volverAExplorar}
-            disabled={estado !== 'esperando_input'}
+            disabled={estado !== 'esperando_input' || cierre !== null}
           >
             <ArrowLeft aria-hidden />
             Volver a explorar
@@ -268,13 +306,24 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
                 )}
               </li>
             )}
+            {estado === 'procesando' && esperaRestante !== null && (
+              <li className="self-start px-1 text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0">
+                {/* La cuenta regresiva es visual: leída en voz alta, interrumpiría cada segundo. */}
+                <span className="sr-only">
+                  {nombreCorto} necesita un momento más para responder.
+                </span>
+                <span aria-hidden data-testid="espera-paciente">
+                  {nombreCorto} necesita un momento más. Responderá en unos {esperaRestante} s.
+                </span>
+              </li>
+            )}
             <div ref={final} />
           </ol>
 
           {/* Anuncia cada respuesta completa una sola vez (el texto progresivo es solo visual). */}
           <p className="sr-only" aria-live="polite">
             {anuncio ||
-              (ultimaRespuesta && estado !== 'procesando'
+              (ultimaRespuesta && !ultimaRespuesta.enCurso && estado !== 'procesando'
                 ? `${nombre}: ${ultimaRespuesta.contenido}`
                 : '')}
           </p>
@@ -326,8 +375,11 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
           )}
         </div>
 
+        {cierre && cierreVisible && (
+          <AvisoCierre motivo={cierre} onContinuar={onContinuar} ocupado={finalizando} />
+        )}
         <form
-          className="flex items-end gap-2 border-t p-3"
+          className={cn('flex items-end gap-2 border-t p-3', cierreVisible && 'hidden')}
           onSubmit={evento => {
             evento.preventDefault();
             enviar();
@@ -363,7 +415,8 @@ export function ConversationPanel({ onFinalizar, finalizando }: ConversationPane
                 estado === 'procesando' ||
                 estado === 'error_comunicacion' ||
                 estado === 'sesion_finalizada' ||
-                reformulando
+                reformulando ||
+                cierre !== null
               }
               aria-invalid={excedido || undefined}
               aria-describedby="ayuda-mensaje"
@@ -448,7 +501,8 @@ function Burbuja({
   onProgreso,
   onTerminar,
 }: BurbujaProps) {
-  const texto = useTextoProgresivo(mensaje.contenido, escribiendo, onTerminar);
+  // Mientras la respuesta sigue llegando, la escritura espera más texto antes de darla por dicha.
+  const texto = useTextoProgresivo(mensaje.contenido, escribiendo, onTerminar, !mensaje.enCurso);
   const esEstudiante = mensaje.remitente === 'estudiante';
 
   useLayoutEffect(() => {
@@ -542,6 +596,44 @@ function AvisoEnLinea({ titulo, descripcion, error, cancelar, confirmar }: Aviso
             {confirmar.etiqueta}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * El paciente dio por terminada la consulta. Ocupa el lugar del campo de texto: la conversación
+ * queda a la vista y lo único que se puede hacer es seguir al cierre de la práctica. El tono es
+ * sobrio a propósito (ver `AVISO_CIERRE`): no es un error ni una calificación.
+ */
+function AvisoCierre({
+  motivo,
+  onContinuar,
+  ocupado,
+}: {
+  motivo: MotivoCierre;
+  onContinuar: () => void;
+  ocupado: boolean;
+}) {
+  const { titulo, detalle } = AVISO_CIERRE[motivo];
+  return (
+    <div
+      role="status"
+      aria-labelledby="aviso-cierre-titulo"
+      data-testid="aviso-cierre"
+      className="flex flex-col gap-3 border-t bg-muted/50 p-4 motion-safe:animate-in motion-safe:fade-in-0"
+    >
+      <div className="flex flex-col gap-1">
+        <h3 id="aviso-cierre-titulo" className="text-sm font-bold">
+          {titulo}
+        </h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">{detalle}</p>
+      </div>
+      <div className="flex justify-end">
+        <Button variant="accion" size="sm" onClick={onContinuar} disabled={ocupado} autoFocus>
+          {ocupado && <Loader2 className="animate-spin" aria-hidden />}
+          Continuar
+        </Button>
       </div>
     </div>
   );

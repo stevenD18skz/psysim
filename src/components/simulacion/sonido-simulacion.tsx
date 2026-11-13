@@ -3,7 +3,7 @@
 import { Check, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
+import { crearSeguidorDeHabla } from '@/components/simulacion/habla-progresiva';
 import { Button } from '@/components/ui/button';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
 import { MotorAudio } from '@/lib/audio/motor-audio';
@@ -63,6 +63,7 @@ export function useSonidoSimulacion({ comenzada, voz }: { comenzada: boolean; vo
 
   useEffect(() => {
     let relleno: ReturnType<typeof setTimeout> | undefined;
+    const seguirHabla = crearSeguidorDeHabla(voz);
     const cancelarSuscripcion = store.subscribe((actual, previo) => {
       if (actual.sesion.activa?.comenzada && !previo.sesion.activa?.comenzada) {
         // Llega justo tras el clic en "Iniciar simulación": se activa el audio y luego suena.
@@ -70,13 +71,24 @@ export function useSonidoSimulacion({ comenzada, voz }: { comenzada: boolean; vo
       }
       const desde = previo.npc.estado;
       const hacia = actual.npc.estado;
+      const modo = leerModoVoz();
+
+      // La respuesta llega por partes: la voz inventada sigue lo que falta por decir; la del
+      // sistema necesita la frase entera y habla cuando la respuesta está completa.
+      const tramo = seguirHabla(previo, actual);
+      if (tramo) {
+        if (tramo.primero) motor.callar();
+        if (modo !== 'sistema') {
+          motor.hablar(tramo.silabas);
+        } else if (tramo.completa && !motor.estaSilenciado()) {
+          hablarConVozSistema(tramo.respuesta, voz, tramo.emocion);
+        }
+      }
+
       if (desde === hacia) return;
       clearTimeout(relleno);
 
-      const mensajes = actual.conversacion.mensajes;
-      const emocion = emocionActual(mensajes);
-      const silenciado = motor.estaSilenciado();
-      const modo = leerModoVoz();
+      const emocion = emocionActual(actual.conversacion.mensajes);
 
       if (hacia === 'procesando') {
         motor.efecto('enviar');
@@ -87,14 +99,10 @@ export function useSonidoSimulacion({ comenzada, voz }: { comenzada: boolean; vo
           }, RETRASO_RELLENO_MS);
         }
       }
-      if (hacia === 'respondiendo') {
-        const respuesta = mensajes.findLast(m => m.remitente === 'npc')?.contenido ?? '';
+      if (hacia === 'error_comunicacion') {
+        // La respuesta se cortó a medias: el paciente deja de hablar.
         motor.callar();
-        if (modo === 'sistema') {
-          if (!silenciado) hablarConVozSistema(respuesta, voz, emocion);
-        } else {
-          motor.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)));
-        }
+        callarVozSistema();
       }
       if (hacia === 'sesion_finalizada') {
         motor.callar();

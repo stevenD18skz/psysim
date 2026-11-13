@@ -62,6 +62,7 @@ import { estaConversando } from '@/lib/conversacion/estados-npc';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
 import { cn } from '@/lib/utils';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
+import { respuestaEnCamino } from '@/store/conversacion-slice';
 import { type MensajeConversacion, type SesionActiva } from '@/types';
 
 // HU-08 · T01: Three.js necesita el DOM, así que la escena no se renderiza en el servidor.
@@ -145,7 +146,18 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const estadoNpc = useAppStore(state => state.npc.estado);
   const cerca = useInteraccion(interaccion => interaccion.cerca);
   const apuntando = useInteraccion(interaccion => interaccion.apuntando);
-  const { finalizar, finalizando, resumen, motivo, cerrarPorInactividad } = useFinalizarSesion();
+  // El paciente dio por terminada la consulta (crisis o trato inapropiado).
+  const cierre = useAppStore(state => state.conversacion.cierre);
+  const enCamino = useAppStore(respuestaEnCamino);
+  const {
+    finalizar,
+    finalizando,
+    resumen,
+    motivo,
+    cerrarPorInactividad,
+    terminarPorCierre,
+    verResultados,
+  } = useFinalizarSesion();
 
   useAtajosConversacion();
 
@@ -153,9 +165,16 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
   const segundosParaCierre = useInactividad({
     sesionId: sesion.id,
-    activo: lista && !resumen && !finalizando,
+    activo: lista && !resumen && !finalizando && !cierre,
     alVencer: cerrarPorInactividad,
   });
+  // Cuando la última respuesta del paciente terminó de mostrarse, la práctica se cierra sola (con
+  // sus métricas); el estudiante lee el aviso del panel y sigue a los resultados.
+  useEffect(() => {
+    if (cierre && lista && (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')) {
+      terminarPorCierre();
+    }
+  }, [cierre, lista, estadoNpc, terminarPorCierre]);
   // HU-23: hasta que el estudiante confirme las instrucciones, la escena se ve pero no se usa.
   const comenzada = sesion.comenzada;
   const conversando = estaConversando(estadoNpc);
@@ -172,7 +191,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   });
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
-  const enConsulta = lista && comenzada && !resumen;
+  const enConsulta = lista && comenzada && !resumen && !cierre;
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
   useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
 
@@ -222,24 +241,24 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
             <BotonSonido motor={motorAudio} />
             <BotonAjustes />
             {!conversando && <BotonControles />}
-            {lista && comenzada && !resumen && (
+            {enConsulta && (
               <BotonFinalizar
                 onFinalizar={finalizar}
                 finalizando={finalizando}
                 // Nunca con una respuesta de la IA en camino (evita cierres a medias).
-                deshabilitado={estadoNpc === 'procesando'}
+                deshabilitado={enCamino}
               />
             )}
             {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
                 confirmación dice la hora. */}
-            {!resumen && <BotonSalir compacto={conversando} />}
+            {!resumen && !cierre && <BotonSalir compacto={conversando} />}
           </div>
         </div>
 
-        {lista && comenzada && explorando && !bloqueado && (
+        {enConsulta && explorando && !bloqueado && (
           <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
         )}
-        {lista && comenzada && explorando && bloqueado && (
+        {enConsulta && explorando && bloqueado && (
           <>
             <Mira resaltada={cerca && apuntando} />
             {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
@@ -262,10 +281,15 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         />
       )}
 
-      {lista && conversando && (
-        <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
+      {/* Tras un cierre automático el panel sigue a la vista: ahí está el aviso y la conversación. */}
+      {lista && (conversando || cierre) && !resumen && (
+        <ConversationPanel
+          onFinalizar={finalizar}
+          finalizando={finalizando}
+          onContinuar={verResultados}
+        />
       )}
-      {lista && comenzada && !resumen && <AvisoPantallaCompleta />}
+      {enConsulta && <AvisoPantallaCompleta />}
       {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
       {lista && !comenzada && !resumen && (
         <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />

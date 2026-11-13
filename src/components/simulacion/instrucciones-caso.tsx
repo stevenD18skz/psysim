@@ -126,7 +126,8 @@ export function InstruccionesCaso({
         return;
       }
       if (!resultado.ok) {
-        toast.error('No pudimos empezar la práctica. Revisa tu conexión e inténtalo de nuevo.');
+        // El servidor dice por qué: sin conexión o, con el tope activo, el consultorio ocupado.
+        toast.error(resultado.error);
         return;
       }
       if (aceptadaAntes === null) recordarPrivacidadAceptada();

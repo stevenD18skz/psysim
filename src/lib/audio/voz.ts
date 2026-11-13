@@ -94,6 +94,17 @@ function variacion(i: number): number {
 }
 
 /**
+ * Lo que queda de un plan cuando ya pasaron `transcurrido` segundos, con los tiempos contados
+ * desde ahora. Sirve para seguir hablando cuando la respuesta creció mientras se decía.
+ */
+export function planDesde(plan: readonly Silaba[], transcurrido: number): Silaba[] {
+  if (transcurrido <= 0) return [...plan];
+  return plan
+    .filter(silaba => silaba.inicio >= transcurrido)
+    .map(silaba => ({ ...silaba, inicio: silaba.inicio - transcurrido }));
+}
+
+/**
  * Planifica el balbuceo de una frase para que dure `duracion` segundos (lo que tarda el texto en
  * aparecer). Si el texto tiene más sílabas de las que caben, se toman de forma pareja: suena a
  * habla rápida, no a ráfaga. La entonación baja al final de una afirmación y sube en una pregunta.

@@ -139,3 +139,81 @@ describe('useFinalizarSesion · finalizar (HU-20)', () => {
     expect(guardarMetricas).not.toHaveBeenCalled();
   });
 });
+
+describe('useFinalizarSesion · cierre automático (el paciente terminó la consulta)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(guardarMetricas).mockResolvedValue({ estado: 'guardadas' });
+    vi.mocked(finalizarSesion).mockResolvedValue(CIERRE_OK);
+  });
+
+  it('guarda las métricas y termina la práctica sin salir de la pantalla', async () => {
+    const { result } = montar();
+    act(() => void result.current.store.getState().npc.actualizarEstadoNPC('esperando_input'));
+
+    await act(async () => result.current.cierre.terminarPorCierre());
+
+    expect(guardarMetricas).toHaveBeenCalledTimes(1);
+    expect(result.current.store.getState().npc.estado).toBe('sesion_finalizada');
+    // El estudiante sigue viendo la conversación y el aviso: no se navega todavía.
+    expect(push).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('«Continuar» lleva a los resultados cuando la práctica ya quedó terminada', async () => {
+    const { result } = montar();
+    act(() => void result.current.store.getState().npc.actualizarEstadoNPC('esperando_input'));
+    await act(async () => result.current.cierre.terminarPorCierre());
+
+    act(() => result.current.cierre.verResultados());
+    expect(push).toHaveBeenCalledWith(`/resultados?sesion=${SESION_ACTIVA.id}`);
+    expect(guardarMetricas).toHaveBeenCalledTimes(1);
+  });
+
+  it('si no se pudo terminar en silencio, «Continuar» lo intenta con los avisos de siempre', async () => {
+    vi.mocked(guardarMetricas).mockResolvedValue({ estado: 'fallo', motivo: 'Sin conexión.' });
+    vi.mocked(finalizarSesion).mockResolvedValue({ ok: false, error: 'No pudimos terminar.' });
+    const { result } = montar();
+    act(() => void result.current.store.getState().npc.actualizarEstadoNPC('esperando_input'));
+
+    await act(async () => result.current.cierre.terminarPorCierre());
+    expect(result.current.store.getState().npc.estado).toBe('esperando_input');
+    expect(toast.error).not.toHaveBeenCalled();
+
+    vi.mocked(guardarMetricas).mockResolvedValue({ estado: 'guardadas' });
+    await act(async () => result.current.cierre.verResultados());
+    expect(result.current.store.getState().npc.estado).toBe('sesion_finalizada');
+    expect(push).toHaveBeenCalledWith(`/resultados?sesion=${SESION_ACTIVA.id}`);
+  });
+
+  it('si guardar las métricas falla pero la práctica se puede cerrar, queda terminada', async () => {
+    vi.mocked(guardarMetricas).mockResolvedValue({ estado: 'fallo', motivo: 'Sin conexión.' });
+    const { result } = montar();
+    act(() => void result.current.store.getState().npc.actualizarEstadoNPC('esperando_input'));
+
+    await act(async () => result.current.cierre.terminarPorCierre());
+    expect(finalizarSesion).toHaveBeenCalledWith({ sesionId: SESION_ACTIVA.id });
+    expect(result.current.store.getState().npc.estado).toBe('sesion_finalizada');
+  });
+
+  it('no termina mientras la última respuesta del paciente sigue llegando', async () => {
+    const { result } = montar();
+    act(() => {
+      const { npc, conversacion } = result.current.store.getState();
+      npc.actualizarEstadoNPC('esperando_input');
+      npc.actualizarEstadoNPC('procesando');
+      conversacion.agregarMensaje({
+        id: 'r',
+        remitente: 'npc',
+        contenido: 'No puedo',
+        timestamp: '2026-10-20T15:04:00.000Z',
+        enCurso: true,
+      });
+      npc.actualizarEstadoNPC('respondiendo');
+    });
+
+    await act(async () => result.current.cierre.terminarPorCierre());
+    await act(async () => result.current.cierre.finalizar());
+    expect(guardarMetricas).not.toHaveBeenCalled();
+  });
+});

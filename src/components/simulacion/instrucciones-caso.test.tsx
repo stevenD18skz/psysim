@@ -157,12 +157,15 @@ describe('InstruccionesCaso (HU-23)', () => {
     });
 
     it('si no se puede comenzar avisa y la práctica no empieza', async () => {
-      vi.mocked(comenzarSesion).mockResolvedValue({ ok: false, error: 'x' });
+      // El motivo lo da el servidor: sin conexión o, con el tope activo, el consultorio ocupado.
+      const motivo =
+        'El consultorio está ocupado. Hay 4 prácticas en curso; inténtalo en unos minutos.';
+      vi.mocked(comenzarSesion).mockResolvedValue({ ok: false, error: motivo });
       const store = montar();
       await userEvent.click(screen.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }));
       await userEvent.click(screen.getByRole('button', { name: 'Empezar la práctica' }));
 
-      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('No pudimos empezar'));
+      expect(toast.error).toHaveBeenCalledWith(motivo);
       expect(store.current.getState().sesion.activa?.comenzada).toBe(false);
     });
 

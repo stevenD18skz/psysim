@@ -5,9 +5,9 @@ import { use, useEffect, useMemo, useState } from 'react';
 import { Vector3 } from 'three';
 
 import { medidasPacienteStore } from '@/components/3d/medidas-paciente';
+import { crearSeguidorDeHabla } from '@/components/simulacion/habla-progresiva';
 import { senalesConversacion } from '@/components/simulacion/senales-conversacion';
-import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
-import { planVoz, type Voz } from '@/lib/audio/voz';
+import { type Voz } from '@/lib/audio/voz';
 import { emocionActual, intensidadActual } from '@/lib/conversacion/emociones';
 import { AnimadorPaciente } from '@/lib/npc/animador-paciente';
 import { cargarGlb } from '@/lib/npc/cargar-glb';
@@ -35,6 +35,7 @@ function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
 
   useEffect(() => {
     let previo = store.getState();
+    const seguirHabla = crearSeguidorDeHabla(voz);
     animador.actualizarConducta(
       previo.npc.estado,
       emocionActual(previo.conversacion.mensajes),
@@ -59,12 +60,10 @@ function useConductaPaciente(animador: AnimadorPaciente, voz: Voz) {
         respuesta: ultimaRespuesta(actual),
       });
       if (gesto) animador.hacerGesto(gesto);
-      const emocion = emocionActual(mensajes);
-      animador.actualizarConducta(hacia, emocion, intensidadActual(mensajes));
-      if (hacia === 'respondiendo' && desde !== hacia) {
-        const respuesta = ultimaRespuesta(actual) ?? '';
-        animador.hablar(planVoz(respuesta, voz, emocion, duracionEscritura(respuesta)), respuesta);
-      }
+      animador.actualizarConducta(hacia, emocionActual(mensajes), intensidadActual(mensajes));
+      // La respuesta llega por partes: la boca y los ademanes siguen lo que falta por decir.
+      const tramo = seguirHabla(previo, actual);
+      if (tramo) animador.hablar(tramo.silabas, tramo.texto);
       previo = actual;
     });
   }, [store, animador, voz]);
