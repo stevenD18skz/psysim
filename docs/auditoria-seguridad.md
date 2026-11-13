@@ -62,6 +62,8 @@ Leyenda: ✅ cubierto y probado · 🟡 cubierto en parte · ➖ no aplica.
 
 ## 5. Revisión thermo-nuclear (29 de octubre de 2026)
 
+_(La sección 6, al final, trata el orquestador de NPC: un proveedor externo nuevo.)_
+
 Auditoría de todo el proyecto (no de un diff) con cuatro revisores en paralelo: autenticación y base
 de datos, API e IA, acciones de servidor y panel, y cliente 3D y scripts. Rama
 `fix/auditoria-thermos`. Migraciones, en este orden:
@@ -90,3 +92,29 @@ de datos, API e IA, acciones de servidor y panel, y cliente 3D y scripts. Rama
 | Baja      | La CSP bloqueaba las texturas incrustadas en los GLB (E-07, E-08, E-10, E-12).                                                                                                                                                                                 | `connect-src` admite `blob:` y `data:`; `e2e/csp.spec.ts` también carga E-07.                                                                                                                                                  |
 | Baja      | El escape de `<` del JSON-LD no hacía nada (`'\u003c'` es `'<'` en JavaScript).                                                                                                                                                                                | Se escribe la secuencia de texto y lo comprueba `json-ld.test.tsx`.                                                                                                                                                            |
 | Baja      | `pnpm supabase:test` esperaba 6 escenarios y su limpieza podía borrar uno oficial si RLS fallaba; `pnpm db:seed` imprimía los correos de todas las cuentas.                                                                                                    | Se exigen al menos 6, la limpieza solo toca casos propios y el seed solo lista las cuentas `@psysim.test`.                                                                                                                     |
+
+## 6. Orquestador de NPC: un proveedor externo nuevo (noviembre de 2026)
+
+Con `IA_PROVEEDOR=orquestador`, el paciente lo simula un servicio de un tercero (Juan José Moreno,
+FastAPI en Railway, con su propia base de datos). Cómo funciona: [`orquestador.md`](orquestador.md).
+Migración: `20261111010000_orquestador_npc` (solo añade; no necesita una segunda).
+
+**Qué sale de PsySim.** El prompt del caso con las reglas fijas, los datos del paciente ficticio
+y lo que el estudiante escribe en la conversación. No sale ningún dato que lo identifique: las
+sesiones del orquestador pertenecen a cuentas de servicio de PsySim, no a los estudiantes. El
+orquestador reenvía la conversación a su propio proveedor de IA y la guarda en su base de datos.
+
+| Riesgo                                                                                                                                          | Tratamiento                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **El prompt del caso es legible dentro del orquestador:** cualquier usuario de ese sistema puede leer perfiles y escenarios por su API (LLM07). | Compensación aceptada por el autor. El prompt sigue sin llegar al navegador de PsySim y el filtro de fuga se aplica igual a las respuestas del orquestador. Un caso con datos sensibles reales no debería existir: los pacientes son ficticios.         |
+| Credenciales del orquestador (URL, cuenta `teacher`, grupo de cuentas).                                                                         | Solo servidor: módulos con `server-only`, sin `NEXT_PUBLIC_`, validadas con Zod (`src/lib/env/orquestador.ts`). Los tokens se guardan en la memoria del proceso; en la base y en los registros una cuenta es una huella de su correo.                   |
+| Ids del orquestador, cuenta asignada, proveedor fijado y severidad: el estudiante podría leerlos o cambiarlos desde la consola.                 | Tablas nuevas sin políticas ni permisos para `authenticated` (`sesion_ia`, `mensaje_ia`, `orquestador_*`, `ajuste_plataforma`). Las escribe el servidor con la clave secreta después de verificar la práctica con RLS. La severidad no va en `mensaje`. |
+| El texto del orquestador es contenido de un tercero (LLM01, LLM05).                                                                             | Se trata como el de cualquier modelo: se limpia, pasa el filtro de fuga (también por partes, antes de mostrarlo) y se muestra como texto. Sus respuestas se validan con Zod y lo que no cumple el contrato se descarta.                                 |
+| Consumo sin límite contra un servicio ajeno (LLM10).                                                                                            | Se mantienen el tope de 150 intervenciones y el límite por estudiante; además, un turnero por cuenta en la base de datos (`reservar_turno_orquestador`) y un tope opcional de prácticas simultáneas.                                                    |
+| Disponibilidad: el servicio corre en Railway, fuera del control de PsySim, y sus datos de prueba se pueden borrar.                              | Gemini responde si el orquestador falla y la práctica se queda en Gemini. Perfiles, escenarios y sesiones se recrean solos ante un 404. Interruptor `IA_PROVEEDOR=gemini`.                                                                              |
+| El orquestador calcula una evaluación automática al cerrar cada sesión.                                                                         | PsySim no llama a `/evaluation/*`: no la lee, no la guarda y no la muestra.                                                                                                                                                                             |
+| El tope de prácticas y las métricas de la IA.                                                                                                   | El tope lo cambia solo el Administrador (acción con `requerirSuperadmin` y Zod). `admin_metricas_ia` comprueba el rol en la tabla y no devuelve texto de conversaciones ni correos.                                                                     |
+
+**Pendiente antes de activarlo con estudiantes:** actualizar el aviso de privacidad, las
+instrucciones de la práctica y el consentimiento informado, que hoy nombran solo a Google Gemini
+como encargado de procesar la conversación.

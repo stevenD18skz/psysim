@@ -25,7 +25,7 @@ Trabajo de grado — Brayan Steven Narváez Valdés, Universidad del Valle.
 | Estado         | Zustand 5 (store por árbol de React, slices)                           |
 | Validación     | Zod 4 · React Hook Form                                                |
 | Backend / BaaS | Supabase: Auth, PostgreSQL con RLS                                     |
-| IA             | Google Gemini vía Vercel AI SDK (`ai` + `@ai-sdk/google`)              |
+| IA             | Orquestador de NPC (opcional) y Google Gemini vía Vercel AI SDK        |
 | Calidad        | ESLint 9 · Prettier · Husky + lint-staged + commitlint                 |
 | Pruebas        | Vitest + Testing Library (unitarias) · Playwright (E2E)                |
 | Despliegue     | Vercel (Node.js 24)                                                    |
@@ -48,13 +48,17 @@ pnpm dev                    # http://localhost:3000
 
 Plantilla completa en [`.env.example`](.env.example). `.env.local` nunca se versiona.
 
-| Variable                               | Dónde             | Descripción                                                       |
-| -------------------------------------- | ----------------- | ----------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | cliente/servidor  | URL del proyecto de Supabase                                      |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente/servidor  | Clave publicable `sb_publishable_…` (antes `ANON_KEY`)            |
-| `SUPABASE_SECRET_KEY`                  | **solo servidor** | Clave secreta `sb_secret_…` (antes `SERVICE_ROLE_KEY`). Omite RLS |
-| `AI_API_KEY`                           | **solo servidor** | API key de Google Gemini                                          |
-| `AI_MODEL`                             | solo servidor     | Modelo de Gemini (por defecto `gemini-3.5-flash`)                 |
+| Variable                               | Dónde             | Descripción                                                          |
+| -------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | cliente/servidor  | URL del proyecto de Supabase                                         |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | cliente/servidor  | Clave publicable `sb_publishable_…` (antes `ANON_KEY`)               |
+| `SUPABASE_SECRET_KEY`                  | **solo servidor** | Clave secreta `sb_secret_…` (antes `SERVICE_ROLE_KEY`). Omite RLS    |
+| `AI_API_KEY`                           | **solo servidor** | API key de Google Gemini                                             |
+| `AI_MODEL`                             | solo servidor     | Modelo de Gemini (por defecto `gemini-3.5-flash`)                    |
+| `IA_PROVEEDOR`                         | solo servidor     | Quién responde como paciente: `gemini` (por defecto) u `orquestador` |
+| `ORQUESTADOR_URL`                      | **solo servidor** | URL del orquestador de NPC (si `IA_PROVEEDOR=orquestador`)           |
+| `ORQUESTADOR_CORREO` / `_CONTRASENA`   | **solo servidor** | Cuenta `teacher` del orquestador                                     |
+| `ORQUESTADOR_CUENTAS`                  | **solo servidor** | Opcional: grupo de cuentas `student` (lista JSON)                    |
 
 Las variables se validan con Zod al arrancar (`src/lib/env`): si falta alguna, el error indica cuál.
 
@@ -88,7 +92,7 @@ Configuración de Auth aplicada al proyecto (también reflejada en `supabase/con
 | URL base         | `https://generativelanguage.googleapis.com/v1beta`           |
 | Modelo principal | `gemini-3.5-flash` (`AI_MODEL`), razonamiento `minimal`      |
 | Modelo respaldo  | `gemini-3.5-flash-lite` (`AI_MODEL_RESPALDO`)                |
-| Límites          | 12 s para el principal, 25 s en total, `maxDuration` de 30 s |
+| Límites          | 12 s para el principal, 25 s en total, `maxDuration` de 60 s |
 
 Se eligió `gemini-3.5-flash` por latencia (≈1 s por respuesta corta frente a ≈3–7 s de
 `gemini-3.8-flash`), clave para un diálogo fluido con el paciente virtual. Como la latencia del
@@ -100,14 +104,30 @@ saturado. Verificar la conexión:
 pnpm ai:test
 ```
 
-**Route Handler `POST /api/npc/chat`** (HU-12): recibe `sesion_id`, `npc_id`, `mensaje_usuario` e
-`historial`; verifica la sesión del estudiante (401/403), valida con Zod (400), carga la sesión con
-RLS (404 si no es del estudiante, 409 si ya finalizó o no ha comenzado), reserva un turno del
-límite de 10 mensajes por minuto (429 con `Retry-After`; función `reservar_peticion_ia`), llama a
-la IA con el prompt **de la sesión** (el que configuró el docente al asignar el caso) y guarda el
-intercambio en la tabla `mensaje`. Responde `respuesta_npc`, `timestamp_respuesta`,
-`tokens_entrada` y `tokens_salida`. Los errores de la IA se traducen a 504 (tiempo agotado), 503
-(saturación) o 502, sin exponer detalles.
+**Route Handler `POST /api/npc/chat`** (HU-12): recibe `sesion_id`, `npc_id` y `mensaje_usuario`;
+verifica la sesión del estudiante (401/403), valida con Zod (400), carga la práctica con RLS (404
+si no es del estudiante, 409 si ya terminó o no ha comenzado), reserva un turno del límite de 10
+mensajes por minuto del estudiante (429 con `Retry-After`; función `reservar_peticion_ia`), pide la
+respuesta al proveedor de la práctica con el prompt **de la sesión** (el que configuró el docente al
+asignar el caso) y guarda el intercambio en la tabla `mensaje` (`guardar_intercambio_ia`). Responde
+un JSON con `respuesta_npc`, la emoción, los tokens y `cierre`, o, con `por_partes: true`, un flujo
+de eventos (SSE) para que el texto aparezca mientras llega. Los errores de la IA se traducen a 504
+(tiempo agotado), 503 (saturación), 429 (el paciente necesita unos segundos) o 502, sin exponer
+detalles.
+
+**Orquestador de NPC** (`IA_PROVEEDOR=orquestador`): el paciente lo simula el servicio de Juan José
+Moreno, que recalcula una severidad emocional en cada turno y cierra la conversación si el paciente
+entra en crisis o recibe un trato inapropiado. PsySim le habla solo desde el servidor
+(`src/lib/orquestador/`), con cuentas propias; reparte las prácticas entre ellas y reserva cupo
+antes de cada mensaje para respetar su límite de 10 por minuto; sincroniza cada caso como un perfil
+y un escenario, y usa Gemini como respaldo si el orquestador falla (la práctica se queda en Gemini
+hasta terminar). El Administrador ve su uso en `/admin/ia`. Todo el detalle, la puesta en marcha y
+qué hacer en una emergencia: [`docs/orquestador.md`](docs/orquestador.md).
+
+```bash
+pnpm orquestador:sincronizar --simular   # qué enviaría de los 12 casos oficiales, sin llamar
+pnpm orquestador:sincronizar             # crea o actualiza sus perfiles y escenarios
+```
 
 ---
 
@@ -307,7 +327,9 @@ pnpm test:e2e e2e/smoke.spec.ts
 ## Seguridad
 
 - `.env*` está ignorado por Git (excepto `.env.example`).
-- `SUPABASE_SECRET_KEY` y `AI_API_KEY` solo se usan en el servidor (`import 'server-only'`).
+- `SUPABASE_SECRET_KEY`, `AI_API_KEY` y las credenciales del orquestador (`ORQUESTADOR_*`) solo se
+  usan en el servidor (`import 'server-only'`); los tokens del orquestador viven en la memoria del
+  proceso.
 - Encabezados de seguridad globales en `next.config.ts` (`X-Frame-Options`, `nosniff`,
   `Referrer-Policy`, `Permissions-Policy`); HSTS lo añade Vercel.
 - Las respuestas que renuevan la sesión se marcan como `no-store` para que ninguna CDN las

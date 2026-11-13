@@ -58,6 +58,9 @@ unitarias funcionan igual (usan valores ficticios), los E2E y `pnpm build` no.
   `client.ts` (navegador), `proxy.ts`.
 - `src/lib/ia/`, `src/lib/conversacion/`: prompt, historial, filtro de fuga y máquina de estados del
   paciente. `src/lib/npc/`, `src/lib/escena/`, `src/components/3d/`: rig, gestos, rostro y escena.
+- `src/lib/orquestador/`: el paciente con el orquestador de NPC de Juan José Moreno (proveedor
+  principal si `IA_PROVEEDOR=orquestador`, con Gemini de respaldo): cliente HTTP, cuentas, turnero,
+  sincronización de casos y cierre. Solo servidor. Guía: `docs/orquestador.md`.
 - `src/schemas/`: esquemas Zod compartidos por cliente y servidor.
 - `supabase/migrations/`: esquema versionado. Es la fuente de verdad de los permisos.
 - `public/scenes/e-XX.json`: escena de cada caso oficial (E-01 a E-12). Los GLB se publican

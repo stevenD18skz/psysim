@@ -23,21 +23,42 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
   ([`docs/observabilidad.md`](observabilidad.md)) y acceso con Google configurado
   ([`docs/simulacion-a-distancia.md`](simulacion-a-distancia.md)).
 
+## Orquestador de NPC (rama `feat/orquestador-npc`, sin commit; 12 de noviembre)
+
+El paciente puede responder con el orquestador de NPC de Juan José Moreno, con Gemini de respaldo.
+Todo el detalle está en [`docs/orquestador.md`](orquestador.md). Está implementado y probado con el
+orquestador simulado (unitarias en verde); **falta probarlo contra el servicio real**:
+
+1. Aplicar la migración `20261111010000_orquestador_npc` (solo añade). Sin ella, el código de esta
+   rama no funciona ni siquiera con Gemini: aplicarla antes de desplegar.
+2. Escribir en `.env.local` `ORQUESTADOR_URL`, `ORQUESTADOR_CORREO` y `ORQUESTADOR_CONTRASENA`
+   (cuenta `teacher`) y correr `pnpm orquestador:sincronizar`.
+3. Prueba real con `IA_PROVEEDOR=orquestador`: un caso oficial y uno propio, mirar el 3D, la
+   transcripción del docente y `/admin/ia`. Lista de lo que hay que confirmar: sección 14 de la
+   guía.
+4. E2E (`pnpm test:e2e --workers=1`): actualizados para la respuesta por partes, sin correr (falta
+   `.env.test.local` en este equipo).
+5. Decidir si se crean cuentas del grupo (10 para un curso de 30) y avisarle a Juan José.
+6. **Antes de usarlo con estudiantes:** actualizar el aviso de privacidad, las instrucciones de la
+   práctica y el consentimiento (hoy nombran solo a Google Gemini), y citar el orquestador en el
+   documento de grado.
+
 ## Documentos clave
 
-| Documento                                                                 | Para qué                                                         |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)          |
-| [`docs/taiga-borrador.md`](taiga-borrador.md)                             | Lo subido a Taiga el 8 de noviembre: HU-31 a HU-59 y estados     |
-| [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                  |
-| [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados |
-| [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes |
-| [`docs/auditoria-rendimiento.md`](auditoria-rendimiento.md)               | Core Web Vitals y Lighthouse: mediciones y correcciones          |
-| [`docs/performance.md`](performance.md)                                   | FPS con GPU real y medición del documento de grado               |
-| [`docs/observabilidad.md`](observabilidad.md)                             | Registros, salud y alertas por crear en Vercel                   |
-| [`docs/reglas-de-calidad.md`](reglas-de-calidad.md)                       | Catálogos de reglas por apartado y cuáles están implementadas    |
-| [`docs/rediseno/ux-escala-inmersion.md`](rediseno/ux-escala-inmersion.md) | Decisiones de UX y estándares INACSL de simulación               |
-| [`README.md`](../README.md)                                               | Instalación, scripts, arquitectura y mapa de tests por feature   |
+| Documento                                                                 | Para qué                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)            |
+| [`docs/taiga-borrador.md`](taiga-borrador.md)                             | Lo subido a Taiga el 8 de noviembre: HU-31 a HU-59 y estados       |
+| [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                    |
+| [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados   |
+| [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes   |
+| [`docs/auditoria-rendimiento.md`](auditoria-rendimiento.md)               | Core Web Vitals y Lighthouse: mediciones y correcciones            |
+| [`docs/performance.md`](performance.md)                                   | FPS con GPU real y medición del documento de grado                 |
+| [`docs/observabilidad.md`](observabilidad.md)                             | Registros, salud y alertas por crear en Vercel                     |
+| [`docs/orquestador.md`](orquestador.md)                                   | Paciente con el orquestador de NPC: puesta en marcha y emergencias |
+| [`docs/reglas-de-calidad.md`](reglas-de-calidad.md)                       | Catálogos de reglas por apartado y cuáles están implementadas      |
+| [`docs/rediseno/ux-escala-inmersion.md`](rediseno/ux-escala-inmersion.md) | Decisiones de UX y estándares INACSL de simulación                 |
+| [`README.md`](../README.md)                                               | Instalación, scripts, arquitectura y mapa de tests por feature     |
 
 ## Qué quedó hecho
 
