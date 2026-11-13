@@ -8,6 +8,35 @@ export type Database = {
   };
   public: {
     Tables: {
+      ajuste_plataforma: {
+        Row: {
+          actualizado_en: string;
+          actualizado_por: string | null;
+          tope_practicas_por_cuenta: number | null;
+          unica: boolean;
+        };
+        Insert: {
+          actualizado_en?: string;
+          actualizado_por?: string | null;
+          tope_practicas_por_cuenta?: number | null;
+          unica?: boolean;
+        };
+        Update: {
+          actualizado_en?: string;
+          actualizado_por?: string | null;
+          tope_practicas_por_cuenta?: number | null;
+          unica?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ajuste_plataforma_actualizado_por_fkey';
+            columns: ['actualizado_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       anotacion: {
         Row: {
           comentario: string;
@@ -279,6 +308,51 @@ export type Database = {
           },
         ];
       };
+      mensaje_ia: {
+        Row: {
+          banderas: string[];
+          emocion_deducida: boolean;
+          mensaje_id: string;
+          modelo: string | null;
+          proveedor: string;
+          sesion_id: string;
+          severidad: number | null;
+        };
+        Insert: {
+          banderas?: string[];
+          emocion_deducida?: boolean;
+          mensaje_id: string;
+          modelo?: string | null;
+          proveedor: string;
+          sesion_id: string;
+          severidad?: number | null;
+        };
+        Update: {
+          banderas?: string[];
+          emocion_deducida?: boolean;
+          mensaje_id?: string;
+          modelo?: string | null;
+          proveedor?: string;
+          sesion_id?: string;
+          severidad?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'mensaje_ia_mensaje_id_fkey';
+            columns: ['mensaje_id'];
+            isOneToOne: true;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'mensaje_ia_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       metrica: {
         Row: {
           creado_en: string;
@@ -363,6 +437,97 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      orquestador_caso: {
+        Row: {
+          actualizado_en: string;
+          escenario_id: string;
+          escenario_orquestador_id: string;
+          huella: string;
+          perfil_id: string;
+          variante: string;
+        };
+        Insert: {
+          actualizado_en?: string;
+          escenario_id: string;
+          escenario_orquestador_id: string;
+          huella: string;
+          perfil_id: string;
+          variante?: string;
+        };
+        Update: {
+          actualizado_en?: string;
+          escenario_id?: string;
+          escenario_orquestador_id?: string;
+          huella?: string;
+          perfil_id?: string;
+          variante?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'orquestador_caso_escenario_id_fkey';
+            columns: ['escenario_id'];
+            isOneToOne: false;
+            referencedRelation: 'escenario';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      orquestador_evento: {
+        Row: {
+          creado_en: string;
+          cuenta: string | null;
+          detalle: string;
+          espera_ms: number | null;
+          id: number;
+          sesion_id: string | null;
+          tipo: string;
+        };
+        Insert: {
+          creado_en?: string;
+          cuenta?: string | null;
+          detalle: string;
+          espera_ms?: number | null;
+          id?: number;
+          sesion_id?: string | null;
+          tipo: string;
+        };
+        Update: {
+          creado_en?: string;
+          cuenta?: string | null;
+          detalle?: string;
+          espera_ms?: number | null;
+          id?: number;
+          sesion_id?: string | null;
+          tipo?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'orquestador_evento_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      orquestador_turno: {
+        Row: {
+          creado_en: string;
+          cuenta: string;
+          id: number;
+        };
+        Insert: {
+          creado_en: string;
+          cuenta: string;
+          id?: number;
+        };
+        Update: {
+          creado_en?: string;
+          cuenta?: string;
+          id?: number;
+        };
+        Relationships: [];
       };
       peticion_ia: {
         Row: {
@@ -541,6 +706,56 @@ export type Database = {
           },
         ];
       };
+      sesion_ia: {
+        Row: {
+          cambio_en: string | null;
+          cambio_motivo: string | null;
+          cerrada_en_orquestador: string | null;
+          cierre_en: string | null;
+          cierre_motivo: string | null;
+          creado_en: string;
+          cuenta: string | null;
+          proveedor: string;
+          sesion_id: string;
+          sesion_orquestador: string | null;
+          severidad: number | null;
+        };
+        Insert: {
+          cambio_en?: string | null;
+          cambio_motivo?: string | null;
+          cerrada_en_orquestador?: string | null;
+          cierre_en?: string | null;
+          cierre_motivo?: string | null;
+          creado_en?: string;
+          cuenta?: string | null;
+          proveedor: string;
+          sesion_id: string;
+          sesion_orquestador?: string | null;
+          severidad?: number | null;
+        };
+        Update: {
+          cambio_en?: string | null;
+          cambio_motivo?: string | null;
+          cerrada_en_orquestador?: string | null;
+          cierre_en?: string | null;
+          cierre_motivo?: string | null;
+          creado_en?: string;
+          cuenta?: string | null;
+          proveedor?: string;
+          sesion_id?: string;
+          sesion_orquestador?: string | null;
+          severidad?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sesion_ia_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       usuario: {
         Row: {
           activo: boolean;
@@ -620,6 +835,16 @@ export type Database = {
           ultimo_acceso: string;
         }[];
       };
+      admin_metricas_ia: { Args: { p_dias?: number }; Returns: Json };
+      asignar_cuenta_orquestador: {
+        Args: { p_cuentas: string[]; p_sesion_id: string };
+        Returns: {
+          cuenta_asignada: string | null;
+          practicas_en_curso: number;
+          proveedor_fijado: string;
+          sin_cupo: boolean;
+        }[];
+      };
       canjear_codigo: {
         Args: { p_codigo: string };
         Returns: {
@@ -654,6 +879,27 @@ export type Database = {
           id_npc: string;
         }[];
       };
+      guardar_intercambio_ia: {
+        Args: {
+          p_banderas?: string[];
+          p_cierre?: string | null;
+          p_emocion: string | null;
+          p_emocion_deducida?: boolean;
+          p_latencia_ms: number;
+          p_mensaje: string;
+          p_modelo?: string | null;
+          p_proveedor: string;
+          p_respuesta: string;
+          p_sesion_id: string;
+          p_severidad?: number | null;
+          p_tokens_entrada: number | null;
+          p_tokens_salida: number | null;
+        };
+        Returns: {
+          id_estudiante: string;
+          id_npc: string;
+        }[];
+      };
       guardar_reflexion: {
         Args: { p_contenido: string; p_sesion_id: string };
         Returns: undefined;
@@ -675,6 +921,10 @@ export type Database = {
         Returns: boolean;
       };
       reservar_peticion_ia: { Args: never; Returns: number };
+      reservar_turno_orquestador: {
+        Args: { p_cuenta: string; p_cupo?: number };
+        Returns: number;
+      };
       sesion_limite_inactividad: { Args: never; Returns: string };
     };
     Enums: {

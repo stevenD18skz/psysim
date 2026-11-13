@@ -127,9 +127,22 @@ export function crearSupabaseFalso() {
     },
   };
 
-  const rpc = vi.fn(async (funcion: string) => {
-    const { data = null, error = null } = siguiente(`rpc:${funcion}`);
-    return { data, error };
+  // Una función se puede esperar directamente o terminar con `.single()` / `.maybeSingle()` (las
+  // que devuelven una tabla de una fila). La respuesta se toma de la cola una sola vez.
+  const rpc = vi.fn((funcion: string, _argumentos?: unknown) => {
+    let resultado: Promise<{ data: unknown; error: Respuesta['error'] }> | undefined;
+    const resolver = () =>
+      (resultado ??= Promise.resolve().then(() => {
+        const { data = null, error = null } = siguiente(`rpc:${funcion}`);
+        return { data, error };
+      }));
+    return {
+      single: resolver,
+      maybeSingle: resolver,
+      then(alResolver: (valor: unknown) => unknown, alRechazar?: (motivo: unknown) => unknown) {
+        return resolver().then(alResolver, alRechazar);
+      },
+    };
   });
 
   return {
