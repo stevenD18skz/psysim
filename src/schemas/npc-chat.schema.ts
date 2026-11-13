@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { MOTIVOS_CIERRE } from '@/lib/conversacion/cierre';
 import { EMOCIONES_NPC } from '@/lib/conversacion/emociones';
 
 /** Límites del contrato de /api/npc/chat (HU-12 · T02). */
@@ -41,6 +42,11 @@ export const npcChatRequestSchema = z.object({
    */
   reintento: z.boolean().optional(),
   /**
+   * El navegador quiere la respuesta por partes (Server-Sent Events) para mostrar el texto mientras
+   * llega. Sin esto, la ruta responde un solo JSON con la respuesta completa.
+   */
+  por_partes: z.boolean().optional(),
+  /**
    * Obsoleto: el servidor ya no lo usa. El contexto de la IA sale de los mensajes guardados
    * (`lib/ia/historial.ts`); si el navegador pudiera fijarlo, podría fabricar turnos del paciente.
    * Se sigue aceptando (y validando) solo por compatibilidad con clientes anteriores.
@@ -69,7 +75,42 @@ export const npcChatResponseSchema = z.object({
    */
   id_mensaje_estudiante: z.uuid().nullable().default(null),
   id_mensaje_npc: z.uuid().nullable().default(null),
+  /**
+   * La práctica se cerró con esta respuesta: el paciente entró en crisis o dio por terminada la
+   * consulta por el trato recibido. El navegador bloquea el campo y termina la práctica.
+   */
+  cierre: z.enum(MOTIVOS_CIERRE).nullable().default(null),
 });
+
+const intensidadSchema = z.number().int().min(1).max(3).nullable();
+
+/**
+ * Eventos de la respuesta por partes (`por_partes: true`). Viajan como Server-Sent Events: el
+ * nombre del evento es `tipo` y `data` lleva el resto en JSON.
+ */
+export const eventoChatSchema = z.discriminatedUnion('tipo', [
+  /** El paciente todavía no puede responder: el servidor espera cupo esos segundos. */
+  z.object({ tipo: z.literal('espera'), segundos: z.number().int().nonnegative() }),
+  /** Emoción del paciente, en cuanto se conoce (antes de que termine el texto). */
+  z.object({
+    tipo: z.literal('emocion'),
+    emocion: z.enum(EMOCIONES_NPC),
+    intensidad: intensidadSchema,
+  }),
+  /** Texto para añadir a la burbuja del paciente. */
+  z.object({ tipo: z.literal('fragmento'), texto: z.string() }),
+  /** Lo recibido hasta ahora se descarta: la respuesta empieza de nuevo. */
+  z.object({ tipo: z.literal('reinicio') }),
+  /** Respuesta completa y guardada: reemplaza al texto acumulado. */
+  z.object({ tipo: z.literal('fin'), respuesta: npcChatResponseSchema }),
+  /** No hubo respuesta. `status` es el código que habría tenido la respuesta sin streaming. */
+  z.object({
+    tipo: z.literal('error'),
+    status: z.number().int(),
+    error: z.string(),
+    espera_s: z.number().int().positive().optional(),
+  }),
+]);
 
 /** Cuerpo de las respuestas de error (400, 401, 403, 404, 409, 502, 503, 504). */
 export const npcChatErrorSchema = z.object({
@@ -82,3 +123,4 @@ export type MensajeHistorial = z.infer<typeof mensajeHistorialSchema>;
 export type NpcChatRequest = z.infer<typeof npcChatRequestSchema>;
 export type NpcChatResponse = z.infer<typeof npcChatResponseSchema>;
 export type NpcChatError = z.infer<typeof npcChatErrorSchema>;
+export type EventoChat = z.infer<typeof eventoChatSchema>;

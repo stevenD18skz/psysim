@@ -1,3 +1,4 @@
+import { type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import { type BorradorCaso } from '@/schemas/caso.schema';
 
@@ -94,6 +95,11 @@ export interface SesionActiva {
     | 'configuracion3d'
   >;
   npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad' | 'perfilClinico'>;
+  /**
+   * El paciente ya dio por terminada la consulta (crisis o trato inapropiado) y la práctica quedó
+   * sin cerrar, p. ej. porque se recargó la página justo después: se cierra al abrirla.
+   */
+  cierre?: MotivoCierre | null;
 }
 
 export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
@@ -119,6 +125,11 @@ export interface MensajeConversacion {
    * reformular desde él.
    */
   sinGuardar?: boolean;
+  /**
+   * Solo en la respuesta del NPC que está llegando por partes: el texto todavía puede crecer (o
+   * reemplazarse) y el intercambio aún no está guardado.
+   */
+  enCurso?: boolean;
   /** Solo en mensajes descartados (revisión): cuándo el estudiante reformuló desde ese punto. */
   descartadoEn?: string;
 }

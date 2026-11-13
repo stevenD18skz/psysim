@@ -8,6 +8,7 @@ import {
   LoadAPIKeyError,
   type ModelMessage,
   RetryError,
+  streamText,
 } from 'ai';
 
 import {
@@ -19,6 +20,8 @@ import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
 import { revelaInstrucciones } from './fuga-prompt';
+import { limpiarTexto } from './limpieza';
+import { type ParteTurno } from './partes';
 import { componerInstrucciones, TEXTO_REGLAS } from './reglas';
 
 const URL_BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
@@ -49,16 +52,29 @@ export type TipoErrorIA =
   | 'respuesta_invalida'
   /** La respuesta copiaba las instrucciones del paciente (LLM07). */
   | 'fuga_de_instrucciones'
-  | 'proveedor';
+  | 'proveedor'
+  /** El orquestador sigue en su límite de mensajes por minuto: se le pide al estudiante esperar. */
+  | 'espera_del_paciente'
+  /** Todas las cuentas del orquestador alcanzaron el tope de prácticas simultáneas. */
+  | 'consultorio_ocupado';
 
 /** Error de la IA ya clasificado; el mensaje original nunca se reenvía al cliente. */
 export class ErrorIA extends Error {
+  readonly tipo: TipoErrorIA;
+  /** Con `espera_del_paciente`: segundos que faltan para poder reintentar. */
+  readonly esperaS: number | null;
+  /** Con `consultorio_ocupado`: prácticas en curso en ese momento. */
+  readonly enCurso: number | null;
+
   constructor(
-    readonly tipo: TipoErrorIA,
-    options?: { cause?: unknown }
+    tipo: TipoErrorIA,
+    options: { cause?: unknown; esperaS?: number; enCurso?: number } = {}
   ) {
-    super(`Fallo de la IA: ${tipo}`, options);
+    super(`Fallo de la IA: ${tipo}`, { cause: options.cause });
     this.name = 'ErrorIA';
+    this.tipo = tipo;
+    this.esperaS = options.esperaS ?? null;
+    this.enCurso = options.enCurso ?? null;
   }
 }
 
@@ -124,20 +140,8 @@ export function construirMensajes(
   ];
 }
 
-/**
- * Normaliza la respuesta del modelo: quita espacios, comillas envolventes y el prefijo
- * "Nombre:" que algunos modelos añaden al interpretar un personaje.
- */
-export function limpiarRespuesta(texto: string, nombrePaciente?: string): string {
-  let limpio = texto.trim();
-  if (nombrePaciente) {
-    const escapado = nombrePaciente.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    limpio = limpio.replace(new RegExp(`^\\**${escapado}\\**\\s*:\\s*`, 'i'), '');
-  }
-  const comillas = /^(["“«])([\s\S]*)(["”»])$/.exec(limpio);
-  if (comillas) limpio = comillas[2]!.trim();
-  return limpio;
-}
+/** Limpieza de la respuesta completa (ver `limpieza.ts`). */
+export const limpiarRespuesta = limpiarTexto;
 
 /** HU-16 · T01 — Traduce cualquier error del SDK o del proveedor a un tipo conocido. */
 export function clasificarError(error: unknown): TipoErrorIA {
@@ -229,5 +233,105 @@ async function generarCon(
     tokensEntrada: resultado.usage.inputTokens ?? null,
     tokensSalida: resultado.usage.outputTokens ?? null,
     modelo: id,
+  };
+}
+
+/**
+ * Igual que `generarRespuestaPaciente`, pero entrega la respuesta por partes (`streamText`) con
+ * el mismo protocolo que el orquestador: fragmentos de texto crudo y, al final, el resultado. La
+ * limpieza y el filtro de fuga los aplica quien consume el flujo (`procesarTurno`).
+ *
+ * Si el modelo principal falla, sigue con el de respaldo dentro del tiempo que quede; si ya había
+ * entregado texto, avisa con `reinicio` para que se descarte.
+ */
+export async function* transmitirRespuestaPaciente(
+  entrada: EntradaPaciente,
+  modelos: ModelosPaciente = crearModelos(),
+  opciones: { ahora?: () => number; tiempoMaximoMs?: number } = {}
+): AsyncGenerator<ParteTurno, void, void> {
+  const ahora = opciones.ahora ?? (() => performance.now());
+  const total = Math.min(opciones.tiempoMaximoMs ?? TIEMPO_MAXIMO_IA_MS, TIEMPO_MAXIMO_IA_MS);
+  const inicio = ahora();
+  let entregoTexto = false;
+
+  try {
+    const principal = Math.floor(Math.min(TIEMPO_MODELO_PRINCIPAL_MS, total));
+    for await (const parte of transmitirCon(modelos.principal, entrada, principal)) {
+      if (parte.tipo === 'fragmento') entregoTexto = true;
+      yield parte;
+    }
+    return;
+  } catch (error) {
+    const fallo = error instanceof ErrorIA ? error : new ErrorIA('proveedor', { cause: error });
+    const restante = Math.floor(total - (ahora() - inicio));
+    if (
+      !modelos.respaldo ||
+      fallo.tipo === 'autenticacion' ||
+      restante < TIEMPO_MINIMO_RESPALDO_MS
+    ) {
+      throw fallo;
+    }
+    if (entregoTexto) yield { tipo: 'reinicio' };
+    yield* transmitirCon(modelos.respaldo, entrada, restante);
+  }
+}
+
+async function* transmitirCon(
+  { id, modelo }: { id: string; modelo: LanguageModel },
+  entrada: EntradaPaciente,
+  tiempoMaximoMs: number
+): AsyncGenerator<ParteTurno, void, void> {
+  const { AI_TEMPERATURE, AI_MAX_TOKENS } = getIaEnv();
+
+  // `streamText` no lanza los errores del proveedor: los entrega en el flujo y en `onError`.
+  let fallo: unknown = null;
+  const resultado = streamText({
+    model: modelo,
+    instructions: componerInstrucciones(entrada.promptSistema),
+    messages: construirMensajes(entrada.historial, entrada.mensaje),
+    temperature: AI_TEMPERATURE,
+    maxOutputTokens: AI_MAX_TOKENS,
+    reasoning: 'minimal',
+    maxRetries: 0,
+    timeout: tiempoMaximoMs,
+    onError({ error }) {
+      fallo = error;
+    },
+  });
+
+  let texto = '';
+  try {
+    for await (const parte of resultado.stream) {
+      if (parte.type === 'text-delta') {
+        if (!parte.text) continue;
+        texto += parte.text;
+        yield { tipo: 'fragmento', texto: parte.text };
+      } else if (parte.type === 'error') {
+        throw parte.error;
+      } else if (parte.type === 'abort') {
+        throw new DOMException('La IA no respondió a tiempo.', 'TimeoutError');
+      }
+    }
+  } catch (error) {
+    throw new ErrorIA(clasificarError(error), { cause: error });
+  }
+  if (fallo) throw new ErrorIA(clasificarError(fallo), { cause: fallo });
+  if (!texto.trim()) throw new ErrorIA('respuesta_invalida');
+
+  // El consumo llega al cerrar el flujo; si el proveedor no lo informa, queda sin dato.
+  const uso = await Promise.resolve(resultado.usage).catch(() => null);
+  yield {
+    tipo: 'fin',
+    resultado: {
+      proveedor: 'gemini',
+      texto,
+      modelo: id,
+      tokensEntrada: uso?.inputTokens ?? null,
+      tokensSalida: uso?.outputTokens ?? null,
+      severidad: null,
+      severidadAnterior: null,
+      banderas: [],
+      cierre: null,
+    },
   };
 }

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { type MensajeConversacion, type SesionActiva } from '@/types';
 
 import { crearAppStore } from './app-store';
+import { respuestaEnCamino } from './conversacion-slice';
 
 const sesion: SesionActiva = {
   id: '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60',
@@ -113,5 +114,95 @@ describe('acciones de conversación y NPC (HU-14 · T02)', () => {
       tokensEntrada: 0,
       tokensSalida: 0,
     });
+  });
+});
+
+describe('respuesta del paciente por partes', () => {
+  function conRespuestaEnCurso() {
+    const store = crearAppStore();
+    store.getState().sesion.iniciar(sesion);
+    store.getState().npc.actualizarEstadoNPC('esperando_input');
+    const { agregarMensaje } = store.getState().conversacion;
+    agregarMensaje(mensaje('estudiante', 'Hola'));
+    store.getState().npc.actualizarEstadoNPC('procesando');
+    const respuesta = { ...mensaje('npc', 'Bue'), enCurso: true };
+    agregarMensaje(respuesta);
+    store.getState().npc.actualizarEstadoNPC('respondiendo');
+    return { store, id: respuesta.id };
+  }
+
+  it('ampliarMensaje añade texto solo a ese mensaje', () => {
+    const { store, id } = conRespuestaEnCurso();
+    store.getState().conversacion.ampliarMensaje(id, 'nas tardes.');
+    expect(store.getState().conversacion.mensajes.map(m => m.contenido)).toEqual([
+      'Hola',
+      'Buenas tardes.',
+    ]);
+  });
+
+  it('actualizarMensaje cambia sus campos y cuenta la latencia una sola vez', () => {
+    const { store, id } = conRespuestaEnCurso();
+    const { actualizarMensaje } = store.getState().conversacion;
+
+    actualizarMensaje(id, { emocion: 'triste' });
+    expect(store.getState().metricas.latencias).toEqual([]);
+
+    actualizarMensaje(id, { contenido: 'Buenas.', latencia_ms: 2100, enCurso: false });
+    actualizarMensaje(id, { latencia_ms: 9999 });
+    expect(store.getState().conversacion.mensajes[1]).toMatchObject({
+      contenido: 'Buenas.',
+      emocion: 'triste',
+      enCurso: false,
+    });
+    expect(store.getState().metricas.latencias).toEqual([2100]);
+
+    // Un id que no existe no cambia nada.
+    const antes = store.getState().conversacion.mensajes;
+    actualizarMensaje('otro', { contenido: 'x' });
+    expect(store.getState().conversacion.mensajes).toBe(antes);
+  });
+
+  it('quitarMensaje retira la respuesta que se cortó a medias', () => {
+    const { store, id } = conRespuestaEnCurso();
+    store.getState().conversacion.quitarMensaje(id);
+    expect(store.getState().conversacion.mensajes.map(m => m.contenido)).toEqual(['Hola']);
+    expect(store.getState().metricas.totalMensajes).toBe(1);
+  });
+
+  it('respuestaEnCamino: mientras se pide o llega la respuesta, no cuando solo se está mostrando', () => {
+    const store = crearAppStore();
+    store.getState().npc.actualizarEstadoNPC('esperando_input');
+    expect(respuestaEnCamino(store.getState())).toBe(false);
+
+    store.getState().npc.actualizarEstadoNPC('procesando');
+    expect(respuestaEnCamino(store.getState())).toBe(true);
+
+    const { store: otro, id } = conRespuestaEnCurso();
+    expect(respuestaEnCamino(otro.getState())).toBe(true);
+    otro.getState().conversacion.actualizarMensaje(id, { enCurso: false });
+    expect(respuestaEnCamino(otro.getState())).toBe(false);
+  });
+
+  it('una respuesta que se corta puede pasar de respondiendo a error_comunicacion', () => {
+    const { store } = conRespuestaEnCurso();
+    expect(store.getState().npc.actualizarEstadoNPC('error_comunicacion')).toBe(true);
+  });
+
+  it('la espera y el cierre se guardan y se reinician con la práctica', () => {
+    const store = crearAppStore();
+    store.getState().sesion.iniciar(sesion);
+    store.getState().conversacion.establecerEspera({ desde: 1000, hasta: 9000 });
+    store.getState().conversacion.establecerCierre('crisis');
+    expect(store.getState().conversacion).toMatchObject({
+      espera: { desde: 1000, hasta: 9000 },
+      cierre: 'crisis',
+    });
+
+    store.getState().sesion.iniciar(sesion);
+    expect(store.getState().conversacion).toMatchObject({ espera: null, cierre: null });
+
+    // Al reabrir una práctica que el paciente ya había cerrado, el cierre viene del servidor.
+    store.getState().sesion.iniciar({ ...sesion, cierre: 'inapropiada' });
+    expect(store.getState().conversacion.cierre).toBe('inapropiada');
   });
 });

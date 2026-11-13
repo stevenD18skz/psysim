@@ -1,4 +1,4 @@
-import { APICallError, RetryError } from 'ai';
+import { APICallError, RetryError, simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 
@@ -9,7 +9,9 @@ import {
   generarRespuestaPaciente,
   limpiarRespuesta,
   MAX_MENSAJES_CONTEXTO,
+  transmitirRespuestaPaciente,
 } from './paciente';
+import { type ParteTurno } from './partes';
 
 function modeloQueResponde(texto: string) {
   return new MockLanguageModelV4({
@@ -291,5 +293,164 @@ describe('modelo de respaldo', () => {
         respaldo: { id: 'r', modelo: modeloQueFalla(new DOMException('t', 'TimeoutError')) },
       })
     ).rejects.toMatchObject({ tipo: 'tiempo_agotado' });
+  });
+});
+
+describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
+  const entrada = { promptSistema: 'Eres Marta Lucía.', historial: [], mensaje: 'Hola' };
+
+  /** Modelo que entrega el texto en trozos; con `error`, falla después de entregarlos. */
+  function modeloPorPartes(trozos: string[], error?: unknown) {
+    return new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [
+            { type: 'text-start' as const, id: 't' },
+            ...trozos.map(delta => ({ type: 'text-delta' as const, id: 't', delta })),
+            ...(error === undefined
+              ? [
+                  { type: 'text-end' as const, id: 't' },
+                  {
+                    type: 'finish' as const,
+                    finishReason: { unified: 'stop' as const, raw: undefined },
+                    logprobs: undefined,
+                    usage: {
+                      inputTokens: {
+                        total: 120,
+                        noCache: 120,
+                        cacheRead: undefined,
+                        cacheWrite: undefined,
+                      },
+                      outputTokens: { total: 18, text: 18, reasoning: undefined },
+                    },
+                  },
+                ]
+              : [{ type: 'error' as const, error }]),
+          ],
+        }),
+      }),
+    });
+  }
+
+  function modeloQueNoArranca(error: unknown) {
+    return new MockLanguageModelV4({
+      doStream: async () => {
+        throw error;
+      },
+    });
+  }
+
+  async function recoger(generador: AsyncGenerator<ParteTurno>) {
+    const partes: ParteTurno[] = [];
+    try {
+      for await (const parte of generador) partes.push(parte);
+      return { partes, error: null };
+    } catch (error) {
+      return { partes, error: error as ErrorIA };
+    }
+  }
+
+  it('entrega el texto crudo por fragmentos y termina con el resultado y su consumo', async () => {
+    const { partes, error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'gemini-3.5-flash', modelo: modeloPorPartes(['[triste 2] Bue', 'nas.']) },
+      })
+    );
+
+    expect(error).toBeNull();
+    expect(partes).toEqual([
+      { tipo: 'fragmento', texto: '[triste 2] Bue' },
+      { tipo: 'fragmento', texto: 'nas.' },
+      {
+        tipo: 'fin',
+        resultado: {
+          proveedor: 'gemini',
+          // La etiqueta se queda: la limpieza la hace quien consume el flujo.
+          texto: '[triste 2] Buenas.',
+          modelo: 'gemini-3.5-flash',
+          tokensEntrada: 120,
+          tokensSalida: 18,
+          severidad: null,
+          severidadAnterior: null,
+          banderas: [],
+          cierre: null,
+        },
+      },
+    ]);
+  });
+
+  it('una respuesta vacía es inválida', async () => {
+    const { error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'p', modelo: modeloPorPartes(['  ']) },
+      })
+    );
+    expect(error).toMatchObject({ tipo: 'respuesta_invalida' });
+  });
+
+  it('si el principal falla antes de responder, responde el respaldo sin reinicio', async () => {
+    const { partes, error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'p', modelo: modeloQueNoArranca(errorApi(503)) },
+        respaldo: { id: 'r', modelo: modeloPorPartes(['Hola.']) },
+      })
+    );
+    expect(error).toBeNull();
+    expect(partes.map(parte => parte.tipo)).toEqual(['fragmento', 'fin']);
+    expect(partes.at(-1)).toMatchObject({ resultado: { modelo: 'r', texto: 'Hola.' } });
+  });
+
+  it('si el principal falla a mitad del texto, avisa el reinicio y responde el respaldo', async () => {
+    const { partes, error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'p', modelo: modeloPorPartes(['Pues yo '], errorApi(503)) },
+        respaldo: { id: 'r', modelo: modeloPorPartes(['Pues yo estoy mejor.']) },
+      })
+    );
+    expect(error).toBeNull();
+    expect(partes.map(parte => parte.tipo)).toEqual(['fragmento', 'reinicio', 'fragmento', 'fin']);
+  });
+
+  it('no usa el respaldo ante un error de autenticación ni si ya no queda tiempo', async () => {
+    const respaldo = modeloPorPartes(['No debería llamarse.']);
+    const sinPermiso = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'p', modelo: modeloQueNoArranca(errorApi(401)) },
+        respaldo: { id: 'r', modelo: respaldo },
+      })
+    );
+    expect(sinPermiso.error).toMatchObject({ tipo: 'autenticacion' });
+
+    let reloj = 0;
+    const sinTiempo = await recoger(
+      transmitirRespuestaPaciente(
+        entrada,
+        {
+          principal: {
+            id: 'p',
+            modelo: new MockLanguageModelV4({
+              doStream: async () => {
+                reloj += 9_500;
+                throw errorApi(503);
+              },
+            }),
+          },
+          respaldo: { id: 'r', modelo: respaldo },
+        },
+        { ahora: () => reloj, tiempoMaximoMs: 10_000 }
+      )
+    );
+    expect(sinTiempo.error).toBeInstanceOf(ErrorIA);
+    expect(respaldo.doStreamCalls).toHaveLength(0);
+  });
+
+  it('sin respaldo propaga el error clasificado', async () => {
+    const { error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: { id: 'p', modelo: modeloQueNoArranca(errorApi(500)) },
+      })
+    );
+    expect(error).toBeInstanceOf(ErrorIA);
+    expect(error).toMatchObject({ tipo: 'proveedor' });
   });
 });

@@ -75,6 +75,8 @@ describe('enviarMensaje (HU-13 · T03)', () => {
       sesion_id: sesion.id,
       npc_id: sesion.npc.id,
       mensaje_usuario: 'Hola, Marta.',
+      // Pide la respuesta por partes; si el servidor responde un JSON completo, también vale.
+      por_partes: true,
     });
 
     const { conversacion, npc, metricas } = store.getState();
@@ -234,5 +236,248 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     });
     expect(resultado.ok).toBe(false);
     expect(store.getState().conversacion.mensajes.some(m => m.remitente === 'npc')).toBe(false);
+  });
+});
+
+/** Respuesta por partes: cada paso entrega un trozo del flujo y, antes, deja mirar el store. */
+function flujoDeEventos(pasos: (string | (() => void))[]) {
+  const codificador = new TextEncoder();
+  let indice = 0;
+  const cuerpo = new ReadableStream<Uint8Array>(
+    {
+      pull(controlador) {
+        for (;;) {
+          const paso = pasos[indice++];
+          if (paso === undefined) return controlador.close();
+          if (typeof paso === 'string') return controlador.enqueue(codificador.encode(paso));
+          paso();
+        }
+      },
+    },
+    // Sin cola: cada trozo se produce cuando el lector lo pide, ya procesado el anterior.
+    { highWaterMark: 0 }
+  );
+  return new Response(cuerpo, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+  });
+}
+
+const evento = (tipo: string, datos: object = {}) =>
+  `event: ${tipo}\ndata: ${JSON.stringify(datos)}\n\n`;
+
+const INICIO = 'Buenas… la verdad no sé muy bien ';
+const RESTO = 'por dónde empezar.';
+const finOk = {
+  respuesta: {
+    respuesta_npc: INICIO + RESTO,
+    emocion_npc: 'triste',
+    intensidad_npc: 3,
+    timestamp_respuesta: '2026-09-30T15:01:00.000Z',
+    tokens_entrada: 500,
+    tokens_salida: 20,
+    id_mensaje_estudiante: '11111111-1111-4111-8111-111111111111',
+    id_mensaje_npc: '22222222-2222-4222-8222-222222222222',
+    cierre: null,
+  },
+};
+
+describe('enviarMensaje con la respuesta por partes', () => {
+  let reloj = 1000;
+  const ahora = () => reloj;
+
+  it('muestra el texto mientras llega y al final lo reemplaza por el guardado', async () => {
+    const store = storeListo();
+    const vistos: unknown[] = [];
+    const mirar = () => {
+      const { conversacion, npc } = store.getState();
+      vistos.push([npc.estado, conversacion.mensajes.at(-1)?.contenido]);
+    };
+    const hacerFetch = vi.fn(async () =>
+      flujoDeEventos([
+        evento('emocion', { emocion: 'triste', intensidad: 2 }),
+        evento('fragmento', { texto: 'Buenas… ' }),
+        // Con tan poco texto todavía no hay burbuja: el paciente sigue pensando.
+        mirar,
+        evento('fragmento', { texto: 'la verdad no sé muy bien ' }),
+        mirar,
+        () => (reloj += 2500),
+        evento('fragmento', { texto: RESTO }),
+        mirar,
+        evento('fin', finOk),
+      ])
+    );
+
+    const resultado = await enviarMensaje(store, 'Hola', { fetch: hacerFetch, ahora });
+
+    expect(resultado).toEqual({ ok: true });
+    expect(vistos).toEqual([
+      ['procesando', 'Hola'],
+      ['respondiendo', INICIO],
+      ['respondiendo', INICIO + RESTO],
+    ]);
+    const { conversacion, npc, metricas } = store.getState();
+    expect(npc.estado).toBe('respondiendo');
+    expect(conversacion.pendiente).toBeNull();
+    expect(conversacion.mensajes).toHaveLength(2);
+    expect(conversacion.mensajes[1]).toMatchObject({
+      id: finOk.respuesta.id_mensaje_npc,
+      contenido: INICIO + RESTO,
+      // La intensidad final (ajustada por la severidad) reemplaza a la de la etiqueta.
+      emocion: 'triste',
+      intensidad: 3,
+      latencia_ms: 2500,
+      enCurso: false,
+    });
+    expect(conversacion.mensajes[1]).not.toHaveProperty('sinGuardar');
+    // La latencia se cuenta una sola vez, al completarse la respuesta.
+    expect(metricas).toMatchObject({ latencias: [2500], tokensEntrada: 500, tokensSalida: 20 });
+  });
+
+  it('la emoción llega antes que el texto y el paciente la muestra desde la primera palabra', async () => {
+    const store = storeListo();
+    let alEmpezar: unknown;
+    await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        flujoDeEventos([
+          evento('emocion', { emocion: 'ansioso', intensidad: 2 }),
+          evento('fragmento', { texto: INICIO }),
+          () => (alEmpezar = store.getState().conversacion.mensajes.at(-1)),
+          evento('fin', finOk),
+        ])
+      ),
+      ahora,
+    });
+    expect(alEmpezar).toMatchObject({ emocion: 'ansioso', intensidad: 2, enCurso: true });
+  });
+
+  it('una respuesta corta aparece completa al final, sin burbuja a medias', async () => {
+    const store = storeListo();
+    const fin = { respuesta: { ...finOk.respuesta, respuesta_npc: 'No sé.' } };
+    await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        flujoDeEventos([evento('fragmento', { texto: 'No sé.' }), evento('fin', fin)])
+      ),
+      ahora,
+    });
+    const { conversacion, npc } = store.getState();
+    expect(conversacion.mensajes.map(m => m.contenido)).toEqual(['Hola', 'No sé.']);
+    expect(npc.estado).toBe('respondiendo');
+  });
+
+  it('avisa de la espera mientras el servidor aguarda cupo y la borra al llegar el texto', async () => {
+    const store = storeListo();
+    let espera: unknown;
+    await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        flujoDeEventos([
+          evento('espera', { segundos: 12 }),
+          () => (espera = store.getState().conversacion.espera),
+          evento('fragmento', { texto: INICIO }),
+          evento('fin', finOk),
+        ])
+      ),
+      ahora,
+    });
+    expect(espera).toMatchObject({ desde: expect.any(Number), hasta: expect.any(Number) });
+    const { desde, hasta } = espera as { desde: number; hasta: number };
+    expect(hasta - desde).toBeGreaterThanOrEqual(12_000);
+    expect(store.getState().conversacion.espera).toBeNull();
+  });
+
+  it('con «reinicio» descarta lo mostrado: otro proveedor responde desde cero', async () => {
+    const store = storeListo();
+    let trasReinicio: unknown;
+    await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        flujoDeEventos([
+          evento('fragmento', { texto: 'Texto de un intento que falló a medias. ' }),
+          evento('reinicio'),
+          () => (trasReinicio = store.getState().conversacion.mensajes.at(-1)?.contenido),
+          evento('fragmento', { texto: INICIO + RESTO }),
+          evento('fin', finOk),
+        ])
+      ),
+      ahora,
+    });
+    expect(trasReinicio).toBe('');
+    expect(store.getState().conversacion.mensajes.at(-1)?.contenido).toBe(INICIO + RESTO);
+  });
+
+  it.each([
+    [
+      'un evento de error (p. ej. la respuesta copiaba las instrucciones)',
+      [
+        evento('fragmento', { texto: INICIO }),
+        evento('error', {
+          status: 502,
+          error: 'El servicio de IA devolvió una respuesta inválida.',
+        }),
+      ],
+      MENSAJE_NO_DISPONIBLE,
+    ],
+    [
+      'un flujo que se corta sin terminar',
+      [evento('fragmento', { texto: INICIO })],
+      MENSAJE_NO_DISPONIBLE,
+    ],
+    [
+      'el límite del paciente (429): muestra cuánto esperar',
+      [
+        evento('espera', { segundos: 20 }),
+        evento('error', {
+          status: 429,
+          error: 'El paciente necesita unos segundos. Inténtalo en 14 s.',
+          espera_s: 14,
+        }),
+      ],
+      'El paciente necesita unos segundos. Inténtalo en 14 s.',
+    ],
+  ])('ante %s quita lo que había llegado y deja reintentar', async (_, pasos, motivo) => {
+    const store = storeListo();
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () => flujoDeEventos(pasos)),
+      ahora,
+    });
+
+    expect(resultado).toEqual({ ok: false, motivo });
+    const { conversacion, npc } = store.getState();
+    expect(npc.estado).toBe('error_comunicacion');
+    expect(conversacion.mensajes.map(m => m.contenido)).toEqual(['Hola']);
+    expect(conversacion.pendiente?.contenido).toBe('Hola');
+    expect(conversacion.espera).toBeNull();
+  });
+
+  it('si el paciente cierra la consulta, queda anotado y no se envía nada más', async () => {
+    const store = storeListo();
+    const fin = { respuesta: { ...finOk.respuesta, cierre: 'crisis' } };
+    const hacerFetch = vi.fn(async () =>
+      flujoDeEventos([evento('fragmento', { texto: INICIO + RESTO }), evento('fin', fin)])
+    );
+    await enviarMensaje(store, 'Hola', { fetch: hacerFetch, ahora });
+
+    expect(store.getState().conversacion.cierre).toBe('crisis');
+    store.getState().npc.actualizarEstadoNPC('esperando_input');
+    const otro = await enviarMensaje(store, 'Otra cosa', { fetch: hacerFetch, ahora });
+    expect(otro).toEqual({ ok: false, motivo: 'La práctica ya terminó.' });
+    expect(hacerFetch).toHaveBeenCalledOnce();
+  });
+
+  it('ignora eventos desconocidos o ilegibles sin romper la respuesta', async () => {
+    const store = storeListo();
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        flujoDeEventos([
+          ': latido\n\n',
+          evento('novedad', { algo: 1 }),
+          'event: fragmento\ndata: {no es json\n\n',
+          evento('fragmento', { texto: INICIO + RESTO }),
+          evento('fin', finOk),
+        ])
+      ),
+      ahora,
+    });
+    expect(resultado).toEqual({ ok: true });
+    expect(store.getState().conversacion.mensajes.at(-1)?.contenido).toBe(INICIO + RESTO);
   });
 });

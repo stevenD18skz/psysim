@@ -45,6 +45,7 @@ export const crearSesionSlice =
             ...state.conversacion,
             ...estadoInicialConversacion,
             mensajes: historial,
+            cierre: activa.cierre ?? null,
           },
           npc: { ...state.npc, ...estadoInicialNpc },
           metricas: { ...state.metricas, ...metricasDesdeHistorial(historial) },

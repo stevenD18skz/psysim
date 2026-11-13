@@ -1,6 +1,7 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
 import { idPeticion } from '@/lib/observabilidad/peticion';
+import { cerrarDespues } from '@/lib/orquestador/diferido';
 import { createClient } from '@/lib/supabase/server';
 import {
   type MetricsSaveError,
@@ -88,6 +89,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   log.info('metrics_save.guardadas', { peticion, sesion_id, total_mensajes });
+  // Con la respuesta ya enviada: duración y cierre de la sesión en el orquestador del paciente.
+  cerrarDespues(sesion_id);
   const respuesta: MetricsSaveResponse = { sesion_id, metrica_id: metricaId };
   return Response.json(respuesta, { status: 200, headers: SIN_CACHE });
 }

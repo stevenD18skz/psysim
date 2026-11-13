@@ -5,6 +5,7 @@
  *   esperando_input ──(envía un mensaje)──▶ procesando
  *   procesando ──(llega la respuesta)──▶ respondiendo ──(termina de mostrarse)──▶ esperando_input
  *   procesando ──(falla la IA)──▶ error_comunicacion ──(reintentar)──▶ procesando
+ *   respondiendo ──(la respuesta se corta a medias)──▶ error_comunicacion
  *   esperando_input ──(se aleja)──▶ inactivo
  *   (casi) cualquier estado ──(finalizar)──▶ sesion_finalizada   [estado terminal]
  */
@@ -24,7 +25,8 @@ const TRANSICIONES: Record<EstadoNpc, readonly EstadoNpc[]> = {
   esperando_input: ['procesando', 'inactivo', 'sesion_finalizada'],
   // Mientras se espera a la IA no se puede cerrar la sesión (evita cierres accidentales).
   procesando: ['respondiendo', 'error_comunicacion'],
-  respondiendo: ['esperando_input', 'sesion_finalizada'],
+  // La respuesta llega por partes: puede cortarse cuando ya había empezado a mostrarse.
+  respondiendo: ['esperando_input', 'error_comunicacion', 'sesion_finalizada'],
   error_comunicacion: ['procesando', 'sesion_finalizada'],
   sesion_finalizada: [],
 };
