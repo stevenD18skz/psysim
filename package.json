@@ -29,6 +29,7 @@
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed-docentes.ts",
     "modelos:inspeccionar": "node scripts/modelos.ts inspeccionar",
     "modelos:subir": "node --env-file-if-exists=.env.local scripts/modelos.ts subir",
+    "orquestador:sincronizar": "node --env-file-if-exists=.env.local --conditions=react-server --import ./scripts/alias-src.mjs scripts/orquestador-sincronizar.ts",
     "prepare": "husky"
   },
   "dependencies": {
