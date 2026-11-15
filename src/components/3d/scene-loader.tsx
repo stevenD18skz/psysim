@@ -14,6 +14,7 @@ import { NPCModel } from '@/components/3d/npc-model';
 import { OyenteAudio } from '@/components/3d/oyente-audio';
 import { RegistroColisionesProvider } from '@/components/3d/registro-colisiones';
 import { Sala } from '@/components/3d/sala';
+import { VistaVentanaProvider } from '@/components/3d/vista-ventana-contexto';
 import { type Escena } from '@/schemas/escena.schema';
 import { useAppStore } from '@/store/app-store-provider';
 
@@ -38,41 +39,44 @@ export function SceneLoader({ escena, onBloqueoCambia }: SceneLoaderProps) {
   );
 
   return (
-    <RegistroColisionesProvider>
-      <Iluminacion iluminacion={escena.iluminacion} />
-      <AmbienteDinamico sala={escena.sala} />
+    // La vista de la ventana se sortea aquí, una vez por escena: la comparten el cristal y las luces.
+    <VistaVentanaProvider>
+      <RegistroColisionesProvider>
+        <Iluminacion iluminacion={escena.iluminacion} />
+        <AmbienteDinamico sala={escena.sala} />
 
-      {escena.entorno ? (
-        <LimiteErrorModelo ruta={escena.entorno.modelo} fallback={sala}>
-          <Suspense fallback={null}>
-            <group
-              position={escena.entorno.posicion}
-              rotation-y={MathUtils.degToRad(escena.entorno.rotacion)}
-              scale={escena.entorno.escala}
-            >
-              <ModeloGLB ruta={escena.entorno.modelo} ajuste={escena.entorno.ajuste} />
-            </group>
-          </Suspense>
-        </LimiteErrorModelo>
-      ) : (
-        sala
-      )}
+        {escena.entorno ? (
+          <LimiteErrorModelo ruta={escena.entorno.modelo} fallback={sala}>
+            <Suspense fallback={null}>
+              <group
+                position={escena.entorno.posicion}
+                rotation-y={MathUtils.degToRad(escena.entorno.rotacion)}
+                scale={escena.entorno.escala}
+              >
+                <ModeloGLB ruta={escena.entorno.modelo} ajuste={escena.entorno.ajuste} />
+              </group>
+            </Suspense>
+          </LimiteErrorModelo>
+        ) : (
+          sala
+        )}
 
-      {escena.mobiliario.map(mueble => (
-        <Mueble key={mueble.id} mueble={mueble} />
-      ))}
+        {escena.mobiliario.map(mueble => (
+          <Mueble key={mueble.id} mueble={mueble} />
+        ))}
 
-      <NPCModel npc={escena.npc} />
-      <InteraccionPaciente npc={escena.npc} />
-      <CamaraConversacion npc={escena.npc} />
-      <OyenteAudio npc={escena.npc} />
+        <NPCModel npc={escena.npc} />
+        <InteraccionPaciente npc={escena.npc} />
+        <CamaraConversacion npc={escena.npc} />
+        <OyenteAudio npc={escena.npc} />
 
-      <ControlesPrimeraPersona
-        camara={escena.camara}
-        navegacion={escena.navegacion}
-        habilitado={movimientoHabilitado}
-        onBloqueoCambia={onBloqueoCambia}
-      />
-    </RegistroColisionesProvider>
+        <ControlesPrimeraPersona
+          camara={escena.camara}
+          navegacion={escena.navegacion}
+          habilitado={movimientoHabilitado}
+          onBloqueoCambia={onBloqueoCambia}
+        />
+      </RegistroColisionesProvider>
+    </VistaVentanaProvider>
   );
 }

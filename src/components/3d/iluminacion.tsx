@@ -10,7 +10,9 @@ import {
   type PointLight,
 } from 'three';
 
+import { useVistaVentana } from '@/components/3d/vista-ventana-contexto';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
+import { LUZ_DEL_MOMENTO } from '@/lib/ambiente/vista-ventana';
 import { type Escena } from '@/schemas/escena.schema';
 
 /** Resolución del mapa de sombras: 1024 es suficiente para una sala y ligera para una iGPU. */
@@ -37,10 +39,15 @@ function templar(destino: Color, base: Color, calidez: number) {
  * Ambiente dinámico: la intensidad y la temperatura de todas las luces (y el fondo) siguen el
  * clima emocional de la conversación (`useEfectosAmbiente`). Con el clima neutro la escena queda
  * exactamente como la describe su JSON. Las transiciones se hacen en `useFrame`, sin re-renders.
+ *
+ * Momento del día: la luz de la ventana sigue lo que se ve por ella (`useVistaVentana`). Al
+ * atardecer entra más tenue y anaranjada; de noche es apenas luz de luna y las lámparas suben un
+ * poco para que la sala siga acogedora. Con la vista de mediodía, la escena es la de su JSON.
  */
 export function Iluminacion({ iluminacion }: { iluminacion: Escena['iluminacion'] }) {
   const { ambiental, hemisferica, direccional, puntuales, fondo } = iluminacion;
   const efectos = useEfectosAmbiente();
+  const sala = LUZ_DEL_MOMENTO[useVistaVentana().momento].sala;
 
   const ambiente = useRef<AmbientLight>(null);
   const hemisfera = useRef<HemisphereLight>(null);
@@ -61,6 +68,7 @@ export function Iluminacion({ iluminacion }: { iluminacion: Escena['iluminacion'
     [ambiental.color, hemisferica.cielo, hemisferica.suelo, direccional.color, puntuales, fondo]
   );
   const colorFondo = useMemo(() => new Color(fondo), [fondo]);
+  const tinteVentana = useMemo(() => new Color(sala.tinte), [sala.tinte]);
 
   useFrame((_, delta) => {
     const t = 1 - Math.exp(-RAPIDEZ_AMBIENTE * Math.min(delta, 0.1));
@@ -70,22 +78,23 @@ export function Iluminacion({ iluminacion }: { iluminacion: Escena['iluminacion'
     a.niebla += (efectos.niebla - a.niebla) * t;
 
     if (ambiente.current) {
-      ambiente.current.intensity = ambiental.intensidad * a.brillo;
+      ambiente.current.intensity = ambiental.intensidad * a.brillo * sala.ambiente;
       templar(ambiente.current.color, base.ambiental, a.calidez);
     }
     if (hemisfera.current) {
-      hemisfera.current.intensity = hemisferica.intensidad * a.brillo;
+      hemisfera.current.intensity = hemisferica.intensidad * a.brillo * sala.ambiente;
       templar(hemisfera.current.color, base.cielo, a.calidez);
       templar(hemisfera.current.groundColor, base.suelo, a.calidez);
     }
     if (sol.current) {
       // El sol de la ventana es lo que más cambia: se nubla con el malestar.
-      sol.current.intensity = direccional.intensidad * a.brillo ** 1.6;
+      sol.current.intensity = direccional.intensidad * a.brillo ** 1.6 * sala.ventana;
       templar(sol.current.color, base.direccional, a.calidez);
+      sol.current.color.lerp(tinteVentana, sala.mezcla);
     }
     lamparas.current.forEach((lampara, i) => {
       if (!lampara) return;
-      lampara.intensity = puntuales[i]!.intensidad * a.brillo;
+      lampara.intensity = puntuales[i]!.intensidad * a.brillo * sala.lamparas;
       templar(lampara.color, base.puntuales[i]!, a.calidez);
     });
     templar(colorFondo, base.fondo, a.calidez);

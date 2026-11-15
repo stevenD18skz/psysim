@@ -5,18 +5,23 @@ import { useEffect, useMemo, useRef } from 'react';
 import { type Mesh, type Object3D, ShaderMaterial, Vector3 } from 'three';
 
 import { RAPIDEZ_AMBIENTE } from '@/components/3d/iluminacion';
+import { useVistaVentana } from '@/components/3d/vista-ventana-contexto';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
 import { type EfectosAmbiente } from '@/lib/ambiente/clima';
+import { indicePaisaje, LUZ_DEL_MOMENTO, type VistaVentana } from '@/lib/ambiente/vista-ventana';
 
 /*
  * Vista por la ventana sin geometría ni texturas: un shader de "falso exterior" (la misma idea del
  * interior mapping, al revés). Por cada píxel del cristal se lanza un rayo desde la cámara y se
- * intersecta con planos imaginarios detrás de la pared —la calle, una hilera de árboles, la
- * ciudad, unas colinas y las nubes—, así la vista tiene profundidad y paralaje real al caminar por
- * la sala, con el coste de un solo rectángulo.
+ * intersecta con planos imaginarios detrás de la pared, así la vista tiene profundidad y paralaje
+ * real al caminar por la sala, con el coste de un solo rectángulo.
  *
- * El tiempo acompaña el clima emocional de la sesión (`useEfectosAmbiente`): despejado y dorado
- * con la calma, nublado y con lluvia con la pesadumbre, tormenta con relámpagos con la tensión.
+ * Cada práctica sortea un paisaje (ciudad, parque, montañas o lago) y un momento del día (mañana,
+ * mediodía, tarde, atardecer o noche; ver `vista-ventana.ts`). Todos son tranquilos: de noche hay
+ * estrellas, luna, faroles y ventanas encendidas, nunca oscuridad total.
+ *
+ * Encima va el clima emocional de la sesión (`useEfectosAmbiente`): despejado y dorado con la
+ * calma, nublado y con lluvia con la pesadumbre, tormenta con relámpagos con la tensión.
  */
 
 /** El consultorio está en un segundo piso: el suelo de la calle queda esta altura más abajo (m). */
@@ -41,8 +46,23 @@ const FRAGMENTO = /* glsl */ `
   uniform float uTension;
   uniform float uPesadumbre;
   uniform float uRelampago;
+  uniform float uPaisaje;
+  uniform vec3 uCenit;
+  uniform vec3 uHorizonte;
+  uniform vec3 uDirSol;
+  uniform vec3 uColorSol;
+  uniform float uLuz;
+  uniform float uNoche;
   varying vec3 vLocal;
   varying vec2 vUv;
+
+  // Estado del cielo de este fotograma (lo calcula main y lo leen las funciones).
+  vec3 gCenit;
+  vec3 gHorizonte;
+  vec3 gSol;
+  vec3 gColorSol;
+  float gNublado;
+  float gViento;
 
   vec3 lineal(vec3 c) { return pow(c, vec3(2.2)); }
   float azar(float n) { return fract(sin(n * 12.9898 + uSemilla) * 43758.5453); }
@@ -71,47 +91,166 @@ const FRAGMENTO = /* glsl */ `
   float alPlano(vec3 o, vec3 d, float profundidad) {
     return d.z < -1e-4 ? (-profundidad - o.z) / d.z : 1e9;
   }
+  /** Distancia del rayo al suelo exterior (o un valor enorme si mira hacia arriba). */
+  float alSuelo(vec3 o, vec3 d) {
+    return d.y < -1e-4 ? (uSuelo - o.y) / d.y : 1e9;
+  }
+  /** Luz cálida de una lámpara exterior: solo de noche (y un poco al atardecer). */
+  vec3 luzCalida(float fuerza) {
+    return lineal(vec3(1.0, 0.78, 0.46)) * fuerza * smoothstep(0.2, 0.9, uNoche);
+  }
 
-  void main() {
-    vec3 o = uCamara;
-    vec3 d = normalize(vLocal - uCamara);
-    float nublado = clamp(uPesadumbre + uTension * 0.85, 0.0, 1.0);
-    float viento = 1.0 + 3.0 * uTension;
-
-    // ---- Cielo ----
-    vec3 horizonte = mix(lineal(vec3(0.80, 0.89, 0.94)), lineal(vec3(0.98, 0.88, 0.72)), uCalma * 0.7);
-    vec3 cenit = lineal(vec3(0.36, 0.62, 0.85));
-    horizonte = mix(horizonte, lineal(vec3(0.72, 0.75, 0.78)), uPesadumbre);
-    cenit = mix(cenit, lineal(vec3(0.52, 0.57, 0.62)), uPesadumbre);
-    horizonte = mix(horizonte, lineal(vec3(0.36, 0.34, 0.40)), uTension);
-    cenit = mix(cenit, lineal(vec3(0.17, 0.18, 0.24)), uTension);
+  /** Cielo en una dirección: degradado, sol o luna, estrellas y nubes. */
+  vec3 cieloEn(vec3 o, vec3 d) {
     float alto = max(d.y, 0.0);
-    vec3 cielo = mix(cenit, horizonte, pow(1.0 - alto, 3.0));
+    vec3 cielo = mix(gCenit, gHorizonte, pow(1.0 - alto, 3.0));
 
-    vec3 sol = normalize(vec3(0.45, 0.3, -1.0));
-    float s = max(dot(d, sol), 0.0);
-    vec3 colorSol = mix(vec3(1.0, 0.93, 0.8), vec3(1.0, 0.8, 0.55), uCalma);
-    cielo += colorSol * (pow(s, 1200.0) * 6.0 + pow(s, 14.0) * 0.3) * (1.0 - nublado);
+    // De día, el sol y su halo; de noche, una luna de borde suave.
+    float s = max(dot(d, gSol), 0.0);
+    float disco = mix(pow(s, 1200.0) * 6.0, smoothstep(0.99955, 0.9997, s) * 1.4, uNoche);
+    float halo = mix(pow(s, 14.0) * 0.3, pow(s, 90.0) * 0.18, uNoche);
+    cielo += gColorSol * (disco + halo) * (1.0 - gNublado);
+
+    // Estrellas que titilan despacio (quietas con «reducir movimiento»: el tiempo no avanza).
+    if (uNoche > 0.01 && d.y > 0.02) {
+      vec2 q = d.xz / (d.y + 0.35) * 60.0;
+      vec2 celda = floor(q);
+      float h = azar2(celda);
+      if (h > 0.975) {
+        vec2 centro = celda + 0.5 + (vec2(azar2(celda + 3.1), azar2(celda + 7.7)) - 0.5) * 0.6;
+        float punto = smoothstep(0.32, 0.0, length(q - centro));
+        float titileo = 0.75 + 0.25 * sin(uTiempo * (0.5 + h) + h * 40.0);
+        cielo += vec3(0.9, 0.93, 1.0) * punto * titileo * uNoche * (1.0 - smoothstep(0.0, 0.5, gNublado))
+          * smoothstep(0.02, 0.2, d.y);
+      }
+    }
 
     if (d.y > 0.0) {
       float t = (80.0 - o.y) / d.y;
-      vec2 p = (o.xz + d.xz * t) * 0.01 + vec2(uTiempo * 0.006 * viento, uSemilla * 3.1);
+      vec2 p = (o.xz + d.xz * t) * 0.01 + vec2(uTiempo * 0.006 * gViento, uSemilla * 3.1);
       float n = fbm(p);
-      float cobertura = mix(0.56, 0.2, nublado);
+      // Siempre hay algunas nubes; con el malestar cubren el cielo.
+      float cobertura = mix(0.56, 0.2, gNublado);
       float densidad = smoothstep(cobertura, cobertura + 0.3, n) * smoothstep(0.0, 0.1, d.y);
-      vec3 colorNube = mix(vec3(1.0, 0.98, 0.95), lineal(vec3(0.58, 0.6, 0.64)), nublado);
-      colorNube = mix(colorNube, lineal(vec3(0.24, 0.24, 0.29)), uTension);
+      // Las nubes toman el color del horizonte: rosadas al atardecer, azul tenue de noche.
+      vec3 colorNube = mix(vec3(1.0, 0.98, 0.95), gHorizonte * 1.15, 0.45);
+      colorNube *= mix(1.0, 0.2, uNoche);
+      colorNube = mix(colorNube, lineal(vec3(0.58, 0.6, 0.64)) * mix(1.0, 0.2, uNoche), gNublado);
+      colorNube = mix(colorNube, lineal(vec3(0.24, 0.24, 0.29)) * mix(1.0, 0.35, uNoche), uTension);
       colorNube *= 0.78 + 0.22 * smoothstep(0.3, 0.9, fbm(p * 1.7 + 4.0));
       cielo = mix(cielo, colorNube, densidad * 0.9);
     }
+    return cielo;
+  }
 
-    // ---- Lo más cercano que toca el rayo ----
-    float tMin = 1e9;
-    vec3 color = cielo;
+  /**
+   * Hilera de árboles en el plano z = -profundidad. \`conifera\` es la proporción de pinos; el resto
+   * son copas redondas. \`hueco\` es la probabilidad de que una celda quede vacía.
+   */
+  void arboles(vec3 o, vec3 d, float profundidad, float ancho, float altura, float radio,
+      float conifera, float hueco, float fila, inout float tMin, inout vec3 color) {
+    float t = alPlano(o, d, profundidad);
+    if (t >= tMin) return;
+    vec3 p = o + d * t;
+    float y = p.y - uSuelo;
+    float celda = floor(p.x / ancho) + fila * 37.0;
+    if (azar(celda + 11.0) < hueco) return;
+    float centro = (0.5 + (azar(celda) - 0.5) * 0.5) * ancho;
+    float alto = altura * (0.75 + 0.5 * azar(celda + 3.0));
+    float r = radio * (0.8 + 0.45 * azar(celda + 7.0));
+    float vaiven = sin(uTiempo * (0.8 + 1.6 * uTension) + celda * 1.7) * (0.04 + 0.12 * uTension);
+    float x = mod(p.x, ancho) + vaiven * max(y, 0.0) * (6.0 / max(altura, 1.0));
+    float textura = ruido(vec2(p.x, y) * 2.5);
 
-    // Calle vista desde un segundo piso: andén, calzada, andén y un parque.
-    if (d.y < 0.0) {
-      float t = (uSuelo - o.y) / d.y;
+    if (azar(celda + 19.0) < conifera) {
+      // Pino: un cono de borde dentado.
+      float base = alto * 0.18;
+      float punta = alto + r * 0.6;
+      float mitad = r * 0.85 * (punta - y) / (punta - base) * (0.88 + 0.24 * ruido(vec2(p.x, y) * 1.4));
+      if (y > base && y < punta && abs(x - centro) < mitad) {
+        float luz = clamp((y - base) / (punta - base), 0.0, 1.0);
+        tMin = t;
+        color = mix(lineal(vec3(0.12, 0.24, 0.16)), lineal(vec3(0.26, 0.42, 0.26)), luz)
+          * (0.85 + 0.25 * textura);
+        return;
+      }
+    } else {
+      float borde = r * (0.82 + 0.3 * ruido(vec2(p.x, y) * 0.9));
+      float copa = length(vec2(x - centro, (y - alto) * 1.15)) - borde;
+      if (copa < 0.0) {
+        float luz = clamp((y - alto + r) / (2.0 * r), 0.0, 1.0);
+        vec3 verde = mix(lineal(vec3(0.2, 0.33, 0.16)), lineal(vec3(0.46, 0.62, 0.3)), luz);
+        // Algunas copas más amarillas o más azuladas, para que la hilera no sea un solo verde.
+        verde *= mix(vec3(1.0), vec3(1.15, 1.05, 0.75), step(0.8, azar(celda + 23.0)));
+        tMin = t;
+        color = verde * (0.82 + 0.3 * textura);
+        return;
+      }
+    }
+    if (abs(x - centro) < 0.12 + 0.012 * alto && y > 0.0 && y < alto - r * 0.4) {
+      tMin = t;
+      color = lineal(vec3(0.33, 0.24, 0.18));
+    }
+  }
+
+  /** Faroles en el plano z = -profundidad: poste oscuro de día, cabeza encendida de noche. */
+  void faroles(vec3 o, vec3 d, float profundidad, float separacion, float altura,
+      inout float tMin, inout vec3 color, inout vec3 emision) {
+    float t = alPlano(o, d, profundidad);
+    if (t >= tMin) return;
+    vec3 p = o + d * t;
+    float y = p.y - uSuelo;
+    float x = mod(p.x + separacion * 0.5, separacion) - separacion * 0.5;
+    vec2 cabeza = vec2(x, y - altura);
+    // Halo alrededor de la lámpara, aunque el rayo no toque el poste.
+    emision += luzCalida(0.35) * exp(-dot(cabeza, cabeza) * 3.0);
+    if (abs(x) < 0.07 && y > 0.0 && y < altura) {
+      tMin = t;
+      color = lineal(vec3(0.24, 0.25, 0.27));
+    } else if (length(cabeza * vec2(1.0, 1.4)) < 0.2) {
+      tMin = t;
+      color = lineal(vec3(0.3, 0.3, 0.32));
+      emision += luzCalida(2.2);
+    }
+  }
+
+  /** Charco de luz de un farol en el suelo (x cada \`separacion\` m, a la distancia \`fila\`). */
+  vec3 charcoDeLuz(vec3 p, float separacion, float fila) {
+    float x = mod(p.x + separacion * 0.5, separacion) - separacion * 0.5;
+    float z = -p.z - fila;
+    return luzCalida(0.55) * exp(-(x * x + z * z) / 7.0);
+  }
+
+  /** Cerros en el plano z = -profundidad, con su perfil de ruido. */
+  void cerros(vec3 o, vec3 d, float profundidad, float base, float relieve, float escala,
+      vec3 tono, float pueblos, inout float tMin, inout vec3 color, inout vec3 emision) {
+    float t = alPlano(o, d, profundidad);
+    if (t >= tMin) return;
+    vec3 p = o + d * t;
+    float y = p.y - uSuelo;
+    float perfil = base + relieve * fbm(vec2(p.x * escala, uSemilla + profundidad * 0.01));
+    if (y < perfil) {
+      tMin = t;
+      float sombra = 0.85 + 0.25 * fbm(vec2(p.x, y) * escala * 6.0);
+      color = lineal(tono) * sombra;
+      // Casas encendidas en la ladera, de noche.
+      if (pueblos > 0.0 && y < perfil * 0.7) {
+        vec2 casa = floor(vec2(p.x / 3.0, y / 2.0));
+        float h = azar2(casa + profundidad);
+        if (h > 1.0 - pueblos) {
+          vec2 f = fract(vec2(p.x / 3.0, y / 2.0)) - 0.5;
+          emision += luzCalida(1.6) * smoothstep(0.22, 0.0, length(f));
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- Paisajes
+
+  /** Calle vista desde un segundo piso, un parque, la ciudad y unos cerros. */
+  void ciudad(vec3 o, vec3 d, inout float tMin, inout vec3 color, inout vec3 emision) {
+    float t = alSuelo(o, d);
+    if (t < tMin) {
       vec3 p = o + d * t;
       float lejos = -p.z;
       vec3 suelo;
@@ -130,37 +269,15 @@ const FRAGMENTO = /* glsl */ `
         suelo = lineal(vec3(0.45, 0.6, 0.32)) * (0.8 + 0.3 * fbm(p.xz * 0.35));
       }
       // Mojado y oscuro con la lluvia.
-      suelo *= 1.0 - 0.35 * nublado;
+      suelo *= 1.0 - 0.35 * gNublado;
       tMin = t;
       color = suelo;
+      emision += charcoDeLuz(p, 14.0, 12.0);
     }
+    faroles(o, d, 12.0, 14.0, 5.0, tMin, color, emision);
+    arboles(o, d, 18.0, 8.0, 7.5, 3.2, 0.0, 0.12, 0.0, tMin, color);
 
-    // Hilera de árboles del parque (z = -18), que el viento mece.
-    float tArbol = alPlano(o, d, 18.0);
-    if (tArbol < tMin) {
-      vec3 p = o + d * tArbol;
-      float y = p.y - uSuelo;
-      float ancho = 8.0;
-      float celda = floor(p.x / ancho);
-      float centro = (0.5 + (azar(celda) - 0.5) * 0.5) * ancho;
-      float altura = 6.0 + 3.0 * azar(celda + 3.0);
-      float radio = 2.6 + 1.3 * azar(celda + 7.0);
-      float vaiven = sin(uTiempo * (0.8 + 1.6 * uTension) + celda * 1.7) * (0.04 + 0.12 * uTension);
-      float x = mod(p.x, ancho) + vaiven * max(y, 0.0);
-      float borde = radio * (0.82 + 0.3 * ruido(vec2(p.x, y) * 0.9));
-      float copa = length(vec2(x - centro, (y - altura) * 1.15)) - borde;
-      if (copa < 0.0 && azar(celda + 11.0) > 0.12) {
-        float luz = clamp((y - altura + radio) / (2.0 * radio), 0.0, 1.0);
-        vec3 verde = mix(lineal(vec3(0.2, 0.33, 0.16)), lineal(vec3(0.46, 0.62, 0.3)), luz);
-        tMin = tArbol;
-        color = verde * (0.82 + 0.3 * ruido(vec2(p.x, y) * 2.5));
-      } else if (abs(x - centro) < 0.22 && y > 0.0 && y < altura - radio * 0.4) {
-        tMin = tArbol;
-        color = lineal(vec3(0.33, 0.24, 0.18));
-      }
-    }
-
-    // Edificios de la ciudad (z = -150), con ventanas que se encienden con la tormenta.
+    // Edificios (z = -150), con ventanas que se encienden de noche y con la tormenta.
     float tCiudad = alPlano(o, d, 150.0);
     if (tCiudad < tMin) {
       vec3 p = o + d * tCiudad;
@@ -175,31 +292,156 @@ const FRAGMENTO = /* glsl */ `
         fachada *= x < anchoEdificio * 0.15 ? 0.82 : 1.0;
         vec2 v = vec2(fract(x / 2.0), fract(y / 3.0));
         float ventana = step(0.25, v.x) * step(v.x, 0.75) * step(0.3, v.y) * step(v.y, 0.78);
-        float encendida = step(0.55, azar2(floor(vec2(x / 2.0, y / 3.0)) + celda * 7.0));
-        vec3 vidrio = mix(lineal(vec3(0.45, 0.55, 0.65)), lineal(vec3(1.0, 0.82, 0.5)) * 1.4,
-          encendida * clamp(uTension + uPesadumbre * 0.6, 0.0, 1.0));
+        float h = azar2(floor(vec2(x / 2.0, y / 3.0)) + celda * 7.0);
+        float encendida = step(mix(0.55, 0.4, uNoche), h);
+        float prendidas = clamp(max(uNoche, uTension + uPesadumbre * 0.6), 0.0, 1.0);
         tMin = tCiudad;
-        color = mix(fachada, vidrio, ventana);
+        color = mix(fachada, lineal(vec3(0.45, 0.55, 0.65)), ventana);
+        // Unas ventanas cálidas y otras más neutras, como en cualquier edificio de noche.
+        vec3 interior = mix(lineal(vec3(1.0, 0.82, 0.5)), lineal(vec3(0.95, 0.92, 0.85)), step(0.85, h));
+        emision += interior * 1.2 * ventana * encendida * prendidas;
       }
     }
+    cerros(o, d, 420.0, 35.0, 40.0, 0.004, vec3(0.42, 0.52, 0.46), 0.0, tMin, color, emision);
+  }
 
-    // Colinas al fondo (z = -420).
-    float tColina = alPlano(o, d, 420.0);
-    if (tColina < tMin) {
-      vec3 p = o + d * tColina;
-      float y = p.y - uSuelo;
-      if (y < 35.0 + 40.0 * fbm(vec2(p.x * 0.004, uSemilla))) {
-        tMin = tColina;
-        color = lineal(vec3(0.42, 0.52, 0.46));
+  /** Un parque: césped con flores, un sendero que serpentea, varias hileras de árboles. */
+  void parque(vec3 o, vec3 d, inout float tMin, inout vec3 color, inout vec3 emision) {
+    float t = alSuelo(o, d);
+    if (t < tMin) {
+      vec3 p = o + d * t;
+      float lejos = -p.z;
+      vec3 suelo = lineal(vec3(0.43, 0.6, 0.3)) * (0.78 + 0.32 * fbm(p.xz * 0.45));
+      float sendero = 6.0 + 2.2 * sin(p.x * 0.11 + uSemilla);
+      if (abs(lejos - sendero) < 0.75) {
+        suelo = lineal(vec3(0.76, 0.69, 0.56)) * (0.9 + 0.12 * ruido(p.xz * 6.0));
+      } else if (lejos < 14.0) {
+        // Flores sueltas en el césped cercano.
+        vec2 celda = floor(p.xz * 3.0);
+        float h = azar2(celda);
+        if (h > 0.965) {
+          vec3 flor = h > 0.988 ? vec3(0.98, 0.95, 0.88) : (h > 0.977 ? vec3(0.96, 0.78, 0.4) : vec3(0.92, 0.62, 0.68));
+          suelo = mix(suelo, lineal(flor), smoothstep(0.32, 0.12, length(fract(p.xz * 3.0) - 0.5)));
+        }
+      }
+      suelo *= 1.0 - 0.3 * gNublado;
+      tMin = t;
+      color = suelo;
+      emision += charcoDeLuz(p, 11.0, 4.2);
+    }
+    faroles(o, d, 4.2, 11.0, 3.2, tMin, color, emision);
+    arboles(o, d, 10.0, 9.0, 6.0, 2.8, 0.15, 0.55, 1.0, tMin, color);
+    arboles(o, d, 19.0, 6.5, 7.0, 3.0, 0.25, 0.15, 2.0, tMin, color);
+    arboles(o, d, 34.0, 5.0, 8.5, 2.6, 0.45, 0.05, 3.0, tMin, color);
+    arboles(o, d, 70.0, 4.0, 9.0, 2.4, 0.5, 0.0, 4.0, tMin, color);
+    cerros(o, d, 280.0, 25.0, 45.0, 0.006, vec3(0.4, 0.55, 0.42), 0.0, tMin, color, emision);
+  }
+
+  /** Un valle: potrero, una hilera de árboles y tres cordilleras que se aclaran con la distancia. */
+  void montanas(vec3 o, vec3 d, inout float tMin, inout vec3 color, inout vec3 emision) {
+    float t = alSuelo(o, d);
+    if (t < tMin) {
+      vec3 p = o + d * t;
+      vec3 suelo = lineal(vec3(0.52, 0.62, 0.32)) * (0.8 + 0.3 * fbm(p.xz * vec2(0.15, 0.6)));
+      // Surcos y cercas del potrero.
+      suelo *= 0.94 + 0.06 * step(0.5, fract(-p.z / 3.0 + 0.3 * sin(p.x * 0.05)));
+      suelo *= 1.0 - 0.3 * gNublado;
+      tMin = t;
+      color = suelo;
+    }
+    arboles(o, d, 22.0, 7.0, 6.5, 2.6, 0.5, 0.35, 5.0, tMin, color);
+    // Cada cordillera asoma por encima de la anterior: más alta y más lejos, más azul por la bruma.
+    cerros(o, d, 140.0, 6.0, 16.0, 0.012, vec3(0.32, 0.47, 0.3), 0.02, tMin, color, emision);
+    cerros(o, d, 480.0, 50.0, 75.0, 0.005, vec3(0.3, 0.44, 0.4), 0.012, tMin, color, emision);
+    cerros(o, d, 1500.0, 250.0, 280.0, 0.0016, vec3(0.42, 0.5, 0.6), 0.0, tMin, color, emision);
+  }
+
+  /** Un lago visto desde la orilla: arbustos, agua que refleja el cielo y la otra orilla. */
+  void lago(vec3 o, vec3 d, inout float tMin, inout vec3 color, inout vec3 emision) {
+    // Los arbustos de la orilla van antes que el agua: si no, el reflejo que suma el agua quedaría
+    // encima de ellos y se verían translúcidos.
+    arboles(o, d, 17.0, 3.4, 1.8, 1.1, 0.0, 0.45, 6.0, tMin, color);
+    float t = alSuelo(o, d);
+    if (t < tMin) {
+      vec3 p = o + d * t;
+      float lejos = -p.z;
+      float orilla = 20.0 + 4.0 * sin(p.x * 0.07 + uSemilla);
+      tMin = t;
+      if (lejos < orilla) {
+        color = lineal(vec3(0.46, 0.6, 0.33)) * (0.8 + 0.3 * fbm(p.xz * 0.5));
+        color = mix(color, lineal(vec3(0.74, 0.68, 0.54)), smoothstep(orilla - 2.5, orilla - 0.3, lejos));
+      } else {
+        // Ondas lentas que mueven el reflejo (más con el viento de la tensión).
+        vec2 q = p.xz * vec2(0.5, 1.6);
+        vec2 ola = vec2(
+          ruido(q + vec2(uTiempo * 0.12, 0.0)),
+          ruido(q * 1.3 - vec2(0.0, uTiempo * 0.1))
+        ) - 0.5;
+        vec3 n = normalize(vec3(ola.x * 0.12 * gViento, 1.0, ola.y * 0.12 * gViento));
+        vec3 r = reflect(d, n);
+        r.y = abs(r.y);
+        float fresnel = 0.05 + 0.95 * pow(1.0 - max(dot(-d, n), 0.0), 5.0);
+        // El agua tiene su propio color; el reflejo del cielo se suma atenuado y un poco verdoso,
+        // si no el lago de día se ve blanco.
+        color = lineal(vec3(0.16, 0.32, 0.34)) * (1.0 - 0.5 * fresnel);
+        emision += cieloEn(p, r) * lineal(vec3(0.8, 0.9, 0.92)) * (0.12 + 0.5 * fresnel)
+          * (1.0 - 0.3 * gNublado);
       }
     }
+    arboles(o, d, 280.0, 7.0, 10.0, 3.6, 0.6, 0.05, 7.0, tMin, color);
+    cerros(o, d, 300.0, 12.0, 30.0, 0.007, vec3(0.36, 0.48, 0.4), 0.012, tMin, color, emision);
+    cerros(o, d, 1200.0, 90.0, 140.0, 0.0018, vec3(0.42, 0.5, 0.58), 0.0, tMin, color, emision);
+  }
 
-    // Perspectiva aérea: lo lejano se funde con el horizonte (más con lluvia).
+  void main() {
+    vec3 o = uCamara;
+    vec3 d = normalize(vLocal - uCamara);
+    gNublado = clamp(uPesadumbre + uTension * 0.85, 0.0, 1.0);
+    gViento = 1.0 + 3.0 * uTension;
+
+    // Cielo del momento del día, templado por el clima emocional. De noche los grises de la lluvia
+    // y la tormenta se oscurecen: un cielo nublado de noche no puede quedar más claro que el
+    // despejado.
+    float apagado = mix(1.0, 0.2, uNoche);
+    gHorizonte = lineal(uHorizonte);
+    gCenit = lineal(uCenit);
+    gHorizonte = mix(gHorizonte, lineal(vec3(0.98, 0.88, 0.72)), uCalma * 0.35 * (1.0 - uNoche));
+    gHorizonte = mix(gHorizonte, lineal(vec3(0.72, 0.75, 0.78)) * apagado, uPesadumbre);
+    gCenit = mix(gCenit, lineal(vec3(0.52, 0.57, 0.62)) * apagado, uPesadumbre);
+    gHorizonte = mix(gHorizonte, lineal(vec3(0.36, 0.34, 0.40)) * apagado, uTension);
+    gCenit = mix(gCenit, lineal(vec3(0.17, 0.18, 0.24)) * apagado, uTension);
+    gSol = normalize(uDirSol);
+    gColorSol = lineal(uColorSol);
+
+    vec3 color = cieloEn(o, d);
+    float tMin = 1e9;
+    // Lo que emite luz propia (faroles, ventanas, reflejos): no lo atenúa la hora del día.
+    vec3 emision = vec3(0.0);
+    float bruma = 0.0035;
+
+    if (uPaisaje < 0.5) {
+      ciudad(o, d, tMin, color, emision);
+    } else if (uPaisaje < 1.5) {
+      parque(o, d, tMin, color, emision);
+    } else if (uPaisaje < 2.5) {
+      montanas(o, d, tMin, color, emision);
+      // El valle es amplio: menos bruma para que la cordillera del fondo se alcance a ver.
+      bruma = 0.0011;
+    } else {
+      lago(o, d, tMin, color, emision);
+      bruma = 0.0018;
+    }
+
     if (tMin < 1e8) {
-      float bruma = 1.0 - exp(-tMin * (0.0035 + 0.02 * nublado));
-      color = mix(color, horizonte, bruma);
-      // Luz del día: más tenue con nubes y tormenta, más cálida con la calma.
-      color *= mix(1.0, 0.62, nublado) * mix(vec3(1.0), vec3(1.06, 1.0, 0.9), uCalma);
+      // Luz del momento: más tenue con nubes y tormenta, más cálida con la calma.
+      color *= uLuz * mix(vec3(1.0), gColorSol, 0.3) * mix(1.0, 0.62, gNublado)
+        * mix(vec3(1.0), vec3(1.06, 1.0, 0.9), uCalma * (1.0 - uNoche));
+      // Perspectiva aérea: lo lejano se funde con el horizonte (más con lluvia).
+      float niebla = 1.0 - exp(-tMin * (bruma + 0.02 * gNublado));
+      color = mix(color, gHorizonte, niebla);
+      color += emision * (1.0 - niebla * 0.7);
+    } else {
+      color += emision;
     }
 
     // Lluvia: trazos que caen en diagonal (más con la tormenta).
@@ -210,7 +452,7 @@ const FRAGMENTO = /* glsl */ `
       float columna = floor(q.x);
       float caida = fract(q.y * 0.8 + uTiempo * (1.6 + azar(columna) * 1.2) * (1.0 + uTension) + azar(columna + 9.0) * 7.0);
       float trazo = (1.0 - smoothstep(0.0, 0.13, abs(fract(q.x) - 0.5))) * smoothstep(0.55, 1.0, caida) * step(caida, 0.995);
-      color = mix(color, lineal(vec3(0.85, 0.88, 0.92)), trazo * lluvia * 0.45);
+      color = mix(color, lineal(vec3(0.85, 0.88, 0.92)) * mix(1.0, 0.35, uNoche), trazo * lluvia * 0.45);
     }
 
     color += uRelampago * mix(vec3(0.35), vec3(1.6, 1.65, 1.9), step(1e8, tMin));
@@ -243,19 +485,28 @@ class Vista {
   private readonly posicion = new Vector3();
   private readonly quieto = prefiereMenosMovimiento();
 
-  constructor(semilla: string) {
+  constructor(semilla: string, vista: VistaVentana) {
+    const luz = LUZ_DEL_MOMENTO[vista.momento];
     this.material = new ShaderMaterial({
       vertexShader: VERTICE,
       fragmentShader: FRAGMENTO,
       uniforms: {
         uCamara: { value: new Vector3() },
         uTiempo: { value: 0 },
-        uSemilla: { value: semillaDe(semilla) },
+        // La semilla de la ventana más la de la práctica: otra disposición en cada sorteo.
+        uSemilla: { value: semillaDe(semilla) + vista.semilla },
         uSuelo: { value: -4.5 },
         uCalma: { value: 0 },
         uTension: { value: 0 },
         uPesadumbre: { value: 0 },
         uRelampago: { value: 0 },
+        uPaisaje: { value: indicePaisaje(vista.paisaje) },
+        uCenit: { value: new Vector3(...luz.cenit) },
+        uHorizonte: { value: new Vector3(...luz.horizonte) },
+        uDirSol: { value: new Vector3(...luz.direccionSol) },
+        uColorSol: { value: new Vector3(...luz.colorSol) },
+        uLuz: { value: luz.luz },
+        uNoche: { value: luz.noche },
       },
     });
   }
@@ -302,8 +553,9 @@ export function VistaExterior({
   semilla: string;
 }) {
   const efectos = useEfectosAmbiente();
+  const vistaVentana = useVistaVentana();
   const malla = useRef<Mesh>(null);
-  const vista = useMemo(() => new Vista(semilla), [semilla]);
+  const vista = useMemo(() => new Vista(semilla, vistaVentana), [semilla, vistaVentana]);
   useEffect(() => () => vista.material.dispose(), [vista]);
 
   useFrame(({ camera, clock }, delta) => {
