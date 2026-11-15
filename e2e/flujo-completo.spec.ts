@@ -75,11 +75,11 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
 
     // 2. El estudiante, en su propio navegador, canjea el código y conversa.
     const contextoEstudiante = await browser.newContext();
-    const alumno = await contextoEstudiante.newPage();
-    await iniciarSesionComoEstudiante(alumno);
-    const sesionId = await canjearCodigoEnPracticas(alumno, codigo.toUpperCase());
-    await comenzarSimulacion(alumno, /Duelo y pérdida/);
-    const hud = alumno.getByRole('complementary', { name: 'Datos de la práctica' });
+    const pestanaEstudiante = await contextoEstudiante.newPage();
+    await iniciarSesionComoEstudiante(pestanaEstudiante);
+    const sesionId = await canjearCodigoEnPracticas(pestanaEstudiante, codigo.toUpperCase());
+    await comenzarSimulacion(pestanaEstudiante, /Duelo y pérdida/);
+    const hud = pestanaEstudiante.getByRole('complementary', { name: 'Datos de la práctica' });
     await expect(hud).toContainText('Duelo y pérdida');
 
     // El docente solo ve que la simulación está en progreso (sin el chat).
@@ -87,7 +87,7 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await expect(page.getByRole('heading', { name: 'Practicando ahora' })).toBeVisible();
     await expect(page.getByText(INTERVENCION)).toHaveCount(0);
 
-    const panel = await abrirConversacion(alumno, 'Marta', 'Marta Lucía');
+    const panel = await abrirConversacion(pestanaEstudiante, 'Marta', 'Marta Lucía');
     const respuesta = await conversar(panel, 'Marta Lucía', INTERVENCION);
     expect(respuesta.length).toBeGreaterThan(0);
     // La etiqueta de emoción de la IA nunca llega al estudiante.
@@ -96,21 +96,23 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     // 3. El estudiante finaliza desde el HUD.
     await panel.getByRole('button', { name: 'Volver a explorar' }).click();
     // Al volver se recaptura el ratón; el navegador sin interfaz no lo suelta con Escape.
-    await alumno.evaluate(() => document.exitPointerLock());
-    await alumno.getByRole('button', { name: 'Terminar práctica' }).click();
-    const confirmacion = alumno.getByRole('alertdialog');
+    await pestanaEstudiante.evaluate(() => document.exitPointerLock());
+    await pestanaEstudiante.getByRole('button', { name: 'Terminar práctica' }).click();
+    const confirmacion = pestanaEstudiante.getByRole('alertdialog');
     await expect(confirmacion).toContainText('No se puede reanudar');
     await confirmacion.getByRole('button', { name: 'Terminar práctica' }).click();
     // HU-20: llega a los resultados con las métricas de la sesión.
-    await expect(alumno).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
+    await expect(pestanaEstudiante).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
       timeout: 30_000,
     });
-    await expect(alumno.getByRole('region', { name: 'Total de intervenciones' })).toContainText(
-      '1'
-    );
-    await alumno.goto(`/practicas/${sesionId}`);
-    await expect(alumno).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
-    await expect(alumno.getByText('Tu docente aún no publica la retroalimentación.')).toBeVisible();
+    await expect(
+      pestanaEstudiante.getByRole('region', { name: 'Total de intervenciones' })
+    ).toContainText('1');
+    await pestanaEstudiante.goto(`/practicas/${sesionId}`);
+    await expect(pestanaEstudiante).toHaveURL(new RegExp(`/practicas/${sesionId}$`));
+    await expect(
+      pestanaEstudiante.getByText('Tu docente aún no publica la retroalimentación.')
+    ).toBeVisible();
 
     // El docente revisa: subraya una frase, la comenta, pone la nota y publica.
     await page.reload();
@@ -131,11 +133,15 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await expect(page.getByText(/^Publicada\./)).toBeVisible();
 
     // 4. El estudiante ve la retroalimentación publicada.
-    await alumno.reload();
-    await expect(alumno.getByTestId('nota-publicada')).toHaveText('4,5');
-    await expect(alumno.getByText('Buen encuadre inicial y tono empático.')).toBeVisible();
-    await expect(alumno.locator('mark')).toHaveText('Soy estudiante de psicología');
-    await expect(alumno.getByText('Bien: te presentas antes de preguntar.')).toBeVisible();
+    await pestanaEstudiante.reload();
+    await expect(pestanaEstudiante.getByTestId('nota-publicada')).toHaveText('4,5');
+    await expect(
+      pestanaEstudiante.getByText('Buen encuadre inicial y tono empático.')
+    ).toBeVisible();
+    await expect(pestanaEstudiante.locator('mark')).toHaveText('Soy estudiante de psicología');
+    await expect(
+      pestanaEstudiante.getByText('Bien: te presentas antes de preguntar.')
+    ).toBeVisible();
 
     // Y queda registrado en Supabase.
     const admin = clienteAdmin();
