@@ -9,11 +9,13 @@ import {
   Loader2,
   Mail,
   Monitor,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { useEffect, useId, useState, useSyncExternalStore, useTransition } from 'react';
 
+import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,8 +30,24 @@ import { Input } from '@/components/ui/input';
 import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { canjearCodigo } from '@/lib/asignaciones/actions';
 import { normalizarCodigoAcceso, rutaUnirse } from '@/lib/asignaciones/codigo';
+import { formatearDia } from '@/lib/estudiantes/estudiantes';
+import { cn } from '@/lib/utils';
 
 const sinSuscripcion = () => () => {};
+
+export interface CodigoAsignadoVista {
+  id: string;
+  codigo: string;
+  expiraEn: string;
+  creadoEn: string;
+  docenteNombre: string | null;
+  escenario: {
+    codigo: string;
+    titulo: string;
+    competenciaCentral: string | null;
+    paciente: string | null;
+  };
+}
 
 interface FormularioCodigoProps {
   codigoInicial?: string;
@@ -37,6 +55,8 @@ interface FormularioCodigoProps {
   correo?: string | null;
   /** `unirse`: la página del enlace (aviso grande en el celular); `practicas`: el bloque de Mis prácticas. */
   variante?: 'unirse' | 'practicas';
+  /** Códigos de acceso vigentes que el docente ya le asignó al estudiante. */
+  codigosAsignados?: CodigoAsignadoVista[];
 }
 
 /**
@@ -51,6 +71,7 @@ export function FormularioCodigo({
   codigoInicial = '',
   correo = null,
   variante = 'practicas',
+  codigosAsignados = [],
 }: FormularioCodigoProps) {
   const id = useId();
   const esComputador = useEsComputador();
@@ -87,6 +108,7 @@ export function FormularioCodigo({
           codigo={normalizarCodigoAcceso(codigo) ?? codigoInicial}
           correo={correo}
           variante={variante}
+          codigosAsignados={codigosAsignados}
           onForzar={() => setConfirmandoForzar(true)}
         />
         <Dialog open={confirmandoForzar} onOpenChange={setConfirmandoForzar}>
@@ -131,62 +153,145 @@ export function FormularioCodigo({
   }
 
   return (
-    <form onSubmit={entrar} noValidate className="flex flex-col gap-3" aria-label="Usar un código">
-      <label htmlFor={id} className="text-sm font-semibold">
-        Código de acceso
-      </label>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <KeyRound
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            id={id}
-            value={codigo}
-            onChange={evento => setCodigo(evento.target.value)}
-            placeholder="abc-defg-hij"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="h-12 pl-10 font-mono text-lg tracking-[0.08em]"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={`${id}-ayuda${error ? ` ${id}-error` : ''}`}
-            disabled={entrando}
-          />
+    // Contenedor con nombre: la lista vive tanto en la columna estrecha de Mis prácticas como en
+    // páginas anchas, y debe acomodarse al espacio real, no al de la ventana.
+    <div className="@container flex flex-col gap-5">
+      {codigosAsignados.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Sparkles className="size-4 shrink-0 text-salvia" aria-hidden />
+            {codigosAsignados.length === 1
+              ? 'Práctica asignada por tu docente'
+              : `Prácticas asignadas por tu docente (${codigosAsignados.length})`}
+          </p>
+          <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+            {codigosAsignados.map(item => {
+              const seleccionado =
+                normalizarCodigoAcceso(codigo) === normalizarCodigoAcceso(item.codigo);
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    'flex flex-col gap-3 p-3.5 transition-colors @md:flex-row @md:items-center @md:justify-between',
+                    seleccionado && 'bg-salvia-suave/45'
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-sm leading-snug font-semibold text-foreground">
+                      <CodigoCaso
+                        codigo={item.escenario.codigo}
+                        className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
+                      />
+                      {item.escenario.titulo}
+                    </p>
+                    {item.escenario.paciente && (
+                      <p className="text-xs text-muted-foreground">
+                        Paciente:{' '}
+                        <span className="font-medium text-terracota">
+                          {item.escenario.paciente}
+                        </span>
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Vence el {formatearDia(item.expiraEn)}
+                      {item.docenteNombre && ` · ${item.docenteNombre}`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center justify-between gap-2 @md:justify-end">
+                    <code className="font-mono text-sm font-medium tracking-[0.06em] whitespace-nowrap text-foreground">
+                      {item.codigo}
+                    </code>
+                    <Button
+                      type="button"
+                      variant={seleccionado ? 'secondary' : 'outline'}
+                      size="sm"
+                      disabled={entrando}
+                      aria-pressed={seleccionado}
+                      onClick={() => {
+                        setError(null);
+                        setCodigo(item.codigo);
+                        document.getElementById(id)?.focus();
+                      }}
+                    >
+                      {seleccionado ? (
+                        <>
+                          <Check aria-hidden />
+                          Código cargado
+                        </>
+                      ) : (
+                        'Cargar código'
+                      )}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-        <Button
-          type="submit"
-          variant="accion"
-          size="lg"
-          className="h-12 px-5"
-          // Mientras no se sabe el dispositivo (antes de hidratar) no se permite usar el código.
-          disabled={entrando || !codigo.trim() || !puedeUsar}
-          aria-busy={entrando}
-        >
-          {entrando ? <Loader2 className="animate-spin" aria-hidden /> : null}
-          {entrando ? 'Comprobando el código…' : 'Usar el código y entrar'}
-          {!entrando && <ArrowRight aria-hidden />}
-        </Button>
-      </div>
-      <p id={`${id}-ayuda`} className="text-sm text-muted-foreground">
-        El código tiene 10 letras con guiones (abc-defg-hij), es de un solo uso y solo funciona con
-        tu cuenta.
-      </p>
-      {error && (
-        <Alert id={`${id}-error`} variant="destructive" role="alert">
-          <AlertCircle aria-hidden />
-          <AlertDescription className="flex flex-col items-start gap-2">
-            {error}
-            {error.includes('Mis prácticas') && variante === 'unirse' && (
-              <Link href="/practicas" className="font-semibold underline underline-offset-4">
-                Ver Mis prácticas
-              </Link>
-            )}
-          </AlertDescription>
-        </Alert>
       )}
-    </form>
+
+      <form
+        onSubmit={entrar}
+        noValidate
+        className="flex flex-col gap-3"
+        aria-label="Usar un código"
+      >
+        <label htmlFor={id} className="text-base font-semibold text-foreground">
+          Código de acceso
+        </label>
+        <div className="flex flex-col gap-2.5">
+          <div className="relative flex-1">
+            <KeyRound
+              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              id={id}
+              value={codigo}
+              onChange={evento => setCodigo(evento.target.value)}
+              placeholder="abc-defg-hij"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="h-14 rounded-xl pl-12 font-mono text-xl font-medium tracking-[0.12em] placeholder:tracking-[0.12em] placeholder:text-muted-foreground/60 md:text-xl"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={`${id}-ayuda${error ? ` ${id}-error` : ''}`}
+              disabled={entrando}
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="accion"
+            size="lg"
+            className="h-13 w-full rounded-xl px-5 text-base"
+            // Mientras no se sabe el dispositivo (antes de hidratar) no se permite usar el código.
+            disabled={entrando || !codigo.trim() || !puedeUsar}
+            aria-busy={entrando}
+          >
+            {entrando ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {entrando ? 'Comprobando el código…' : 'Usar el código y entrar'}
+            {!entrando && <ArrowRight aria-hidden />}
+          </Button>
+        </div>
+        <p id={`${id}-ayuda`} className="text-xs leading-relaxed text-muted-foreground">
+          El código tiene 10 letras con guiones (abc-defg-hij), es de un solo uso y solo funciona
+          con tu cuenta.
+        </p>
+        {error && (
+          <Alert id={`${id}-error`} variant="destructive" role="alert">
+            <AlertCircle aria-hidden />
+            <AlertDescription className="flex flex-col items-start gap-2">
+              {error}
+              {error.includes('Mis prácticas') && variante === 'unirse' && (
+                <Link href="/practicas" className="font-semibold underline underline-offset-4">
+                  Ver Mis prácticas
+                </Link>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+      </form>
+    </div>
   );
 }
 
@@ -198,11 +303,13 @@ function AvisoComputador({
   codigo,
   correo,
   variante,
+  codigosAsignados = [],
   onForzar,
 }: {
   codigo: string;
   correo: string | null;
   variante: 'unirse' | 'practicas';
+  codigosAsignados?: CodigoAsignadoVista[];
   onForzar: () => void;
 }) {
   const origen = useSyncExternalStore(
@@ -238,6 +345,13 @@ function AvisoComputador({
   if (variante === 'practicas') {
     return (
       <div className="flex flex-col gap-3 rounded-xl bg-salvia-suave p-4 text-salvia-oscuro">
+        {codigosAsignados.length > 0 && (
+          <p className="text-xs font-semibold">
+            Tienes {codigosAsignados.length}{' '}
+            {codigosAsignados.length === 1 ? 'código asignado listo' : 'códigos asignados listos'}{' '}
+            para usar en tu computador ({codigosAsignados.map(c => c.codigo).join(', ')}).
+          </p>
+        )}
         <p className="flex items-start gap-2.5 text-sm leading-relaxed">
           <Monitor className="mt-0.5 size-4 shrink-0" aria-hidden />
           Para usar un código, abre PsySim en un computador con teclado y ratón. En el celular

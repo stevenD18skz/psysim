@@ -76,6 +76,97 @@ export async function leerTitulosDeEscenarios(
   return new Map(data.map(fila => [fila.id, { codigo: fila.codigo, titulo: fila.titulo }]));
 }
 
+export interface ResumenEscenarioEstudiante {
+  codigo: string;
+  titulo: string;
+  competenciaCentral: string | null;
+  paciente: string | null;
+}
+
+/**
+ * Código, título, competencia y nombre del paciente de varios casos (sin prompt ni perfil clínico)
+ * para enriquecer el panel del estudiante sobre sesiones o códigos ya verificados con RLS.
+ */
+export async function leerResumenesDeEscenarios(
+  ids: readonly string[]
+): Promise<Map<string, ResumenEscenarioEstudiante>> {
+  const unicos = [...new Set(ids)];
+  if (unicos.length === 0) return new Map();
+
+  const { data, error } = await createAdminClient()
+    .from('escenario')
+    .select('id, codigo, titulo, competencia_central, npc ( nombre )')
+    .in('id', unicos);
+
+  if (error) {
+    throw new Error('No pudimos cargar los casos.', { cause: error });
+  }
+
+  return new Map(
+    data.map(fila => [
+      fila.id,
+      {
+        codigo: fila.codigo,
+        titulo: fila.titulo,
+        competenciaCentral: fila.competencia_central ?? null,
+        paciente: fila.npc?.nombre ?? null,
+      },
+    ])
+  );
+}
+
+export interface AsignacionVigenteEstudiante {
+  id: string;
+  codigo: string;
+  expiraEn: string;
+  creadoEn: string;
+  docenteNombre: string | null;
+  escenario: ResumenEscenarioEstudiante;
+}
+
+/**
+ * Códigos de acceso vigentes y sin canjear asignados a los registros de `estudiante` cuyo
+ * `usuario_id` ya se verificó con RLS para el estudiante autenticado.
+ */
+export async function leerAsignacionesVigentesDeEstudiante(
+  estudianteIds: readonly string[],
+  docentesPorEstudianteId: ReadonlyMap<string, string>
+): Promise<AsignacionVigenteEstudiante[]> {
+  const unicos = [...new Set(estudianteIds)];
+  if (unicos.length === 0) return [];
+
+  const ahoraIso = new Date().toISOString();
+  const { data, error } = await createAdminClient()
+    .from('asignacion')
+    .select('id, codigo, expira_en, creado_en, escenario_id, estudiante_id')
+    .in('estudiante_id', unicos)
+    .is('sesion_id', null)
+    .is('anulada_en', null)
+    .gt('expira_en', ahoraIso)
+    .order('expira_en', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return [];
+  }
+
+  const escenarios = await leerResumenesDeEscenarios(data.map(f => f.escenario_id));
+
+  return data.map(fila => ({
+    id: fila.id,
+    codigo: fila.codigo,
+    expiraEn: fila.expira_en,
+    creadoEn: fila.creado_en,
+    docenteNombre: fila.estudiante_id
+      ? (docentesPorEstudianteId.get(fila.estudiante_id) ?? null)
+      : null,
+    escenario: escenarios.get(fila.escenario_id) ?? {
+      ...CASO_NO_DISPONIBLE,
+      competenciaCentral: null,
+      paciente: null,
+    },
+  }));
+}
+
 /** Prompt efectivo de una sesión ya autorizada (lo usa el Route Handler del paciente). */
 export async function leerPromptDeSesion(sesionId: string): Promise<string | null> {
   const { data, error } = await createAdminClient()

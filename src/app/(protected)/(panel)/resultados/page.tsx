@@ -85,6 +85,12 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
           <span className="tabular-nums">{sesion.estudiante.codigo}</span>
           <span aria-hidden> · </span>
           Paciente: <span className="font-medium text-terracota">{sesion.npc.nombre}</span>
+          {sesion.escenario.competenciaCentral && sesion.escenario.competenciaCentral !== '—' && (
+            <>
+              <span aria-hidden> · </span>
+              Competencia: {sesion.escenario.competenciaCentral}
+            </>
+          )}
         </p>
       </EncabezadoPagina>
 

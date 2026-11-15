@@ -1,13 +1,16 @@
-import { Hourglass, MessageSquareQuote } from 'lucide-react';
+import { BarChart3, Hourglass, MessageSquareQuote } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { VistaConversacion } from '@/components/practicas/vista-conversacion';
+import { ReflexionEstudiante } from '@/components/resultados/reflexion';
 import { EncabezadoSesion } from '@/components/sesiones/encabezado-sesion';
 import { requerirEstudiante } from '@/lib/auth/dal';
 import { formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
-import { obtenerDetalleSesion } from '@/lib/sesiones/queries';
+import { obtenerDetalleSesion, obtenerReflexion } from '@/lib/sesiones/queries';
 
 export const metadata: Metadata = {
   title: 'Mi práctica',
@@ -24,7 +27,7 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const sesion = await obtenerDetalleSesion(id);
+  const [sesion, reflexion] = await Promise.all([obtenerDetalleSesion(id), obtenerReflexion(id)]);
   if (!sesion) notFound();
   if (sesion.estado === 'en_curso') redirect(`/simulacion?sesion=${sesion.id}`);
 
@@ -43,6 +46,22 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
         volver={{ href: '/practicas', etiqueta: 'Mis prácticas' }}
       />
 
+      {sesion.comenzada && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            Consulta los tiempos de respuesta, el conteo de intervenciones y descarga tu resumen en
+            PDF.
+          </p>
+          <Link
+            href={`/resultados?sesion=${sesion.id}`}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+          >
+            <BarChart3 className="size-3.5 text-salvia" aria-hidden />
+            Ver indicadores y resumen
+          </Link>
+        </div>
+      )}
+
       {retro ? (
         <section
           aria-labelledby="retro-titulo"
@@ -55,6 +74,10 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
             >
               <MessageSquareQuote className="size-5 text-salvia" aria-hidden />
               Retroalimentación de {sesion.docente ?? 'tu docente'}
+              <AyudaContextual
+                etiqueta="Cómo funciona la retroalimentación"
+                texto="Tu docente lee la conversación completa, puede subrayar frases puntuales tuyas en la transcripción y escribe aquí su apreciación general."
+              />
             </h2>
             <p className="leading-relaxed whitespace-pre-wrap">{retro.comentarioGeneral}</p>
             <p className="text-xs text-muted-foreground">
@@ -87,6 +110,8 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
           </p>
         </div>
       )}
+
+      {sesion.comenzada && <ReflexionEstudiante sesionId={sesion.id} inicial={reflexion} />}
 
       <section aria-labelledby="conversacion-titulo" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

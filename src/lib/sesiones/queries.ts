@@ -7,8 +7,11 @@ import { log } from '@/lib/log';
 import { separarIntentos } from '@/lib/conversacion/intentos';
 import { obtenerMensajesSesion } from '@/lib/escenarios/queries';
 import {
+  type AsignacionVigenteEstudiante,
   CASO_NO_DISPONIBLE,
+  leerAsignacionesVigentesDeEstudiante,
   leerEscenarioDeSesion,
+  leerResumenesDeEscenarios,
   leerTitulosDeEscenarios,
 } from '@/lib/sesiones/datos-privados';
 import { type FilaMetrica } from '@/lib/sesiones/resultados';
@@ -79,6 +82,129 @@ export const obtenerPracticas = cache(async (): Promise<SesionHistorial[]> => {
     throw new Error('No pudimos cargar tus prácticas.', { cause: error });
   }
   return aHistorial(data);
+});
+
+export interface PracticaEstudiante extends SesionHistorial {
+  escenario: {
+    codigo: string;
+    titulo: string;
+    competenciaCentral: string | null;
+    paciente: string | null;
+  };
+  retroalimentacion: {
+    publicada: boolean;
+    nota: number | null;
+    comentarioGeneral: string | null;
+    publicadaEn: string | null;
+  } | null;
+  totalIntervenciones: number;
+  totalAnotaciones: number;
+  tieneReflexion: boolean;
+}
+
+export interface ResumenPanelEstudiante {
+  practicas: PracticaEstudiante[];
+  codigosAsignados: AsignacionVigenteEstudiante[];
+  docentesVinculados: string[];
+}
+
+/**
+ * Datos enriquecidos para el panel del estudiante (`Mis prácticas`): historial con resumen de caso,
+ * conteo de intervenciones y anotaciones, reflexión personal, docentes que lo registraron y códigos
+ * de acceso vigentes listos para usar.
+ */
+export const obtenerPanelEstudiante = cache(async (): Promise<ResumenPanelEstudiante> => {
+  const supabase = await createClient();
+
+  const [resSesiones, resEstudiantes] = await Promise.all([
+    supabase
+      .from('sesion')
+      .select(
+        `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
+         usuario ( nombre ),
+         retroalimentacion ( publicada_en, nota, comentario_general, anotacion ( count ) ),
+         reflexion ( actualizado_en ),
+         intervenciones:mensaje ( count )`
+      )
+      .eq('mensaje.remitente', 'estudiante')
+      .is('mensaje.descartado_en', null)
+      .order('inicio', { ascending: false }),
+    supabase
+      .from('estudiante')
+      .select('id, usuario!estudiante_docente_id_fkey ( nombre )')
+      .order('creado_en', { ascending: false }),
+  ]);
+
+  if (resSesiones.error) {
+    throw new Error('No pudimos cargar tus prácticas.', { cause: resSesiones.error });
+  }
+
+  const filasSesiones = resSesiones.data ?? [];
+  const filasEstudiantes = resEstudiantes.data ?? [];
+
+  const docentesPorEstudianteId = new Map<string, string>();
+  const docentesSet = new Set<string>();
+  for (const reg of filasEstudiantes) {
+    const nombreDocente = reg.usuario?.nombre?.trim();
+    if (nombreDocente) {
+      docentesPorEstudianteId.set(reg.id, nombreDocente);
+      docentesSet.add(nombreDocente);
+    }
+  }
+
+  const [resumenesEscenarios, codigosAsignados] = await Promise.all([
+    leerResumenesDeEscenarios(filasSesiones.map(f => f.escenario_id)),
+    leerAsignacionesVigentesDeEstudiante(
+      filasEstudiantes.map(f => f.id),
+      docentesPorEstudianteId
+    ),
+  ]);
+
+  const practicas: PracticaEstudiante[] = filasSesiones.map(fila => {
+    const retro = fila.retroalimentacion;
+    const publicada = Boolean(retro?.publicada_en);
+    const totalAnotaciones = publicada ? (retro?.anotacion?.[0]?.count ?? 0) : 0;
+    const tieneReflexion = Array.isArray(fila.reflexion)
+      ? fila.reflexion.length > 0
+      : Boolean(fila.reflexion);
+    const nombreDocente = fila.usuario?.nombre?.trim() ?? null;
+    if (nombreDocente) {
+      docentesSet.add(nombreDocente);
+    }
+
+    return {
+      id: fila.id,
+      estado: fila.estado,
+      comenzada: fila.comenzada,
+      inicio: fila.inicio,
+      fin: fila.fin,
+      ultimaActividad: fila.ultima_actividad,
+      escenario: resumenesEscenarios.get(fila.escenario_id) ?? {
+        ...CASO_NO_DISPONIBLE,
+        competenciaCentral: null,
+        paciente: null,
+      },
+      docente: nombreDocente,
+      retroalimentacion: retro
+        ? {
+            publicada,
+            nota: retro.nota,
+            comentarioGeneral:
+              publicada && retro.comentario_general?.trim() ? retro.comentario_general : null,
+            publicadaEn: retro.publicada_en,
+          }
+        : null,
+      totalIntervenciones: fila.intervenciones?.[0]?.count ?? 0,
+      totalAnotaciones,
+      tieneReflexion,
+    };
+  });
+
+  return {
+    practicas,
+    codigosAsignados,
+    docentesVinculados: [...docentesSet],
+  };
 });
 
 /** Sesiones de un estudiante del docente, de la más reciente a la más antigua. */
