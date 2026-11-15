@@ -1,5 +1,7 @@
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
 
+import { BANDERAS_DE_MALTRATO } from './cierre';
+
 /*
  * La severidad del orquestador (0 a 5, recalculada en cada turno) se traduce al lenguaje no verbal
  * del paciente 3D. Según su documentación: 0–1 calmado y receptivo, 2–3 moderadamente angustiado,
@@ -12,9 +14,6 @@ export const SEVERIDAD_ALTA = 4;
 export const SEVERIDAD_BAJA = 1.5;
 /** Cambio de severidad entre dos turnos que ya se nota en el cuerpo. */
 export const CAMBIO_NOTABLE = 0.5;
-
-/** Banderas del orquestador que indican trato inapropiado hacia el paciente. */
-const BANDERAS_DE_MALTRATO = new Set(['abuse', 'repeat_abuse']);
 
 /** Cuánto se le nota la emoción al paciente solo por su severidad. */
 export function intensidadPorSeveridad(severidad: number): IntensidadEmocion {
@@ -56,7 +55,7 @@ export function emocionPorSeveridad({
   emocionAnterior,
   banderas = [],
 }: EstadoSeveridad): EmocionNpc {
-  if (banderas.some(bandera => BANDERAS_DE_MALTRATO.has(bandera))) return 'molesto';
+  if (banderas.some(bandera => BANDERAS_DE_MALTRATO.includes(bandera))) return 'molesto';
   if (severidad >= SEVERIDAD_ALTA) return 'abrumado';
 
   const cambio = severidadAnterior === null ? 0 : severidad - severidadAnterior;

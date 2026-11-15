@@ -147,7 +147,11 @@ describe('conciliar (historial del orquestador contra el de PsySim)', () => {
   it('un intercambio de más con este mismo mensaje ya respondido es el turno perdido', () => {
     const respuesta = mensaje('patient', 'Más o menos.');
     const historial = [...previo, mensaje('trainee', ` ${MENSAJE} `), respuesta];
-    expect(conciliar(historial, 1, MENSAJE)).toEqual({ estado: 'guardado', respuesta });
+    expect(conciliar(historial, 1, MENSAJE)).toEqual({
+      estado: 'guardado',
+      respuesta,
+      banderasDelTurno: [],
+    });
   });
 
   it('cuenta los mensajes del estudiante: un saludo inicial del paciente no desfasa', () => {
@@ -194,6 +198,7 @@ describe('conversarConOrquestador', () => {
           severidadAnterior: 2,
           banderas: [],
           cierre: null,
+          cierreAjeno: null,
         },
       },
     ]);
@@ -205,8 +210,6 @@ describe('conversarConOrquestador', () => {
   it.each([
     ['crisis', 'crisis'],
     ['inappropriate', 'inapropiada'],
-    // Si cierra sin decir por qué, se anota como crisis.
-    [null, 'crisis'],
   ] as const)(
     'con should_close y closing_kind %s cierra la práctica (%s)',
     async (kind, motivo) => {
@@ -214,14 +217,48 @@ describe('conversarConOrquestador', () => {
         [...texto('No puedo más.'), fin(5, { debeCerrar: true, cierre: kind })],
       ]);
       const { partes } = await conversar(cliente);
-      expect(partes.at(-1)).toMatchObject({ tipo: 'fin', resultado: { cierre: motivo } });
+      expect(partes.at(-1)).toMatchObject({
+        tipo: 'fin',
+        resultado: { cierre: motivo, cierreAjeno: null },
+      });
+    }
+  );
+
+  // Regresión del 2026-11-15 (práctica 51b8aecd, caso E-08): la paciente se calmó (2,7 → 2,0), el
+  // orquestador cerró su sesión con `success` y PsySim lo guardó como crisis.
+  it.each([
+    ['success', 'success'],
+    [null, 'sin_motivo'],
+    ['', 'sin_motivo'],
+    ['algo_nuevo', 'desconocido'],
+  ] as const)(
+    'con should_close y closing_kind %s NO cierra la práctica: entrega la respuesta (%s)',
+    async (kind, ajeno) => {
+      const { cliente } = clienteFalso([
+        [
+          ...texto('[aliviado 1] Voy a descansar un poco, gracias de nuevo.'),
+          fin(2, { debeCerrar: true, cierre: kind }),
+        ],
+      ]);
+      const { partes, error } = await conversar(cliente);
+
+      expect(error).toBeNull();
+      expect(partes.at(-1)).toMatchObject({
+        tipo: 'fin',
+        resultado: {
+          texto: '[aliviado 1] Voy a descansar un poco, gracias de nuevo.',
+          severidad: 2,
+          cierre: null,
+          cierreAjeno: ajeno,
+        },
+      });
     }
   );
 
   it('closing_kind sin should_close no cierra nada', async () => {
-    const { cliente } = clienteFalso([[...texto('Bien.'), fin(2, { cierre: 'success' })]]);
+    const { cliente } = clienteFalso([[...texto('Bien.'), fin(2, { cierre: 'crisis' })]]);
     const { partes } = await conversar(cliente);
-    expect(partes.at(-1)).toMatchObject({ resultado: { cierre: null } });
+    expect(partes.at(-1)).toMatchObject({ resultado: { cierre: null, cierreAjeno: null } });
   });
 
   describe('turnero y límite de mensajes por minuto', () => {
@@ -462,9 +499,53 @@ describe('conversarConOrquestador', () => {
           ],
         });
         const { partes } = await conversar(cliente, { reintento: true });
-        expect(partes.at(-1)).toMatchObject({ resultado: { cierre: motivo } });
+        expect(partes.at(-1)).toMatchObject({ resultado: { cierre: motivo, cierreAjeno: null } });
       }
     );
+
+    it('la bandera de abuso puede venir en el mensaje del estudiante, no en la respuesta', async () => {
+      const { cliente } = clienteFalso([], {
+        estado: 'terminated',
+        historial: [
+          mensaje('trainee', MENSAJE, { risk_flags: ['repeat_abuse'] }),
+          mensaje('patient', 'Me voy.'),
+        ],
+      });
+      const { partes } = await conversar(cliente, { reintento: true });
+      expect(partes.at(-1)).toMatchObject({ resultado: { cierre: 'inapropiada' } });
+    });
+
+    // Mismo hecho que el stream con `success`: el camino de reintento debe concluir lo mismo.
+    it.each([
+      ['completed', 'success'],
+      ['archived', 'desconocido'],
+    ] as const)(
+      'un turno recuperado de una sesión %s no cierra la práctica (%s)',
+      async (estado, ajeno) => {
+        const { cliente, conversar: llamada } = clienteFalso([], {
+          estado,
+          historial: [
+            mensaje('trainee', MENSAJE),
+            mensaje('patient', 'Voy a descansar un poco.', { severity: 2 }),
+          ],
+        });
+        const { partes, error } = await conversar(cliente, { reintento: true });
+
+        expect(error).toBeNull();
+        expect(llamada).not.toHaveBeenCalled();
+        expect(partes.at(-1)).toMatchObject({
+          resultado: { texto: 'Voy a descansar un poco.', cierre: null, cierreAjeno: ajeno },
+        });
+      }
+    );
+
+    it('una sesión que sigue activa no cierra nada', async () => {
+      const { cliente } = clienteFalso([], {
+        historial: [mensaje('trainee', MENSAJE), mensaje('patient', 'Regular.')],
+      });
+      const { partes } = await conversar(cliente, { reintento: true });
+      expect(partes.at(-1)).toMatchObject({ resultado: { cierre: null, cierreAjeno: null } });
+    });
   });
 });
 

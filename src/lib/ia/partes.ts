@@ -1,5 +1,6 @@
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type ProveedorIA } from '@/lib/env/orquestador';
+import { type CierreAjeno } from '@/lib/orquestador/cierre';
 
 /**
  * Lo que entrega un proveedor del paciente (el orquestador o Gemini) mientras responde un turno.
@@ -27,6 +28,11 @@ export interface ResultadoTurno {
   severidadAnterior: number | null;
   /** `risk_flags` del turno en el orquestador. */
   banderas: string[];
-  /** El orquestador decidió cerrar la práctica. */
+  /** El orquestador cerró por crisis o trato inapropiado: la práctica termina con este turno. */
   cierre: MotivoCierre | null;
+  /**
+   * El orquestador cerró SU sesión con este turno sin que la práctica deba terminar (el paciente
+   * se calmó, o no dijo un motivo que PsySim conozca). La práctica sigue con Gemini.
+   */
+  cierreAjeno: CierreAjeno | null;
 }

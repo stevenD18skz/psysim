@@ -52,6 +52,7 @@ const resultado = (extra: Partial<ResultadoTurno> = {}): ResultadoTurno => ({
   severidadAnterior: 3,
   banderas: [],
   cierre: null,
+  cierreAjeno: null,
   ...extra,
 });
 

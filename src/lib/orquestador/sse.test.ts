@@ -110,9 +110,22 @@ describe('interpretarEvento', () => {
       cierre: null,
       metricas: { proveedor: null, tokensSalida: null },
     });
+  });
+
+  // El significado del cierre lo decide `decidirCierre`: aquí solo se transporta el valor. Antes
+  // un valor desconocido se volvía `null` y, con `should_close`, terminaba anotado como crisis.
+  it.each([
+    ['"success"', 'success'],
+    ['null', null],
+    ['"algo_nuevo"', 'algo_nuevo'],
+    ['"  "', null],
+  ])('entrega closing_kind %s tal como llegó, sin interpretarlo', (kind, esperado) => {
     expect(
-      interpretarEvento({ evento: 'done', datos: '{"severity":2,"closing_kind":"otro"}' })
-    ).toMatchObject({ cierre: null });
+      interpretarEvento({
+        evento: 'done',
+        datos: `{"done":true,"severity":2,"should_close":true,"closing_kind":${kind}}`,
+      })
+    ).toMatchObject({ tipo: 'fin', debeCerrar: true, cierre: esperado });
   });
 
   it('traduce el error y, si no dice que se descartó, asume que no', () => {

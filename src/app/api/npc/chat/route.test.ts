@@ -7,6 +7,7 @@ import { type EventoTurno, type RespuestaProcesada } from '@/lib/ia/procesar';
 import { transmitirTurno } from '@/lib/ia/turno';
 import { leerSesionIa, type SesionIa } from '@/lib/orquestador/datos';
 import { barrerDespues } from '@/lib/orquestador/diferido';
+import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { crearLectorSse } from '@/lib/sse';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -27,6 +28,7 @@ vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(
 vi.mock('@/lib/ia/turno', () => ({ transmitirTurno: vi.fn() }));
 vi.mock('@/lib/orquestador/datos', () => ({ leerSesionIa: vi.fn() }));
 vi.mock('@/lib/orquestador/diferido', () => ({ barrerDespues: vi.fn() }));
+vi.mock('@/lib/orquestador/practica', () => ({ anotarCierreDelOrquestador: vi.fn() }));
 
 const SESION_ID = '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60';
 const NPC_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
@@ -77,6 +79,7 @@ const deGemini: RespuestaProcesada = {
     severidadAnterior: null,
     banderas: [],
     cierre: null,
+    cierreAjeno: null,
   },
 };
 
@@ -659,6 +662,55 @@ describe('POST /api/npc/chat', () => {
         'guardar_intercambio_ia',
         expect.objectContaining({ p_cierre: 'crisis', p_severidad: 5 })
       );
+      // El orquestador ya cerró su sesión: se anota para no cerrarla otra vez. No pasa a Gemini.
+      expect(anotarCierreDelOrquestador).toHaveBeenCalledWith(cuerpoValido.sesion_id, null);
+    });
+
+    // Regresión del 2026-11-15: el orquestador cerró su sesión porque la paciente se calmó.
+    it.each(['success', 'sin_motivo', 'desconocido'] as const)(
+      'un cierre del orquestador que no es crisis (%s) entrega la respuesta y la práctica sigue',
+      async ajeno => {
+        const { guardar } = clienteFalso(sesionEnCurso);
+        turno({
+          tipo: 'completo',
+          respuesta: {
+            ...delOrquestador,
+            resultado: { ...delOrquestador.resultado, severidad: 2, cierreAjeno: ajeno },
+          },
+        });
+        const respuesta = await POST(peticion(cuerpoValido));
+
+        expect(respuesta.status).toBe(200);
+        // Sin motivo de cierre: no hay aviso en el navegador ni bloqueo de la práctica.
+        expect(await respuesta.json()).toMatchObject({ respuesta_npc: TEXTO, cierre: null });
+        expect(guardar).toHaveBeenCalledWith(
+          'guardar_intercambio_ia',
+          expect.objectContaining({ p_cierre: null, p_severidad: 2 })
+        );
+        // Desde el siguiente turno responde Gemini.
+        expect(anotarCierreDelOrquestador).toHaveBeenCalledWith(cuerpoValido.sesion_id, ajeno);
+      }
+    );
+
+    it('un turno normal del orquestador no anota ningún cierre', async () => {
+      clienteFalso(sesionEnCurso);
+      turno({ tipo: 'completo', respuesta: delOrquestador });
+      await POST(peticion(cuerpoValido));
+      expect(anotarCierreDelOrquestador).not.toHaveBeenCalled();
+    });
+
+    it('si el intercambio no se guarda, no se toca el proveedor de la práctica', async () => {
+      clienteFalso(sesionEnCurso, { errorInsercion: true });
+      turno({
+        tipo: 'completo',
+        respuesta: {
+          ...delOrquestador,
+          resultado: { ...delOrquestador.resultado, cierreAjeno: 'success' },
+        },
+      });
+      const respuesta = await POST(peticion(cuerpoValido));
+      expect(respuesta.status).toBe(503);
+      expect(anotarCierreDelOrquestador).not.toHaveBeenCalled();
     });
 
     it('tras un cierre automático no acepta más intervenciones (409)', async () => {

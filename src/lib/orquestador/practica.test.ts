@@ -14,6 +14,7 @@ import {
 } from './datos';
 import { ErrorOrquestador } from './errores';
 import {
+  anotarCierreDelOrquestador,
   cerrarEnOrquestador,
   cerrarPendientes,
   olvidarSesionOrquestador,
@@ -426,6 +427,63 @@ describe('cerrarEnOrquestador', () => {
     db.responder('sesion', { error: { code: 'XX000' } });
     const { cliente } = clienteFalso();
     expect(await cerrarEnOrquestador(SESION, cliente)).toBe(false);
+  });
+});
+
+describe('anotarCierreDelOrquestador', () => {
+  it('un cierre por crisis o trato inapropiado solo anota que allá ya se cerró', async () => {
+    await anotarCierreDelOrquestador(SESION, null);
+
+    expect(marcarCerradaEnOrquestador).toHaveBeenCalledWith(SESION);
+    expect(fijarGemini).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['success', 'cierre_orquestador'],
+    ['sin_motivo', 'cierre_sin_motivo'],
+    ['desconocido', 'cierre_desconocido'],
+  ] as const)('un cierre %s deja la práctica en Gemini con el motivo %s', async (ajeno, motivo) => {
+    await anotarCierreDelOrquestador(SESION, ajeno);
+
+    expect(marcarCerradaEnOrquestador).toHaveBeenCalledWith(SESION);
+    // `fijarGemini` registra además el evento que ve el Administrador.
+    expect(fijarGemini).toHaveBeenCalledWith(SESION, motivo);
+  });
+
+  it('un cierre sin motivo conocido queda como advertencia para investigarlo', async () => {
+    await anotarCierreDelOrquestador(SESION, 'desconocido');
+    expect(log.warn).toHaveBeenCalledWith('orquestador.cierre_sin_fin_de_practica', {
+      sesion_id: SESION,
+      motivo: 'cierre_desconocido',
+    });
+  });
+
+  it('si no logra fijar Gemini no lanza: el siguiente turno lo resuelve', async () => {
+    vi.mocked(fijarGemini).mockRejectedValue(new Error('base caída'));
+
+    await expect(anotarCierreDelOrquestador(SESION, 'success')).resolves.toBeUndefined();
+    expect(log.error).toHaveBeenCalledWith('orquestador.proveedor_no_fijado_tras_cierre', {
+      sesion_id: SESION,
+    });
+  });
+
+  it('después, cerrarEnOrquestador no vuelve a cerrar la sesión con otro motivo', async () => {
+    vi.mocked(leerSesionIa).mockResolvedValue(
+      sesionIa({ proveedor: 'gemini', cerradaEnOrquestador: true })
+    );
+    db.responder('sesion', {
+      data: {
+        estado: 'finalizada',
+        comenzada: true,
+        inicio: '2026-11-15T15:00:00.000Z',
+        fin: '2026-11-15T15:12:00.000Z',
+      },
+    });
+    const { falso, cliente } = clienteFalso();
+
+    expect(await cerrarEnOrquestador(SESION, cliente)).toBe(false);
+    expect(falso.cerrarSesion).not.toHaveBeenCalled();
+    expect(falso.reportarTiempo).not.toHaveBeenCalled();
   });
 });
 

@@ -332,6 +332,7 @@ async function* transmitirCon(
       severidadAnterior: null,
       banderas: [],
       cierre: null,
+      cierreAjeno: null,
     },
   };
 }

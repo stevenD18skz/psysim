@@ -4,6 +4,7 @@ import { getOrquestadorEnv } from '@/lib/env/orquestador';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+import { type CierreAjeno, MOTIVO_CAMBIO_POR_CIERRE } from './cierre';
 import { type ClienteOrquestador, clienteOrquestador } from './cliente';
 import {
   cuentaDocente,
@@ -180,6 +181,37 @@ export async function olvidarSesionOrquestador(sesionId: string): Promise<void> 
     .update({ sesion_orquestador: null, severidad: null })
     .eq('sesion_id', sesionId);
   if (error) throw new Error('No pudimos reiniciar la sesión del orquestador.', { cause: error });
+}
+
+/**
+ * El orquestador cerró su sesión con el turno que se acaba de guardar. Se anota para que
+ * `cerrarEnOrquestador` no intente cerrarla otra vez con un motivo distinto del que decidió allá.
+ *
+ * Si el cierre no termina la práctica (`ajeno`: el paciente se calmó, o no dijo un motivo
+ * conocido), la práctica pasa a Gemini: la sesión de allá ya no acepta turnos y no se puede
+ * reabrir ni cargarle la conversación a una nueva. Gemini sigue con el historial de PsySim.
+ *
+ * No lanza. Si no se logra fijar Gemini, el siguiente turno recibe un 400 del orquestador
+ * («sesión ya cerrada») y `transmitirTurno` hace el cambio ahí.
+ */
+export async function anotarCierreDelOrquestador(
+  sesionId: string,
+  ajeno: CierreAjeno | null
+): Promise<void> {
+  await marcarCerradaEnOrquestador(sesionId);
+  if (!ajeno) return;
+
+  const motivo = MOTIVO_CAMBIO_POR_CIERRE[ajeno];
+  // `success` es el cierre previsto del orquestador; los otros dos son para investigar.
+  log[ajeno === 'success' ? 'info' : 'warn']('orquestador.cierre_sin_fin_de_practica', {
+    sesion_id: sesionId,
+    motivo,
+  });
+  try {
+    await fijarGemini(sesionId, motivo);
+  } catch {
+    log.error('orquestador.proveedor_no_fijado_tras_cierre', { sesion_id: sesionId });
+  }
 }
 
 const CIERRE_POR_MOTIVO = { crisis: 'crisis', inapropiada: 'inappropriate' } as const;

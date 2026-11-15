@@ -2,6 +2,7 @@ import 'server-only';
 
 import { log } from '@/lib/log';
 import { mensajeConsultorioOcupado } from '@/lib/orquestador/cuentas';
+import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type EventoChat, type NpcChatResponse } from '@/schemas/npc-chat.schema';
 
@@ -136,6 +137,12 @@ export async function* responderIntercambio(
     return;
   }
 
+  // El orquestador cerró su sesión con este turno. Solo crisis y trato inapropiado terminan la
+  // práctica (`resultado.cierre`); con cualquier otro cierre sigue, desde ahora con Gemini.
+  if (resultado.proveedor === 'orquestador' && (resultado.cierre || resultado.cierreAjeno)) {
+    await anotarCierreDelOrquestador(sesionId, resultado.cierreAjeno);
+  }
+
   // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
   log.info('npc_chat.respuesta', {
     peticion,
@@ -147,6 +154,7 @@ export async function* responderIntercambio(
     tokens_salida: resultado.tokensSalida,
     severidad: resultado.severidad,
     cierre: resultado.cierre,
+    cierre_ajeno: resultado.cierreAjeno,
   });
 
   const respuesta: NpcChatResponse = {

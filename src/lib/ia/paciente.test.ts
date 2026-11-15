@@ -374,6 +374,7 @@ describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
           severidadAnterior: null,
           banderas: [],
           cierre: null,
+          cierreAjeno: null,
         },
       },
     ]);

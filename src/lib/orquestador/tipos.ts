@@ -71,7 +71,11 @@ export type EventoOrquestador =
       tipo: 'fin';
       severidad: number;
       debeCerrar: boolean;
-      cierre: CierreOrquestador | null;
+      /**
+       * `closing_kind` tal como llegó (`success`, `crisis`, `inappropriate`, vacío o un valor que
+       * PsySim no conoce). Qué significa lo decide `decidirCierre`, no quien lo lee.
+       */
+      cierre: string | null;
       metricas: MetricasTurno;
     }
   | { tipo: 'error'; descartado: boolean }

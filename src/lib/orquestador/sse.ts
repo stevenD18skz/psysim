@@ -1,8 +1,6 @@
 import { type EventoSse } from '@/lib/sse';
 
 import {
-  CIERRES_ORQUESTADOR,
-  type CierreOrquestador,
   type EventoOrquestador,
   eventoErrorSchema,
   eventoFinSchema,
@@ -38,10 +36,6 @@ export function leerMetricas(metricas: Record<string, unknown> | null | undefine
   };
 }
 
-function esCierre(valor: unknown): valor is CierreOrquestador {
-  return (CIERRES_ORQUESTADOR as readonly unknown[]).includes(valor);
-}
-
 /** Traduce un evento del stream de conversación (`chunk`, `done`, `error`) al modelo de PsySim. */
 export function interpretarEvento({ evento, datos }: EventoSse): EventoOrquestador {
   let json: unknown;
@@ -61,12 +55,12 @@ export function interpretarEvento({ evento, datos }: EventoSse): EventoOrquestad
   if (evento === 'done') {
     const fin = eventoFinSchema.safeParse(json);
     if (!fin.success) return { tipo: 'ignorado' };
-    const cierre = esCierre(fin.data.closing_kind) ? fin.data.closing_kind : null;
     return {
       tipo: 'fin',
       severidad: fin.data.severity,
       debeCerrar: fin.data.should_close,
-      cierre,
+      // Se entrega tal cual (acotado): un valor desconocido no se confunde con «sin motivo».
+      cierre: texto(fin.data.closing_kind),
       metricas: leerMetricas(fin.data.metrics),
     };
   }

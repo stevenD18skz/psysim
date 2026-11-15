@@ -3,6 +3,7 @@ import 'server-only';
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type ParteTurno } from '@/lib/ia/partes';
 
+import { type CierreAjeno, decidirCierre, decidirCierrePorEstado } from './cierre';
 import { type ClienteOrquestador, clienteOrquestador } from './cliente';
 import { type CuentaOrquestador } from './cuentas';
 import { registrarEvento, reservarTurno } from './datos';
@@ -66,13 +67,9 @@ export interface TurnoOrquestador {
 
 const esperarReal = (ms: number) => new Promise<void>(listo => setTimeout(listo, ms));
 
-const CIERRES: Record<string, MotivoCierre> = { crisis: 'crisis', inappropriate: 'inapropiada' };
-
-const BANDERAS_DE_MALTRATO = ['abuse', 'repeat_abuse'];
-
 type Conciliacion =
   /** El turno quedó guardado en el orquestador con su respuesta: se aprovecha. */
-  | { estado: 'guardado'; respuesta: MensajeOrquestador }
+  | { estado: 'guardado'; respuesta: MensajeOrquestador; banderasDelTurno: string[] }
   /** El turno no dejó rastro: se puede enviar de nuevo. */
   | { estado: 'limpio' }
   /** Los dos historiales ya no coinciden: la práctica no puede seguir en el orquestador. */
@@ -101,7 +98,12 @@ export function conciliar(
     estudiante.content.trim() === mensaje.trim() &&
     paciente.content.trim()
   ) {
-    return { estado: 'guardado', respuesta: paciente };
+    // El abuso lo detecta en lo que escribió el estudiante: la bandera puede venir en su mensaje.
+    return {
+      estado: 'guardado',
+      respuesta: paciente,
+      banderasDelTurno: [...estudiante.risk_flags, ...paciente.risk_flags],
+    };
   }
   return { estado: 'inconsistente' };
 }
@@ -144,6 +146,7 @@ export async function* conversarConOrquestador({
       severidad: number;
       banderas: string[];
       cierre: MotivoCierre | null;
+      cierreAjeno: CierreAjeno | null;
       metricas: MetricasTurno;
     }
   ): ParteTurno => ({
@@ -158,6 +161,7 @@ export async function* conversarConOrquestador({
       severidadAnterior,
       banderas: datos.banderas,
       cierre: datos.cierre,
+      cierreAjeno: datos.cierreAjeno,
     },
   });
 
@@ -168,20 +172,17 @@ export async function* conversarConOrquestador({
     if (resultado.estado === 'limpio') return 'limpio';
     if (resultado.estado === 'inconsistente') throw new ErrorOrquestador('descarte_incierto');
 
-    const { respuesta } = resultado;
-    // El historial no dice si el orquestador cerró la sesión con este turno: se le pregunta.
+    const { respuesta, banderasDelTurno } = resultado;
+    // El historial no dice si el orquestador cerró la sesión con este turno: se le pregunta. Con
+    // los mismos hechos debe concluir lo mismo que el stream (`completed` no es una crisis).
     const sesion = await cliente.sesion(cuenta, sesionOrquestador);
-    const cierre: MotivoCierre | null =
-      sesion.status !== 'terminated'
-        ? null
-        : respuesta.risk_flags.some(bandera => BANDERAS_DE_MALTRATO.includes(bandera))
-          ? 'inapropiada'
-          : 'crisis';
+    const decision = decidirCierrePorEstado(sesion.status, banderasDelTurno);
     yield { tipo: 'fragmento', texto: respuesta.content };
     yield fin(respuesta.content, {
       severidad: respuesta.severity,
       banderas: respuesta.risk_flags,
-      cierre,
+      cierre: decision.tipo === 'termina' ? decision.motivo : null,
+      cierreAjeno: decision.tipo === 'cerrada_alla' ? decision.codigo : null,
       metricas: {
         proveedor: respuesta.ai_provider ?? null,
         modelo: null,
@@ -223,11 +224,15 @@ export async function* conversarConOrquestador({
           texto += parte.texto;
           yield parte;
         } else if (parte.tipo === 'fin') {
+          // Un cierre `success`, sin motivo o con un valor desconocido NO es una crisis: la
+          // práctica sigue (ver `cierre.ts`). El 2026-11-15 una práctica en la que la paciente se
+          // calmaba se cerró como crisis por asumir lo contrario.
+          const decision = decidirCierre(parte.debeCerrar, parte.cierre);
           yield fin(texto, {
             severidad: parte.severidad,
             banderas: [],
-            // Si cierra sin decir por qué, se anota como crisis (el otro motivo siempre lo dice).
-            cierre: parte.debeCerrar ? (CIERRES[parte.cierre ?? ''] ?? 'crisis') : null,
+            cierre: decision.tipo === 'termina' ? decision.motivo : null,
+            cierreAjeno: decision.tipo === 'cerrada_alla' ? decision.codigo : null,
             metricas: parte.metricas,
           });
           return;
