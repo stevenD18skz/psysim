@@ -1,5 +1,6 @@
 import { type LucideIcon } from 'lucide-react';
 
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { cn } from '@/lib/utils';
 
 export interface Indicador {
@@ -7,6 +8,10 @@ export interface Indicador {
   icono?: LucideIcon;
   etiqueta: string;
   valor: string | number;
+  /** Contexto breve debajo del valor (p. ej. «5 con cuenta»). */
+  detalle?: string;
+  /** Explicación en un globo de ayuda para orientar al docente o al administrador. */
+  ayuda?: string;
 }
 
 /**
@@ -27,20 +32,26 @@ export function Indicadores({
         className
       )}
     >
-      {indicadores.map(({ etiqueta, valor }, indice) => (
+      {indicadores.map(({ etiqueta, valor, detalle, ayuda }, indice) => (
         <div
           key={etiqueta}
           className={cn(
-            'flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3',
+            'flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3.5 transition-colors hover:bg-muted/35',
             // En dos columnas, filetes entre celdas.
             indice % 2 === 1 && 'border-l sm:border-l-0',
             indice >= 2 && 'border-t sm:border-t-0'
           )}
         >
-          <dt className="truncate text-sm text-muted-foreground ancho-condensado">{etiqueta}</dt>
-          <dd className="text-base font-semibold text-pretty tabular-nums">
+          <dt className="flex items-center gap-1 text-sm text-muted-foreground ancho-condensado">
+            <span className="truncate">{etiqueta}</span>
+            {ayuda && <AyudaContextual etiqueta={`Qué es ${etiqueta}`} texto={ayuda} />}
+          </dt>
+          <dd className="text-lg font-bold tracking-[-0.01em] text-pretty tabular-nums">
             {typeof valor === 'number' ? valor.toLocaleString('es-CO') : valor}
           </dd>
+          {detalle && (
+            <dd className="truncate text-xs text-muted-foreground tabular-nums">{detalle}</dd>
+          )}
         </div>
       ))}
     </dl>
