@@ -69,7 +69,8 @@ if (!correo || !contrasena) {
       `JWT verificado con claim rol_usuario = ${String(claims?.claims.rol_usuario)}`
     );
 
-    const { data: perfiles } = await cliente.from('usuario').select('id, correo');
+    // El cliente solo lee `id, nombre, rol` de `usuario` (20261029030000): pedir el correo falla.
+    const { data: perfiles } = await cliente.from('usuario').select('id, nombre, rol');
     comprobar(
       perfiles?.length === 1 && perfiles[0]?.id === sesion.user?.id,
       'RLS: el docente solo ve su propio perfil'
@@ -212,14 +213,21 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
       .insert({ ...datosSesion, usuario_id: otro?.id ?? miId });
     comprobar(Boolean(errorSuplantar), 'No se puede crear una sesión indicando otro usuario_id');
 
-    const { data: propia, error: errorPropia } = await cliente
+    // Desde 20261007020000 ningún cliente inserta en `sesion`: la crea el servidor. La sesión de
+    // las pruebas siguientes se crea con la clave secreta, a nombre del docente.
+    const { error: errorPropia } = await cliente.from('sesion').insert(datosSesion);
+    comprobar(
+      Boolean(errorPropia),
+      'El docente no crea sesiones desde el cliente (solo el servidor)'
+    );
+    const { data: propia } = await admin
       .from('sesion')
-      .insert(datosSesion)
+      .insert({ ...datosSesion, usuario_id: miId })
       .select('id, usuario_id, estado, fin')
       .single();
     comprobar(
-      !errorPropia && propia?.usuario_id === miId && propia.estado === 'en_curso' && !propia.fin,
-      'El docente crea su sesión (usuario_id = auth.uid(), estado en_curso)'
+      propia?.usuario_id === miId && propia.estado === 'en_curso' && !propia.fin,
+      'La sesión creada por el servidor queda a nombre del docente, en_curso'
     );
     if (!propia) return;
 
@@ -260,13 +268,13 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
 
     const { data: cerrada } = await cliente
       .from('sesion')
-      .update({ estado: 'finalizada' })
+      .update({ estado: 'interrumpida' })
       .eq('id', propia.id)
       .select('id, inicio, fin')
       .single();
     comprobar(
       Boolean(cerrada?.fin) && cerrada!.fin! >= cerrada!.inicio,
-      'Al cerrar la sesión, la base de datos asigna la hora de fin (reloj del servidor)'
+      'Al interrumpir la sesión, la base de datos asigna la hora de fin (reloj del servidor)'
     );
 
     const { data: reabierta } = await cliente
@@ -274,7 +282,7 @@ async function verificarSprint2(cliente: ReturnType<typeof createClient<Database
       .update({ estado: 'en_curso' })
       .eq('id', propia.id)
       .select('id');
-    comprobar((reabierta ?? []).length === 0, 'Una sesión finalizada ya no se puede modificar');
+    comprobar((reabierta ?? []).length === 0, 'Una sesión interrumpida ya no se puede modificar');
 
     const { error: errorTrasCierre } = await cliente
       .from('mensaje')
