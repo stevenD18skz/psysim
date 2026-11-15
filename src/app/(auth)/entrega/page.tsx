@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -63,8 +64,8 @@ export default async function EntregaPage({ searchParams }: PageProps<'/entrega'
               <Alert variant="destructive" role="alert">
                 <AlertDescription>
                   Esa cuenta no es de un estudiante. En este equipo solo puede entrar {nombre} con
-                  su correo institucional. Si eres el docente y quieres recuperar el equipo, usa
-                  «Volver a entrar como docente».
+                  su correo institucional. Si eres el docente y quieres recuperar el equipo, usa{' '}
+                  <ControlCitado>Volver a entrar como docente</ControlCitado>.
                 </AlertDescription>
               </Alert>
             )}
@@ -97,7 +98,9 @@ export default async function EntregaPage({ searchParams }: PageProps<'/entrega'
                 Hola, {nombre}
               </h1>
               <p className="text-muted-foreground">
-                Tu docente te preparó la práctica «{entrega.caso}» en este computador.
+                Tu docente te preparó la práctica{' '}
+                <span className="font-medium text-foreground">{entrega.caso}</span> en este
+                computador.
               </p>
             </div>
 
@@ -106,7 +109,7 @@ export default async function EntregaPage({ searchParams }: PageProps<'/entrega'
                 <UserRound className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
                 <span>
                   Entra con tu correo @correounivalle.edu.co. Si Google te muestra otra cuenta,
-                  elige «Usar otra cuenta».
+                  elige <ControlCitado>Usar otra cuenta</ControlCitado>.
                 </span>
               </li>
               <li className="flex gap-3">

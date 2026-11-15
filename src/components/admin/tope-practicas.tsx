@@ -76,7 +76,7 @@ export function TopePracticas({
           <span className="text-muted-foreground">
             {tope === null
               ? 'Todas las prácticas pueden empezar; con muchas a la vez, el paciente tarda más en responder.'
-              : `Hasta ${tope * cuentas} ${tope * cuentas === 1 ? 'práctica' : 'prácticas'} a la vez en toda la plataforma. Quien no cabe ve «El consultorio está ocupado».`}
+              : `Hasta ${tope * cuentas} ${tope * cuentas === 1 ? 'práctica' : 'prácticas'} a la vez en toda la plataforma. Quien llegue sin cupo verá que el consultorio está ocupado y podrá intentarlo en unos minutos.`}
           </span>
         </p>
         <p className="text-sm text-muted-foreground">

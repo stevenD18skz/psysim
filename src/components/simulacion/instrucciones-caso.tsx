@@ -14,7 +14,9 @@ import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { Desplegable } from '@/components/comun/desplegable';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,7 +74,10 @@ const REGLAS = [
   'Tu docente leerá la conversación completa cuando termines, incluidas las respuestas que reformules. No la ve en vivo.',
   `Si pasan ${MINUTOS_CIERRE_INACTIVIDAD} minutos sin actividad, la práctica se cierra sola. Cuenta también ahora, mientras lees, y si sales. Te avisamos un minuto antes.`,
   'Tu código ya se usó. Si la práctica se cierra, necesitas un código nuevo para repetirla.',
-  'Cuando acabes, pulsa «Terminar práctica». Después no se puede reanudar.',
+  <>
+    Cuando acabes, pulsa <ControlCitado>Terminar práctica</ControlCitado>. Después no se puede
+    reanudar.
+  </>,
 ];
 
 const CONTROLES = [
@@ -222,8 +227,8 @@ export function InstruccionesCaso({
               </h3>
               <p className="text-sm leading-relaxed text-foreground">{aviso.texto}</p>
               <p className="text-sm leading-relaxed">
-                Si algo de esto te toca de cerca, puedes elegir «Ahora no» y hablarlo con tu
-                docente.
+                Si algo de esto te toca de cerca, puedes elegir{' '}
+                <ControlCitado>Ahora no</ControlCitado> y hablarlo con tu docente.
               </p>
               {aviso.conApoyo && (
                 <div className="flex flex-col gap-1 border-t border-salvia/25 pt-3">
@@ -325,7 +330,8 @@ export function InstruccionesCaso({
               </p>
               <ol className="flex flex-col gap-3">
                 {REGLAS.map((regla, i) => (
-                  <li key={regla} className="flex gap-3 text-sm leading-relaxed">
+                  // Lista fija: el orden nunca cambia, así que la posición es una clave estable.
+                  <li key={i} className="flex gap-3 text-sm leading-relaxed">
                     <span
                       aria-hidden
                       className="flex size-6 shrink-0 items-center justify-center rounded-full bg-nogal text-xs font-bold text-lino ancho-condensado"
@@ -338,7 +344,7 @@ export function InstruccionesCaso({
               </ol>
             </section>
 
-            <section className="flex flex-col gap-2">
+            <section className="flex flex-col">
               <button
                 type="button"
                 aria-expanded={controlesAbiertos}
@@ -350,32 +356,38 @@ export function InstruccionesCaso({
                 <span className="ml-auto flex items-center gap-1 font-normal text-muted-foreground">
                   {controlesAbiertos ? 'Ocultar' : 'Ver controles'}
                   <ChevronDown
-                    className={cn('size-4 transition-transform', controlesAbiertos && 'rotate-180')}
+                    className={cn(
+                      'size-4 transition-transform duration-300 ease-salida',
+                      controlesAbiertos && 'rotate-180'
+                    )}
                     aria-hidden
                   />
                 </span>
               </button>
-              <div id={idControles} hidden={!controlesAbiertos} className="flex flex-col gap-3">
-                <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                  {CONTROLES.map(([tecla, accion]) => (
-                    <div key={tecla} className="flex items-baseline gap-2">
-                      <dt className="font-mono text-xs font-medium">{tecla}</dt>
-                      <dd className="text-muted-foreground">{accion}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="text-sm text-muted-foreground">
-                  ¿Prefieres no recorrer el consultorio? Usa «Ir directo a la conversación».
-                </p>
-                <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
-                  {HERRAMIENTAS_PRACTICA.map(herramienta => (
-                    <div key={herramienta.nombre} className="flex flex-col gap-0.5">
-                      <dt className="font-medium">{herramienta.nombre}</dt>
-                      <dd className="text-muted-foreground">{herramienta.detalle}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+              <Desplegable id={idControles} abierto={controlesAbiertos}>
+                <div className="flex flex-col gap-3 pt-2">
+                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    {CONTROLES.map(([tecla, accion]) => (
+                      <div key={tecla} className="flex items-baseline gap-2">
+                        <dt className="font-mono text-xs font-medium">{tecla}</dt>
+                        <dd className="text-muted-foreground">{accion}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="text-sm text-muted-foreground">
+                    ¿Prefieres no recorrer el consultorio? Usa{' '}
+                    <ControlCitado>Ir directo a la conversación</ControlCitado>.
+                  </p>
+                  <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
+                    {HERRAMIENTAS_PRACTICA.map(herramienta => (
+                      <div key={herramienta.nombre} className="flex flex-col gap-0.5">
+                        <dt className="font-medium">{herramienta.nombre}</dt>
+                        <dd className="text-muted-foreground">{herramienta.detalle}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </Desplegable>
             </section>
 
             <p className="text-sm text-muted-foreground">

@@ -117,8 +117,7 @@ export function DialogoEstudiante({
         <DialogHeader>
           <DialogTitle>{editando ? 'Editar estudiante' : 'Registrar estudiante'}</DialogTitle>
           <DialogDescription>
-            Con su correo institucional entra a PsySim con «Continuar con Google». No necesita
-            contraseña.
+            Entrará a PsySim con la cuenta de Google de su correo institucional, sin contraseña.
           </DialogDescription>
         </DialogHeader>
 

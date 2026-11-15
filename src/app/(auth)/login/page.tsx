@@ -109,7 +109,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                 Soy docente: entrar con correo y contraseña
                 <ChevronDown
-                  className="ml-auto size-4 transition-transform group-open:rotate-180"
+                  className="ml-auto size-4 transition-transform duration-300 ease-salida group-open:rotate-180"
                   aria-hidden
                 />
               </summary>

@@ -155,8 +155,10 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
           filas={filasProveedores}
         />
         <p className="text-sm text-muted-foreground">
-          La latencia incluye la espera por cupo. «Emoción deducida»: respuestas en las que el
-          modelo no escribió la etiqueta de emoción y se dedujo de la severidad.{' '}
+          La latencia incluye la espera por cupo.{' '}
+          <span className="font-medium text-foreground">Emoción deducida</span> cuenta las
+          respuestas en las que el modelo no escribió la etiqueta de emoción y se dedujo de la
+          severidad.{' '}
           {metricas.turnos_de_respaldo > 0 &&
             `${numero.format(metricas.turnos_de_respaldo)} de las respuestas de Gemini fueron en prácticas que empezaron en el orquestador.`}
         </p>

@@ -39,7 +39,7 @@ export function IntentoReformulado({ intento, estudiante, paciente }: IntentoRef
           <span className="font-medium">{titulo}</span>
           <span className="text-muted-foreground">· {detalle}</span>
           <ChevronDown
-            className="ml-auto size-4 text-muted-foreground transition-transform group-open/intento:rotate-180"
+            className="ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/intento:rotate-180"
             aria-hidden
           />
         </summary>

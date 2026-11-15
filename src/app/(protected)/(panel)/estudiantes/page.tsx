@@ -74,7 +74,7 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
         titulo="Estudiantes"
-        descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con «Continuar con Google»."
+        descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con su cuenta de Google de la universidad, sin contraseña."
         acciones={estudiantes.length > 0 ? <BotonRegistrarEstudiante /> : undefined}
       />
 

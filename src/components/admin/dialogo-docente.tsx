@@ -283,7 +283,7 @@ export function DialogoDocente({
                       elegido={acceso === 'google'}
                       icono={Mail}
                       titulo="Con Google"
-                      descripcion="Entra con «Continuar con Google» usando este correo."
+                      descripcion="Entrará con la cuenta de Google de este correo, sin contraseña."
                     />
                     <Opcion
                       registro={register('acceso')}

@@ -275,7 +275,7 @@ export default function Home() {
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-base font-bold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                   {p.pregunta}
                   <ChevronDown
-                    className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                    className="size-5 shrink-0 text-muted-foreground transition-transform duration-300 ease-salida group-open:rotate-180"
                     aria-hidden
                   />
                 </summary>
@@ -309,7 +309,7 @@ export default function Home() {
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-5 py-4 text-sm font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
             Ficha técnica del proyecto
             <ChevronDown
-              className="ml-auto size-4 transition-transform group-open:rotate-180"
+              className="ml-auto size-4 transition-transform duration-300 ease-salida group-open:rotate-180"
               aria-hidden
             />
           </summary>

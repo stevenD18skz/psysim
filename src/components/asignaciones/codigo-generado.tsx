@@ -57,7 +57,7 @@ export function mensajeParaEstudiante(
     'Ábrela en un computador con teclado y ratón (la simulación no funciona en el celular):',
     enlace,
     '',
-    'Entra con tu correo @correounivalle.edu.co («Continuar con Google»).',
+    'Entra con el botón Continuar con Google y tu correo @correounivalle.edu.co.',
     '',
     `El código ${datos.codigo} es de un solo uso y vence el ${formatearFechaHora(datos.expiraEn)}.`,
     'Cuando lo uses, empieza enseguida: si pasan 10 minutos sin actividad, la práctica se cierra y el código deja de servir.',

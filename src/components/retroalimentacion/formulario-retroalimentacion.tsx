@@ -202,8 +202,8 @@ export function FormularioRetroalimentacion({
       {publicada && (
         <p className="flex items-start gap-2 rounded-lg bg-salvia-suave px-3 py-2.5 text-sm text-salvia-oscuro">
           <Eye className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Ya está publicada. Lo que guardes ahora lo verá {primerNombre} con la marca «Actualizada
-          el…».
+          Ya está publicada. Si guardas cambios, {primerNombre} los verá con la fecha de la
+          actualización.
         </p>
       )}
 

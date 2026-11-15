@@ -2,6 +2,8 @@ import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { ControlCitado } from '@/components/comun/control-citado';
+import { LogoGoogle } from '@/components/comun/logo-google';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { PiePagina } from '@/components/layout/pie-pagina';
 
@@ -225,8 +227,8 @@ export default function PrivacidadPage() {
                 </PorConfirmar>
               </li>
               <li>
-                <strong>Google (inicio de sesión):</strong> confirma tu identidad cuando eliges
-                «Continuar con Google».
+                <strong>Google (inicio de sesión):</strong> confirma tu identidad cuando eliges{' '}
+                <ControlCitado icono={<LogoGoogle />}>Continuar con Google</ControlCitado>.
               </li>
               <li>
                 <strong>Supabase:</strong> aloja la base de datos y gestiona las cuentas.

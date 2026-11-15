@@ -67,7 +67,7 @@ export function ListaCodigos({
               {historial.length}
             </span>
             <ChevronDown
-              className="ml-auto size-4 text-muted-foreground transition-transform group-open/historial:rotate-180"
+              className="ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/historial:rotate-180"
               aria-hidden
             />
           </summary>

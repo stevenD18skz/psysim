@@ -71,7 +71,9 @@ describe('InstruccionesCaso (HU-23)', () => {
     it('muestra el aviso de contenido del caso con la salida «Ahora no»', () => {
       montar();
       expect(screen.getByText('De qué trata este caso')).toBeInTheDocument();
-      expect(screen.getByText(/elegir «Ahora no»/)).toBeInTheDocument();
+      expect(screen.getByText(/puedes elegir/)).toHaveTextContent(
+        'puedes elegir Ahora no y hablarlo con tu docente'
+      );
     });
 
     it('los controles salen desplegados la primera vez', () => {

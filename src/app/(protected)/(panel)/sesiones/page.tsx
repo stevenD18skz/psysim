@@ -3,10 +3,12 @@ import type { Metadata } from 'next';
 import { type Route } from 'next';
 import Link from 'next/link';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Paginacion } from '@/components/comun/paginacion';
+import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { Button } from '@/components/ui/button';
@@ -51,11 +53,15 @@ export const metadata: Metadata = {
   title: 'Revisiones',
 };
 
-const VACIOS: Record<Vista, string> = {
+const VACIOS: Record<Vista, React.ReactNode> = {
   pendientes: 'No tienes prácticas por revisar. Cuando un estudiante termine una, aparecerá aquí.',
   publicadas: 'Aún no has publicado ninguna retroalimentación.',
   'en-curso': 'Nadie está practicando en este momento.',
-  todas: 'Todavía no hay prácticas. Asigna una desde «Asignar práctica».',
+  todas: (
+    <>
+      Todavía no hay prácticas. Asigna una desde <ControlCitado>Asignar práctica</ControlCitado>.
+    </>
+  ),
 };
 
 /** Prácticas por página en la lista (la misma medida que la ficha del estudiante). */
@@ -126,7 +132,12 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
         }
       />
 
-      <nav aria-label="Filtrar por estado" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+      <PistaSegmentada
+        elemento="nav"
+        aria-label="Filtrar por estado"
+        className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
+        claseIndicador="rounded-lg bg-nogal"
+      >
         {VISTAS.map(v => {
           const activa = v.id === vista;
           return (
@@ -136,7 +147,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
               scroll={false}
               aria-current={activa ? 'page' : undefined}
               className={cn(
-                'flex h-10 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                'flex h-10 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors duration-300 ease-salida focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
                 activa
                   ? 'bg-nogal text-lino'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -154,7 +165,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             </Link>
           );
         })}
-      </nav>
+      </PistaSegmentada>
 
       {sesiones.length > 0 && (
         <div className="grid gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end">
@@ -433,7 +444,7 @@ function GrupoRevision({
               <span className="font-semibold text-foreground">{formatearNota(grupo.promedio)}</span>
             </span>
             <ChevronDown
-              className="size-4 text-muted-foreground transition-transform group-open/grupo:rotate-180"
+              className="size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/grupo:rotate-180"
               aria-hidden
             />
           </span>
@@ -566,7 +577,7 @@ function VistaMatriz({ sesiones }: { sesiones: SesionDocente[] }) {
         </h2>
         <p className="text-sm text-muted-foreground">
           Cada celda muestra la práctica más reciente: la nota publicada, si está por revisar o en
-          curso. «—» es un caso que aún no ha practicado.
+          curso. Una raya indica un caso que aún no ha practicado.
         </p>
       </div>
       <div
