@@ -5,7 +5,8 @@
  * - Inserta/actualiza su perfil en `public.usuario` con el MISMO id de Auth.
  * - Crea un Administrador de prueba (admin@psysim.test): con él se crean desde /admin las cuentas
  *   reales de los docentes y de los demás administradores.
- * - Crea dos estudiantes de prueba con contraseña (los reales entran con Google). Usan el dominio
+ * - Crea cinco estudiantes de prueba con contraseña (los reales entran con Google) y los asigna en
+ *   `public.estudiante` entre los tres docentes de prueba (1 o 2 por docente). Usan el dominio
  *   reservado `psysim.test`, que ninguna cuenta de Google puede tener.
  * - Crea además una cuenta SIN perfil, para probar la página de acceso denegado.
  *
@@ -63,7 +64,44 @@ const CUENTAS: CuentaSemilla[] = [
     codigoInstitucional: '209990002',
     rol: 'estudiante',
   },
+  {
+    correo: 'estudiante3@psysim.test',
+    nombre: 'Estudiante de Prueba Tres',
+    codigoInstitucional: '209990003',
+    rol: 'estudiante',
+  },
+  {
+    correo: 'estudiante4@psysim.test',
+    nombre: 'Estudiante de Prueba Cuatro',
+    codigoInstitucional: '209990004',
+    rol: 'estudiante',
+  },
+  {
+    correo: 'estudiante5@psysim.test',
+    nombre: 'Estudiante de Prueba Cinco',
+    codigoInstitucional: '209990005',
+    rol: 'estudiante',
+  },
   { correo: 'sin-rol@psysim.test', nombre: 'Usuario sin Rol' },
+];
+
+/**
+ * Asignación inicial de los 5 estudiantes de prueba entre los docentes de prueba (1 o 2 por
+ * docente). El trigger `estudiante_vincular_cuenta` enlaza `usuario_id` por el correo.
+ */
+const ASIGNACIONES_ESTUDIANTES: { docente: string; estudiantes: string[] }[] = [
+  {
+    docente: 'docente1@psysim.test',
+    estudiantes: ['estudiante1@psysim.test', 'estudiante2@psysim.test'],
+  },
+  {
+    docente: 'docente2@psysim.test',
+    estudiantes: ['estudiante3@psysim.test', 'estudiante4@psysim.test'],
+  },
+  {
+    docente: 'docente3@psysim.test',
+    estudiantes: ['estudiante5@psysim.test'],
+  },
 ];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -153,7 +191,7 @@ for (const cuenta of CUENTAS) {
 // prueba: las de docentes y estudiantes reales no se imprimen en la consola.
 const { data: perfiles, error } = await supabase
   .from('usuario')
-  .select('id, correo')
+  .select('id, correo, nombre, codigo_institucional')
   .like('correo', '%@psysim.test');
 if (error) {
   console.error('✖ No se pudo verificar la tabla usuario:', error.message);
@@ -164,6 +202,44 @@ if (error) {
     const coincide = data.user?.email?.toLowerCase() === perfil.correo;
     if (!coincide) fallos++;
     console.log(`${coincide ? '✔' : '✖'} id ${perfil.id} ↔ auth (${perfil.correo})`);
+  }
+
+  const porCorreo = new Map(perfiles.map(p => [p.correo.toLowerCase(), p]));
+  for (const { docente: correoDocente, estudiantes } of ASIGNACIONES_ESTUDIANTES) {
+    const docente = porCorreo.get(correoDocente.toLowerCase());
+    if (!docente) {
+      console.error(`✖ No se encontró el docente ${correoDocente} en public.usuario.`);
+      fallos++;
+      continue;
+    }
+    for (const correoEstudiante of estudiantes) {
+      const alumno = porCorreo.get(correoEstudiante.toLowerCase());
+      if (!alumno) {
+        console.error(`✖ No se encontró el estudiante ${correoEstudiante} en public.usuario.`);
+        fallos++;
+        continue;
+      }
+      const { error: errorRegistro } = await supabase.from('estudiante').upsert(
+        {
+          docente_id: docente.id,
+          codigo: alumno.codigo_institucional,
+          nombre: alumno.nombre,
+          correo: alumno.correo.toLowerCase(),
+        },
+        { onConflict: 'docente_id,codigo' }
+      );
+      if (errorRegistro) {
+        console.error(
+          `✖ No se pudo asignar ${correoEstudiante} a ${correoDocente}:`,
+          errorRegistro.message
+        );
+        fallos++;
+      } else {
+        console.log(
+          `✔ [asignado  ] ${correoEstudiante.padEnd(24)} → ${correoDocente} (${alumno.codigo_institucional})`
+        );
+      }
+    }
   }
 }
 
