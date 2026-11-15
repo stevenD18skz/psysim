@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { useBorrador } from '@/hooks/use-borrador';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { toast } from 'sonner';
@@ -408,8 +409,9 @@ export function ConstructorCaso({
             <AlertDescription>
               El comportamiento de este caso está escrito como texto, en el panel de la derecha: los
               síntomas, la actitud, el riesgo y la frase de apertura no se aplican hasta que vuelvas
-              al constructor. ¿Prefieres no escribir? Asigna el caso y usa «Ajustar para esta
-              práctica»: cambias su comportamiento con botones.
+              al constructor. ¿Prefieres no escribir? Asigna el caso y usa{' '}
+              <ControlCitado>Ajustar para esta práctica</ControlCitado>: cambias su comportamiento
+              con botones.
             </AlertDescription>
           </Alert>
         ) : (
@@ -574,7 +576,10 @@ export function ConstructorCaso({
           </div>
 
           {confirmandoVolver && (
-            <Alert role="alert">
+            <Alert
+              role="alert"
+              className="motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1"
+            >
               <AlertCircle aria-hidden />
               <AlertDescription className="flex flex-col gap-2">
                 Los cambios que hiciste al texto se descartarán y el comportamiento se volverá a
@@ -623,7 +628,7 @@ export function ConstructorCaso({
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium outline-hidden hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                   Ver el texto que recibe la IA
                   <ChevronDown
-                    className="ml-auto size-4 text-muted-foreground transition-transform group-open/texto:rotate-180"
+                    className="ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/texto:rotate-180"
                     aria-hidden
                   />
                 </summary>

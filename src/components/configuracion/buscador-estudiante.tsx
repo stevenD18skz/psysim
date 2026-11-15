@@ -101,7 +101,7 @@ export function BuscadorEstudiante({
           id={idLista}
           role="listbox"
           aria-label="Estudiantes registrados"
-          className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg motion-safe:animate-in motion-safe:fade-in-0"
+          className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg motion-safe:animate-in motion-safe:duration-200 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:zoom-in-98"
         >
           {resultados.length === 0 ? (
             <li className="px-3 py-2.5 text-sm text-muted-foreground">{mensajeVacio}</li>

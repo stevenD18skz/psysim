@@ -92,7 +92,8 @@ export function GuardarComoCaso({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    // El campo entra desde el botón que lo abrió, para que se lea como su continuación.
+    <div className="flex flex-col gap-1 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-left-2">
       <div className="flex items-center gap-2">
         <label htmlFor={idCampo} className="sr-only">
           Nombre del caso
@@ -134,7 +135,11 @@ export function GuardarComoCaso({
         </Button>
       </div>
       {error && (
-        <p id={`${idCampo}-error`} role="alert" className="text-sm text-destructive">
+        <p
+          id={`${idCampo}-error`}
+          role="alert"
+          className="text-sm text-destructive motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0"
+        >
           {error}
         </p>
       )}

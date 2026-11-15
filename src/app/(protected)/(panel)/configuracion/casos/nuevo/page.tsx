@@ -33,8 +33,16 @@ export default async function NuevoCasoPage({
   return (
     <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
-        sobretitulo="Mis casos"
-        titulo={casoOrigen ? `Crear caso a partir de «${casoOrigen.titulo}»` : 'Crear caso'}
+        titulo={
+          casoOrigen ? (
+            <>
+              <span className="text-muted-foreground">Nuevo caso a partir de</span>{' '}
+              {casoOrigen.titulo}
+            </>
+          ) : (
+            'Crear caso'
+          )
+        }
         descripcion="Completa los campos y el comportamiento del paciente se arma solo. Puedes partir de un caso previo, variar su nivel de dificultad y probarlo antes de guardar."
       />
       <ConstructorCaso

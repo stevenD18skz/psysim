@@ -25,8 +25,11 @@ export default async function EditarCasoPage({ params }: PageProps<'/configuraci
   return (
     <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
-        sobretitulo="Mis casos"
-        titulo={`Editar «${caso.titulo}»`}
+        titulo={
+          <>
+            <span className="text-muted-foreground">Editar</span> {caso.titulo}
+          </>
+        }
         descripcion="Los cambios valen para las prácticas que asignes desde ahora. Las ya asignadas conservan su copia del caso."
       />
       <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />

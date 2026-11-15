@@ -47,7 +47,7 @@ export function ReglasFijas({ className }: { className?: string }) {
         <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-md text-xs font-medium text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
           Ver las {REGLAS_FIJAS.length} reglas exactas que recibe la IA
           <ChevronDown
-            className="size-3.5 transition-transform group-open/reglas:rotate-180"
+            className="size-3.5 transition-transform duration-300 ease-salida group-open/reglas:rotate-180"
             aria-hidden
           />
         </summary>

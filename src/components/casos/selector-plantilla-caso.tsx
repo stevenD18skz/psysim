@@ -76,11 +76,15 @@ export function SelectorPlantillaCaso({
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
               <h2 id="plantilla-caso-titulo" className="text-base font-semibold">
-                {casoActivo
-                  ? `Basado en «${casoActivo.titulo}»`
-                  : hayCatalogo
-                    ? 'Crear caso a partir de otro o desde un ejemplo'
-                    : '¿Primera vez? Empieza desde un ejemplo'}
+                {casoActivo ? (
+                  <>
+                    <span className="text-muted-foreground">Basado en</span> {casoActivo.titulo}
+                  </>
+                ) : hayCatalogo ? (
+                  'Crear caso a partir de otro o desde un ejemplo'
+                ) : (
+                  '¿Primera vez? Empieza desde un ejemplo'
+                )}
               </h2>
               <AyudaContextual
                 etiqueta="Cómo funciona Crear caso a partir de otro"
@@ -174,7 +178,10 @@ export function SelectorPlantillaCaso({
 
       {!hayCatalogo && casoActivo && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
-          <span className="text-sm font-medium">Variar dificultad de «{casoActivo.titulo}»:</span>
+          <span className="text-sm text-muted-foreground">
+            Variar la dificultad de{' '}
+            <span className="font-semibold text-foreground">{casoActivo.titulo}</span>
+          </span>
           <div role="group" aria-label="Adaptar nivel del caso" className="flex flex-wrap gap-1.5">
             {NIVELES.map(nivel => {
               const activo = dificultadActual === nivel;

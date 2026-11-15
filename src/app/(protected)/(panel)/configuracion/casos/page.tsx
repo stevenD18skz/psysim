@@ -121,7 +121,7 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
                 </span>
                 <AyudaContextual
                   etiqueta="Qué son Mis casos"
-                  texto="Son los pacientes diseñados por ti. Puedes crearlos desde cero o pulsar «Crear caso a partir de este» en cualquier caso de abajo para adaptarlo con otro nivel de dificultad."
+                  texto="Son los pacientes diseñados por ti. Puedes crearlos desde cero o a partir de cualquier caso de abajo, por ejemplo para cambiarle el nivel de dificultad."
                 />
               </div>
               <BibliotecaCasos
@@ -155,7 +155,7 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
                 </span>
                 <AyudaContextual
                   etiqueta="Qué son los Casos de PsySim"
-                  texto="Catálogo oficial de 12 pacientes clínicos y cotidianos listos para asignar. Pulsa «Crear caso a partir de este» en cualquiera de ellos para hacer tu propia versión o variar su dificultad."
+                  texto="Catálogo oficial de 12 pacientes clínicos y cotidianos listos para asignar. A partir de cualquiera puedes crear tu propia versión o variar su dificultad."
                 />
               </div>
               <BibliotecaCasos casos={dePsySim} uso={uso} />

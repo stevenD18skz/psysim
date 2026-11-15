@@ -28,6 +28,8 @@ import { useForm, useWatch } from 'react-hook-form';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { ControlCitado } from '@/components/comun/control-citado';
+import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
@@ -286,58 +288,27 @@ export function ConfiguradorSesion({
 
           {/* Barra de sección: alterna entre Casos predefinidos y Mis casos sin mostrar ambos a la vez */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div
+            <PistaSegmentada
               role="group"
               aria-label="Secciones de casos"
               className="inline-flex w-fit items-center gap-1 rounded-xl border bg-muted/55 p-1"
+              claseIndicador="rounded-lg bg-card shadow-xs"
             >
-              <button
-                type="button"
-                aria-pressed={seccionCasos === 'predefinidos'}
+              <BotonSeccion
+                activa={seccionCasos === 'predefinidos'}
                 onClick={() => setSeccionCasos('predefinidos')}
-                className={cn(
-                  'inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid',
-                  seccionCasos === 'predefinidos'
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
+                cantidad={busquedaCaso.trim() ? oficiales.length : totalOficiales}
               >
-                <span>Casos predefinidos</span>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
-                    seccionCasos === 'predefinidos'
-                      ? 'bg-salvia-suave text-salvia-oscuro'
-                      : 'bg-background/70 text-muted-foreground'
-                  )}
-                >
-                  {busquedaCaso.trim() ? oficiales.length : totalOficiales}
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={seccionCasos === 'propios'}
+                Casos predefinidos
+              </BotonSeccion>
+              <BotonSeccion
+                activa={seccionCasos === 'propios'}
                 onClick={() => setSeccionCasos('propios')}
-                className={cn(
-                  'inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid',
-                  seccionCasos === 'propios'
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
+                cantidad={busquedaCaso.trim() ? propios.length : totalPropios}
               >
-                <span>Mis casos</span>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
-                    seccionCasos === 'propios'
-                      ? 'bg-salvia-suave text-salvia-oscuro'
-                      : 'bg-background/70 text-muted-foreground'
-                  )}
-                >
-                  {busquedaCaso.trim() ? propios.length : totalPropios}
-                </span>
-              </button>
-            </div>
+                Mis casos
+              </BotonSeccion>
+            </PistaSegmentada>
 
             <div className="flex flex-wrap items-center gap-2.5">
               {escenario && (
@@ -374,12 +345,20 @@ export function ConfiguradorSesion({
             aria-labelledby="paso-escenario-titulo"
             aria-required
             aria-invalid={errors.escenarioId ? true : undefined}
-            className="flex flex-col gap-4"
+            // Al cambiar de sección, la lista entra desde el lado hacia el que se movió la pista.
+            key={seccionCasos}
+            className={cn(
+              'flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0',
+              seccionCasos === 'propios'
+                ? 'motion-safe:slide-in-from-right-4'
+                : 'motion-safe:slide-in-from-left-4'
+            )}
           >
             {seccionCasos === 'predefinidos' ? (
               oficiales.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                  Ningún caso predefinido coincide con «{busquedaCaso.trim()}».
+                  Ningún caso predefinido coincide con{' '}
+                  <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -400,7 +379,8 @@ export function ConfiguradorSesion({
               <EstadoVacioMisCasos />
             ) : propios.length === 0 ? (
               <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                Ninguno de tus casos coincide con «{busquedaCaso.trim()}».
+                Ninguno de tus casos coincide con{' '}
+                <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -751,7 +731,7 @@ export function ConfiguradorSesion({
   );
 }
 
-const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[] = [
+const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: React.ReactNode }[] = [
   {
     icono: Wand2,
     titulo: 'Desde cero',
@@ -760,7 +740,12 @@ const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[]
   {
     icono: Bookmark,
     titulo: 'Desde un caso predefinido',
-    texto: 'Elige uno arriba, ajusta su comportamiento y pulsa «Guardar como mi caso».',
+    texto: (
+      <>
+        Elige uno arriba, ajusta su comportamiento y pulsa{' '}
+        <ControlCitado>Guardar como mi caso</ControlCitado>.
+      </>
+    ),
   },
   {
     icono: Repeat2,
@@ -800,8 +785,8 @@ function EstadoVacioMisCasos() {
         <div className="flex flex-1 flex-col gap-1.5">
           <h4 className="text-xl font-bold">Aquí vivirán tus casos</h4>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Crea un paciente a tu medida, o ajusta un caso predefinido al asignarlo y pulsa «Guardar
-            como mi caso».
+            Crea un paciente a tu medida, o ajusta un caso predefinido al asignarlo y pulsa{' '}
+            <ControlCitado>Guardar como mi caso</ControlCitado>.
           </p>
         </div>
         <Button asChild size="lg" variant="outline">
@@ -823,6 +808,41 @@ function EstadoVacioMisCasos() {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Opción de la pista «Casos predefinidos / Mis casos», con su cantidad al lado. */
+function BotonSeccion({
+  activa,
+  cantidad,
+  onClick,
+  children,
+}: {
+  activa: boolean;
+  cantidad: number;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={activa}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-[380ms] ease-deslizar focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid',
+        activa ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      <span>{children}</span>
+      <span
+        className={cn(
+          'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors duration-[380ms] ease-deslizar',
+          activa ? 'bg-salvia-suave text-salvia-oscuro' : 'bg-background/70 text-muted-foreground'
+        )}
+      >
+        {cantidad}
+      </span>
+    </button>
   );
 }
 

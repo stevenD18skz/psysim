@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { useId } from 'react';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { GrupoChips, SelectorOpciones, Sugerencias } from '@/components/casos/selectores';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ export function AjustesPaciente({
   const sinCambios = !textoManual && resumen.length === 0;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border bg-card">
+    <div className="flex flex-col overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b bg-muted/35 px-5 py-4">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
@@ -78,7 +79,7 @@ export function AjustesPaciente({
             </h3>
             <AyudaContextual
               etiqueta="Cómo funcionan los ajustes para esta práctica"
-              texto="Estos cambios se aplican únicamente al código que generes ahora. Si quieres reutilizarlos en el futuro, pulsa «Guardar como mi caso» abajo."
+              texto="Estos cambios se aplican únicamente al código que generes ahora. Para reutilizarlos más adelante, guárdalos con el botón Guardar como mi caso, en la barra de abajo."
             />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -113,9 +114,10 @@ export function AjustesPaciente({
 
       <div className="flex flex-col gap-5 p-5">
         {textoManual && (
-          <p className="rounded-lg bg-ambar-suave px-3.5 py-2.5 text-sm text-ambar">
-            Editaste el texto completo a mano, así que los ajustes rápidos están en pausa. Pulsa
-            «Volver al original» para usarlos de nuevo.
+          <p className="rounded-lg bg-ambar-suave px-3.5 py-2.5 text-sm text-ambar motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in-0">
+            Editaste el texto completo a mano, así que los ajustes rápidos están en pausa. Pulsa{' '}
+            <ControlCitado icono={<RotateCcw aria-hidden />}>Volver al original</ControlCitado> para
+            usarlos de nuevo.
           </p>
         )}
 
@@ -257,9 +259,9 @@ export function AjustesPaciente({
         <div
           aria-live="polite"
           className={cn(
-            'flex flex-col gap-1.5 rounded-xl border-l-4 px-4 py-3.5 text-sm',
+            'flex flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-sm transition-colors duration-300 ease-salida',
             resumen.length > 0 && !textoManual
-              ? 'border-salvia bg-salvia-suave/50'
+              ? 'border-salvia/40 bg-salvia-suave/50'
               : 'border-border bg-muted/40 text-muted-foreground'
           )}
         >
@@ -286,7 +288,7 @@ export function AjustesPaciente({
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium outline-hidden hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
             Ver o editar el texto completo (avanzado)
             <ChevronDown
-              className="ml-auto size-4 text-muted-foreground transition-transform group-open/avanzado:rotate-180"
+              className="ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/avanzado:rotate-180"
               aria-hidden
             />
           </summary>
