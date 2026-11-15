@@ -265,9 +265,14 @@ describe('ConfiguradorSesion', () => {
     expect(duelo).toBeChecked();
   });
 
-  it('invita a crear un caso cuando "Mis casos" está vacío', () => {
+  it('invita a crear un caso cuando "Mis casos" está vacío', async () => {
+    const usuario = userEvent.setup();
     renderizar();
 
+    // Por defecto muestra «Casos predefinidos» y no mezcla ambas secciones a la vez.
+    expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: /Mis casos/ }));
     expect(screen.getByText(/Aquí vivirán tus casos/)).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toHaveAttribute(
@@ -280,6 +285,12 @@ describe('ConfiguradorSesion', () => {
     const usuario = userEvent.setup();
     renderizar([E01, PROPIO]);
 
+    // Al cambiar a «Mis casos», se ocultan los predefinidos y aparecen los propios.
+    expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Mi caso de ansiedad/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: /Mis casos/ }));
+    expect(screen.queryByRole('radio', { name: /Duelo y pérdida/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
     // Con casos, la creación es una tarjeta punteada junto a ellos.
     expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
@@ -290,6 +301,9 @@ describe('ConfiguradorSesion', () => {
     expect(
       screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })
     ).toHaveAttribute('href', `/configuracion/casos/${PROPIO.id}`);
+    expect(
+      screen.getByRole('link', { name: 'Crear caso a partir de Mi caso de ansiedad' })
+    ).toHaveAttribute('href', `/configuracion/casos/nuevo?desde=${PROPIO.id}`);
 
     await usuario.click(
       screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })

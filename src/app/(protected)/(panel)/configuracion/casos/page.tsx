@@ -2,6 +2,7 @@ import { FilePlus2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { BibliotecaCasos, type UsoCaso } from '@/components/casos/biblioteca-casos';
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
@@ -111,20 +112,26 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
         <>
           {(!hayFiltros || propios.length > 0) && (
             <section aria-labelledby="mis-casos" className="flex flex-col gap-4">
-              <h2 id="mis-casos" className="text-xl font-bold tracking-[-0.015em]">
-                Mis casos{' '}
-                <span className="text-sm font-semibold text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <h2 id="mis-casos" className="text-xl font-bold tracking-[-0.015em]">
+                  Mis casos
+                </h2>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground tabular-nums">
                   {hayFiltros ? `${propios.length} de ${totalPropios}` : totalPropios}
                 </span>
-              </h2>
+                <AyudaContextual
+                  etiqueta="Qué son Mis casos"
+                  texto="Son los pacientes diseñados por ti. Puedes crearlos desde cero o pulsar «Crear caso a partir de este» en cualquier caso de abajo para adaptarlo con otro nivel de dificultad."
+                />
+              </div>
               <BibliotecaCasos
                 casos={propios}
                 uso={uso}
                 vacio={
                   <p className="rounded-xl border border-dashed border-input/50 px-5 py-6 text-sm text-muted-foreground">
                     Aún no has creado casos. Con el constructor guiado defines al paciente, su
-                    motivo de consulta, cómo se comporta y lo que guarda, sin escribir instrucciones
-                    técnicas.{' '}
+                    motivo de consulta, cómo se comporta y lo que guarda, o partes de un caso de
+                    PsySim para cambiarle el nivel de dificultad.{' '}
                     <Link
                       href="/configuracion/casos/nuevo"
                       className="font-medium text-foreground underline"
@@ -139,12 +146,18 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
 
           {dePsySim.length > 0 && (
             <section aria-labelledby="casos-psysim" className="flex flex-col gap-4">
-              <h2 id="casos-psysim" className="text-xl font-bold tracking-[-0.015em]">
-                Casos de PsySim{' '}
-                <span className="text-sm font-semibold text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <h2 id="casos-psysim" className="text-xl font-bold tracking-[-0.015em]">
+                  Casos de PsySim
+                </h2>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground tabular-nums">
                   {dePsySim.length}
                 </span>
-              </h2>
+                <AyudaContextual
+                  etiqueta="Qué son los Casos de PsySim"
+                  texto="Catálogo oficial de 12 pacientes clínicos y cotidianos listos para asignar. Pulsa «Crear caso a partir de este» en cualquiera de ellos para hacer tu propia versión o variar su dificultad."
+                />
+              </div>
               <BibliotecaCasos casos={dePsySim} uso={uso} />
             </section>
           )}

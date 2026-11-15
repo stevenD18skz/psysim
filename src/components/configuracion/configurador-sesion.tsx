@@ -15,7 +15,6 @@ import {
   Plus,
   Repeat2,
   Search,
-  SlidersHorizontal,
   Target,
   UserPlus,
   Wand2,
@@ -28,11 +27,13 @@ import { useForm, useWatch } from 'react-hook-form';
 
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
+import { ResumenPacientePaso } from '@/components/configuracion/resumen-paciente-paso';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -99,9 +100,13 @@ export function ConfiguradorSesion({
   const propios = escenarios
     .filter(e => e.propio && coincide(e))
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
+  const totalOficiales = escenarios.filter(e => !e.propio).length;
   const totalPropios = escenarios.filter(e => e.propio).length;
   const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada);
+  const [seccionCasos, setSeccionCasos] = useState<'predefinidos' | 'propios'>(() =>
+    casoInicial?.propio || (totalOficiales === 0 && totalPropios > 0) ? 'propios' : 'predefinidos'
+  );
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
@@ -270,69 +275,115 @@ export function ConfiguradorSesion({
           id="paso-escenario-titulo"
           titulo="Caso"
           estado={estadoPaso1}
-          descripcion="Un caso predefinido o uno de tus casos. Pulsa de nuevo el caso elegido para quitar la selección."
+          ayuda="Alterna entre los casos oficiales de PsySim y los que tú has diseñado. Solo se elige un caso por código; púlsalo de nuevo si quieres deseleccionarlo."
+          descripcion="Elige entre los casos predefinidos o tus casos propios. Pulsa de nuevo el caso elegido para quitar la selección."
         >
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
               {errors.escenarioId.message}
             </p>
           )}
-          {/* Con muchos casos propios, encontrar uno de un vistazo deja de ser posible. */}
-          {escenarios.length > 6 && (
-            <div className="relative max-w-md">
-              <label htmlFor={idBusquedaCaso} className="sr-only">
-                Buscar un caso
-              </label>
-              <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                id={idBusquedaCaso}
-                type="search"
-                autoComplete="off"
-                placeholder="Buscar por título, paciente o competencia"
-                className="pl-9"
-                value={busquedaCaso}
-                onChange={evento => setBusquedaCaso(evento.target.value)}
-              />
+
+          {/* Barra de sección: alterna entre Casos predefinidos y Mis casos sin mostrar ambos a la vez */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div
+              role="group"
+              aria-label="Secciones de casos"
+              className="inline-flex w-fit items-center gap-1 rounded-xl border bg-muted/55 p-1"
+            >
+              <button
+                type="button"
+                aria-pressed={seccionCasos === 'predefinidos'}
+                onClick={() => setSeccionCasos('predefinidos')}
+                className={cn(
+                  'inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid',
+                  seccionCasos === 'predefinidos'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span>Casos predefinidos</span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                    seccionCasos === 'predefinidos'
+                      ? 'bg-salvia-suave text-salvia-oscuro'
+                      : 'bg-background/70 text-muted-foreground'
+                  )}
+                >
+                  {busquedaCaso.trim() ? oficiales.length : totalOficiales}
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={seccionCasos === 'propios'}
+                onClick={() => setSeccionCasos('propios')}
+                className={cn(
+                  'inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid',
+                  seccionCasos === 'propios'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span>Mis casos</span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                    seccionCasos === 'propios'
+                      ? 'bg-salvia-suave text-salvia-oscuro'
+                      : 'bg-background/70 text-muted-foreground'
+                  )}
+                >
+                  {busquedaCaso.trim() ? propios.length : totalPropios}
+                </span>
+              </button>
             </div>
-          )}
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {escenario && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-salvia/40 bg-salvia-suave/55 px-3 py-1 text-xs font-medium text-salvia-oscuro">
+                  <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+                  <span className="max-w-52 truncate">Elegido: {escenario.titulo}</span>
+                </span>
+              )}
+              {escenarios.length > 6 && (
+                <div className="relative w-full sm:w-72">
+                  <label htmlFor={idBusquedaCaso} className="sr-only">
+                    Buscar un caso
+                  </label>
+                  <Search
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <Input
+                    id={idBusquedaCaso}
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Buscar por título, paciente o competencia"
+                    className="pl-9"
+                    value={busquedaCaso}
+                    onChange={evento => setBusquedaCaso(evento.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           <div
             role="radiogroup"
             aria-labelledby="paso-escenario-titulo"
             aria-required
             aria-invalid={errors.escenarioId ? true : undefined}
-            className="flex flex-col gap-8"
+            className="flex flex-col gap-4"
           >
-            <div className={cn('flex flex-col gap-3', oficiales.length === 0 && 'hidden')}>
-              <h3 className="text-sm font-semibold text-muted-foreground">Casos predefinidos</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {oficiales.map(e => (
-                  <TarjetaEscenario
-                    key={e.id}
-                    escenario={e}
-                    nombreGrupo={idGrupo}
-                    seleccionado={e.id === escenarioId}
-                    onSeleccionar={onSeleccionar}
-                    onDeseleccionar={onDeseleccionar}
-                    describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-muted-foreground">Mis casos</h3>
-              {totalPropios === 0 ? (
-                <EstadoVacioMisCasos />
-              ) : propios.length === 0 ? (
+            {seccionCasos === 'predefinidos' ? (
+              oficiales.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                  Ninguno de tus casos coincide con «{busquedaCaso.trim()}».
+                  Ningún caso predefinido coincide con «{busquedaCaso.trim()}».
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {propios.map(e => (
+                  {oficiales.map(e => (
                     <TarjetaEscenario
                       key={e.id}
                       escenario={e}
@@ -341,19 +392,39 @@ export function ConfiguradorSesion({
                       onSeleccionar={onSeleccionar}
                       onDeseleccionar={onDeseleccionar}
                       describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                      acciones={
-                        <AccionesCasoPropio
-                          casoId={e.id}
-                          titulo={e.titulo}
-                          onEliminado={onCasoEliminado}
-                        />
-                      }
                     />
                   ))}
-                  <TarjetaNuevoCaso />
                 </div>
-              )}
-            </div>
+              )
+            ) : totalPropios === 0 ? (
+              <EstadoVacioMisCasos />
+            ) : propios.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+                Ninguno de tus casos coincide con «{busquedaCaso.trim()}».
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {propios.map(e => (
+                  <TarjetaEscenario
+                    key={e.id}
+                    escenario={e}
+                    nombreGrupo={idGrupo}
+                    seleccionado={e.id === escenarioId}
+                    onSeleccionar={onSeleccionar}
+                    onDeseleccionar={onDeseleccionar}
+                    describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                    acciones={
+                      <AccionesCasoPropio
+                        casoId={e.id}
+                        titulo={e.titulo}
+                        onEliminado={onCasoEliminado}
+                      />
+                    }
+                  />
+                ))}
+                <TarjetaNuevoCaso />
+              </div>
+            )}
           </div>
         </Paso>
 
@@ -364,6 +435,7 @@ export function ConfiguradorSesion({
           seccionId="paso-paciente"
           titulo="Comportamiento del paciente (opcional)"
           estado={estadoPaso2}
+          ayuda="El caso ya viene listo para usar. Si quieres adaptarlo para este estudiante o crear un caso propio con otra dificultad a partir de él, usa el bloque de la derecha."
           descripcion="Revisa su perfil. Si lo necesitas, ajusta cómo actuará en esta práctica."
         >
           {!escenario && (
@@ -428,34 +500,24 @@ export function ConfiguradorSesion({
                 </div>
 
                 {!ajustando && !promptPersonalizado ? (
-                  // Plegado por defecto: casi siempre basta el comportamiento original del caso.
-                  <div className="flex flex-col items-start justify-center gap-3 rounded-xl border border-dashed border-input/50 bg-card p-6 lg:min-h-80">
-                    <p className="flex items-center gap-2 text-base font-semibold">
-                      <SlidersHorizontal className="size-4 text-salvia" aria-hidden />
-                      {escenario.npc.nombre.split(' ')[0]} se comportará como describe el caso
-                    </p>
-                    <p className="max-w-md text-sm text-muted-foreground">
-                      Si quieres, ajústalo solo para esta práctica sin escribir instrucciones: que
-                      se abra más o menos, una actitud distinta, algo que guarde o una indicación
-                      con tus palabras.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setAjustando(true)}
-                      disabled={generando}
-                    >
-                      <SlidersHorizontal aria-hidden />
-                      Ajustar para esta práctica
-                    </Button>
-                  </div>
+                  <ResumenPacientePaso
+                    escenario={escenario}
+                    deshabilitado={generando}
+                    onAbrirAjustes={() => setAjustando(true)}
+                    onAplicarAtajo={nuevos => {
+                      setAjustando(true);
+                      cambiarAjustes(nuevos);
+                    }}
+                  />
                 ) : (
                   <AjustesPaciente
+                    escenarioId={escenario.id}
                     nombre={escenario.npc.nombre}
                     ajustes={ajustes}
                     onCambio={cambiarAjustes}
                     textoManual={textoManual}
                     onRestablecer={restablecerPrompt}
+                    onCerrar={() => setAjustando(false)}
                     deshabilitado={generando}
                     editorTexto={
                       <>
@@ -508,6 +570,7 @@ export function ConfiguradorSesion({
           titulo="Estudiante y plazo"
           estado={estadoPaso3}
           ultimo
+          ayuda="El código es personal y sirve para una sola práctica. Solo pueden recibirlo estudiantes que ya hayan iniciado sesión con su correo institucional."
           descripcion="Elige a quién se la asignas y cuánto tiempo sirve el código. Entra con su correo institucional y practica desde su computador."
         >
           <div className="flex flex-col gap-5 rounded-xl border bg-card p-5">
@@ -771,6 +834,7 @@ interface PasoProps {
   titulo: string;
   descripcion: string;
   estado: EstadoPaso;
+  ayuda?: string;
   /** El último paso no dibuja la línea hacia el siguiente. */
   ultimo?: boolean;
   /** `id` de la sección, para poder desplazarse hasta ella. */
@@ -789,6 +853,7 @@ function Paso({
   titulo,
   descripcion,
   estado,
+  ayuda,
   ultimo = false,
   seccionId,
   children,
@@ -825,17 +890,20 @@ function Paso({
 
       <div className={cn('flex min-w-0 flex-col gap-4', !ultimo && 'pb-12')}>
         <div className="flex flex-col gap-0.5 pt-0.5">
-          <h2
-            id={id}
-            className={cn(
-              'text-xl font-bold tracking-[-0.015em] transition-colors',
-              estado === 'pendiente' && 'text-muted-foreground'
-            )}
-          >
-            <span className="sr-only">Paso {numero}: </span>
-            {titulo}
-            {estado === 'completado' && <span className="sr-only"> (completado)</span>}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2
+              id={id}
+              className={cn(
+                'text-xl font-bold tracking-[-0.015em] transition-colors',
+                estado === 'pendiente' && 'text-muted-foreground'
+              )}
+            >
+              <span className="sr-only">Paso {numero}: </span>
+              {titulo}
+              {estado === 'completado' && <span className="sr-only"> (completado)</span>}
+            </h2>
+            {ayuda && <AyudaContextual etiqueta={`Ayuda sobre ${titulo}`} texto={ayuda} />}
+          </div>
           <p className="text-sm text-muted-foreground">{descripcion}</p>
         </div>
         {children}

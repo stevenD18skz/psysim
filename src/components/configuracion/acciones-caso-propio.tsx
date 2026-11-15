@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { CopyPlus, Loader2, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -72,6 +72,15 @@ export function AccionesCasoPropio({ casoId, titulo, onEliminado }: AccionesCaso
         <Link href={`/configuracion/casos/${casoId}`} aria-label={`Editar el caso ${titulo}`}>
           <Pencil aria-hidden />
           Editar
+        </Link>
+      </Button>
+      <Button asChild variant="ghost" size="sm">
+        <Link
+          href={`/configuracion/casos/nuevo?desde=${casoId}`}
+          aria-label={`Crear caso a partir de ${titulo}`}
+        >
+          <CopyPlus aria-hidden />
+          Usar de base
         </Link>
       </Button>
       <Button

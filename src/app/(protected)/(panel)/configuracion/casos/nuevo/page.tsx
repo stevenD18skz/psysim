@@ -1,24 +1,48 @@
 import type { Metadata } from 'next';
+import { z } from 'zod';
 
 import { ConstructorCaso } from '@/components/casos/constructor-caso';
 import { EncabezadoCaso } from '@/components/casos/encabezado-caso';
 import { requerirDocente } from '@/lib/auth/dal';
+import { valoresDesdePlantilla } from '@/lib/casos/valores';
+import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
+import { leerOpcion } from '@/lib/listas';
 
 export const metadata: Metadata = {
   title: 'Nuevo caso',
 };
 
-export default async function NuevoCasoPage() {
+const NIVELES = ['', 'basico', 'intermedio', 'avanzado'] as const;
+
+export default async function NuevoCasoPage({
+  searchParams,
+}: PageProps<'/configuracion/casos/nuevo'>) {
   await requerirDocente();
+  const [parametros, catalogo] = await Promise.all([searchParams, obtenerCatalogoEscenarios()]);
+
+  const desdeId =
+    typeof parametros.desde === 'string' && z.uuid().safeParse(parametros.desde).success
+      ? parametros.desde
+      : null;
+  const nivelParam = leerOpcion(parametros.nivel, NIVELES, '');
+  const casoOrigen = desdeId ? (catalogo.find(c => c.id === desdeId) ?? null) : null;
+  const valoresIniciales = casoOrigen
+    ? valoresDesdePlantilla(casoOrigen, nivelParam || undefined)
+    : undefined;
 
   return (
     <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
         sobretitulo="Mis casos"
-        titulo="Crear caso"
-        descripcion="Completa los campos y el comportamiento del paciente se arma solo. Puedes probarlo antes de guardar."
+        titulo={casoOrigen ? `Crear caso a partir de «${casoOrigen.titulo}»` : 'Crear caso'}
+        descripcion="Completa los campos y el comportamiento del paciente se arma solo. Puedes partir de un caso previo, variar su nivel de dificultad y probarlo antes de guardar."
       />
-      <ConstructorCaso />
+      <ConstructorCaso
+        key={`${casoOrigen?.id ?? 'nuevo'}:${nivelParam}`}
+        catalogo={catalogo}
+        casoOrigenInicial={casoOrigen}
+        valoresIniciales={valoresIniciales}
+      />
     </div>
   );
 }

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleDashed,
-  Lightbulb,
   Loader2,
   Pencil,
   Save,
@@ -26,6 +25,7 @@ import { FichaPaciente } from '@/components/casos/ficha-paciente';
 import { LoQueGuarda } from '@/components/casos/lo-que-guarda';
 import { ProbarPaciente } from '@/components/casos/probar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
+import { SelectorPlantillaCaso } from '@/components/casos/selector-plantilla-caso';
 import { GrupoChips, SelectorOpciones, Sugerencias } from '@/components/casos/selectores';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,6 @@ import { componerPrompt } from '@/lib/casos/componer-prompt';
 import {
   camposFaltantes,
   COMPETENCIAS_FRECUENTES,
-  EJEMPLOS_CASO,
   type EjemploCaso,
   FRASES_APERTURA,
 } from '@/lib/casos/ejemplos';
@@ -49,7 +48,7 @@ import {
   SUGERENCIAS_SE_ABRE,
   SUGERENCIAS_SE_CIERRA,
 } from '@/lib/casos/opciones';
-import { valoresVacios } from '@/lib/casos/valores';
+import { adaptarDificultadCaso, valoresDesdePlantilla, valoresVacios } from '@/lib/casos/valores';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { cn } from '@/lib/utils';
 import {
@@ -61,11 +60,16 @@ import {
 } from '@/schemas/caso.schema';
 import { promptSchema } from '@/schemas/configuracion.schema';
 import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
+import { type DificultadEscenario, type EscenarioCatalogo } from '@/types';
 
 interface ConstructorCasoProps {
   /** Si se indica, el formulario edita ese caso; si no, crea uno nuevo. */
   casoId?: string;
   valoresIniciales?: CasoFormInput;
+  /** Catálogo completo para partir de un caso predefinido o propio al crear uno nuevo. */
+  catalogo?: EscenarioCatalogo[];
+  /** Caso previo del que se parte cuando llega por `?desde=<id>`. */
+  casoOrigenInicial?: EscenarioCatalogo | null;
 }
 
 const OPCIONES_CATEGORIA = (['clinico', 'cotidiano'] as const).map(valor => ({
@@ -82,7 +86,12 @@ const OPCIONES_DIFICULTAD = (['basico', 'intermedio', 'avanzado'] as const).map(
  * prompt del paciente se arma solo; si prefiere, puede pasar a redactarlo como texto. Las reglas
  * de seguridad comunes las añade siempre el servidor.
  */
-export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoProps) {
+export function ConstructorCaso({
+  casoId,
+  valoresIniciales,
+  catalogo = [],
+  casoOrigenInicial = null,
+}: ConstructorCasoProps) {
   const router = useRouter();
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [confirmandoVolver, setConfirmandoVolver] = useState(false);
@@ -148,6 +157,20 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
   const usarEjemplo = (ejemplo: EjemploCaso) => {
     reset({ ...valoresVacios(), ...ejemplo.valores }, { keepDefaultValues: true });
     toast.success(`Cargamos el ejemplo «${ejemplo.etiqueta}». Cámbialo a tu medida.`);
+  };
+
+  const cargarCasoBase = (casoBase: EscenarioCatalogo, nivel?: DificultadEscenario) => {
+    reset(valoresDesdePlantilla(casoBase, nivel), { keepDefaultValues: true });
+    toast.success(`Cargamos la base de «${casoBase.titulo}». Ajústala a tu medida.`);
+  };
+
+  const adaptarNivelActual = (nivel: DificultadEscenario, tituloBase?: string) => {
+    const actuales = getValues();
+    const adaptados = adaptarDificultadCaso(actuales, nivel, tituloBase);
+    reset(adaptados, { keepDefaultValues: true });
+    toast.success(
+      `Adaptamos la actitud del paciente a nivel ${ETIQUETA_DIFICULTAD[nivel].toLowerCase()}.`
+    );
   };
 
   /** Lleva al campo que falta (y lo enfoca), desde la lista de pendientes. */
@@ -233,42 +256,17 @@ export function ConstructorCaso({ casoId, valoresIniciales }: ConstructorCasoPro
             </div>
           </div>
         )}
-        {ofrecerEjemplos && (
-          <section
-            aria-labelledby="ejemplos-titulo"
-            className="flex flex-col gap-3 rounded-2xl border border-dashed border-salvia/50 bg-salvia-suave/35 p-5"
-          >
-            <div className="flex items-start gap-3">
-              <Lightbulb className="mt-0.5 size-5 shrink-0 text-salvia-oscuro" aria-hidden />
-              <div className="flex flex-col gap-0.5">
-                <h2 id="ejemplos-titulo" className="text-base font-semibold">
-                  ¿Primera vez? Empieza desde un ejemplo
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Llenamos todos los campos con un caso completo; luego cambias lo que quieras. No
-                  necesitas saber escribir instrucciones para una IA.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pl-8">
-              {EJEMPLOS_CASO.map(ejemplo => (
-                <Button
-                  key={ejemplo.id}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-auto flex-col items-start gap-0 bg-card py-1.5"
-                  onClick={() => usarEjemplo(ejemplo)}
-                  disabled={guardando}
-                >
-                  <span>{ejemplo.etiqueta}</span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    {ejemplo.detalle}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </section>
+        {!casoId && (
+          <SelectorPlantillaCaso
+            catalogo={catalogo}
+            casoOrigenInicial={casoOrigenInicial}
+            dificultadActual={valores.dificultad ?? 'basico'}
+            mostrarEjemplos={ofrecerEjemplos}
+            deshabilitado={guardando}
+            onElegirEjemplo={usarEjemplo}
+            onCargarCasoBase={cargarCasoBase}
+            onAdaptarNivel={adaptarNivelActual}
+          />
         )}
 
         {/* 1 — El caso */}

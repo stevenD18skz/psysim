@@ -5,7 +5,12 @@ import { type EscenarioCatalogo } from '@/types';
 import { casoFormSchema } from '@/schemas/caso.schema';
 
 import { filasDelCaso } from './construir';
-import { valoresDeCaso, valoresVacios } from './valores';
+import {
+  adaptarDificultadCaso,
+  valoresDeCaso,
+  valoresDesdePlantilla,
+  valoresVacios,
+} from './valores';
 
 const CASO: EscenarioCatalogo = {
   id: 'c1',
@@ -88,5 +93,22 @@ describe('valoresDeCaso', () => {
     expect(valoresDeCaso({ ...CASO, configuracion3d: 'scenes/e-99.json' }).consultorio).toBe(
       valoresVacios().consultorio
     );
+  });
+
+  it('valoresDesdePlantilla abre en modo guiado incluso desde un caso sin borrador y permite cambiar de nivel', () => {
+    const plantilla = valoresDesdePlantilla(CASO);
+    expect(plantilla.modoTexto).toBe(false);
+    expect(plantilla.titulo).toBe('Duelo grupo A (mi versión)');
+    expect(plantilla.nombre).toBe('Marta Lucía');
+
+    const enAvanzado = valoresDesdePlantilla(CASO, 'avanzado');
+    expect(enAvanzado.dificultad).toBe('avanzado');
+    expect(enAvanzado.titulo).toBe('Duelo grupo A (nivel avanzado)');
+    expect(enAvanzado.actitudes).toContain('desconfiado');
+
+    const adaptado = adaptarDificultadCaso(plantilla, 'basico', CASO.titulo);
+    expect(adaptado.dificultad).toBe('basico');
+    expect(adaptado.titulo).toBe('Duelo grupo A (nivel básico)');
+    expect(adaptado.actitudes).toEqual(['colaborador']);
   });
 });

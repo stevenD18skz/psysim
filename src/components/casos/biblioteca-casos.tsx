@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Coffee, HeartPulse, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Coffee, CopyPlus, HeartPulse } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -116,7 +116,7 @@ export function BibliotecaCasos({
                 </div>
               </dl>
             </div>
-            <div className="flex min-h-12 items-center gap-1 border-t bg-muted/40 px-2 py-1.5">
+            <div className="flex min-h-12 flex-wrap items-center gap-1 border-t bg-muted/40 px-2 py-1.5">
               {caso.propio ? (
                 <AccionesCasoPropio
                   casoId={caso.id}
@@ -124,13 +124,11 @@ export function BibliotecaCasos({
                   onEliminado={() => router.refresh()}
                 />
               ) : (
-                // Sin escribir instrucciones: abre los ajustes guiados al asignarlo; desde ahí se
-                // puede guardar como caso propio.
                 <Button asChild variant="ghost" size="sm">
-                  <Link href={`/configuracion?caso=${caso.id}&ajustar=1`}>
-                    <SlidersHorizontal aria-hidden />
-                    Ajustar a mi medida
-                    <span className="sr-only"> el caso {caso.titulo}</span>
+                  <Link href={`/configuracion/casos/nuevo?desde=${caso.id}`}>
+                    <CopyPlus aria-hidden />
+                    Crear caso a partir de este
+                    <span className="sr-only">: {caso.titulo}</span>
                   </Link>
                 </Button>
               )}
