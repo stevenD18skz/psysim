@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { TopePracticas } from '@/components/admin/tope-practicas';
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
+import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import {
   ETIQUETA_CAMBIO,
   ETIQUETA_ERROR,
@@ -63,6 +64,44 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
   );
   const cuentas = Math.max(1, configuracion.cuentasDelGrupo);
 
+  const proveedoresPorClave = new Map(metricas.proveedores.map(p => [p.proveedor, p]));
+  const clavesProveedores = [
+    'orquestador',
+    'gemini',
+    ...metricas.proveedores
+      .map(p => p.proveedor)
+      .filter(p => p !== 'orquestador' && p !== 'gemini'),
+  ];
+  const filasProveedores = clavesProveedores.map(clave => {
+    const p = proveedoresPorClave.get(clave);
+    return [
+      ETIQUETA_PROVEEDOR[clave] ?? clave,
+      numero.format(p?.turnos ?? 0),
+      segundos(p?.latencia_media_ms ?? null),
+      segundos(p?.latencia_p95_ms ?? null),
+      `${numero.format(p?.tokens_entrada ?? 0)} / ${numero.format(p?.tokens_salida ?? 0)}`,
+      p?.severidad_media === null || p?.severidad_media === undefined
+        ? '—'
+        : decimal.format(p.severidad_media),
+      numero.format(p?.emociones_deducidas ?? 0),
+    ];
+  });
+
+  const cuentasPorClave = new Map(metricas.cuentas.map(c => [c.cuenta, c]));
+  const clavesCuentas = [
+    ...Object.keys(configuracion.etiquetas),
+    ...metricas.cuentas.map(c => c.cuenta).filter(c => !(c in configuracion.etiquetas)),
+  ];
+  const filasCuentas = clavesCuentas.map(clave => {
+    const c = cuentasPorClave.get(clave);
+    return [
+      configuracion.etiquetas[clave] ?? 'Cuenta que ya no está configurada',
+      numero.format(c?.practicas ?? 0),
+      numero.format(c?.activas ?? 0),
+      `${numero.format(c?.turnos_ultimo_minuto ?? 0)} de 10`,
+    ];
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
@@ -101,11 +140,7 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
         ]}
       />
 
-      <Seccion
-        id="proveedores"
-        titulo="Respuestas por proveedor"
-        vacio={metricas.proveedores.length === 0 && 'Aún no hay respuestas en este periodo.'}
-      >
+      <Seccion id="proveedores" titulo="Respuestas por proveedor" vacio={false}>
         <Tabla
           titulo="Respuestas por proveedor"
           columnas={[
@@ -117,15 +152,7 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
             'Severidad media',
             'Emoción deducida',
           ]}
-          filas={metricas.proveedores.map(p => [
-            ETIQUETA_PROVEEDOR[p.proveedor] ?? p.proveedor,
-            numero.format(p.turnos),
-            segundos(p.latencia_media_ms),
-            segundos(p.latencia_p95_ms),
-            `${numero.format(p.tokens_entrada)} / ${numero.format(p.tokens_salida)}`,
-            p.severidad_media === null ? '—' : decimal.format(p.severidad_media),
-            numero.format(p.emociones_deducidas),
-          ])}
+          filas={filasProveedores}
         />
         <p className="text-sm text-muted-foreground">
           La latencia incluye la espera por cupo. «Emoción deducida»: respuestas en las que el
@@ -187,17 +214,15 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
       <Seccion
         id="cuentas"
         titulo="Cuentas del orquestador"
-        vacio={metricas.cuentas.length === 0 && 'Aún no hay prácticas en el orquestador.'}
+        vacio={
+          filasCuentas.length === 0 &&
+          'No hay cuentas del orquestador configuradas en este despliegue.'
+        }
       >
         <Tabla
           titulo="Uso de las cuentas del orquestador"
           columnas={['Cuenta', 'Prácticas', 'En curso ahora', 'Mensajes en el último minuto']}
-          filas={metricas.cuentas.map(cuenta => [
-            configuracion.etiquetas[cuenta.cuenta] ?? 'Cuenta que ya no está configurada',
-            numero.format(cuenta.practicas),
-            numero.format(cuenta.activas),
-            `${numero.format(cuenta.turnos_ultimo_minuto)} de 10`,
-          ])}
+          filas={filasCuentas}
         />
       </Seccion>
 
@@ -228,6 +253,7 @@ function EstadoDelProveedor({
   configuracion: ReturnType<typeof leerConfiguracionIa>;
 }) {
   const { proveedor, orquestadorListo, cuentasDelGrupo, capacidad } = configuracion;
+  const usandoOrquestador = proveedor === 'orquestador' && orquestadorListo;
   let texto: string;
   if (proveedor === 'gemini') {
     texto =
@@ -240,15 +266,49 @@ function EstadoDelProveedor({
   } else {
     texto = `Las prácticas nuevas las responde el orquestador de NPC con ${cuentasDelGrupo} ${cuentasDelGrupo === 1 ? 'cuenta' : 'cuentas'} del grupo (unas ${capacidad} prácticas a la vez sin esperas). Gemini responde si el orquestador falla.`;
   }
+
+  const estado = usandoOrquestador
+    ? ({ texto: 'Orquestador activo', tono: 'listo' } as const)
+    : proveedor === 'orquestador'
+      ? ({ texto: 'En respaldo (Gemini)', tono: 'pendiente' } as const)
+      : ({ texto: 'Solo Gemini', tono: 'neutro' } as const);
+
+  const resumenCapacidad = !orquestadorListo
+    ? 'Sin cuentas del orquestador'
+    : cuentasDelGrupo === 0
+      ? `1 cuenta principal · ${capacidad} prácticas simultáneas`
+      : `${cuentasDelGrupo} ${cuentasDelGrupo === 1 ? 'cuenta' : 'cuentas'} del grupo · ${capacidad} prácticas simultáneas`;
+
   return (
-    <p
+    <section
+      aria-labelledby="proveedor-activo-titulo"
       className={cn(
-        'rounded-xl border bg-card px-4 py-3 text-sm',
+        'flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs',
         proveedor === 'orquestador' && !orquestadorListo && 'border-destructive/40'
       )}
     >
-      {texto}
-    </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="proveedor-activo-titulo" className="text-base font-semibold tracking-tight">
+          Configuración del proveedor
+        </h2>
+        <InsigniaEstado estado={estado} />
+      </div>
+      <dl className="grid gap-4 sm:grid-cols-3">
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">Proveedor principal</dt>
+          <dd className="font-semibold">{usandoOrquestador ? 'Orquestador de NPC' : 'Gemini'}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">Respaldo automático</dt>
+          <dd className="font-semibold">{usandoOrquestador ? 'Gemini' : '—'}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">Cuentas del orquestador</dt>
+          <dd className="font-semibold">{resumenCapacidad}</dd>
+        </div>
+      </dl>
+      <p className="text-sm text-muted-foreground">{texto}</p>
+    </section>
   );
 }
 

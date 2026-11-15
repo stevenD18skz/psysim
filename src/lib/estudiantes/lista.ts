@@ -43,7 +43,8 @@ export function listarEstudiantes(
     consulta,
     filtro,
     orden,
-  }: { consulta: string; filtro: FiltroEstudiantes; orden: OrdenEstudiantes }
+    docente,
+  }: { consulta: string; filtro: FiltroEstudiantes; orden: OrdenEstudiantes; docente?: string }
 ): EstudianteRegistrado[] {
   const porNombre = (a: EstudianteRegistrado, b: EstudianteRegistrado) =>
     comparadorNombre.compare(a.nombre, b.nombre);
@@ -63,6 +64,11 @@ export function listarEstudiantes(
       (b.metricas.notaPromedio ?? -1) - (a.metricas.notaPromedio ?? -1) || porNombre(a, b),
   };
   return estudiantes
-    .filter(e => PREDICADOS[filtro](e) && coincideBusqueda(consulta, e.nombre, e.codigo, e.correo))
+    .filter(
+      e =>
+        PREDICADOS[filtro](e) &&
+        (!docente || e.docente?.id === docente) &&
+        coincideBusqueda(consulta, e.nombre, e.codigo, e.correo, e.docente?.nombre)
+    )
     .sort(comparadores[orden]);
 }

@@ -7,6 +7,7 @@ import { Indicadores } from '@/components/comun/indicadores';
 import { Paginacion } from '@/components/comun/paginacion';
 import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
 import { ListaEstudiantes } from '@/components/estudiantes/lista-estudiantes';
+import { obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirDocente } from '@/lib/auth/dal';
 import {
   FILTROS_ESTUDIANTES,
@@ -17,6 +18,7 @@ import {
 } from '@/lib/estudiantes/lista';
 import { obtenerEstudiantes } from '@/lib/estudiantes/queries';
 import { conParametros, leerOpcion, leerPagina, leerTexto, paginar } from '@/lib/listas';
+import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Estudiantes',
@@ -26,18 +28,30 @@ const POR_PAGINA = 25;
 
 /**
  * Estudiantes del docente: los registra con su correo institucional (así entran con Google), les
- * asigna prácticas y ve quién practica ahora y qué espera su retroalimentación. Con un curso
- * completo, se buscan, se filtran (por revisar, practicando, sin cuenta…), se ordenan y se paginan.
+ * asigna prácticas y ve quién practica ahora y qué espera su retroalimentación. El Administrador ve
+ * los estudiantes de todos los docentes y puede filtrar por docente.
  */
 export default async function EstudiantesPage({ searchParams }: PageProps<'/estudiantes'>) {
-  await requerirDocente();
-  const [parametros, estudiantes] = await Promise.all([searchParams, obtenerEstudiantes()]);
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
+  const [parametros, estudiantes] = await Promise.all([
+    searchParams,
+    esAdmin ? obtenerTodosLosEstudiantes() : obtenerEstudiantes(),
+  ]);
 
   const consulta = leerTexto(parametros.q);
   const filtro = leerOpcion(parametros.filtro, IDS_FILTRO_ESTUDIANTES, 'todos');
   const orden = leerOpcion(parametros.orden, IDS_ORDEN_ESTUDIANTES, 'nombre');
+  const docente = esAdmin ? leerTexto(parametros.docente) : '';
+  const docentesOpciones = esAdmin
+    ? [
+        ...new Map(
+          estudiantes.flatMap(e => (e.docente ? [[e.docente.id, e.docente]] : []))
+        ).values(),
+      ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    : [];
   const resultado = paginar(
-    listarEstudiantes(estudiantes, { consulta, filtro, orden }),
+    listarEstudiantes(estudiantes, { consulta, filtro, orden, docente }),
     leerPagina(parametros.pagina),
     POR_PAGINA
   );
@@ -97,7 +111,14 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                   : 'Ningún estudiante cumple este filtro.'
               }
               controles={
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+                <div
+                  className={cn(
+                    'grid gap-3 sm:grid-cols-2 lg:items-end',
+                    docentesOpciones.length > 0
+                      ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                      : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                  )}
+                >
                   <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
                     <span className="text-xs font-medium text-muted-foreground">Buscar</span>
                     <BusquedaLista
@@ -105,6 +126,17 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                       placeholder="Código, nombre o correo"
                     />
                   </div>
+                  {docentesOpciones.length > 0 && (
+                    <SelectorLista
+                      etiqueta="Docente"
+                      parametro="docente"
+                      defecto=""
+                      opciones={[
+                        { valor: '', etiqueta: 'Todos los docentes' },
+                        ...docentesOpciones.map(d => ({ valor: d.id, etiqueta: d.nombre })),
+                      ]}
+                    />
+                  )}
                   <SelectorLista
                     etiqueta="Mostrar"
                     parametro="filtro"
@@ -117,7 +149,7 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                     defecto="nombre"
                     opciones={ORDENES_ESTUDIANTES}
                   />
-                  <QuitarFiltros claves={['q', 'filtro']} />
+                  <QuitarFiltros claves={['q', 'filtro', 'docente']} />
                 </div>
               }
             />

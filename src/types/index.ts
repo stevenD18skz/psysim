@@ -73,6 +73,8 @@ export interface EstudianteRegistrado {
   cuentaVinculada: boolean;
   creadoEn: string;
   metricas: MetricasEstudiante;
+  /** Docente al que pertenece el registro (presente cuando el Administrador ve todos). */
+  docente?: { id: string; nombre: string };
 }
 
 /** Sesión de simulación en curso, tal como la consumen la escena 3D y el chat. */

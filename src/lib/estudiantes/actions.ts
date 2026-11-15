@@ -88,7 +88,8 @@ export async function registrarEstudiante(
 export async function actualizarEstudiante(
   valores: unknown
 ): Promise<ResultadoAccion<{ id: string }>> {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
 
   const datos = actualizarEstudianteSchema.safeParse(valores);
   if (!datos.success) {
@@ -96,7 +97,7 @@ export async function actualizarEstudiante(
   }
   const { id, nombre, correo } = datos.data;
 
-  const supabase = await createClient();
+  const supabase = esAdmin ? createAdminClient() : await createClient();
   const { data: actual, error: errorActual } = await supabase
     .from('estudiante')
     .select('codigo, correo')
@@ -149,13 +150,37 @@ export async function actualizarEstudiante(
 export async function eliminarEstudiante(
   valores: unknown
 ): Promise<ResultadoAccion<{ id: string }>> {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
 
   const datos = eliminarEstudianteSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
   const { id } = datos.data;
+
+  if (esAdmin) {
+    const admin = createAdminClient();
+    const { data: registro, error: errorLectura } = await admin
+      .from('estudiante')
+      .select('usuario_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (errorLectura || !registro) {
+      if (errorLectura) log.error('estudiante.no_eliminado', { codigo: errorLectura.code });
+      return { ok: false, error: 'Ese estudiante ya no está disponible. Recarga la página.' };
+    }
+    const { error: errorSesiones } = await admin.from('sesion').delete().eq('estudiante_id', id);
+    const { error: errorBorrado } = errorSesiones
+      ? { error: errorSesiones }
+      : await admin.from('estudiante').delete().eq('id', id);
+    if (errorBorrado) {
+      log.error('estudiante.no_eliminado', { codigo: errorBorrado.code });
+      return { ok: false, error: 'Ese estudiante ya no está disponible. Recarga la página.' };
+    }
+    if (registro.usuario_id) await eliminarCuentaSinRegistros(registro.usuario_id);
+    return { ok: true, datos: { id } };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('eliminar_estudiante', { p_estudiante_id: id });

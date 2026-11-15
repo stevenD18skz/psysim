@@ -93,6 +93,7 @@ export function ListaEstudiantes({
                 correo,
                 cuentaVinculada,
                 metricas,
+                docente,
               } = estudiante;
               const ficha = `/estudiantes/${estudianteId}` as const;
               return (
@@ -114,6 +115,12 @@ export function ListaEstudiantes({
                     <span className="block truncate text-xs text-muted-foreground">
                       {correo ?? 'Sin correo: no puede recibir códigos'}
                     </span>
+                    {docente && (
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        Docente:{' '}
+                        <span className="font-medium text-foreground">{docente.nombre}</span>
+                      </span>
+                    )}
                   </th>
                   <td className="px-4 py-3 tabular-nums">
                     {metricas.sesiones === 1 ? '1 práctica' : `${metricas.sesiones} prácticas`}

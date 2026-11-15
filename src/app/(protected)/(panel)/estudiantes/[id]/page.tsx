@@ -14,6 +14,7 @@ import { EditarEstudiante } from '@/components/estudiantes/editar-estudiante';
 import { ListaSesiones } from '@/components/sesiones/lista-sesiones';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { Button } from '@/components/ui/button';
+import { obtenerFichaEstudianteAdmin } from '@/lib/admin/queries';
 import { requerirDocente } from '@/lib/auth/dal';
 import { formatearNota, formatearTiempoPractica } from '@/lib/estudiantes/estudiantes';
 import { obtenerEstudiante } from '@/lib/estudiantes/queries';
@@ -42,18 +43,19 @@ export default async function EstudiantePage({
   params,
   searchParams,
 }: PageProps<'/estudiantes/[id]'>) {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
 
   const [{ id }, parametros] = await Promise.all([params, searchParams]);
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const estudiante = await obtenerEstudiante(id);
+  const ficha = esAdmin ? await obtenerFichaEstudianteAdmin(id) : null;
+  const estudiante = ficha ? ficha.estudiante : await obtenerEstudiante(id);
   if (!estudiante) notFound();
 
-  const [sesiones, asignaciones] = await Promise.all([
-    obtenerSesionesDeEstudiante(id),
-    obtenerAsignacionesDeEstudiante(id),
-  ]);
+  const [sesiones, asignaciones] = ficha
+    ? [ficha.sesiones, ficha.asignaciones]
+    : await Promise.all([obtenerSesionesDeEstudiante(id), obtenerAsignacionesDeEstudiante(id)]);
   const { metricas } = estudiante;
 
   // Prácticas filtradas por estado y paginadas: tras un semestre pueden ser decenas.
@@ -110,6 +112,17 @@ export default async function EstudiantePage({
             <Mail className="size-4" aria-hidden />
             {estudiante.correo ?? 'Sin correo institucional'}
           </span>
+          {estudiante.docente && (
+            <span>
+              · Docente:{' '}
+              <Link
+                href={`/admin/docentes/${estudiante.docente.id}`}
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                {estudiante.docente.nombre}
+              </Link>
+            </span>
+          )}
           <span>
             ·{' '}
             {estudiante.cuentaVinculada

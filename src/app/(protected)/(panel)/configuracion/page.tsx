@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { ConfiguradorSesion } from '@/components/configuracion/configurador-sesion';
+import { obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirDocente } from '@/lib/auth/dal';
 import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
 import { buscarPorCodigo } from '@/lib/estudiantes/estudiantes';
@@ -12,10 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function ConfiguracionPage({ searchParams }: PageProps<'/configuracion'>) {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
   const [escenarios, estudiantes, { caso, estudiante, ajustar }] = await Promise.all([
     obtenerCatalogoEscenarios(),
-    obtenerEstudiantes(),
+    esAdmin ? obtenerTodosLosEstudiantes() : obtenerEstudiantes(),
     searchParams,
   ]);
   // `?estudiante=<código>` llega desde la ficha o la lista de estudiantes ("Asignar práctica").

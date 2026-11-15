@@ -2,10 +2,18 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { estadoAsignacion } from '@/lib/asignaciones/codigo';
+import { requerirSuperadmin } from '@/lib/auth/dal';
 import { aEstudiante, COLUMNAS_RESUMEN } from '@/lib/estudiantes/queries';
+import { CASO_NO_DISPONIBLE, leerTitulosDeEscenarios } from '@/lib/sesiones/datos-privados';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { type DocenteAdmin, type EstudianteRegistrado } from '@/types';
+import {
+  type Asignacion,
+  type DocenteAdmin,
+  type EstudianteRegistrado,
+  type SesionHistorial,
+} from '@/types';
 import { type Database } from '@/types/database.types';
 
 type FilaDocente = Database['public']['Functions']['admin_docentes']['Returns'][number];
@@ -107,5 +115,138 @@ export async function obtenerFichaDocente(id: string): Promise<{
       activo: caso.activo,
       creadoEn: caso.creado_en,
     })),
+  };
+}
+
+/**
+ * Todos los estudiantes registrados en la plataforma con sus métricas y el docente al que
+ * pertenecen, para cuando el Administrador abre «Estudiantes» o «Asignar práctica».
+ */
+export const obtenerTodosLosEstudiantes = cache(async (): Promise<EstudianteRegistrado[]> => {
+  await requerirSuperadmin();
+
+  const admin = createAdminClient();
+  const [resumen, vinculos] = await Promise.all([
+    admin
+      .from('estudiante_resumen')
+      .select(COLUMNAS_RESUMEN)
+      .order('ultima_sesion', { ascending: false, nullsFirst: false })
+      .order('nombre'),
+    admin
+      .from('estudiante')
+      .select('id, docente_id, usuario!estudiante_docente_id_fkey ( nombre )'),
+  ]);
+  if (resumen.error || vinculos.error) {
+    throw new Error('No pudimos cargar los estudiantes. Inténtalo de nuevo.', {
+      cause: resumen.error ?? vinculos.error,
+    });
+  }
+
+  const docentesPorRegistro = new Map(
+    vinculos.data.map(fila => [
+      fila.id,
+      fila.usuario ? { id: fila.docente_id, nombre: fila.usuario.nombre } : undefined,
+    ])
+  );
+
+  return resumen.data.flatMap(fila => {
+    const base = aEstudiante(fila);
+    if (!base) return [];
+    const docente = docentesPorRegistro.get(base.id);
+    return [{ ...base, ...(docente && { docente }) }];
+  });
+});
+
+/**
+ * Ficha completa de un estudiante para el Administrador (datos, docente al que pertenece,
+ * prácticas y códigos de acceso), aunque pertenezca a otro docente.
+ */
+export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
+  estudiante: EstudianteRegistrado;
+  sesiones: SesionHistorial[];
+  asignaciones: Asignacion[];
+} | null> {
+  await requerirSuperadmin();
+
+  const admin = createAdminClient();
+  const [resumen, vinculo, sesionesRes, asignacionesRes] = await Promise.all([
+    admin.from('estudiante_resumen').select(COLUMNAS_RESUMEN).eq('id', id).maybeSingle(),
+    admin
+      .from('estudiante')
+      .select('docente_id, usuario!estudiante_docente_id_fkey ( nombre )')
+      .eq('id', id)
+      .maybeSingle(),
+    admin
+      .from('sesion')
+      .select(
+        `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
+         usuario ( nombre ),
+         retroalimentacion ( publicada_en, nota )`
+      )
+      .eq('estudiante_id', id)
+      .order('inicio', { ascending: false }),
+    admin
+      .from('asignacion')
+      .select('id, codigo, expira_en, anulada_en, sesion_id, creado_en, escenario_id')
+      .eq('estudiante_id', id)
+      .order('creado_en', { ascending: false }),
+  ]);
+
+  if (resumen.error || vinculo.error || sesionesRes.error || asignacionesRes.error) {
+    throw new Error('No pudimos cargar al estudiante. Inténtalo de nuevo.', {
+      cause: resumen.error ?? vinculo.error ?? sesionesRes.error ?? asignacionesRes.error,
+    });
+  }
+  if (!resumen.data) return null;
+
+  const base = aEstudiante(resumen.data);
+  if (!base) return null;
+
+  const docente =
+    vinculo.data && vinculo.data.usuario
+      ? { id: vinculo.data.docente_id, nombre: vinculo.data.usuario.nombre }
+      : undefined;
+
+  const idsEscenarios = [
+    ...sesionesRes.data.map(f => f.escenario_id),
+    ...asignacionesRes.data.map(f => f.escenario_id),
+  ];
+  const titulos = await leerTitulosDeEscenarios(idsEscenarios);
+  const ahora = new Date();
+
+  const sesiones: SesionHistorial[] = sesionesRes.data.map(fila => ({
+    id: fila.id,
+    estado: fila.estado,
+    comenzada: fila.comenzada,
+    inicio: fila.inicio,
+    fin: fila.fin,
+    ultimaActividad: fila.ultima_actividad,
+    escenario: titulos.get(fila.escenario_id) ?? CASO_NO_DISPONIBLE,
+    docente: fila.usuario?.nombre ?? null,
+    retroalimentacion: fila.retroalimentacion
+      ? {
+          publicada: fila.retroalimentacion.publicada_en !== null,
+          nota: fila.retroalimentacion.nota,
+        }
+      : null,
+  }));
+
+  const asignaciones: Asignacion[] = asignacionesRes.data.map(fila => ({
+    id: fila.id,
+    codigo: fila.codigo,
+    estado: estadoAsignacion(
+      { sesionId: fila.sesion_id, anuladaEn: fila.anulada_en, expiraEn: fila.expira_en },
+      ahora
+    ),
+    expiraEn: fila.expira_en,
+    creadoEn: fila.creado_en,
+    sesionId: fila.sesion_id,
+    escenario: titulos.get(fila.escenario_id) ?? CASO_NO_DISPONIBLE,
+  }));
+
+  return {
+    estudiante: { ...base, ...(docente && { docente }) },
+    sesiones,
+    asignaciones,
   };
 }

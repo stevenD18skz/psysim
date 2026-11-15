@@ -144,10 +144,20 @@ export default async function DocentePage({ params }: PageProps<'/admin/docentes
                 {estudiantes.map(estudiante => (
                   <tr key={estudiante.id}>
                     <th scope="row" className="px-4 py-3 text-left font-normal">
-                      <span className="block font-medium">{estudiante.nombre}</span>
+                      <Link
+                        href={`/estudiantes/${estudiante.id}`}
+                        className="block font-medium underline-offset-4 hover:underline"
+                      >
+                        {estudiante.nombre}
+                      </Link>
                       <span className="font-mono text-xs text-muted-foreground">
                         {estudiante.codigo}
                       </span>
+                      {estudiante.correo && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {estudiante.correo}
+                        </span>
+                      )}
                     </th>
                     <td className="px-4 py-3 tabular-nums">
                       {contarPracticas(estudiante.metricas.sesiones)}
