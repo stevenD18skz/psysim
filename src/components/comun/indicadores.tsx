@@ -17,18 +17,26 @@ export interface Indicador {
 /**
  * Cifras clave como una franja de ficha (etiqueta condensada sobre el valor, separadas por
  * filetes), no como tarjetas sueltas: se leen de un vistazo sin competir con el contenido.
+ *
+ * `franja` pone todas en una fila desde 640 px. `rejilla` las reparte en tres columnas para una
+ * columna estrecha (seis cifras quedan en dos filas); los filetes salen del hueco de 1 px entre
+ * celdas, así que cuadran con cualquier cantidad de filas.
  */
 export function Indicadores({
   indicadores,
+  disposicion = 'franja',
   className,
 }: {
   indicadores: readonly Indicador[];
+  disposicion?: 'franja' | 'rejilla';
   className?: string;
 }) {
+  const rejilla = disposicion === 'rejilla';
   return (
     <dl
       className={cn(
-        'grid grid-cols-2 overflow-hidden rounded-xl border bg-card sm:flex sm:divide-x',
+        'grid grid-cols-2 overflow-hidden rounded-xl border bg-card',
+        rejilla ? 'gap-px bg-border sm:grid-cols-3' : 'sm:flex sm:divide-x',
         className
       )}
     >
@@ -36,10 +44,16 @@ export function Indicadores({
         <div
           key={etiqueta}
           className={cn(
-            'flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3.5 transition-colors hover:bg-muted/35',
-            // En dos columnas, filetes entre celdas.
-            indice % 2 === 1 && 'border-l sm:border-l-0',
-            indice >= 2 && 'border-t sm:border-t-0'
+            'flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3.5 transition-colors',
+            rejilla
+              ? // Opaco: un fondo translúcido dejaría ver el color del filete detrás.
+                'bg-card hover:bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)]'
+              : [
+                  'hover:bg-muted/35',
+                  // En dos columnas, filetes entre celdas.
+                  indice % 2 === 1 && 'border-l sm:border-l-0',
+                  indice >= 2 && 'border-t sm:border-t-0',
+                ]
           )}
         >
           <dt className="flex items-center gap-1 text-sm text-muted-foreground ancho-condensado">

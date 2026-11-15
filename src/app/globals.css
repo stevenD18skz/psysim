@@ -73,6 +73,8 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Para lo que se desplaza de un sitio a otro (indicador de pestañas): arranca y frena suave. */
+  --ease-deslizar: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /*
@@ -274,7 +276,10 @@
   }
 }
 
-/* Preguntas frecuentes (<details>): despliegue suave de la altura donde el navegador lo admite. */
+/* Todo <details> (preguntas, historial, texto avanzado): la altura se despliega donde el navegador
+   sabe interpolar hasta `auto`; en el resto abre de golpe, como siempre. Abrir dura más que cerrar
+   y el contenido aparece con un fundido corto para que no se lea a medio recortar. El margen de
+   recorte deja ver los anillos de foco del borde. */
 @supports (interpolate-size: allow-keywords) {
   :root {
     interpolate-size: allow-keywords;
@@ -283,14 +288,31 @@
 @media (prefers-reduced-motion: no-preference) {
   details::details-content {
     block-size: 0;
-    overflow: hidden;
+    opacity: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
     transition:
-      block-size 200ms ease,
+      block-size 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 150ms ease-out,
       content-visibility 200ms allow-discrete;
   }
   details[open]::details-content {
     block-size: auto;
+    opacity: 1;
+    transition:
+      block-size 320ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 240ms ease-out 60ms,
+      content-visibility 320ms allow-discrete;
   }
+}
+
+/* Control segmentado (`PistaSegmentada`): cuando el indicador deslizante ya está colocado, el
+   fondo propio de la opción activa sobra; sin JavaScript, o antes de medir, es el que se ve. */
+[data-pista][data-listo]
+  > :is([aria-pressed='true'], [aria-current='page'], [aria-selected='true']) {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Doherty (< 400 ms): sin el retraso táctil de 300 ms al tocar controles; el zoom con dos dedos
