@@ -3,10 +3,10 @@ import 'server-only';
 import { type EmocionNpc } from '@/lib/conversacion/emociones';
 import { getProveedorIa, type ProveedorIA } from '@/lib/env/orquestador';
 import { log } from '@/lib/log';
-import { fijarGemini, type SesionIa } from '@/lib/orquestador/datos';
+import { fijarGemini, marcarCerradaEnOrquestador, type SesionIa } from '@/lib/orquestador/datos';
 import { ErrorOrquestador, esFalloDelServicio } from '@/lib/orquestador/errores';
 import { olvidarSesionOrquestador, prepararPractica } from '@/lib/orquestador/practica';
-import { conversarConOrquestador, type Plazo } from '@/lib/orquestador/turno';
+import { conversarConOrquestador, type Plazo, RESERVA_RESPALDO_MS } from '@/lib/orquestador/turno';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
 import { ErrorIA, transmitirRespuestaPaciente } from './paciente';
@@ -16,6 +16,23 @@ import { TEXTO_REGLAS } from './reglas';
 
 /** Margen para armar y enviar la respuesta después de que Gemini termina. */
 const MARGEN_RESPUESTA_MS = 1_500;
+/** Con menos tiempo que este no vale la pena llamar a Gemini: se responde un error controlado. */
+const MINIMO_PARA_GEMINI_MS = 2_000;
+
+/**
+ * Espera `promesa` como mucho `ms`. Las llamadas de gestión del orquestador (cuenta, caso, abrir
+ * la sesión) tienen cada una su plazo, pero la suma de varias lentas puede comerse toda la
+ * petición: si no terminan a tiempo se trata como un orquestador que no responde.
+ */
+function conPlazo<T>(promesa: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolver, rechazar) => {
+    const temporizador = setTimeout(
+      () => rechazar(new ErrorOrquestador('tiempo_agotado')),
+      Math.max(0, ms)
+    );
+    promesa.then(resolver, rechazar).finally(() => clearTimeout(temporizador));
+  });
+}
 
 export interface TurnoPaciente {
   /** Id de la petición, para los registros. */
@@ -100,6 +117,10 @@ async function* partesDelTurno(
 
   async function* conGemini(): AsyncGenerator<ParteTurno, void, void> {
     estado.proveedor = 'gemini';
+    const tiempoMaximoMs = plazo.restanteMs() - MARGEN_RESPUESTA_MS;
+    // El orquestador se llevó casi toda la petición: mejor un «tardó demasiado» que el corte de
+    // la plataforma. La práctica ya quedó en Gemini y el reintento responde a tiempo.
+    if (tiempoMaximoMs < MINIMO_PARA_GEMINI_MS) throw new ErrorIA('tiempo_agotado');
     yield* transmitirRespuestaPaciente(
       {
         promptSistema: turno.promptSistema,
@@ -108,7 +129,7 @@ async function* partesDelTurno(
         nombrePaciente: turno.nombrePaciente,
       },
       undefined,
-      { tiempoMaximoMs: plazo.restanteMs() - MARGEN_RESPUESTA_MS }
+      { tiempoMaximoMs }
     );
   }
 
@@ -168,14 +189,17 @@ async function* partesDelTurno(
   for (let preparaciones = 0; ; preparaciones++) {
     let preparacion;
     try {
-      preparacion = await prepararPractica({
-        sesionId,
-        escenarioId: turno.escenarioId,
-        prompt: turno.promptSistema,
-        hayHistorial: turno.intercambios > 0,
-        // Tras olvidar una sesión borrada hay que leer la fila otra vez.
-        ...(preparaciones === 0 ? { sesionIa } : {}),
-      });
+      preparacion = await conPlazo(
+        prepararPractica({
+          sesionId,
+          escenarioId: turno.escenarioId,
+          prompt: turno.promptSistema,
+          hayHistorial: turno.intercambios > 0,
+          // Tras olvidar una sesión borrada hay que leer la fila otra vez.
+          ...(preparaciones === 0 ? { sesionIa } : {}),
+        }),
+        plazo.restanteMs() - RESERVA_RESPALDO_MS
+      );
     } catch (error) {
       if (!(error instanceof ErrorOrquestador)) {
         // Falló la base de datos de PsySim, no el orquestador: este turno lo responde Gemini.
@@ -216,6 +240,12 @@ async function* partesDelTurno(
           continue;
         }
         await pasarAGemini(turno, 'sesion_borrada');
+      } else if (error instanceof ErrorOrquestador && error.tipo === 'sesion_cerrada') {
+        // La sesión de allá ya no acepta turnos y PsySim no cerró la práctica (el orquestador la
+        // cerró en un turno cuya respuesta no se guardó, o no se pudo anotar el cambio). No se
+        // puede reabrir: el estudiante sigue con Gemini y el historial de PsySim, nunca bloqueado.
+        await marcarCerradaEnOrquestador(sesionId);
+        await pasarAGemini(turno, 'sesion_cerrada');
       } else {
         await alFallar(error, 'conversacion');
       }

@@ -130,6 +130,7 @@ export const ETIQUETA_CAMBIO: Record<string, string> = {
   vacia: 'Respuesta vacía',
   interruptor: 'Interruptor de emergencia (IA_PROVEEDOR=gemini)',
   sesion_borrada: 'La sesión ya no existía en el orquestador',
+  sesion_cerrada: 'El orquestador ya había terminado la conversación',
   cierre_orquestador: 'El orquestador terminó la conversación porque el paciente se calmó',
   cierre_sin_motivo: 'El orquestador terminó la conversación sin decir el motivo',
   cierre_desconocido: 'El orquestador terminó la conversación con un motivo desconocido',
@@ -149,4 +150,6 @@ export const ETIQUETA_ERROR: Record<string, string> = {
   no_encontrado: 'No encontrado (404)',
   datos: 'Datos rechazados (400 o 422)',
   respuesta_invalida: 'Respuesta ilegible',
+  sesion_cerrada: 'Conversación ya terminada en el orquestador (400)',
+  done_sin_severidad: 'Fin de turno sin severidad legible',
 };

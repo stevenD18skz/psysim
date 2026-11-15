@@ -285,7 +285,7 @@ describe('prepararPractica', () => {
     expect(falso.cerrarSesion).toHaveBeenCalledWith(
       expect.objectContaining(DOCENTE),
       SESION_ORQUESTADOR,
-      'success'
+      null
     );
     expect(preparada).toMatchObject({ estado: 'lista', sesionOrquestador: GANADORA });
   });
@@ -382,6 +382,67 @@ describe('cerrarEnOrquestador', () => {
     expect(await cerrarEnOrquestador(SESION, cliente)).toBe(true);
     expect(falso.reportarTiempo).not.toHaveBeenCalled();
     expect(falso.cerrarSesion).toHaveBeenCalled();
+  });
+
+  // Auditoría, punto 7: el motivo enviado refleja lo que pasó en PsySim.
+  it('una práctica interrumpida se cierra allá sin motivo: no fue un «success»', async () => {
+    vi.mocked(leerSesionIa).mockResolvedValue(sesionIa());
+    db.responder('sesion', { data: { ...terminada, estado: 'interrumpida' } });
+    const { falso, cliente } = clienteFalso();
+
+    await cerrarEnOrquestador(SESION, cliente);
+    expect(falso.cerrarSesion).toHaveBeenCalledWith(expect.anything(), SESION_ORQUESTADOR, null);
+  });
+
+  // Auditoría, punto 7: un rechazo definitivo no deja la práctica pendiente para siempre (el
+  // barrido solo mira las cinco más antiguas y esas le taparían las demás).
+  it.each([
+    ['permiso', 403],
+    ['datos', 422],
+  ] as const)(
+    'un %s (%s) al cerrar no se reintenta: se da por cerrada y se registra',
+    async (tipo, estado) => {
+      vi.mocked(leerSesionIa).mockResolvedValue(sesionIa());
+      db.responder('sesion', { data: terminada });
+      const { falso, cliente } = clienteFalso();
+      falso.cerrarSesion.mockRejectedValue(new ErrorOrquestador(tipo, { estado }));
+
+      expect(await cerrarEnOrquestador(SESION, cliente)).toBe(true);
+      expect(marcarCerradaEnOrquestador).toHaveBeenCalledWith(SESION);
+      expect(log.error).toHaveBeenCalledWith('orquestador.sesion_incerrable', {
+        sesion_id: SESION,
+        tipo,
+      });
+    }
+  );
+
+  it('si el tiempo se rechaza, la sesión se cierra igual', async () => {
+    vi.mocked(leerSesionIa).mockResolvedValue(sesionIa());
+    db.responder('sesion', { data: terminada });
+    const { falso, cliente } = clienteFalso();
+    falso.reportarTiempo.mockRejectedValue(new ErrorOrquestador('permiso', { estado: 403 }));
+
+    expect(await cerrarEnOrquestador(SESION, cliente)).toBe(true);
+    expect(falso.cerrarSesion).toHaveBeenCalledWith(
+      expect.anything(),
+      SESION_ORQUESTADOR,
+      'success'
+    );
+    expect(log.warn).toHaveBeenCalledWith('orquestador.tiempo_no_reportado', {
+      sesion_id: SESION,
+      tipo: 'permiso',
+    });
+  });
+
+  it('un fallo pasajero al reportar el tiempo deja todo pendiente para el siguiente barrido', async () => {
+    vi.mocked(leerSesionIa).mockResolvedValue(sesionIa());
+    db.responder('sesion', { data: terminada });
+    const { falso, cliente } = clienteFalso();
+    falso.reportarTiempo.mockRejectedValue(new ErrorOrquestador('tiempo_agotado'));
+
+    expect(await cerrarEnOrquestador(SESION, cliente)).toBe(false);
+    expect(falso.cerrarSesion).not.toHaveBeenCalled();
+    expect(marcarCerradaEnOrquestador).not.toHaveBeenCalled();
   });
 
   it.each([

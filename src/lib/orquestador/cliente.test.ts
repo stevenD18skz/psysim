@@ -258,6 +258,36 @@ describe('gestión de perfiles, escenarios y sesiones', () => {
     });
     expect(JSON.parse(String(ajena.llamadas[1]!.init.body))).toEqual({ closing_kind: 'crisis' });
   });
+
+  it('cerrar sin motivo no envía closing_kind (allá queda completed)', async () => {
+    const { cliente, llamadas } = montar(ruta => (ruta === '/auth/login' ? login() : json({})));
+    await cliente.cerrarSesion(DOCENTE, ID, null);
+    expect(JSON.parse(String(llamadas[1]!.init.body))).toEqual({});
+  });
+
+  // Auditoría, punto 10: lo que PsySim no usa para decidir no debe invalidar una respuesta.
+  it('lee con tolerancia el historial, la sesión y la cuenta', async () => {
+    // Id con forma de UUID pero sin la versión ni la variante del RFC (como los del OpenAPI).
+    const idLibre = 'e5f6a7b8-c9d0-1234-efab-345678901234';
+    const { cliente } = montar(ruta => {
+      if (ruta === '/auth/login') return login();
+      if (ruta.endsWith('/history')) {
+        return json([
+          { id: idLibre, role: 'trainee', content: 'Hola', severity: null, risk_flags: null },
+          { id: idLibre, role: 'patient', content: 'Buenas', tokens_used: 31.5 },
+        ]);
+      }
+      if (ruta === '/admin/me') return json({ id: idLibre, email: 'a@b.co', role: 'supervisor' });
+      return json({ id: idLibre, status: 'completed', current_severity: null });
+    });
+
+    expect(await cliente.historial(GRUPO_1, ID)).toEqual([
+      { id: idLibre, role: 'trainee', content: 'Hola', severity: null, risk_flags: [] },
+      { id: idLibre, role: 'patient', content: 'Buenas', risk_flags: [], tokens_used: 31.5 },
+    ]);
+    expect(await cliente.sesion(GRUPO_1, ID)).toMatchObject({ id: idLibre, status: 'completed' });
+    expect(await cliente.yo(GRUPO_1)).toMatchObject({ id: idLibre, role: 'supervisor' });
+  });
 });
 
 describe('conversar', () => {
@@ -373,5 +403,44 @@ describe('conversar', () => {
     })();
     await expect(lectura).rejects.toMatchObject({ tipo: 'tiempo_agotado' });
     expect(eventos).toEqual([{ tipo: 'fragmento', texto: 'No' }]);
+  });
+
+  // Auditoría, punto 8: cada fragmento renueva el plazo de silencio, así que una respuesta a
+  // cuentagotas no tenía tope y podía pasar del tiempo de la petición.
+  it('corta una respuesta que llega a cuentagotas al cumplirse el plazo total', async () => {
+    const { cliente } = montar((ruta, init) => {
+      if (ruta === '/auth/login') return login();
+      const codificador = new TextEncoder();
+      let goteo: ReturnType<typeof setInterval>;
+      const cuerpo = new ReadableStream<Uint8Array>({
+        start(control) {
+          goteo = setInterval(
+            () => control.enqueue(codificador.encode('event: chunk\ndata: {"chunk":"a"}\n\n')),
+            10
+          );
+          init.signal?.addEventListener('abort', () => {
+            clearInterval(goteo);
+            control.error(new DOMException('abortada', 'AbortError'));
+          });
+        },
+        cancel() {
+          clearInterval(goteo);
+        },
+      });
+      return new Response(cuerpo, { status: 200 });
+    });
+    const eventos: EventoOrquestador[] = [];
+    const lectura = (async () => {
+      for await (const evento of cliente.conversar(GRUPO_1, ID, 'Hola', {
+        tiempoInicioMs: 1_000,
+        // Nunca hay 500 ms de silencio: sin el plazo total esto no terminaría.
+        tiempoSilencioMs: 500,
+        tiempoTotalMs: 80,
+      })) {
+        eventos.push(evento);
+      }
+    })();
+    await expect(lectura).rejects.toMatchObject({ tipo: 'tiempo_agotado' });
+    expect(eventos.length).toBeGreaterThan(0);
   });
 });

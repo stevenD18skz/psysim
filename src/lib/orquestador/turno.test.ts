@@ -11,6 +11,7 @@ import {
   conciliar,
   conversarConOrquestador,
   crearPlazo,
+  MARGEN_DE_CIERRE_MS,
   MINIMO_PARA_TURNO_MS,
   PLAZO_PETICION_MS,
   RESERVA_RESPALDO_MS,
@@ -561,5 +562,123 @@ describe('crearPlazo', () => {
   it('el plazo de la petición deja sitio al turno y al respaldo', () => {
     expect(PLAZO_PETICION_MS).toBeLessThan(60_000);
     expect(PLAZO_PETICION_MS - RESERVA_RESPALDO_MS).toBeGreaterThanOrEqual(MINIMO_PARA_TURNO_MS);
+  });
+});
+
+describe('auditoría de la integración', () => {
+  // Punto 3: una sesión ya cerrada allá responde 400. Antes se clasificaba como error de datos y
+  // el estudiante recibía un 502 en cada intento, sin salida.
+  describe('sesión ya cerrada en el orquestador', () => {
+    it.each(['completed', 'terminated', 'archived'])(
+      'un 400 con la sesión %s no es un error de datos: avisa que la sesión está cerrada',
+      async estado => {
+        const { cliente, sesion } = clienteFalso([new ErrorOrquestador('datos', { estado: 400 })], {
+          estado,
+        });
+        const { partes, error } = await conversar(cliente);
+
+        expect(partes).toEqual([]);
+        expect(error).toMatchObject({ tipo: 'sesion_cerrada' });
+        expect(sesion).toHaveBeenCalledWith(CUENTA, SESION_ORQUESTADOR);
+        expect(registrarEvento).toHaveBeenCalledWith(
+          expect.objectContaining({ tipo: 'error', detalle: 'sesion_cerrada' })
+        );
+      }
+    );
+
+    it('un 400 con la sesión activa sí es un error de datos (no se esconde con Gemini)', async () => {
+      const { cliente } = clienteFalso([new ErrorOrquestador('datos', { estado: 400 })]);
+      const { error } = await conversar(cliente);
+      expect(error).toMatchObject({ tipo: 'datos', estado: 400 });
+    });
+
+    it('un 422 no pregunta por la sesión', async () => {
+      const { cliente, sesion } = clienteFalso([new ErrorOrquestador('datos', { estado: 422 })]);
+      const { error } = await conversar(cliente);
+      expect(error).toMatchObject({ tipo: 'datos', estado: 422 });
+      expect(sesion).not.toHaveBeenCalled();
+    });
+
+    it('si no se puede saber el estado de la sesión, se propaga ese fallo (lo decide Gemini)', async () => {
+      const { cliente, sesion } = clienteFalso([new ErrorOrquestador('datos', { estado: 400 })]);
+      sesion.mockRejectedValue(new ErrorOrquestador('red'));
+      const { error } = await conversar(cliente);
+      expect(error).toMatchObject({ tipo: 'red' });
+    });
+  });
+
+  // Punto 4: un `done` sin severidad legible no pierde la respuesta ni duplica el turno.
+  it('un done sin severidad entrega la respuesta, no la reenvía y queda registrado', async () => {
+    const { cliente, conversar: llamada } = clienteFalso([
+      [...texto('Regular.'), { ...fin(), severidad: null }],
+    ]);
+    const { partes, error } = await conversar(cliente);
+
+    expect(error).toBeNull();
+    expect(llamada).toHaveBeenCalledOnce();
+    expect(partes.at(-1)).toMatchObject({
+      tipo: 'fin',
+      resultado: { texto: 'Regular.', severidad: null, cierre: null, cierreAjeno: null },
+    });
+    expect(registrarEvento).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'error', detalle: 'done_sin_severidad' })
+    );
+  });
+
+  // Punto 5: la base solo acepta severidades de 0 a 5 con dos decimales.
+  it.each([
+    [7.2, 5],
+    [-1, 0],
+    [2.34567, 2.35],
+  ])('la severidad %s del stream se guarda como %s', async (recibida, guardada) => {
+    const { cliente } = clienteFalso([[...texto('Hola.'), fin(recibida)]]);
+    const { partes } = await conversar(cliente);
+    expect(partes.at(-1)).toMatchObject({ resultado: { severidad: guardada } });
+  });
+
+  it('también se acota la severidad de un turno recuperado del historial', async () => {
+    const { cliente } = clienteFalso([], {
+      historial: [mensaje('trainee', MENSAJE), mensaje('patient', 'Regular.', { severity: 9 })],
+    });
+    const { partes } = await conversar(cliente, { reintento: true });
+    expect(partes.at(-1)).toMatchObject({ resultado: { severidad: 5 } });
+  });
+
+  it('un mensaje recuperado sin severidad ni tokens legibles no rompe el turno', async () => {
+    const { cliente } = clienteFalso([], {
+      historial: [
+        mensaje('trainee', MENSAJE),
+        mensaje('patient', 'Regular.', { severity: null, tokens_used: 12.6 }),
+      ],
+    });
+    const { partes, error } = await conversar(cliente, { reintento: true });
+    expect(error).toBeNull();
+    expect(partes.at(-1)).toMatchObject({ resultado: { severidad: null, tokensSalida: 13 } });
+  });
+
+  // Punto 6: `risk` es un indicador, no un cierre ni una emoción de maltrato.
+  it('la bandera risk se guarda, pero por sí sola no cierra la práctica', async () => {
+    const { cliente } = clienteFalso([], {
+      historial: [
+        mensaje('trainee', MENSAJE, { risk_flags: ['risk'] }),
+        mensaje('patient', 'A veces pienso cosas feas.', { risk_flags: ['risk'] }),
+      ],
+    });
+    const { partes } = await conversar(cliente, { reintento: true });
+    expect(partes.at(-1)).toMatchObject({
+      resultado: { banderas: ['risk'], cierre: null, cierreAjeno: null },
+    });
+  });
+
+  // Punto 8: la respuesta completa tiene un tope, no solo su arranque y sus silencios.
+  it('le da a la respuesta un plazo total que deja margen para guardar y responder', async () => {
+    const { cliente, conversar: llamada } = clienteFalso([[...texto('Hola.'), fin()]]);
+    await conversar(cliente);
+    expect(llamada).toHaveBeenCalledWith(
+      CUENTA,
+      SESION_ORQUESTADOR,
+      MENSAJE,
+      expect.objectContaining({ tiempoTotalMs: PLAZO_PETICION_MS - MARGEN_DE_CIERRE_MS })
+    );
   });
 });

@@ -15,6 +15,34 @@ export const SEVERIDAD_BAJA = 1.5;
 /** Cambio de severidad entre dos turnos que ya se nota en el cuerpo. */
 export const CAMBIO_NOTABLE = 0.5;
 
+/** Rango de la severidad que PsySim guarda (`numeric(4,2) check between 0 and 5`). */
+export const SEVERIDAD_MINIMA = 0;
+export const SEVERIDAD_MAXIMA = 5;
+
+/**
+ * Severidad lista para guardar: dentro de 0 a 5 y con dos decimales. El orquestador promete ese
+ * rango, pero un valor fuera de él haría fallar `guardar_intercambio_ia` y el turno se perdería
+ * en cada reintento. Lo que no es un número queda en `null` (se conserva la severidad anterior).
+ */
+export function acotarSeveridad(valor: unknown): number | null {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) return null;
+  const acotada = Math.min(SEVERIDAD_MAXIMA, Math.max(SEVERIDAD_MINIMA, valor));
+  return Math.round(acotada * 100) / 100;
+}
+
+/** Cuántas banderas de un turno se guardan, y su largo máximo: son códigos, no texto libre. */
+const MAXIMO_BANDERAS = 12;
+const LARGO_BANDERA = 40;
+
+/** `risk_flags` listas para guardar: solo textos cortos, sin repetir. */
+export function acotarBanderas(banderas: readonly unknown[]): string[] {
+  const limpias = banderas
+    .filter((bandera): bandera is string => typeof bandera === 'string')
+    .map(bandera => bandera.trim().slice(0, LARGO_BANDERA))
+    .filter(Boolean);
+  return [...new Set(limpias)].slice(0, MAXIMO_BANDERAS);
+}
+
 /** Cuánto se le nota la emoción al paciente solo por su severidad. */
 export function intensidadPorSeveridad(severidad: number): IntensidadEmocion {
   if (severidad >= SEVERIDAD_ALTA) return 3;

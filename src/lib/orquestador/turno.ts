@@ -8,15 +8,21 @@ import { type ClienteOrquestador, clienteOrquestador } from './cliente';
 import { type CuentaOrquestador } from './cuentas';
 import { registrarEvento, reservarTurno } from './datos';
 import { ErrorOrquestador } from './errores';
-import { type MensajeOrquestador, type MetricasTurno } from './tipos';
+import { acotarBanderas, acotarSeveridad } from './severidad';
+import { ESTADO_SESION_ACTIVA, type MensajeOrquestador, type MetricasTurno } from './tipos';
 
 /*
  * Tiempos de un turno (el Route Handler tiene `maxDuration` de 60 s y responde siempre antes de
  * los 55 s, para devolver un error controlado y no el corte de la plataforma):
  *
  *   hasta 20 s  esperando cupo del turnero (si hace falta más, se responde 429 con Retry-After)
- *   hasta 23 s  para que el orquestador empiece a responder (su primer turno tarda hasta 20 s)
- *   12 s        reservados para que Gemini responda si el orquestador falla
+ *   hasta 25 s  para que el orquestador empiece a responder (su primer turno tarda hasta 20 s);
+ *               23 s si antes esperó los 20 s del turnero
+ *   12 s        reservados para que Gemini responda si el orquestador no llega a empezar
+ *
+ * La reserva protege el ARRANQUE de la respuesta. Una vez que el texto está llegando no se corta
+ * para darle sitio a Gemini (sería cambiar una respuesta que funciona por otra): solo se le pone
+ * el tope de toda la petición, para terminar con un error controlado y no con el corte de Vercel.
  */
 
 /** Plazo de toda la petición, menor que el `maxDuration` de la ruta (60 s). */
@@ -31,6 +37,8 @@ export const TIEMPO_INICIO_MS = 25_000;
 export const TIEMPO_SILENCIO_MS = 12_000;
 /** Espera ante un 429 del orquestador que no dice cuánto esperar. */
 export const RETROCESO_LIMITE_MS = 5_000;
+/** Lo que se deja para guardar el intercambio y responder cuando el texto ya terminó de llegar. */
+export const MARGEN_DE_CIERRE_MS = 2_000;
 /** Margen al despertar de una espera, por si los relojes no coinciden al milisegundo. */
 const MARGEN_ESPERA_MS = 150;
 
@@ -143,8 +151,8 @@ export async function* conversarConOrquestador({
   const fin = (
     texto: string,
     datos: {
-      severidad: number;
-      banderas: string[];
+      severidad: number | null | undefined;
+      banderas: readonly string[];
       cierre: MotivoCierre | null;
       cierreAjeno: CierreAjeno | null;
       metricas: MetricasTurno;
@@ -157,9 +165,10 @@ export async function* conversarConOrquestador({
       modelo: datos.metricas.modelo ?? datos.metricas.proveedor,
       tokensEntrada: datos.metricas.tokensEntrada,
       tokensSalida: datos.metricas.tokensSalida,
-      severidad: datos.severidad,
+      // La base solo acepta de 0 a 5: fuera de rango, el intercambio no se guardaría nunca.
+      severidad: acotarSeveridad(datos.severidad),
       severidadAnterior,
-      banderas: datos.banderas,
+      banderas: acotarBanderas(datos.banderas),
       cierre: datos.cierre,
       cierreAjeno: datos.cierreAjeno,
     },
@@ -187,7 +196,10 @@ export async function* conversarConOrquestador({
         proveedor: respuesta.ai_provider ?? null,
         modelo: null,
         tokensEntrada: null,
-        tokensSalida: respuesta.tokens_used ?? null,
+        tokensSalida:
+          typeof respuesta.tokens_used === 'number' && respuesta.tokens_used >= 0
+            ? Math.round(respuesta.tokens_used)
+            : null,
       },
     });
     return 'entregado';
@@ -219,6 +231,7 @@ export async function* conversarConOrquestador({
       for await (const parte of cliente.conversar(cuenta, sesionOrquestador, mensaje, {
         tiempoInicioMs,
         tiempoSilencioMs: TIEMPO_SILENCIO_MS,
+        tiempoTotalMs: Math.floor(plazo.restanteMs() - MARGEN_DE_CIERRE_MS),
       })) {
         if (parte.tipo === 'fragmento') {
           texto += parte.texto;
@@ -228,6 +241,10 @@ export async function* conversarConOrquestador({
           // práctica sigue (ver `cierre.ts`). El 2026-11-15 una práctica en la que la paciente se
           // calmaba se cerró como crisis por asumir lo contrario.
           const decision = decidirCierre(parte.debeCerrar, parte.cierre);
+          if (parte.severidad === null) {
+            // El contrato cambió: la respuesta se aprovecha, pero hay que enterarse.
+            void registrarEvento({ ...evento, tipo: 'error', detalle: 'done_sin_severidad' });
+          }
           yield fin(texto, {
             severidad: parte.severidad,
             banderas: [],
@@ -259,6 +276,17 @@ export async function* conversarConOrquestador({
         yield { tipo: 'espera', segundos: Math.ceil(esperaMs / 1000) };
         await esperar(esperaMs + MARGEN_ESPERA_MS);
         continue;
+      }
+
+      if (fallo.tipo === 'datos' && fallo.estado === 400) {
+        // El orquestador responde 400 a un mensaje vacío (PsySim no los envía) y a una sesión ya
+        // cerrada. Se le pregunta: si ya no está activa, no es un error de datos y la práctica
+        // debe seguir con Gemini. Si no se puede saber, se propaga ese fallo (red, 5xx…).
+        const sesion = await cliente.sesion(cuenta, sesionOrquestador);
+        if (sesion.status.trim().toLowerCase() !== ESTADO_SESION_ACTIVA) {
+          void registrarEvento({ ...evento, tipo: 'error', detalle: 'sesion_cerrada' });
+          throw new ErrorOrquestador('sesion_cerrada', { estado: 400 });
+        }
       }
 
       void registrarEvento({ ...evento, tipo: 'error', detalle: fallo.tipo });

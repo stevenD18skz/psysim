@@ -147,9 +147,54 @@ describe('interpretarEvento', () => {
     expect(interpretarEvento({ evento: 'chunk', datos: '{"chunk":""}' })).toEqual({
       tipo: 'ignorado',
     });
-    expect(interpretarEvento({ evento: 'done', datos: '{"severity":"alta"}' })).toEqual({
-      tipo: 'ignorado',
+  });
+
+  // Auditoría, punto 4: `done` significa que el turno ya quedó guardado allá. Si se ignoraba por
+  // un campo con otra forma, el flujo parecía cortado, la respuesta se perdía y la práctica
+  // pasaba a Gemini con un turno de menos.
+  it.each([
+    ['severidad en texto', '{"severity":"alta"}'],
+    ['severidad nula', '{"severity":null,"should_close":false}'],
+    ['sin severidad', '{"done":true}'],
+    ['severidad no finita', '{"severity":1e999}'],
+  ])('un done con %s sigue siendo el fin del turno, sin severidad nueva', (_, datos) => {
+    expect(interpretarEvento({ evento: 'done', datos })).toEqual({
+      tipo: 'fin',
+      severidad: null,
+      debeCerrar: false,
+      cierre: null,
+      metricas: { proveedor: null, modelo: null, tokensEntrada: null, tokensSalida: null },
     });
+  });
+
+  it.each(['"gpt-4o-mini"', '[1,2]', '42', 'null'])(
+    'unas métricas con otra forma (%s) no invalidan el fin del turno',
+    metrics => {
+      expect(
+        interpretarEvento({ evento: 'done', datos: `{"severity":2.4,"metrics":${metrics}}` })
+      ).toMatchObject({ tipo: 'fin', severidad: 2.4, metricas: { tokensSalida: null } });
+    }
+  );
+
+  it.each(['"true"', '1', 'null', '"crisis"'])(
+    'should_close solo cierra si es exactamente true (%s no cierra)',
+    valor => {
+      expect(
+        interpretarEvento({
+          evento: 'done',
+          datos: `{"severity":5,"should_close":${valor},"closing_kind":"crisis"}`,
+        })
+      ).toMatchObject({ tipo: 'fin', debeCerrar: false });
+    }
+  );
+
+  it('un closing_kind que no es texto se lee como «sin motivo»', () => {
+    expect(
+      interpretarEvento({
+        evento: 'done',
+        datos: '{"severity":2,"should_close":true,"closing_kind":7}',
+      })
+    ).toMatchObject({ tipo: 'fin', debeCerrar: true, cierre: null });
   });
 });
 

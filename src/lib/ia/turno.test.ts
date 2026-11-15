@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getProveedorIa } from '@/lib/env/orquestador';
 import { type CuentaOrquestador } from '@/lib/orquestador/cuentas';
-import { fijarGemini, type SesionIa } from '@/lib/orquestador/datos';
+import { fijarGemini, marcarCerradaEnOrquestador, type SesionIa } from '@/lib/orquestador/datos';
 import { ErrorOrquestador } from '@/lib/orquestador/errores';
 import { olvidarSesionOrquestador, prepararPractica } from '@/lib/orquestador/practica';
 import type * as ModuloTurno from '@/lib/orquestador/turno';
@@ -16,7 +16,10 @@ import { transmitirTurno, type TurnoPaciente } from './turno';
 
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/env/orquestador', () => ({ getProveedorIa: vi.fn() }));
-vi.mock('@/lib/orquestador/datos', () => ({ fijarGemini: vi.fn() }));
+vi.mock('@/lib/orquestador/datos', () => ({
+  fijarGemini: vi.fn(),
+  marcarCerradaEnOrquestador: vi.fn(),
+}));
 vi.mock('@/lib/orquestador/practica', () => ({
   prepararPractica: vi.fn(),
   olvidarSesionOrquestador: vi.fn(),
@@ -418,6 +421,66 @@ describe('transmitirTurno con el orquestador', () => {
       expect(prepararPractica).toHaveBeenCalledTimes(2);
       expect(fijarGemini).toHaveBeenCalledWith(SESION, 'sesion_borrada');
       expect(completa(eventos)?.resultado.proveedor).toBe('gemini');
+    });
+  });
+});
+
+describe('auditoría de la integración', () => {
+  // Punto 3: la sesión de allá ya no acepta turnos y PsySim no cerró la práctica.
+  it('si el orquestador ya había cerrado su sesión, el turno lo responde Gemini (nunca un 502)', async () => {
+    delOrquestador(new ErrorOrquestador('sesion_cerrada', { estado: 400 }));
+    const { eventos, error } = await recoger(turno({ sesionIa: sesionIa(), intercambios: 4 }));
+
+    expect(error).toBeNull();
+    expect(completa(eventos)).toMatchObject({ resultado: { proveedor: 'gemini' } });
+    expect(fijarGemini).toHaveBeenCalledWith(SESION, 'sesion_cerrada');
+    // No hay que volver a cerrarla allá con otro motivo.
+    expect(marcarCerradaEnOrquestador).toHaveBeenCalledWith(SESION);
+  });
+
+  it('un 400 con la sesión activa sigue siendo un error de datos: no se esconde con Gemini', async () => {
+    delOrquestador(new ErrorOrquestador('datos', { estado: 400 }));
+    const { error } = await recoger(turno({ sesionIa: sesionIa() }));
+
+    expect(error).toMatchObject({ tipo: 'proveedor' });
+    expect(transmitirRespuestaPaciente).not.toHaveBeenCalled();
+    expect(fijarGemini).not.toHaveBeenCalled();
+  });
+
+  // Punto 8: los plazos de la petición.
+  describe('plazos', () => {
+    it('una preparación que no termina a tiempo se trata como un orquestador que no responde', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(prepararPractica).mockReturnValue(new Promise(() => undefined));
+        const pendiente = recoger(turno({ plazo: crearPlazo(20_000, () => 0) }));
+        // 20 s de petición menos los 12 s reservados para el respaldo.
+        await vi.advanceTimersByTimeAsync(8_001);
+        const { eventos, error } = await pendiente;
+
+        expect(error).toBeNull();
+        expect(completa(eventos)).toMatchObject({ resultado: { proveedor: 'gemini' } });
+        expect(fijarGemini).toHaveBeenCalledWith(SESION, 'tiempo_agotado');
+        expect(conversarConOrquestador).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('sin tiempo para que responda Gemini, termina con un error controlado', async () => {
+      let reloj = 0;
+      vi.mocked(conversarConOrquestador).mockImplementationOnce(async function* () {
+        reloj = 54_000;
+        throw new ErrorOrquestador('tiempo_agotado');
+      });
+      const { error } = await recoger(
+        turno({ sesionIa: sesionIa(), plazo: crearPlazo(55_000, () => reloj) })
+      );
+
+      expect(error).toMatchObject({ tipo: 'tiempo_agotado' });
+      expect(transmitirRespuestaPaciente).not.toHaveBeenCalled();
+      // La práctica queda en Gemini: el reintento del estudiante responde a tiempo.
+      expect(fijarGemini).toHaveBeenCalledWith(SESION, 'tiempo_agotado');
     });
   });
 });

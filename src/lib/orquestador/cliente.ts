@@ -49,6 +49,11 @@ export interface OpcionesTurno {
   tiempoInicioMs: number;
   /** Plazo entre un fragmento y el siguiente. */
   tiempoSilencioMs: number;
+  /**
+   * Plazo de toda la respuesta, desde que se pide. Sin él, una respuesta que llega a cuentagotas
+   * (cada fragmento renueva el plazo de silencio) puede pasar del tiempo de la petición.
+   */
+  tiempoTotalMs?: number;
 }
 
 interface Dependencias {
@@ -271,15 +276,18 @@ export function crearClienteOrquestador({
       }
     },
 
-    /** Cierra la sesión. Un 400 significa que ya estaba cerrada: no es un error. */
+    /**
+     * Cierra la sesión. Sin `cierre` queda `completed`, igual que con `success`. Un 400 significa
+     * que ya estaba cerrada: no es un error.
+     */
     async cerrarSesion(
       cuenta: CredencialOrquestador,
       sesionId: string,
-      cierre: CierreOrquestador
+      cierre: CierreOrquestador | null
     ): Promise<void> {
       try {
         await pedir(cuenta, 'PATCH', `/sessions/${sesionId}/end`, {
-          cuerpo: { closing_kind: cierre },
+          cuerpo: cierre ? { closing_kind: cierre } : {},
         });
       } catch (error) {
         if (error instanceof ErrorOrquestador && error.estado === 400) return;
@@ -295,13 +303,16 @@ export function crearClienteOrquestador({
       cuenta: CredencialOrquestador,
       sesionId: string,
       mensaje: string,
-      { tiempoInicioMs, tiempoSilencioMs }: OpcionesTurno
+      { tiempoInicioMs, tiempoSilencioMs, tiempoTotalMs = Infinity }: OpcionesTurno
     ): AsyncGenerator<EventoOrquestador, void, void> {
       const control = new AbortController();
-      let temporizador = setTimeout(() => control.abort(), tiempoInicioMs);
+      const limite = performance.now() + tiempoTotalMs;
+      // Ningún plazo parcial pasa del plazo total de la respuesta.
+      const dentroDelTotal = (ms: number) => Math.max(0, Math.min(ms, limite - performance.now()));
+      let temporizador = setTimeout(() => control.abort(), dentroDelTotal(tiempoInicioMs));
       const darPlazo = (ms: number) => {
         clearTimeout(temporizador);
-        temporizador = setTimeout(() => control.abort(), ms);
+        temporizador = setTimeout(() => control.abort(), dentroDelTotal(ms));
       };
 
       try {

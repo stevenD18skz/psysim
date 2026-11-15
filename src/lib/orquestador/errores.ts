@@ -16,8 +16,13 @@ export type TipoErrorOrquestador =
   | 'permiso'
   /** 404: la sesión, el perfil o el escenario ya no existen (datos de prueba borrados). */
   | 'no_encontrado'
-  /** 400 o 422: PsySim envió algo que el orquestador no acepta, o la sesión ya estaba cerrada. */
+  /** 400 o 422: PsySim envió algo que el orquestador no acepta. */
   | 'datos'
+  /**
+   * 400 al conversar y la sesión ya no está activa allá (la cerró el orquestador o un turno cuya
+   * respuesta PsySim no llegó a guardar). No es un error de datos: la práctica sigue con Gemini.
+   */
+  | 'sesion_cerrada'
   /** 429: se pasó de 10 mensajes por minuto en esa cuenta. Se espera; nunca activa Gemini. */
   | 'limite'
   /** Respondió 2xx, pero con un cuerpo que no cumple el contrato. */

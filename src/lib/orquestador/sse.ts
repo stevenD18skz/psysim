@@ -1,11 +1,6 @@
 import { type EventoSse } from '@/lib/sse';
 
-import {
-  type EventoOrquestador,
-  eventoErrorSchema,
-  eventoFinSchema,
-  type MetricasTurno,
-} from './tipos';
+import { type EventoOrquestador, eventoErrorSchema, type MetricasTurno } from './tipos';
 
 function entero(valor: unknown): number | null {
   return typeof valor === 'number' && Number.isFinite(valor) && valor >= 0
@@ -53,15 +48,24 @@ export function interpretarEvento({ evento, datos }: EventoSse): EventoOrquestad
       : { tipo: 'ignorado' };
   }
   if (evento === 'done') {
-    const fin = eventoFinSchema.safeParse(json);
-    if (!fin.success) return { tipo: 'ignorado' };
+    // `done` significa que el orquestador YA guardó el turno. Se acepta siempre, aunque algún
+    // campo llegue con otra forma: ignorarlo dejaba el flujo «cortado», la respuesta recibida se
+    // perdía y la práctica pasaba a Gemini con un turno de menos. Lo ilegible degrada a lo
+    // inocuo: sin severidad nueva, sin cierre y sin métricas.
+    const fin = json as Record<string, unknown>;
+    const metricas = fin.metrics;
     return {
       tipo: 'fin',
-      severidad: fin.data.severity,
-      debeCerrar: fin.data.should_close,
+      severidad:
+        typeof fin.severity === 'number' && Number.isFinite(fin.severity) ? fin.severity : null,
+      debeCerrar: fin.should_close === true,
       // Se entrega tal cual (acotado): un valor desconocido no se confunde con «sin motivo».
-      cierre: texto(fin.data.closing_kind),
-      metricas: leerMetricas(fin.data.metrics),
+      cierre: texto(fin.closing_kind),
+      metricas: leerMetricas(
+        typeof metricas === 'object' && metricas !== null && !Array.isArray(metricas)
+          ? (metricas as Record<string, unknown>)
+          : null
+      ),
     };
   }
   if (evento === 'error') {

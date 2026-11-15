@@ -5,11 +5,21 @@ import { z } from 'zod';
  * declaran los campos que PsySim usa: el resto se ignora para no romperse si la API crece.
  */
 
-export const ROLES_ORQUESTADOR = ['student', 'teacher', 'admin'] as const;
-
-/** Cómo terminó una sesión para el orquestador (`PATCH /sessions/{id}/end`). */
+/**
+ * Cómo terminó una sesión para el orquestador (`PATCH /sessions/{id}/end`). `success` la deja
+ * `completed`; `crisis` e `inappropriate`, `terminated`. Sin `closing_kind` también `completed`.
+ */
 export const CIERRES_ORQUESTADOR = ['success', 'crisis', 'inappropriate'] as const;
 export type CierreOrquestador = (typeof CIERRES_ORQUESTADOR)[number];
+
+/** Estados de una sesión del orquestador que PsySim conoce. Cualquier otro se trata como cerrada. */
+export const ESTADO_SESION_ACTIVA = 'active';
+
+/*
+ * Los identificadores se validan con `guid` (8-4-4-4-12 hexadecimales) y no con `uuid`: Zod 4
+ * exige en `uuid` la versión y la variante del RFC, y una respuesta entera se rechazaría por un
+ * id que la base de datos acepta sin problema.
+ */
 
 export const loginSchema = z.object({
   access_token: z.string().min(1),
@@ -18,45 +28,44 @@ export const loginSchema = z.object({
 });
 
 export const usuarioOrquestadorSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   email: z.string(),
-  role: z.enum(ROLES_ORQUESTADOR),
+  /** `student`, `teacher` o `admin`. PsySim no decide nada con él: un rol nuevo no lo rompe. */
+  role: z.string(),
 });
 export type UsuarioOrquestador = z.infer<typeof usuarioOrquestadorSchema>;
 
 /** Perfil o escenario recién creado o actualizado: solo interesa su id. */
-export const recursoSchema = z.object({ id: z.uuid() });
+export const recursoSchema = z.object({ id: z.guid() });
 
 export const sesionOrquestadorSchema = z.object({
-  id: z.uuid(),
-  status: z.string().default('active'),
-  user_id: z.uuid().nullish(),
-  current_severity: z.number(),
+  id: z.guid(),
+  /** `active`, `completed` (cierre `success` o manual) o `terminated` (crisis o inapropiado). */
+  status: z.string().default(ESTADO_SESION_ACTIVA),
+  user_id: z.string().nullish(),
+  /** Se acota con `acotarSeveridad` antes de guardarla: la base solo acepta de 0 a 5. */
+  current_severity: z.number().nullish(),
 });
 export type SesionOrquestador = z.infer<typeof sesionOrquestadorSchema>;
 
 export const mensajeOrquestadorSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   /** `trainee` (quien practica) o `patient` (el personaje). */
   role: z.string(),
   content: z.string(),
-  severity: z.number(),
-  risk_flags: z.array(z.string()).default([]),
+  // Lo que no decide si el turno quedó guardado se lee con tolerancia: un mensaje sin severidad
+  // no debe invalidar el historial entero (de él depende no duplicar un turno).
+  severity: z.number().nullish(),
+  risk_flags: z
+    .array(z.string())
+    .nullish()
+    .transform(banderas => banderas ?? []),
   ai_provider: z.string().nullish(),
-  tokens_used: z.number().int().nullish(),
+  tokens_used: z.number().nullish(),
 });
-export type MensajeOrquestador = z.infer<typeof mensajeOrquestadorSchema>;
+export type MensajeOrquestador = z.output<typeof mensajeOrquestadorSchema>;
 
 export const historialOrquestadorSchema = z.array(mensajeOrquestadorSchema);
-
-/** Evento `done` del stream: fin del turno con la severidad recalculada. */
-export const eventoFinSchema = z.object({
-  severity: z.number(),
-  should_close: z.boolean().default(false),
-  closing_kind: z.string().nullish(),
-  /** Métricas de la llamada de IA. Su forma no está en el OpenAPI: se lee con tolerancia. */
-  metrics: z.record(z.string(), z.unknown()).nullish(),
-});
 
 export const eventoErrorSchema = z.object({
   error: z.string().default(''),
@@ -69,7 +78,8 @@ export type EventoOrquestador =
   | { tipo: 'fragmento'; texto: string }
   | {
       tipo: 'fin';
-      severidad: number;
+      /** `null` si el evento no trajo una severidad legible (se conserva la anterior). */
+      severidad: number | null;
       debeCerrar: boolean;
       /**
        * `closing_kind` tal como llegó (`success`, `crisis`, `inappropriate`, vacío o un valor que

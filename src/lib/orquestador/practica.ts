@@ -20,6 +20,7 @@ import {
   type SesionIa,
 } from './datos';
 import { ErrorOrquestador } from './errores';
+import { acotarSeveridad } from './severidad';
 import { asegurarCaso } from './sincronizar';
 import { type CierreOrquestador } from './tipos';
 
@@ -127,15 +128,17 @@ export async function prepararPractica({
   }
 
   // Dos peticiones a la vez pueden abrir dos sesiones: gana la primera que la anota.
+  const severidadInicial = acotarSeveridad(sesion.current_severity);
   const { data, error } = await createAdminClient()
     .from('sesion_ia')
-    .update({ sesion_orquestador: sesion.id, severidad: sesion.current_severity })
+    .update({ sesion_orquestador: sesion.id, severidad: severidadInicial })
     .eq('sesion_id', sesionId)
     .is('sesion_orquestador', null)
     .select('sesion_id');
   if (error) throw new Error('No pudimos guardar la sesión del orquestador.', { cause: error });
   if (data.length === 0) {
-    await cliente.cerrarSesion(docente, sesion.id, 'success').catch(() => undefined);
+    // Sobra: se cierra sin motivo (allá queda `completed`), nadie conversó en ella.
+    await cliente.cerrarSesion(docente, sesion.id, null).catch(() => undefined);
     const ganadora = await leerSesionIa(sesionId);
     if (ganadora?.proveedor !== 'orquestador' || !ganadora.sesionOrquestador) {
       return { estado: 'gemini' };
@@ -151,7 +154,7 @@ export async function prepararPractica({
     estado: 'lista',
     cuenta,
     sesionOrquestador: sesion.id,
-    severidad: sesion.current_severity,
+    severidad: severidadInicial,
   };
 }
 
@@ -221,7 +224,14 @@ const CIERRE_POR_MOTIVO = { crisis: 'crisis', inapropiada: 'inappropriate' } as 
  * y cierra la sesión del orquestador. No lee ni guarda la evaluación automática que el orquestador
  * calcula al cerrar: PsySim no evalúa al estudiante.
  *
- * No lanza: si algo falla, la sesión queda pendiente y `cerrarPendientes` lo reintenta después.
+ * El motivo que se envía refleja lo que pasó en PsySim: `crisis` o `inappropriate` si el paciente
+ * cerró la consulta, `success` si la práctica terminó y nada (allá queda `completed`) si quedó
+ * interrumpida. Si el orquestador ya la había cerrado por su cuenta no se llama
+ * (`cerrada_en_orquestador`, ver `anotarCierreDelOrquestador`).
+ *
+ * No lanza. Un fallo pasajero (red, 5xx, 429) deja la sesión pendiente y `cerrarPendientes` lo
+ * reintenta; uno definitivo (403, 422) no: reintentarlo siempre daría lo mismo y esas sesiones
+ * ocuparían para siempre los primeros puestos del barrido, que solo mira las más antiguas.
  */
 export async function cerrarEnOrquestador(
   sesionId: string,
@@ -249,11 +259,20 @@ export async function cerrarEnOrquestador(
         : 0;
     // El tiempo solo lo acepta de la cuenta dueña; si el orquestador ya cerró la sesión, lo ignora.
     if (duenia && segundos > 0) {
-      await cliente.reportarTiempo(duenia, sesionIa.sesionOrquestador, segundos);
+      try {
+        await cliente.reportarTiempo(duenia, sesionIa.sesionOrquestador, segundos);
+      } catch (error) {
+        // La duración es un dato de apoyo del orquestador: que no se pueda reportar no impide
+        // cerrar la sesión. Si ya no existe allá, el cierre de abajo lo dirá.
+        if (!esDefinitivo(error)) throw error;
+        log.warn('orquestador.tiempo_no_reportado', { sesion_id: sesionId, tipo: tipoDe(error) });
+      }
     }
-    const cierre: CierreOrquestador = sesionIa.cierreMotivo
+    const cierre: CierreOrquestador | null = sesionIa.cierreMotivo
       ? CIERRE_POR_MOTIVO[sesionIa.cierreMotivo]
-      : 'success';
+      : sesion.estado === 'finalizada'
+        ? 'success'
+        : null;
     // La cuenta `teacher` asignó la sesión (o es su dueña): puede cerrarla siempre.
     await cliente.cerrarSesion(cuentaDocente(env), sesionIa.sesionOrquestador, cierre);
     await marcarCerradaEnOrquestador(sesionId);
@@ -264,10 +283,24 @@ export async function cerrarEnOrquestador(
       await marcarCerradaEnOrquestador(sesionId);
       return true;
     }
-    const tipo = error instanceof ErrorOrquestador ? error.tipo : 'desconocido';
-    log.warn('orquestador.sesion_no_cerrada', { sesion_id: sesionId, tipo });
+    if (esDefinitivo(error)) {
+      log.error('orquestador.sesion_incerrable', { sesion_id: sesionId, tipo: tipoDe(error) });
+      await marcarCerradaEnOrquestador(sesionId);
+      return true;
+    }
+    log.warn('orquestador.sesion_no_cerrada', { sesion_id: sesionId, tipo: tipoDe(error) });
     return false;
   }
+}
+
+const tipoDe = (error: unknown) => (error instanceof ErrorOrquestador ? error.tipo : 'desconocido');
+
+/** El orquestador rechazó la petición y volver a enviarla daría lo mismo (403, 404, 400, 422). */
+function esDefinitivo(error: unknown): boolean {
+  return (
+    error instanceof ErrorOrquestador &&
+    (error.tipo === 'permiso' || error.tipo === 'datos' || error.tipo === 'no_encontrado')
+  );
 }
 
 /**

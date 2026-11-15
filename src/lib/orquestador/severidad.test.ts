@@ -5,6 +5,8 @@ import {
   emocionPorSeveridad,
   intensidadPorSeveridad,
   lenguajeNoVerbal,
+  acotarBanderas,
+  acotarSeveridad,
 } from './severidad';
 
 const base = { severidadAnterior: null, emocionAnterior: null } as const;
@@ -94,5 +96,44 @@ describe('lenguajeNoVerbal', () => {
         { severidad: 1.2, severidadAnterior: 2.5, emocionAnterior: 'triste' }
       )
     ).toEqual({ emocion: 'aliviado', intensidad: 1, deducida: true });
+  });
+});
+
+// Auditoría, punto 5: `severidad` es `numeric(4,2) check between 0 and 5`. Un valor fuera de rango
+// hacía fallar `guardar_intercambio_ia` y el turno se perdía en cada reintento.
+describe('acotarSeveridad', () => {
+  it('deja como está una severidad dentro del rango', () => {
+    expect(acotarSeveridad(0)).toBe(0);
+    expect(acotarSeveridad(2.7)).toBe(2.7);
+    expect(acotarSeveridad(5)).toBe(5);
+  });
+
+  it('lleva al rango lo que se sale de él', () => {
+    expect(acotarSeveridad(5.4)).toBe(5);
+    expect(acotarSeveridad(12)).toBe(5);
+    expect(acotarSeveridad(-0.3)).toBe(0);
+  });
+
+  it('redondea a dos decimales, que es lo que guarda la base', () => {
+    expect(acotarSeveridad(2.3456789)).toBe(2.35);
+    expect(acotarSeveridad(4.999)).toBe(5);
+  });
+
+  it.each([null, undefined, '3', Number.NaN, Number.POSITIVE_INFINITY, {}])(
+    'lo que no es un número finito (%j) queda sin severidad',
+    valor => {
+      expect(acotarSeveridad(valor)).toBeNull();
+    }
+  );
+});
+
+describe('acotarBanderas', () => {
+  it('conserva los códigos, sin repetir y sin espacios', () => {
+    expect(acotarBanderas(['risk', ' abuse ', 'risk'])).toEqual(['risk', 'abuse']);
+  });
+
+  it('descarta lo que no es texto y recorta lo demasiado largo o numeroso', () => {
+    expect(acotarBanderas([7, null, '', 'x'.repeat(200)])).toEqual(['x'.repeat(40)]);
+    expect(acotarBanderas(Array.from({ length: 50 }, (_, i) => `b${i}`))).toHaveLength(12);
   });
 });
