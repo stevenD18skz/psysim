@@ -342,9 +342,12 @@ export function ConversationPanel({
               titulo="¿Volver a este momento?"
               descripcion={
                 <>
-                  Tu intervención «{recortar(aviso.mensaje.contenido)}» y lo que vino después salen
-                  de la conversación: {nombreCorto} no lo recordará. Tu docente verá este intento
-                  junto a la práctica.
+                  Tu intervención{' '}
+                  <span className="rounded bg-salvia-suave/75 px-1.5 py-0.5 font-medium text-salvia-oscuro">
+                    {recortar(aviso.mensaje.contenido)}
+                  </span>{' '}
+                  y lo que vino después salen de la conversación: {nombreCorto} no lo recordará. Tu
+                  docente verá este intento junto a la práctica.
                 </>
               }
               error={errorAviso}

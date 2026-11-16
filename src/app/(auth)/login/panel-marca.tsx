@@ -1,5 +1,6 @@
 'use client';
 
+import { Quote } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -49,10 +50,13 @@ export function PanelMarca() {
           </div>
 
           <figure className="max-w-md">
-            <blockquote className="text-xl leading-snug font-medium text-balance">
-              «{actual.paciente.apertura}»
-            </blockquote>
-            <figcaption className="mt-3 text-sm text-sidebar-muted">
+            <div className="flex items-start gap-3">
+              <Quote className="mt-1 size-5 shrink-0 text-laton-texto" aria-hidden />
+              <blockquote className="text-xl leading-snug font-medium text-balance">
+                {actual.paciente.apertura}
+              </blockquote>
+            </div>
+            <figcaption className="mt-3 pl-8 text-sm text-sidebar-muted">
               {actual.paciente.nombre}, {actual.paciente.edad} años · {actual.codigo}{' '}
               {actual.titulo}
             </figcaption>

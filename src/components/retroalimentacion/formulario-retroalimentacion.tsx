@@ -174,7 +174,7 @@ export function FormularioRetroalimentacion({
       }
       toast.success(
         publicada
-          ? `Cambios guardados. ${primerNombre} verá «Actualizada el ${formatearFechaHora(resultado.datos.actualizadoEn ?? new Date().toISOString())}».`
+          ? `Cambios guardados. ${primerNombre} verá la fecha de actualización (${formatearFechaHora(resultado.datos.actualizadoEn ?? new Date().toISOString())}).`
           : 'Borrador guardado.'
       );
     });

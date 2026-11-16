@@ -64,7 +64,12 @@ export function GuardarComoCaso({
           inputRef.current?.focus();
           return;
         }
-        toast.success(`«${datos.data.titulo}» guardado en Mis casos.`);
+        toast.success(
+          <>
+            Caso <strong className="font-semibold">{datos.data.titulo}</strong> guardado en Mis
+            casos.
+          </>
+        );
         onGuardado();
         cancelar();
       })

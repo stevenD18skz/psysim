@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckSquare } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -96,8 +96,11 @@ export default function PrivacidadPage() {
               Versión 1 · Última actualización: <PorConfirmar>fecha</PorConfirmar>
             </p>
             <p className="rounded-xl bg-ambar-suave px-4 py-3 text-sm text-ambar">
-              Este aviso es un borrador del trabajo de grado. Lo marcado «Por confirmar» se validará
-              con el director del proyecto y la Universidad del Valle.
+              Este aviso es un borrador del trabajo de grado. Los puntos marcados como{' '}
+              <span className="mx-0.5 inline-block rounded border border-ambar/35 bg-card px-1.5 py-0.5 text-[0.9em] font-medium text-ambar">
+                Por confirmar
+              </span>{' '}
+              se validarán con el director del proyecto y la Universidad del Valle.
             </p>
           </div>
 
@@ -294,11 +297,17 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 id="autorizacion">9. Tu autorización</h2>
+            <p>Antes de tu primera práctica te pedimos aceptar este consentimiento en pantalla:</p>
+            <p className="flex items-start gap-2.5 rounded-xl border bg-card px-4 py-3 text-sm text-foreground">
+              <CheckSquare className="mt-0.5 size-4 shrink-0 text-salvia-oscuro" aria-hidden />
+              <span>
+                Leí el aviso de privacidad y acepto que mi conversación se procese con Google Gemini
+                y que la lea mi docente.
+              </span>
+            </p>
             <p>
-              Antes de tu primera práctica te pedimos marcar «Leí el aviso de privacidad y acepto
-              que mi conversación se procese con Google Gemini y que la lea mi docente». Esa
-              aceptación se guarda en tu navegador. Si no quieres aceptarla, no empieces la práctica
-              y habla con tu docente.{' '}
+              Esa aceptación se guarda en tu navegador. Si no quieres aceptarla, no empieces la
+              práctica y habla con tu docente.{' '}
               <PorConfirmar>
                 si la universidad exige una autorización registrada o firmada
               </PorConfirmar>

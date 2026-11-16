@@ -1,6 +1,6 @@
 'use client';
 
-import { Highlighter, Loader2, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
+import { Highlighter, Loader2, MessageSquarePlus, Pencil, Quote, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -554,8 +554,9 @@ function NuevaAnotacion({
       }}
       className="flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2.5"
     >
-      <p className="line-clamp-2 border-l-2 border-amber-400 pl-2 text-xs text-muted-foreground italic">
-        «{seleccion.fragmento}»
+      <p className="flex items-start gap-2 rounded-lg bg-ambar-suave/60 px-2.5 py-2 text-xs leading-snug text-foreground">
+        <Quote className="mt-0.5 size-3.5 shrink-0 text-ambar" aria-hidden />
+        <span className="line-clamp-2">{seleccion.fragmento}</span>
       </p>
       <label htmlFor={id} className="sr-only">
         Comentario sobre la frase seleccionada
@@ -653,7 +654,9 @@ function DetalleAnotacion({
     >
       <div className="flex items-start gap-2">
         <NumeroAnotacion numero={numero} />
-        <p className="line-clamp-2 text-xs text-muted-foreground italic">«{anotacion.fragmento}»</p>
+        <p className="line-clamp-2 rounded-md bg-ambar-suave/60 px-2 py-0.5 text-xs leading-snug text-foreground">
+          {anotacion.fragmento}
+        </p>
       </div>
       {editando ? (
         <>
@@ -743,7 +746,14 @@ function ComentarioEnLista({
       >
         <span className="flex items-start gap-2">
           <NumeroAnotacion numero={numero} />
-          <span className="line-clamp-2 text-muted-foreground italic">«{anotacion.fragmento}»</span>
+          <span
+            className={cn(
+              'line-clamp-2 rounded-md px-2 py-0.5 text-xs leading-snug text-foreground',
+              activa ? 'bg-card/85' : 'bg-ambar-suave/60'
+            )}
+          >
+            {anotacion.fragmento}
+          </span>
         </span>
         <span className="line-clamp-3 pl-7 whitespace-pre-wrap">{anotacion.comentario}</span>
       </button>

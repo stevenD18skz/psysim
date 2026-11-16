@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, Monitor } from 'lucide-react';
+import { ArrowRight, ChevronDown, Monitor, Quote } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -212,10 +212,13 @@ export default function Home() {
                 </div>
               </div>
               <figcaption className="flex flex-col gap-2">
-                <blockquote className="text-xl leading-snug font-medium text-balance">
-                  «{portada.paciente.apertura}»
-                </blockquote>
-                <span className="text-sm text-sidebar-muted">
+                <div className="flex items-start gap-3">
+                  <Quote className="mt-1 size-5 shrink-0 text-laton-texto" aria-hidden />
+                  <blockquote className="text-xl leading-snug font-medium text-balance">
+                    {portada.paciente.apertura}
+                  </blockquote>
+                </div>
+                <span className="pl-8 text-sm text-sidebar-muted">
                   {portada.paciente.nombre}, {portada.paciente.edad} años · {portada.codigo}{' '}
                   {portada.titulo}
                 </span>
@@ -406,8 +409,10 @@ function RevisionIlustrativa() {
           </span>
           Comentario del docente
         </p>
-        <p className="leading-relaxed">
-          Buena pregunta abierta. Antes, valida lo que dijo: «Lo que sientes sí es importante».
+        <p className="leading-relaxed">Buena pregunta abierta. Antes, valida lo que dijo:</p>
+        <p className="flex items-start gap-2 rounded-lg bg-salvia-suave/65 px-3 py-2 text-sm text-salvia-oscuro">
+          <Quote className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>Lo que sientes sí es importante.</span>
         </p>
         <p className="text-xs text-muted-foreground">Ejemplo ilustrativo</p>
       </div>

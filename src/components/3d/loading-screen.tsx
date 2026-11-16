@@ -102,7 +102,7 @@ export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenPro
           {determinado && active ? `Cargando el consultorio… ${porcentaje} %` : 'Un momento…'}
         </p>
         <p role="status" className="sr-only">
-          {visible ? `Preparando el consultorio de «${titulo}»…` : ''}
+          {visible ? `Preparando el consultorio de ${titulo}…` : ''}
         </p>
       </div>
 

@@ -470,8 +470,9 @@ function AvisoSimulacionMovil({ sesion }: { sesion: SesionActiva }) {
             La simulación se abre en tu computador
           </h1>
           <p className="text-muted-foreground">
-            Necesitas teclado y ratón. Tu práctica de «{sesion.escenario.titulo}» sigue abierta:
-            ábrela desde un computador antes de que pasen 10 minutos sin actividad.
+            Necesitas teclado y ratón. Tu práctica de{' '}
+            <strong className="font-medium text-foreground">{sesion.escenario.titulo}</strong> sigue
+            abierta: ábrela desde un computador antes de que pasen 10 minutos sin actividad.
           </p>
         </div>
         <div className="flex flex-col gap-2">

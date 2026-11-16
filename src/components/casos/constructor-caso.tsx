@@ -157,12 +157,22 @@ export function ConstructorCaso({
 
   const usarEjemplo = (ejemplo: EjemploCaso) => {
     reset({ ...valoresVacios(), ...ejemplo.valores }, { keepDefaultValues: true });
-    toast.success(`Cargamos el ejemplo «${ejemplo.etiqueta}». Cámbialo a tu medida.`);
+    toast.success(
+      <>
+        Cargamos el ejemplo <strong className="font-semibold">{ejemplo.etiqueta}</strong>. Cámbialo
+        a tu medida.
+      </>
+    );
   };
 
   const cargarCasoBase = (casoBase: EscenarioCatalogo, nivel?: DificultadEscenario) => {
     reset(valoresDesdePlantilla(casoBase, nivel), { keepDefaultValues: true });
-    toast.success(`Cargamos la base de «${casoBase.titulo}». Ajústala a tu medida.`);
+    toast.success(
+      <>
+        Cargamos la base de <strong className="font-semibold">{casoBase.titulo}</strong>. Ajústala a
+        tu medida.
+      </>
+    );
   };
 
   const adaptarNivelActual = (nivel: DificultadEscenario, tituloBase?: string) => {
@@ -222,7 +232,13 @@ export function ConstructorCaso({
         }
         limpiar();
         toast.success(
-          casoId ? 'Caso actualizado.' : `Caso «${datos.titulo}» guardado en Mis casos.`
+          casoId ? (
+            'Caso actualizado.'
+          ) : (
+            <>
+              Caso <strong className="font-semibold">{datos.titulo}</strong> guardado en Mis casos.
+            </>
+          )
         );
         router.push(`/configuracion?caso=${resultado.datos.id}`);
         router.refresh();
