@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 
 import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { IndicadorNivel } from '@/components/casos/insignias-caso';
 import { Desplegable } from '@/components/comun/desplegable';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
@@ -35,11 +36,7 @@ import {
   HERRAMIENTAS_PRACTICA,
   objetivosDePractica,
 } from '@/lib/escenarios/preparacion';
-import {
-  ETIQUETA_CATEGORIA,
-  ETIQUETA_DIFICULTAD,
-  NIVEL_DIFICULTAD,
-} from '@/lib/escenarios/etiquetas';
+import { ETIQUETA_CATEGORIA } from '@/lib/escenarios/etiquetas';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { MINUTOS_CIERRE_INACTIVIDAD, plazoAlSalir } from '@/lib/fechas';
 import { AVISO_FINAL_S, enMinutos, GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
@@ -133,7 +130,6 @@ export function InstruccionesCaso({
   const [ahoraNo, setAhoraNo] = useState<string | null>(null);
 
   const { escenario, npc, estudiante } = sesion;
-  const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
   const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
   const aviso = avisoDeContenido(escenario.codigo);
   // La regla del tiempo va justo antes de la de «Terminar práctica», que la completa.
@@ -194,20 +190,7 @@ export function InstruccionesCaso({
               <span aria-hidden>·</span>
               <span>Caso {ETIQUETA_CATEGORIA[escenario.categoria].toLowerCase()}</span>
               <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1.5">
-                Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}
-                <span aria-hidden className="flex gap-0.5">
-                  {[1, 2, 3].map(n => (
-                    <span
-                      key={n}
-                      className={cn(
-                        'h-2.5 w-1.5 rounded-[1px]',
-                        n <= nivel ? 'bg-sidebar-foreground' : 'bg-sidebar-foreground/25'
-                      )}
-                    />
-                  ))}
-                </span>
-              </span>
+              <IndicadorNivel dificultad={escenario.dificultad} sobreMadera />
             </DialogDescription>
           </DialogHeader>
 

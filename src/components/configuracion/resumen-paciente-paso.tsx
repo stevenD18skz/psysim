@@ -1,13 +1,13 @@
 'use client';
 
-import { CopyPlus, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { CopyPlus, MessagesSquare, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
+import { IndicadorNivel } from '@/components/casos/insignias-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { Button } from '@/components/ui/button';
 import { type AjustesPractica, AJUSTES_VACIOS } from '@/lib/casos/ajustes';
-import { ETIQUETA_DIFICULTAD, NIVEL_DIFICULTAD } from '@/lib/escenarios/etiquetas';
-import { cn } from '@/lib/utils';
+import { ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { type DificultadEscenario, type EscenarioCatalogo } from '@/types';
 
 const DESCRIPCION_NIVEL: Record<DificultadEscenario, string> = {
@@ -35,7 +35,6 @@ export function ResumenPacientePaso({
   onAplicarAtajo,
 }: ResumenPacientePasoProps) {
   const primerNombre = escenario.npc.nombre.split(' ')[0];
-  const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
 
   return (
     <div className="flex flex-col justify-between overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0">
@@ -65,17 +64,7 @@ export function ResumenPacientePaso({
           <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 p-3.5">
             <dt className="flex items-center justify-between text-xs font-medium text-muted-foreground">
               <span>Exigencia del caso</span>
-              <span className="flex gap-0.5" aria-hidden>
-                {[1, 2, 3].map(paso => (
-                  <span
-                    key={paso}
-                    className={cn(
-                      'h-2.5 w-1.5 rounded-full',
-                      paso <= nivel ? 'bg-nogal' : 'bg-border'
-                    )}
-                  />
-                ))}
-              </span>
+              <IndicadorNivel dificultad={escenario.dificultad} soloBarras />
             </dt>
             <dd className="text-sm font-bold">
               Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}
@@ -87,7 +76,10 @@ export function ResumenPacientePaso({
 
           <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 p-3.5">
             <dt className="text-xs font-medium text-muted-foreground">Apertura inicial</dt>
-            <dd className="text-sm font-bold">Según el trato recibido</dd>
+            <dd className="flex items-center gap-1.5 text-sm font-bold">
+              <MessagesSquare className="size-4 shrink-0 text-salvia" aria-hidden />
+              Según el trato recibido
+            </dd>
             <dd className="text-xs leading-snug text-muted-foreground">
               Responde al vínculo y cuenta su historia poco a poco, sin soltar todo de entrada.
             </dd>

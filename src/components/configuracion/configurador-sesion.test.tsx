@@ -289,15 +289,18 @@ describe('ConfiguradorSesion', () => {
     );
   });
 
-  it('lista los casos propios aparte, con acciones para editarlos y eliminarlos', async () => {
+  it('lista los casos propios primero cuando hay, y los separa de los predefinidos', async () => {
     const usuario = userEvent.setup();
     renderizar([E01, PROPIO]);
 
-    // Al cambiar a «Mis casos», se ocultan los predefinidos y aparecen los propios.
-    expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: /Mi caso de ansiedad/ })).not.toBeInTheDocument();
+    const pestanas = within(screen.getByRole('group', { name: 'Secciones de casos' }))
+      .getAllByRole('button')
+      .map(b => b.textContent);
+    expect(pestanas[0]).toMatch(/^Mis casos/);
+    expect(pestanas[1]).toMatch(/^Casos predefinidos/);
 
-    await usuario.click(screen.getByRole('button', { name: /Mis casos/ }));
+    // Con casos propios creados, abre directo en «Mis casos» sin mezclar secciones.
+    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /Duelo y pérdida/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
     // Con casos, la creación es una tarjeta punteada junto a ellos.
@@ -305,7 +308,6 @@ describe('ConfiguradorSesion', () => {
       'href',
       '/configuracion/casos/nuevo'
     );
-    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })
     ).toHaveAttribute('href', `/configuracion/casos/${PROPIO.id}`);
@@ -325,6 +327,10 @@ describe('ConfiguradorSesion', () => {
     expect(
       screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
     ).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /Casos predefinidos/ }));
+    expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Mi caso de ansiedad/ })).not.toBeInTheDocument();
   });
 
   it('llega con un caso propio preseleccionado y su prompt cargado', async () => {

@@ -1,12 +1,8 @@
-import { Check, Coffee, HeartPulse, Target } from 'lucide-react';
+import { Check, Target } from 'lucide-react';
 import { type ReactNode } from 'react';
 
+import { IndicadorNivel, InsigniaCategoria } from '@/components/casos/insignias-caso';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
-import {
-  ETIQUETA_CATEGORIA,
-  ETIQUETA_DIFICULTAD,
-  NIVEL_DIFICULTAD,
-} from '@/lib/escenarios/etiquetas';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { type EscenarioCatalogo } from '@/types';
@@ -41,8 +37,6 @@ export function TarjetaEscenario({
   describedBy,
   acciones,
 }: TarjetaEscenarioProps) {
-  const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
-  const IconoCategoria = escenario.categoria === 'clinico' ? HeartPulse : Coffee;
   const idBase = `escenario-${escenario.codigo.toLowerCase()}`;
 
   return (
@@ -84,17 +78,7 @@ export function TarjetaEscenario({
               {escenario.codigo}
             </span>
           )}
-          <span
-            className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-              escenario.categoria === 'clinico'
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-sage text-sage-foreground'
-            )}
-          >
-            <IconoCategoria className="size-3" aria-hidden />
-            {ETIQUETA_CATEGORIA[escenario.categoria]}
-          </span>
+          <InsigniaCategoria categoria={escenario.categoria} />
           <span
             aria-hidden
             className={cn(
@@ -135,18 +119,9 @@ export function TarjetaEscenario({
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <dt className="sr-only">Nivel de complejidad</dt>
-            <span className="flex gap-0.5" aria-hidden>
-              {[1, 2, 3].map(paso => (
-                <span
-                  key={paso}
-                  className={cn(
-                    'h-2.5 w-1.5 rounded-full',
-                    paso <= nivel ? 'bg-nogal' : 'bg-border'
-                  )}
-                />
-              ))}
-            </span>
-            <dd>Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}</dd>
+            <dd>
+              <IndicadorNivel dificultad={escenario.dificultad} />
+            </dd>
           </div>
         </dl>
       </label>

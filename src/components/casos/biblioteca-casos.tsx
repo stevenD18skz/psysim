@@ -1,19 +1,15 @@
 'use client';
 
-import { ArrowRight, Coffee, CopyPlus, HeartPulse } from 'lucide-react';
+import { ArrowRight, CopyPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { IndicadorNivel, InsigniaCategoria } from '@/components/casos/insignias-caso';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
-import {
-  ETIQUETA_CATEGORIA,
-  ETIQUETA_DIFICULTAD,
-  NIVEL_DIFICULTAD,
-} from '@/lib/escenarios/etiquetas';
+import { ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
-import { cn } from '@/lib/utils';
 import { type EscenarioCatalogo } from '@/types';
 
 /**
@@ -44,8 +40,15 @@ export function BibliotecaCasos({
   return (
     <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {casos.map(caso => {
-        const nivel = NIVEL_DIFICULTAD[caso.dificultad];
-        const IconoCategoria = caso.categoria === 'clinico' ? HeartPulse : Coffee;
+        const botonAsignar = (
+          <Button asChild variant="ghost" size="sm" className="font-semibold">
+            <Link href={`/configuracion?caso=${caso.id}`}>
+              Asignar
+              <span className="sr-only"> el caso {caso.titulo}</span>
+              <ArrowRight aria-hidden />
+            </Link>
+          </Button>
+        );
         return (
           <li key={caso.id} className="flex flex-col overflow-hidden rounded-xl border bg-card">
             <div className="flex flex-1 flex-col gap-4 p-5">
@@ -66,29 +69,30 @@ export function BibliotecaCasos({
                 </div>
               </div>
               <p className="line-clamp-3 text-sm text-muted-foreground">{caso.descripcion}</p>
-              <dl className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                <div className="flex items-center gap-1.5">
+              <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+                <div className="flex items-center gap-2">
                   <dt className="sr-only">Tipo</dt>
-                  <IconoCategoria className="size-4 text-salvia" aria-hidden />
-                  <dd>
-                    {caso.propio ? 'Caso propio' : caso.codigo} ·{' '}
-                    {ETIQUETA_CATEGORIA[caso.categoria]}
+                  <dd className="flex items-center gap-2">
+                    <span
+                      className={
+                        caso.propio
+                          ? 'rounded-md bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro'
+                          : 'rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground'
+                      }
+                    >
+                      {caso.propio ? 'Propio' : caso.codigo}
+                    </span>
+                    <InsigniaCategoria categoria={caso.categoria} />
                   </dd>
                 </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
+                <div className="flex items-center text-muted-foreground">
                   <dt className="sr-only">Nivel</dt>
-                  <span className="flex gap-0.5" aria-hidden>
-                    {[1, 2, 3].map(paso => (
-                      <span
-                        key={paso}
-                        className={cn(
-                          'h-2.5 w-1.5 rounded-full',
-                          paso <= nivel ? 'bg-nogal' : 'bg-border'
-                        )}
-                      />
-                    ))}
-                  </span>
-                  <dd>{ETIQUETA_DIFICULTAD[caso.dificultad]}</dd>
+                  <dd>
+                    <IndicadorNivel
+                      dificultad={caso.dificultad}
+                      etiqueta={ETIQUETA_DIFICULTAD[caso.dificultad]}
+                    />
+                  </dd>
                 </div>
                 <div className="basis-full">
                   <dt className="sr-only">Competencia que entrena</dt>
@@ -116,29 +120,27 @@ export function BibliotecaCasos({
                 </div>
               </dl>
             </div>
-            <div className="flex min-h-12 flex-wrap items-center gap-1 border-t bg-muted/40 px-2 py-1.5">
+            <div className="flex min-h-12 items-center gap-1 border-t bg-muted/40 px-2 py-1.5">
               {caso.propio ? (
                 <AccionesCasoPropio
                   casoId={caso.id}
                   titulo={caso.titulo}
                   onEliminado={() => router.refresh()}
+                  soloIconos
+                  extra={botonAsignar}
                 />
               ) : (
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/configuracion/casos/nuevo?desde=${caso.id}`}>
-                    <CopyPlus aria-hidden />
-                    Crear caso a partir de este
-                    <span className="sr-only">: {caso.titulo}</span>
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/configuracion/casos/nuevo?desde=${caso.id}`}>
+                      <CopyPlus aria-hidden />
+                      Crear caso a partir de este
+                      <span className="sr-only">: {caso.titulo}</span>
+                    </Link>
+                  </Button>
+                  <div className="ml-auto">{botonAsignar}</div>
+                </>
               )}
-              <Button asChild variant="ghost" size="sm" className="ml-auto font-semibold">
-                <Link href={`/configuracion?caso=${caso.id}`}>
-                  Asignar
-                  <span className="sr-only"> el caso {caso.titulo}</span>
-                  <ArrowRight aria-hidden />
-                </Link>
-              </Button>
             </div>
           </li>
         );

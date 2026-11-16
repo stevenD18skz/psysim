@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
+import { IndicadorNivel, InsigniaCategoria } from '@/components/casos/insignias-caso';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +23,7 @@ import {
   type EscenarioPublico,
   NIVELES_PUBLICOS,
 } from '@/lib/landing/escenarios';
-import { cn } from '@/lib/utils';
+import { type CategoriaEscenario, type DificultadEscenario } from '@/types';
 
 /**
  * Galería de escenarios: tarjetas con la captura de cada consultorio. Al elegir una se abre un
@@ -70,6 +71,17 @@ export function EscenariosGaleria() {
   );
 }
 
+const CATEGORIA_PUBLICA: Record<EscenarioPublico['categoria'], CategoriaEscenario> = {
+  Clínico: 'clinico',
+  Cotidiano: 'cotidiano',
+};
+
+const DIFICULTAD_PUBLICA: Record<1 | 2 | 3, DificultadEscenario> = {
+  1: 'basico',
+  2: 'intermedio',
+  3: 'avanzado',
+};
+
 function IconoCategoria({ categoria, className }: { categoria: string; className?: string }) {
   const Icono = categoria === 'Clínico' ? HeartPulse : Coffee;
   return <Icono className={className} aria-hidden />;
@@ -77,17 +89,7 @@ function IconoCategoria({ categoria, className }: { categoria: string; className
 
 function NivelPuntos({ nivel }: { nivel: 1 | 2 | 3 }) {
   return (
-    <span className="flex items-center gap-2">
-      <span className="flex gap-0.5" aria-hidden>
-        {[1, 2, 3].map(paso => (
-          <span
-            key={paso}
-            className={cn('h-3 w-1.5 rounded-full', paso <= nivel ? 'bg-nogal' : 'bg-border')}
-          />
-        ))}
-      </span>
-      {NIVELES_PUBLICOS[nivel]}
-    </span>
+    <IndicadorNivel dificultad={DIFICULTAD_PUBLICA[nivel]} etiqueta={NIVELES_PUBLICOS[nivel]} />
   );
 }
 
@@ -129,12 +131,9 @@ function TarjetaEscenarioPublico({
       </span>
 
       <span className="flex flex-1 flex-col gap-3 p-5">
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
           <span className="font-mono font-medium text-foreground">{escenario.codigo}</span>
-          <span className="inline-flex items-center gap-1">
-            <IconoCategoria categoria={escenario.categoria} className="size-3" />
-            {escenario.categoria}
-          </span>
+          <InsigniaCategoria categoria={CATEGORIA_PUBLICA[escenario.categoria]} />
         </span>
         <span className="-mt-1 text-xl font-bold tracking-[-0.01em]">{escenario.titulo}</span>
         <span className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -248,7 +247,7 @@ function DetalleEscenario({
               Primera frase del paciente
             </figcaption>
             <blockquote className="text-lg leading-snug font-medium">
-              «{escenario.paciente.apertura}»
+              {escenario.paciente.apertura}
             </blockquote>
           </figure>
         </div>

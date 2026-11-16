@@ -1,9 +1,10 @@
-import { FilePlus2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { AyudaContextual } from '@/components/comun/ayuda-contextual';
-import { BibliotecaCasos, type UsoCaso } from '@/components/casos/biblioteca-casos';
+import { type UsoCaso } from '@/components/casos/biblioteca-casos';
+import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
+import { SeccionesCasos } from '@/components/casos/secciones-casos';
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 import { Button } from '@/components/ui/button';
@@ -61,14 +62,14 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
   const totalPropios = casos.filter(c => c.propio).length;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
         titulo="Casos"
         descripcion="Cada caso es un paciente con su historia y la competencia que entrena. Usa los de PsySim o crea los tuyos."
         acciones={
           <Button asChild variant="accion" size="lg">
             <Link href="/configuracion/casos/nuevo">
-              <FilePlus2 aria-hidden />
+              <Plus aria-hidden />
               Crear caso
             </Link>
           </Button>
@@ -109,59 +110,22 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
           Ningún caso coincide con la búsqueda. Prueba con otras palabras o quita los filtros.
         </p>
       ) : (
-        <>
-          {(!hayFiltros || propios.length > 0) && (
-            <section aria-labelledby="mis-casos" className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <h2 id="mis-casos" className="text-xl font-bold tracking-[-0.015em]">
-                  Mis casos
-                </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground tabular-nums">
-                  {hayFiltros ? `${propios.length} de ${totalPropios}` : totalPropios}
-                </span>
-                <AyudaContextual
-                  etiqueta="Qué son Mis casos"
-                  texto="Son los pacientes diseñados por ti. Puedes crearlos desde cero o a partir de cualquier caso de abajo, por ejemplo para cambiarle el nivel de dificultad."
-                />
-              </div>
-              <BibliotecaCasos
-                casos={propios}
-                uso={uso}
-                vacio={
-                  <p className="rounded-xl border border-dashed border-input/50 px-5 py-6 text-sm text-muted-foreground">
-                    Aún no has creado casos. Con el constructor guiado defines al paciente, su
-                    motivo de consulta, cómo se comporta y lo que guarda, o partes de un caso de
-                    PsySim para cambiarle el nivel de dificultad.{' '}
-                    <Link
-                      href="/configuracion/casos/nuevo"
-                      className="font-medium text-foreground underline"
-                    >
-                      Crear el primero
-                    </Link>
-                  </p>
-                }
-              />
-            </section>
-          )}
-
-          {dePsySim.length > 0 && (
-            <section aria-labelledby="casos-psysim" className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <h2 id="casos-psysim" className="text-xl font-bold tracking-[-0.015em]">
-                  Casos de PsySim
-                </h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground tabular-nums">
-                  {dePsySim.length}
-                </span>
-                <AyudaContextual
-                  etiqueta="Qué son los Casos de PsySim"
-                  texto="Catálogo oficial de 12 pacientes clínicos y cotidianos listos para asignar. A partir de cualquiera puedes crear tu propia versión o variar su dificultad."
-                />
-              </div>
-              <BibliotecaCasos casos={dePsySim} uso={uso} />
-            </section>
-          )}
-        </>
+        <SeccionesCasos
+          propios={propios}
+          predefinidos={dePsySim}
+          uso={uso}
+          // Con «Mis casos» vacío (sin filtros) abre en los predefinidos, que es lo que hay que ver.
+          inicial={totalPropios > 0 || hayFiltros ? 'propios' : 'predefinidos'}
+          vacioPropios={
+            totalPropios > 0 ? (
+              <p className="rounded-xl border border-dashed border-input/50 px-5 py-6 text-sm text-muted-foreground">
+                Ninguno de tus casos coincide con los filtros.
+              </p>
+            ) : (
+              <EstadoVacioMisCasos contexto="biblioteca" />
+            )
+          }
+        />
       )}
     </div>
   );
