@@ -66,12 +66,15 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
       sesiones: suma.sesiones + metricas.sesiones,
       enCurso: suma.enCurso + metricas.enCurso,
       pendientes: suma.pendientes + metricas.pendientesRetroalimentacion,
+      codigos: suma.codigos + metricas.codigosPendientes,
     }),
-    { sesiones: 0, enCurso: 0, pendientes: 0 }
+    { sesiones: 0, enCurso: 0, pendientes: 0, codigos: 0 }
   );
 
+  const conCuenta = estudiantes.filter(e => e.cuentaVinculada).length;
+
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
         titulo="Estudiantes"
         descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con su cuenta de Google de la universidad, sin contraseña."
@@ -96,19 +99,50 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
         <>
           <Indicadores
             indicadores={[
-              { etiqueta: 'Estudiantes', valor: estudiantes.length },
-              { etiqueta: 'Practicando ahora', valor: totales.enCurso },
-              { etiqueta: 'Por revisar', valor: totales.pendientes },
-              { etiqueta: 'Prácticas', valor: totales.sesiones },
+              {
+                etiqueta: 'Estudiantes',
+                valor: estudiantes.length,
+                detalle: `${conCuenta} con cuenta de Google`,
+                ayuda:
+                  'Estudiantes registrados. Los que figuran con cuenta ya entraron al menos una vez con su correo institucional.',
+              },
+              {
+                etiqueta: 'Practicando ahora',
+                valor: totales.enCurso,
+                detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
+                tono: totales.enCurso > 0 ? 'activo' : undefined,
+              },
+              {
+                etiqueta: 'Por revisar',
+                valor: totales.pendientes,
+                detalle: totales.pendientes === 0 ? 'Al día' : 'Esperan retroalimentación',
+                tono: totales.pendientes > 0 ? 'atencion' : undefined,
+              },
+              {
+                etiqueta: 'Códigos sin usar',
+                valor: totales.codigos,
+                detalle: totales.codigos === 0 ? 'Ninguno esperando' : 'Aún vigentes',
+                ayuda: 'Códigos de un solo uso que el estudiante todavía no ha usado.',
+              },
+              {
+                etiqueta: 'Prácticas',
+                valor: totales.sesiones,
+                detalle: 'Entre todos tus estudiantes',
+              },
             ]}
           />
           <div className="flex flex-col gap-4">
             <ListaEstudiantes
               estudiantes={resultado.visibles}
               vacio={
-                consulta
-                  ? `Ningún estudiante coincide con «${consulta}».`
-                  : 'Ningún estudiante cumple este filtro.'
+                consulta ? (
+                  <>
+                    Ningún estudiante coincide con{' '}
+                    <span className="font-medium text-foreground">{consulta}</span>.
+                  </>
+                ) : (
+                  'Ningún estudiante cumple este filtro.'
+                )
               }
               controles={
                 <div
