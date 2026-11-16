@@ -50,138 +50,148 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
   const publicada = sesion.retroalimentacion?.publicada ?? false;
   const sinConversacion = sesion.estado === 'interrumpida' && !sesion.comenzada;
   const comentario = sesion.retroalimentacion?.comentarioGeneral?.trim() ?? null;
-  const accion = publicada ? 'Leer retroalimentación' : 'Ver';
+  const intervenciones = sesion.comenzada ? sesion.totalIntervenciones : 0;
 
   return (
-    // La nota va arriba a la derecha y las acciones debajo del contenido: en una columna lateral fija
-    // le quitaban al texto casi todo el ancho de la tarjeta.
-    <li className="px-4 py-4 transition-colors hover:bg-muted/50 sm:px-5">
-      <div className="flex flex-col gap-3">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground ancho-condensado tabular-nums">
-                {formatearDia(sesion.fin ?? sesion.inicio)}
-              </span>
-              <span
-                className={cn(
-                  'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
-                  sinConversacion
-                    ? 'bg-muted text-muted-foreground'
-                    : publicada
-                      ? 'bg-salvia-suave text-salvia-oscuro'
-                      : 'bg-ambar-suave text-ambar'
-                )}
-              >
-                {sinConversacion
-                  ? 'Sin conversación'
-                  : publicada
-                    ? 'Con retroalimentación'
-                    : 'Esperando retroalimentación'}
-              </span>
-              {sesion.comenzada && (
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-md border px-2 py-0.5 text-xs',
-                    sesion.tieneReflexion
-                      ? 'border-salvia/30 bg-salvia-suave/50 font-medium text-salvia-oscuro'
-                      : 'border-border/80 bg-muted/40 text-muted-foreground'
-                  )}
-                >
-                  {sesion.tieneReflexion ? 'Con tu reflexión' : 'Sin reflexión aún'}
-                </span>
-              )}
-            </div>
-            {publicada && (
-              <p className="flex shrink-0 items-baseline gap-1">
-                <span className="text-xl leading-none font-semibold ancho-semiexpandido tabular-nums">
-                  {formatearNota(sesion.retroalimentacion?.nota ?? null)}
-                </span>
-                <span className="text-xs text-muted-foreground">de 5,0</span>
-              </p>
+    // Una tarjeta, una lectura: estado y fecha, el caso, quién y cuánto, y a la derecha lo único
+    // que se hace aquí (la nota y la acción principal). El detalle completo vive en la página de
+    // la práctica; la reflexión pasó de etiqueta a enlace secundario.
+    <li className="grid gap-4 px-4 py-4 transition-colors hover:bg-muted/40 sm:px-6 sm:py-5 md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:gap-8">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span
+            className={cn(
+              'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+              sinConversacion
+                ? 'bg-muted text-muted-foreground'
+                : publicada
+                  ? 'bg-salvia-suave text-salvia-oscuro'
+                  : 'bg-ambar-suave text-ambar'
             )}
-          </div>
-
-          <p className="font-semibold text-foreground">
-            <CodigoCaso
-              codigo={sesion.escenario.codigo}
-              className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
-            />
-            {sesion.escenario.titulo}
-          </p>
-
-          {(sesion.escenario.paciente || sesion.escenario.competenciaCentral) && (
-            // Sin «·» entre los datos: al saltar de línea el separador quedaba suelto al final.
-            <p className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-              {sesion.escenario.paciente && (
-                <span>
-                  Paciente:{' '}
-                  <span className="font-medium text-terracota">{sesion.escenario.paciente}</span>
-                </span>
-              )}
-              {sesion.escenario.competenciaCentral && (
-                <span>Competencia: {sesion.escenario.competenciaCentral}</span>
-              )}
-            </p>
-          )}
-
-          <p className="text-xs text-muted-foreground tabular-nums">
+          >
             {sinConversacion
-              ? 'Se cerró antes de que conversaras.'
-              : [
-                  sesion.estado === 'interrumpida' ? 'Se cerró antes de terminar' : 'Terminada',
-                  duracion !== null ? formatearDuracion(duracion) : null,
-                  sesion.comenzada && sesion.totalIntervenciones > 0
-                    ? `${sesion.totalIntervenciones} ${sesion.totalIntervenciones === 1 ? 'intervención' : 'intervenciones'}`
-                    : null,
-                  sesion.docente ? `Docente: ${sesion.docente}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-          </p>
-
-          {publicada && sesion.totalAnotaciones > 0 && (
-            <p className="flex items-center gap-1 text-xs font-medium text-foreground">
-              <MessageSquareText className="size-3.5 text-salvia" aria-hidden />
-              {sesion.totalAnotaciones}{' '}
-              {sesion.totalAnotaciones === 1
-                ? 'comentario en tus frases'
-                : 'comentarios en tus frases'}
-            </p>
-          )}
-
-          {publicada && comentario && (
-            <blockquote className="mt-2 rounded-lg border border-salvia/40 bg-salvia-suave/35 px-3 py-2 text-xs leading-relaxed text-foreground">
-              <p className="line-clamp-2">«{comentario}»</p>
-            </blockquote>
-          )}
+              ? 'Sin conversación'
+              : publicada
+                ? 'Con retroalimentación'
+                : 'Esperando retroalimentación'}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatearDia(sesion.fin ?? sesion.inicio)}
+          </span>
         </div>
 
-        {!sinConversacion && (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link
-              href={`/resultados?sesion=${sesion.id}`}
-              className="inline-flex min-h-8 items-center rounded-lg border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-            >
-              {sesion.tieneReflexion ? 'Resumen y reflexión' : 'Escribir reflexión'}
-            </Link>
-            <Link
-              href={`/practicas/${sesion.id}`}
-              className={cn(
-                'inline-flex min-h-8 items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                publicada
-                  ? 'bg-salvia-suave text-salvia-oscuro hover:bg-salvia-suave/80'
-                  : 'border bg-card text-foreground hover:bg-muted'
+        <p className="text-base leading-snug font-semibold text-foreground">
+          <CodigoCaso
+            codigo={sesion.escenario.codigo}
+            className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
+          />
+          {sesion.escenario.titulo}
+        </p>
+
+        {/* Sin «·» entre los datos: al saltar de línea el separador quedaba suelto al final. */}
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground tabular-nums">
+          {sinConversacion ? (
+            <span>Se cerró antes de que conversaras.</span>
+          ) : (
+            <>
+              {sesion.escenario.paciente && (
+                <span className="font-medium text-terracota">{sesion.escenario.paciente}</span>
               )}
-            >
-              {accion}
-              <span className="sr-only">: {sesion.escenario.titulo}</span>
-              <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          </div>
+              {sesion.docente && <span>Docente: {sesion.docente}</span>}
+              {duracion !== null && <span>{formatearDuracion(duracion)}</span>}
+              {intervenciones > 0 && (
+                <span>
+                  {intervenciones} {intervenciones === 1 ? 'intervención' : 'intervenciones'}
+                </span>
+              )}
+              {sesion.estado === 'interrumpida' && <span>Se cerró antes de terminar</span>}
+            </>
+          )}
+        </p>
+
+        {publicada && comentario && (
+          <p className="flex gap-2 border-l-2 border-salvia/50 pl-3 text-sm leading-relaxed text-foreground">
+            <span className="line-clamp-2">{comentario}</span>
+          </p>
+        )}
+        {publicada && sesion.totalAnotaciones > 0 && (
+          <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <MessageSquareText className="size-4 text-salvia" aria-hidden />
+            {sesion.totalAnotaciones}{' '}
+            {sesion.totalAnotaciones === 1
+              ? 'comentario en tus frases'
+              : 'comentarios en tus frases'}
+          </p>
         )}
       </div>
+
+      {!sinConversacion && (
+        <div className="flex flex-col gap-3 md:items-stretch md:text-center">
+          {publicada && (
+            <p className="flex items-baseline gap-1.5 md:flex-col md:items-center md:gap-0">
+              <span className="text-2xl leading-none font-semibold ancho-semiexpandido tabular-nums">
+                {formatearNota(sesion.retroalimentacion?.nota ?? null)}
+              </span>
+              <span className="text-xs text-muted-foreground">de 5,0</span>
+            </p>
+          )}
+          <Link
+            href={`/practicas/${sesion.id}`}
+            className={cn(
+              'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+              publicada
+                ? 'bg-salvia-suave text-salvia-oscuro hover:bg-salvia-suave/80'
+                : 'border bg-card text-foreground hover:bg-muted'
+            )}
+          >
+            {publicada ? 'Leer retroalimentación' : 'Ver práctica'}
+            <span className="sr-only">: {sesion.escenario.titulo}</span>
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+          <Link
+            href={`/resultados?sesion=${sesion.id}`}
+            className="rounded-md text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+          >
+            {sesion.tieneReflexion ? 'Ver mi reflexión' : 'Escribir reflexión'}
+          </Link>
+        </div>
+      )}
     </li>
+  );
+}
+
+/** Opción del filtro de estado: etiqueta en una línea y la cantidad aparte, en cifra tabular. */
+function OpcionFiltro({
+  activo,
+  onSelect,
+  etiqueta,
+  total,
+}: {
+  activo: boolean;
+  onSelect: () => void;
+  etiqueta: string;
+  total: number;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={activo}
+      onClick={onSelect}
+      className={cn(
+        'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+        activo ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      {etiqueta}
+      <span
+        className={cn(
+          'rounded-full px-1.5 text-xs leading-5 tabular-nums',
+          activo ? 'bg-muted text-foreground' : 'bg-muted/70'
+        )}
+      >
+        {total}
+      </span>
+    </button>
   );
 }
 
@@ -339,76 +349,50 @@ export function HistorialPracticasEstudiante({
   return (
     <div className="flex flex-col gap-6">
       {mostrarControles && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <PistaSegmentada
             role="group"
             aria-label="Filtrar prácticas por estado"
             claseIndicador="rounded-lg bg-card shadow-xs"
-            className="inline-flex flex-wrap items-center gap-1 self-start rounded-xl border bg-muted/60 p-1"
+            // En celular, rejilla de dos columnas (una fila de cuatro opciones no cabe y se
+            // rompía); desde 640 px, una sola fila. La última opción sola ocupa el ancho completo.
+            className="grid grid-cols-2 gap-1 rounded-xl border bg-muted/60 p-1 sm:flex sm:self-start [&>:last-child:nth-child(odd)]:col-span-2"
           >
-            <button
-              type="button"
-              aria-pressed={filtro === 'todas'}
-              onClick={() => setFiltro('todas')}
-              className={cn(
-                'min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                filtro === 'todas'
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Todas · {terminadas.length}
-            </button>
-            <button
-              type="button"
-              aria-pressed={filtro === 'con_retro'}
-              onClick={() => setFiltro('con_retro')}
-              className={cn(
-                'min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                filtro === 'con_retro'
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Con retroalimentación · {totalConRetro}
-            </button>
-            <button
-              type="button"
-              aria-pressed={filtro === 'esperando'}
-              onClick={() => setFiltro('esperando')}
-              className={cn(
-                'min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                filtro === 'esperando'
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Esperando revisión · {totalEsperando}
-            </button>
+            <OpcionFiltro
+              activo={filtro === 'todas'}
+              onSelect={() => setFiltro('todas')}
+              etiqueta="Todas"
+              total={terminadas.length}
+            />
+            <OpcionFiltro
+              activo={filtro === 'con_retro'}
+              onSelect={() => setFiltro('con_retro')}
+              etiqueta="Con retroalimentación"
+              total={totalConRetro}
+            />
+            <OpcionFiltro
+              activo={filtro === 'esperando'}
+              onSelect={() => setFiltro('esperando')}
+              etiqueta="Esperando revisión"
+              total={totalEsperando}
+            />
             {totalSinConversacion > 0 && (
-              <button
-                type="button"
-                aria-pressed={filtro === 'sin_conversacion'}
-                onClick={() => setFiltro('sin_conversacion')}
-                className={cn(
-                  'min-h-8 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                  filtro === 'sin_conversacion'
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Sin conversación · {totalSinConversacion}
-              </button>
+              <OpcionFiltro
+                activo={filtro === 'sin_conversacion'}
+                onSelect={() => setFiltro('sin_conversacion')}
+                etiqueta="Sin conversación"
+                total={totalSinConversacion}
+              />
             )}
           </PistaSegmentada>
 
           {mostrarBuscador && (
-            <div className="relative w-full sm:max-w-60">
+            <div className="relative w-full lg:w-80 lg:shrink-0">
               <label htmlFor="buscar-practica-estudiante" className="sr-only">
                 Buscar por caso, paciente o docente
               </label>
               <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
               />
               <Input
@@ -417,7 +401,7 @@ export function HistorialPracticasEstudiante({
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar caso, paciente o docente…"
-                className="h-9 pl-8 text-xs"
+                className="h-10 pl-9 text-sm"
               />
             </div>
           )}

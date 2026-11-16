@@ -37,7 +37,7 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
 
   return (
     <header className="sticky top-0 z-30 vetas-nogal text-sidebar-foreground print:hidden">
-      <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-[88rem] items-center gap-3 px-4 sm:gap-6 sm:px-6">
         <Link
           href="/practicas"
           className="flex items-center rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-laton"
@@ -50,11 +50,18 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
             href="/practicas"
             aria-current={enPracticas ? 'page' : undefined}
             className={cn(
-              'hidden rounded-md px-3 py-2 text-sm font-medium outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton sm:block',
+              'relative hidden rounded-md px-3 py-2 text-sm font-medium outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton sm:block',
               enPracticas ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted'
             )}
           >
             Mis prácticas
+            {/* Trazo de latón bajo el destino actual: se ve sin depender solo del color del texto. */}
+            {enPracticas && (
+              <span
+                aria-hidden
+                className="absolute inset-x-3 -bottom-[11px] h-0.5 rounded-full bg-laton"
+              />
+            )}
           </Link>
         </nav>
 
@@ -81,6 +88,10 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
               href={`/simulacion?sesion=${sesionEnCurso}`}
               className="flex h-9 items-center gap-2 rounded-lg bg-laton px-3 text-sm font-semibold text-[#1f1b17] outline-hidden hover:bg-laton-claro focus-visible:ring-2 focus-visible:ring-lino focus-visible:ring-offset-2 focus-visible:ring-offset-nogal"
             >
+              <span className="relative flex size-2" aria-hidden>
+                <span className="absolute inline-flex size-full rounded-full bg-nogal/50 motion-safe:animate-ping" />
+                <span className="relative inline-flex size-2 rounded-full bg-nogal" />
+              </span>
               <MonitorPlay className="size-4" aria-hidden />
               <span>
                 Continuar <span className="hidden sm:inline">práctica</span>
@@ -99,6 +110,12 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
                     className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro"
                   >
                     {iniciales(perfil.nombre)}
+                  </span>
+                  <span
+                    className="hidden max-w-40 truncate text-sm font-medium md:inline"
+                    aria-hidden
+                  >
+                    {perfil.nombre.split(' ')[0]}
                   </span>
                   <ChevronDown className="size-4 text-sidebar-muted" aria-hidden />
                 </DropdownMenuTrigger>

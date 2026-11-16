@@ -78,6 +78,7 @@ export default async function InicioPage() {
       etiqueta: 'Por revisar',
       valor: porRevisar.length,
       detalle: porRevisar.length === 0 ? 'Al día' : 'Esperan tu retroalimentación',
+      tono: porRevisar.length > 0 ? 'atencion' : undefined,
       ayuda:
         'Prácticas terminadas, o con al menos 3 intervenciones del estudiante, que aún no tienen tu retroalimentación publicada.',
     },
@@ -85,6 +86,7 @@ export default async function InicioPage() {
       etiqueta: 'Practicando ahora',
       valor: practicando.length,
       detalle: practicando.length === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
+      tono: practicando.length > 0 ? 'activo' : undefined,
       ayuda:
         'Estudiantes conversando con el paciente en este momento. La página se actualiza sola cada 30 segundos.',
     },

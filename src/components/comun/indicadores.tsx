@@ -12,7 +12,17 @@ export interface Indicador {
   detalle?: string;
   /** Explicación en un globo de ayuda para orientar al docente o al administrador. */
   ayuda?: string;
+  /**
+   * Resalta la cifra cuando pide atención («atencion», p. ej. prácticas por revisar) o cuando algo
+   * está ocurriendo («activo», p. ej. practicando ahora). Sin tono, la cifra es neutra.
+   */
+  tono?: 'atencion' | 'activo';
 }
+
+const CLASE_TONO = {
+  atencion: { valor: 'text-terracota', punto: 'bg-terracota' },
+  activo: { valor: 'text-salvia-oscuro', punto: 'bg-salvia' },
+} as const;
 
 /**
  * Cifras clave como una franja de ficha (etiqueta condensada sobre el valor, separadas por
@@ -40,11 +50,11 @@ export function Indicadores({
         className
       )}
     >
-      {indicadores.map(({ etiqueta, valor, detalle, ayuda }, indice) => (
+      {indicadores.map(({ etiqueta, valor, detalle, ayuda, tono }, indice) => (
         <div
           key={etiqueta}
           className={cn(
-            'flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3.5 transition-colors',
+            'flex min-w-0 flex-1 flex-col gap-1 px-5 py-4 transition-colors',
             rejilla
               ? // Opaco: un fondo translúcido dejaría ver el color del filete detrás.
                 'bg-card hover:bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)]'
@@ -56,11 +66,22 @@ export function Indicadores({
                 ]
           )}
         >
-          <dt className="flex items-center gap-1 text-sm text-muted-foreground ancho-condensado">
+          <dt className="flex items-center gap-1.5 text-sm text-muted-foreground ancho-condensado">
+            {tono && (
+              <span
+                aria-hidden
+                className={cn('size-1.5 shrink-0 rounded-full', CLASE_TONO[tono].punto)}
+              />
+            )}
             <span className="truncate">{etiqueta}</span>
             {ayuda && <AyudaContextual etiqueta={`Qué es ${etiqueta}`} texto={ayuda} />}
           </dt>
-          <dd className="text-lg font-bold tracking-[-0.01em] text-pretty tabular-nums">
+          <dd
+            className={cn(
+              'text-2xl leading-tight font-bold tracking-[-0.02em] text-pretty ancho-semiexpandido tabular-nums',
+              tono && CLASE_TONO[tono].valor
+            )}
+          >
             {typeof valor === 'number' ? valor.toLocaleString('es-CO') : valor}
           </dd>
           {detalle && (

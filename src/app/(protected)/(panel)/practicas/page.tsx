@@ -5,8 +5,10 @@ import {
   KeyRound,
   Laptop,
   MessageSquareQuote,
+  MessageSquareText,
   MonitorPlay,
   NotebookPen,
+  Quote,
   UserCheck,
 } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -81,7 +83,7 @@ export default async function PracticasPage() {
   const nombresDocentes = docentesVinculados.join(', ');
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
@@ -419,79 +421,79 @@ function DestacadoUltimaRetroalimentacion({ sesion }: { sesion: PracticaEstudian
   return (
     <section
       aria-labelledby="ultima-retro-titulo"
-      className="rounded-xl border border-salvia/35 bg-salvia-suave/35 p-5"
+      className="grid gap-5 rounded-xl border border-salvia/35 bg-salvia-suave/35 p-5 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-6"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-md bg-salvia-suave px-2 py-0.5 text-xs font-semibold text-salvia-oscuro">
-              Última retroalimentación
-            </span>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              Publicada el {formatearDia(fechaPublicacion)}
-            </span>
-          </div>
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="inline-flex items-center rounded-md bg-salvia-suave px-2 py-0.5 text-xs font-semibold text-salvia-oscuro">
+            Última retroalimentación
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            Publicada el {formatearDia(fechaPublicacion)}
+          </span>
+        </div>
 
-          <h2 id="ultima-retro-titulo" className="text-lg font-bold tracking-[-0.01em]">
+        <div className="flex flex-col gap-1.5">
+          <h2 id="ultima-retro-titulo" className="text-xl font-bold tracking-[-0.015em]">
             <CodigoCaso
               codigo={sesion.escenario.codigo}
               className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
             />
             {sesion.escenario.titulo}
           </h2>
-
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+          {/* Sin «·» entre los datos: al saltar de línea el separador quedaba suelto. */}
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {sesion.escenario.paciente && (
               <span>
                 Paciente:{' '}
                 <span className="font-medium text-terracota">{sesion.escenario.paciente}</span>
               </span>
             )}
-            {sesion.docente && (
-              <>
-                <span aria-hidden>·</span>
-                <span>Docente: {sesion.docente}</span>
-              </>
-            )}
+            {sesion.docente && <span>Docente: {sesion.docente}</span>}
             {sesion.totalAnotaciones > 0 && (
-              <>
-                <span aria-hidden>·</span>
-                <span className="font-semibold text-foreground">
-                  {sesion.totalAnotaciones}{' '}
-                  {sesion.totalAnotaciones === 1
-                    ? 'comentario en tus frases'
-                    : 'comentarios en tus frases'}
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                <MessageSquareText className="size-3.5 text-salvia" aria-hidden />
+                {sesion.totalAnotaciones}{' '}
+                {sesion.totalAnotaciones === 1
+                  ? 'comentario en tus frases'
+                  : 'comentarios en tus frases'}
+              </span>
             )}
           </p>
-
-          {comentario && (
-            <blockquote className="mt-2 rounded-lg border border-salvia/40 bg-card/85 px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
-              <p className="line-clamp-3">«{comentario}»</p>
-            </blockquote>
-          )}
         </div>
 
-        <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
-          {retro.nota !== null && (
-            <div className="rounded-lg border bg-card px-3.5 py-2 text-right">
-              <p className="text-xs text-muted-foreground">Nota publicada</p>
-              <p className="mt-0.5 text-2xl leading-none font-semibold ancho-semiexpandido tabular-nums">
-                {formatearNota(retro.nota)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">de 5,0</span>
-              </p>
+        {comentario && (
+          <figure className="flex gap-3 rounded-lg border border-salvia/40 bg-card/85 p-3.5">
+            <Quote className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
+            <div className="min-w-0">
+              <figcaption className="text-xs font-semibold text-muted-foreground">
+                Comentario general
+              </figcaption>
+              <blockquote className="mt-1 line-clamp-4 text-sm leading-relaxed text-pretty text-foreground">
+                {comentario}
+              </blockquote>
             </div>
-          )}
+          </figure>
+        )}
+      </div>
 
-          <Link
-            href={`/practicas/${sesion.id}`}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-salvia-suave px-3.5 py-1.5 text-xs font-semibold text-salvia-oscuro transition-colors hover:bg-salvia-suave/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-          >
-            <MessageSquareQuote className="size-3.5" aria-hidden />
-            Abrir retroalimentación completa
-          </Link>
-        </div>
+      <div className="flex flex-col justify-center gap-3 border-t border-salvia/30 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+        {retro.nota !== null && (
+          <div className="rounded-lg border bg-card px-4 py-3 text-center">
+            <p className="text-xs text-muted-foreground">Nota publicada</p>
+            <p className="mt-1 text-3xl leading-none font-semibold ancho-semiexpandido tabular-nums">
+              {formatearNota(retro.nota)}
+              <span className="ml-1 text-xs font-normal text-muted-foreground">de 5,0</span>
+            </p>
+          </div>
+        )}
+        <Link
+          href={`/practicas/${sesion.id}`}
+          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-salvia-suave px-3.5 py-1.5 text-xs font-semibold text-salvia-oscuro transition-colors hover:bg-salvia-suave/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+        >
+          <MessageSquareQuote className="size-3.5" aria-hidden />
+          Abrir retroalimentación completa
+        </Link>
       </div>
     </section>
   );
