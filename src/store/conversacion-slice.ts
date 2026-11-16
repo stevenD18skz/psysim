@@ -164,7 +164,7 @@ export const crearConversacionSlice =
               const id = ids[mensaje.id];
               if (!id) return mensaje;
               const { sinGuardar: _, ...guardado } = mensaje;
-              return { ...guardado, id };
+              return { ...guardado, id, idLocal: mensaje.idLocal ?? mensaje.id };
             }),
           },
         })),

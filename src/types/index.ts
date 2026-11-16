@@ -112,6 +112,11 @@ export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
 /** Mensaje de la conversación con el paciente virtual (HU-14 · T01). */
 export interface MensajeConversacion {
   id: string;
+  /**
+   * Identificador inicial en el navegador. Mantiene la burbuja y su escritura progresiva
+   * cuando `id` se reemplaza por el de la base de datos. No se guarda en el servidor.
+   */
+  idLocal?: string;
   remitente: RemitenteMensaje;
   contenido: string;
   /** Momento del mensaje (ISO 8601). */

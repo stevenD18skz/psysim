@@ -271,7 +271,7 @@ export function ConversationPanel({
             )}
             {mensajes.map(mensaje => (
               <Burbuja
-                key={mensaje.id}
+                key={mensaje.idLocal ?? mensaje.id}
                 mensaje={mensaje}
                 nombre={nombre}
                 escribiendo={mensaje.id === escribiendoId}
