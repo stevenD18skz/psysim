@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, Clock3, Download, MessagesSquare, Zap } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clock3, Download, Zap } from 'lucide-react';
 import type { Metadata } from 'next';
 import { type Route } from 'next';
 import Link from 'next/link';
@@ -115,7 +115,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
   const exportar = conParametros('/sesiones/exportar', actuales, {}, defectos);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <RefrescoAutomatico activo={enCursoTotal > 0} segundos={30} />
       <EncabezadoPagina
         titulo="Revisiones"
@@ -274,87 +274,88 @@ function FilaRevision({ sesion }: { sesion: SesionDocente }) {
   const publicada = sesion.retroalimentacion?.publicada ?? false;
   const { esperaDias, corta } = senalesRevision(sesion);
 
+  const intervenciones =
+    sesion.comenzada && sesion.intervenciones > 0
+      ? sesion.intervenciones === 1
+        ? '1 intervención'
+        : `${sesion.intervenciones} intervenciones`
+      : null;
+
   return (
-    <li className="group relative flex flex-col gap-2 px-4 py-3.5 hover:bg-muted/60 sm:flex-row sm:items-center sm:gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="truncate font-semibold">{sesion.estudiante.nombre}</span>
-          <span className="font-mono text-xs text-muted-foreground">
-            {sesion.estudiante.codigo}
-          </span>
-          <InsigniaEstado estado={estado} />
-          {esperaDias !== null && esperaDias >= 1 && (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-                esperaDias >= 3 ? 'bg-ambar text-lino' : 'bg-muted text-muted-foreground'
-              )}
-            >
-              <Clock3 className="size-3" aria-hidden />
-              Espera {esperaDias === 1 ? '1 día' : `${esperaDias} días`}
-            </span>
-          )}
-          {corta && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              <Zap className="size-3" aria-hidden />
-              Muy corta
-            </span>
-          )}
-        </p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+    // En pantallas anchas, una tabla de verdad: quién, qué caso, cómo va y qué hacer. Cada columna
+    // lleva a lo sumo dos líneas; las señales raras (espera, muy corta) bajan a una tercera.
+    <li className="group relative grid gap-3 px-5 py-4 hover:bg-muted/50 sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-x-8 md:py-5">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate font-semibold">{sesion.estudiante.nombre}</span>
+        <span className="font-mono text-xs text-muted-foreground">{sesion.estudiante.codigo}</span>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-medium text-pretty">{sesion.escenario.titulo}</span>
+        <span className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
           <CodigoCaso
             codigo={sesion.escenario.codigo}
             className="font-mono text-xs text-foreground"
           />
-          <span className="min-w-0 break-words">{sesion.escenario.titulo}</span>
-          <span aria-hidden>·</span>
-          <span>{formatearFechaHora(sesion.inicio)}</span>
-          {duracion !== null && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="tabular-nums">{formatearDuracion(duracion)}</span>
-            </>
-          )}
-          {sesion.comenzada && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                <MessagesSquare className="size-3.5" aria-hidden />
-                {sesion.intervenciones === 1
-                  ? '1 intervención'
-                  : `${sesion.intervenciones} intervenciones`}
-              </span>
-            </>
-          )}
-          {sesion.estado === 'interrumpida' && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{sesion.comenzada ? 'Interrumpida' : 'No llegó a comenzar'}</span>
-            </>
-          )}
-        </p>
-      </div>
-      {publicada && (
-        <p className="flex items-baseline gap-1.5 sm:flex-col sm:items-end sm:gap-0">
-          <span className="text-xs text-muted-foreground">Nota</span>
-          <span className="text-xl font-semibold ancho-semiexpandido tabular-nums">
-            {formatearNota(sesion.retroalimentacion?.nota ?? null)}
-          </span>
-        </p>
-      )}
-      <Link
-        href={`/sesiones/${sesion.id}`}
-        className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-      >
-        {accionDe(sesion)}
-        <span className="sr-only">
-          : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
+          <span className="tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
         </span>
-        <ArrowRight
-          className="size-4 transition-transform group-hover:translate-x-0.5"
-          aria-hidden
-        />
-      </Link>
+      </div>
+
+      <div className="flex min-w-0 flex-col items-start gap-1.5">
+        <InsigniaEstado estado={estado} />
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground tabular-nums">
+          {duracion !== null && <span>{formatearDuracion(duracion)}</span>}
+          {intervenciones && <span>{intervenciones}</span>}
+          {sesion.estado === 'interrumpida' && (
+            <span>{sesion.comenzada ? 'Interrumpida' : 'No llegó a comenzar'}</span>
+          )}
+        </span>
+        {((esperaDias !== null && esperaDias >= 1) || corta) && (
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-medium">
+            {esperaDias !== null && esperaDias >= 1 && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1',
+                  esperaDias >= 3 ? 'text-ambar' : 'text-muted-foreground'
+                )}
+              >
+                <Clock3 className="size-3.5" aria-hidden />
+                Espera {esperaDias === 1 ? '1 día' : `${esperaDias} días`}
+              </span>
+            )}
+            {corta && (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <Zap className="size-3.5" aria-hidden />
+                Muy corta
+              </span>
+            )}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-6 md:justify-end">
+        {publicada && (
+          <p className="flex items-baseline gap-1.5 md:flex-col md:items-end md:gap-0">
+            <span className="text-xs text-muted-foreground">Nota</span>
+            <span className="text-xl font-semibold ancho-semiexpandido tabular-nums">
+              {formatearNota(sesion.retroalimentacion?.nota ?? null)}
+            </span>
+          </p>
+        )}
+        <Link
+          href={`/sesiones/${sesion.id}`}
+          className="inline-flex w-fit items-center gap-1.5 rounded-md text-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+        >
+          {accionDe(sesion)}
+          <span className="sr-only">
+            : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
+          </span>
+          <ArrowRight
+            className="size-4 transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          />
+        </Link>
+      </div>
     </li>
   );
 }
