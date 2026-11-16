@@ -12,12 +12,14 @@ import { type DocenteAdmin, type EstudianteRegistrado } from '@/types';
 
 /** Casos oficiales de PsySim (E-01 a E-12), además de los que crean los docentes. */
 const CASOS_OFICIALES = 12;
-/** Docentes visibles en «Actividad por docente»; el resto está en Docentes. */
+/** Docentes y estudiantes visibles en las tablas resumen del inicio; el resto está en su sección. */
 const DOCENTES_DESTACADOS = 5;
+const ESTUDIANTES_DESTACADOS = 5;
 
 const ACCESOS: { href: Route; texto: string }[] = [
   { href: '/admin', texto: 'Docentes' },
   { href: '/estudiantes', texto: 'Estudiantes' },
+  { href: '/configuracion/casos', texto: 'Casos' },
   { href: '/admin/ia', texto: 'Paciente con IA' },
 ];
 
@@ -85,6 +87,7 @@ export function PanelPlataforma({
       etiqueta: 'Practicando ahora',
       valor: totalEnCurso,
       detalle: totalEnCurso === 0 ? 'Nadie en el consultorio' : 'En toda la plataforma',
+      tono: totalEnCurso > 0 ? 'activo' : undefined,
       ayuda: 'Prácticas abiertas en este momento en toda la plataforma, de cualquier docente.',
     },
     {
@@ -94,6 +97,7 @@ export function PanelPlataforma({
         notaMedia !== null
           ? `Nota media ${formatoNota.format(notaMedia)}`
           : 'Sin calificaciones aún',
+      tono: totalPorRevisar > 0 ? 'atencion' : undefined,
       ayuda:
         'Prácticas terminadas en toda la plataforma que esperan la retroalimentación de su docente. Debajo, la nota media de las ya publicadas.',
     },
@@ -106,39 +110,56 @@ export function PanelPlataforma({
     },
   ];
 
-  // Primero quien tiene más por revisar; luego quien tiene más grupo y más actividad.
+  // Primero quien tiene más por revisar; luego quien tiene alguien en curso, más grupo y actividad.
   const destacados = [...docentes]
     .sort(
       (a, b) =>
         b.metricas.pendientesRetroalimentacion - a.metricas.pendientesRetroalimentacion ||
+        b.metricas.enCurso - a.metricas.enCurso ||
         b.metricas.estudiantes - a.metricas.estudiantes ||
         b.metricas.sesiones - a.metricas.sesiones
     )
     .slice(0, DOCENTES_DESTACADOS);
 
+  // Primero quienes están practicando ahora; luego por última práctica, historial y cuenta activa.
+  const estudiantesDestacados = [...estudiantes]
+    .sort(
+      (a, b) =>
+        b.metricas.enCurso - a.metricas.enCurso ||
+        (b.metricas.ultimaSesion ?? '').localeCompare(a.metricas.ultimaSesion ?? '') ||
+        b.metricas.sesiones - a.metricas.sesiones ||
+        Number(b.cuentaVinculada) - Number(a.cuentaVinculada) ||
+        a.nombre.localeCompare(b.nombre, 'es')
+    )
+    .slice(0, ESTUDIANTES_DESTACADOS);
+
+  const conPracticas = estudiantes.filter(e => e.metricas.sesiones > 0).length;
   const orquestador = configIa.proveedor === 'orquestador' && configIa.orquestadorListo;
 
   return (
-    <section aria-labelledby="resumen-plataforma" className="flex min-w-0 flex-col gap-4">
+    <section aria-labelledby="resumen-plataforma" className="flex min-w-0 flex-col gap-5">
       <div className="flex flex-col gap-4 rounded-2xl vetas-nogal px-5 py-4 text-sidebar-foreground sm:px-6">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-1 size-5 shrink-0 text-laton" aria-hidden />
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-1 size-5 shrink-0 text-laton" aria-hidden />
+            <div className="flex min-w-0 flex-col gap-1">
               <h2 id="resumen-plataforma" className="text-xl font-bold tracking-[-0.015em]">
                 La plataforma
               </h2>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-sidebar-accent px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-laton-texto">
-                <Bot className="size-3.5" aria-hidden />
-                {orquestador
-                  ? `Orquestador · ${plural(configIa.capacidad, 'práctica', 'prácticas')} a la vez`
-                  : 'Paciente con Gemini directo'}
-              </span>
+              <p className="text-sm text-sidebar-muted">
+                Docentes, estudiantes y prácticas de todo el equipo, no solo los tuyos.
+              </p>
             </div>
-            <p className="text-sm text-sidebar-muted">
-              Docentes, estudiantes y prácticas de todo el equipo, no solo los tuyos.
-            </p>
           </div>
+          <Link
+            href="/admin/ia"
+            className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-laton-texto transition-colors hover:border-laton/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            <Bot className="size-3.5 shrink-0" aria-hidden />
+            {orquestador
+              ? `Orquestador · ${plural(configIa.capacidad, 'práctica', 'prácticas')} a la vez`
+              : 'Paciente con Gemini directo'}
+          </Link>
         </div>
         <nav
           aria-label="Administración"
@@ -148,7 +169,7 @@ export function PanelPlataforma({
             <Link
               key={acceso.href}
               href={acceso.href}
-              className="group inline-flex items-center gap-1 rounded-md font-semibold text-laton-texto underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+              className="group -mx-1 inline-flex min-h-8 items-center gap-1 rounded-md px-1 font-semibold text-laton-texto underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
             >
               {acceso.texto}
               <ArrowRight
@@ -214,6 +235,12 @@ export function PanelPlataforma({
                 <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pl-4.5 text-muted-foreground tabular-nums sm:pl-0">
                   <span>{plural(d.metricas.estudiantes, 'estudiante', 'estudiantes')}</span>
                   <span>{plural(d.metricas.sesiones, 'práctica', 'prácticas')}</span>
+                  {d.metricas.enCurso > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro">
+                      <span className="size-1.5 rounded-full bg-salvia" aria-hidden />
+                      {d.metricas.enCurso} en curso
+                    </span>
+                  )}
                   {d.metricas.pendientesRetroalimentacion > 0 ? (
                     <span className="rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar">
                       {d.metricas.pendientesRetroalimentacion} por revisar
@@ -227,6 +254,112 @@ export function PanelPlataforma({
           </ul>
         </div>
       )}
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 pt-4 pb-3">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold tracking-[-0.015em]">Actividad de estudiantes</h3>
+            <AyudaContextual
+              etiqueta="Qué muestra Actividad de estudiantes"
+              texto="Estudiantes de toda la plataforma: primero quienes practican en este momento y luego los de práctica más reciente."
+            />
+            {estudiantes.length > 0 && (
+              <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
+                · {conPracticas} de {estudiantes.length} con prácticas
+              </span>
+            )}
+          </div>
+          <Link
+            href="/estudiantes"
+            className="rounded-md text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            {estudiantes.length > estudiantesDestacados.length
+              ? `Ver los ${estudiantes.length} estudiantes`
+              : 'Gestionar estudiantes'}
+          </Link>
+        </div>
+        {estudiantesDestacados.length === 0 ? (
+          <p className="border-t px-5 py-4 text-sm text-muted-foreground">
+            Todavía no hay estudiantes registrados en la plataforma.
+          </p>
+        ) : (
+          <ul className="divide-y border-t text-sm">
+            {estudiantesDestacados.map(e => (
+              <li
+                key={e.id}
+                className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'size-2 shrink-0 rounded-full',
+                      e.metricas.enCurso > 0
+                        ? 'bg-salvia'
+                        : e.metricas.sesiones > 0
+                          ? 'bg-salvia-oscuro/65'
+                          : 'bg-border'
+                    )}
+                  />
+                  <div className="flex min-w-0 flex-col">
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <Link
+                        href={`/estudiantes/${e.id}`}
+                        className="truncate rounded-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+                      >
+                        {e.nombre}
+                      </Link>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                        {e.codigo}
+                      </span>
+                    </div>
+                    <span className="truncate text-muted-foreground">
+                      {[
+                        e.docente?.nombre,
+                        e.metricas.enCurso > 0
+                          ? 'Practicando ahora'
+                          : e.metricas.ultimaSesion
+                            ? `Última práctica ${tiempoRelativo(e.metricas.ultimaSesion, ahora)}`
+                            : e.cuentaVinculada
+                              ? 'Con cuenta · sin prácticas aún'
+                              : 'Aún no ha entrado',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 pl-4.5 text-muted-foreground tabular-nums sm:pl-0">
+                  <span>
+                    {plural(e.metricas.sesiones, 'práctica', 'prácticas')}
+                    {e.metricas.segundosPractica > 0
+                      ? ` · ${formatearTiempoPractica(e.metricas.segundosPractica)}`
+                      : ''}
+                  </span>
+                  {e.metricas.enCurso > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro">
+                      <span className="size-1.5 rounded-full bg-salvia" aria-hidden />
+                      En curso
+                    </span>
+                  ) : e.metricas.pendientesRetroalimentacion > 0 ? (
+                    <span className="rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar">
+                      {e.metricas.pendientesRetroalimentacion} por revisar
+                    </span>
+                  ) : e.metricas.notaPromedio !== null ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                      Nota {formatoNota.format(e.metricas.notaPromedio)}
+                    </span>
+                  ) : e.metricas.codigosPendientes > 0 ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {plural(e.metricas.codigosPendientes, 'código', 'códigos')}
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

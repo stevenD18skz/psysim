@@ -11,12 +11,18 @@ import { Button } from '@/components/ui/button';
 import { obtenerDocentes, obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { RUTA_INICIO } from '@/lib/auth/routes';
+import { obtenerEstudiantes } from '@/lib/estudiantes/queries';
 import { estaPorRevisar } from '@/lib/sesiones/estados';
 import { obtenerCodigosPendientes, obtenerSesionesDelDocente } from '@/lib/sesiones/queries';
 
 export const metadata: Metadata = {
   title: 'Inicio',
 };
+
+const formatoNota = new Intl.NumberFormat('es-CO', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 
 const formatoHoraDelDia = new Intl.DateTimeFormat('es-CO', {
   hour: 'numeric',
@@ -45,12 +51,14 @@ export default async function InicioPage() {
   if (perfil.rol === 'estudiante') redirect(RUTA_INICIO.estudiante);
 
   const esAdmin = perfil.rol === 'superadmin';
-  const [sesiones, codigos, docentes, estudiantesPlataforma] = await Promise.all([
-    obtenerSesionesDelDocente(),
-    obtenerCodigosPendientes(),
-    esAdmin ? obtenerDocentes() : null,
-    esAdmin ? obtenerTodosLosEstudiantes() : null,
-  ]);
+  const [sesiones, codigos, docentes, estudiantesPlataforma, estudiantesDocente] =
+    await Promise.all([
+      obtenerSesionesDelDocente(),
+      obtenerCodigosPendientes(),
+      esAdmin ? obtenerDocentes() : null,
+      esAdmin ? obtenerTodosLosEstudiantes() : null,
+      esAdmin ? null : obtenerEstudiantes(),
+    ]);
 
   const ahora = new Date();
   const porRevisar = sesiones
@@ -58,12 +66,30 @@ export default async function InicioPage() {
     .sort((a, b) => (a.fin ?? a.inicio).localeCompare(b.fin ?? b.inicio));
   const practicando = sesiones.filter(s => s.estado === 'en_curso');
   const primerNombre = perfil.nombre.split(' ')[0];
+  const grupoDocente = estudiantesDocente ?? [];
+  const conCuentaDocente = grupoDocente.filter(e => e.cuentaVinculada).length;
+  const conBorrador = porRevisar.filter(s => s.retroalimentacion !== null).length;
+  const codigosUrgentes = codigos.filter(
+    c => (new Date(c.expiraEn).getTime() - ahora.getTime()) / 3_600_000 < 24
+  ).length;
+  const notasDocente = sesiones
+    .map(s => (s.retroalimentacion?.publicada ? s.retroalimentacion.nota : null))
+    .filter((n): n is number => n !== null);
+  const notaMediaDocente =
+    notasDocente.length > 0 ? notasDocente.reduce((a, b) => a + b, 0) / notasDocente.length : null;
+  const finalizadasDocente = sesiones.filter(s => s.estado === 'finalizada').length;
 
   const resumen =
     porRevisar.length === 0 && practicando.length === 0
       ? esAdmin
         ? 'Así va la plataforma. Tus estudiantes no tienen nada pendiente.'
-        : 'No tienes nada pendiente por ahora.'
+        : grupoDocente.length === 0
+          ? 'Empieza registrando a tus estudiantes para asignarles prácticas.'
+          : sesiones.length === 0
+            ? codigos.length > 0
+              ? `Tienes ${plural(codigos.length, 'código vigente', 'códigos vigentes')} esperando a tus estudiantes.`
+              : `Tienes ${plural(grupoDocente.length, 'estudiante registrado', 'estudiantes registrados')}. Ya puedes asignar una práctica.`
+            : `Todo al día. Tus estudiantes llevan ${plural(sesiones.length, 'práctica registrada', 'prácticas registradas')}.`
       : [
           porRevisar.length > 0 &&
             `Tienes ${plural(porRevisar.length, 'práctica', 'prácticas')} por revisar`,
@@ -77,7 +103,12 @@ export default async function InicioPage() {
     {
       etiqueta: 'Por revisar',
       valor: porRevisar.length,
-      detalle: porRevisar.length === 0 ? 'Al día' : 'Esperan tu retroalimentación',
+      detalle:
+        conBorrador > 0
+          ? `${conBorrador} en borrador`
+          : porRevisar.length === 0
+            ? 'Al día'
+            : 'Esperan tu retroalimentación',
       tono: porRevisar.length > 0 ? 'atencion' : undefined,
       ayuda:
         'Prácticas terminadas, o con al menos 3 intervenciones del estudiante, que aún no tienen tu retroalimentación publicada.',
@@ -93,15 +124,31 @@ export default async function InicioPage() {
     {
       etiqueta: 'Códigos sin usar',
       valor: codigos.length,
-      detalle: codigos.length === 0 ? 'Ninguno esperando' : 'Aún vigentes',
+      detalle:
+        codigosUrgentes > 0
+          ? `${codigosUrgentes} ${codigosUrgentes === 1 ? 'vence' : 'vencen'} hoy`
+          : codigos.length === 0
+            ? 'Ninguno esperando'
+            : 'Aún vigentes',
       ayuda:
         'Códigos de un solo uso que generaste y que el estudiante todavía no ha usado para empezar su práctica.',
     },
     {
+      etiqueta: 'Estudiantes',
+      valor: grupoDocente.length,
+      detalle: grupoDocente.length === 0 ? 'Sin registros aún' : `${conCuentaDocente} con cuenta`,
+      ayuda:
+        'Estudiantes registrados en tu grupo. Quienes ya entraron con su correo institucional pueden recibir códigos.',
+    },
+    {
       etiqueta: 'Prácticas',
       valor: sesiones.length,
-      detalle: `${sesiones.filter(s => s.estado === 'finalizada').length} terminadas`,
-      ayuda: 'Prácticas que tus estudiantes empezaron con tus códigos.',
+      detalle:
+        notaMediaDocente !== null
+          ? `Nota media ${formatoNota.format(notaMediaDocente)}`
+          : `${finalizadasDocente} terminadas`,
+      ayuda:
+        'Prácticas que tus estudiantes empezaron con tus códigos y su promedio de notas publicadas.',
     },
   ];
 
@@ -110,13 +157,15 @@ export default async function InicioPage() {
       porRevisar={porRevisar}
       practicando={practicando}
       codigos={codigos}
+      sesiones={esAdmin ? undefined : sesiones}
+      estudiantes={esAdmin ? undefined : grupoDocente}
       ahora={ahora}
       disposicion={esAdmin ? 'riel' : 'columnas'}
     />
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="@container/inicio mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <RefrescoAutomatico activo={practicando.length > 0} segundos={30} />
 
       <header className="@container">
@@ -128,14 +177,12 @@ export default async function InicioPage() {
             <p className="text-lg text-muted-foreground">{resumen}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
-            {esAdmin && (
-              <Button asChild variant="outline" size="lg">
-                <Link href="/estudiantes">
-                  <Users aria-hidden />
-                  Ver estudiantes
-                </Link>
-              </Button>
-            )}
+            <Button asChild variant="outline" size="lg">
+              <Link href="/estudiantes">
+                <Users aria-hidden />
+                {esAdmin || grupoDocente.length > 0 ? 'Ver estudiantes' : 'Registrar estudiantes'}
+              </Link>
+            </Button>
             <Button asChild variant="accion" size="lg">
               <Link href="/configuracion">
                 <ClipboardList aria-hidden />
@@ -147,8 +194,8 @@ export default async function InicioPage() {
       </header>
 
       {docentes && estudiantesPlataforma ? (
-        // La plataforma es el contenido principal; la bandeja propia la acompaña a la derecha.
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,23rem)]">
+        // La plataforma lidera; el riel personal acompaña solo cuando hay ancho suficiente.
+        <div className="grid items-start gap-8 @5xl/inicio:grid-cols-[minmax(0,1.55fr)_minmax(21.5rem,25.5rem)]">
           <PanelPlataforma docentes={docentes} estudiantes={estudiantesPlataforma} ahora={ahora} />
           {bandeja}
         </div>
