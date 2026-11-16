@@ -4,11 +4,13 @@ import { TEXTO_REGLAS } from '@/lib/ia/reglas';
 import { type CamposCaso } from '@/schemas/caso.schema';
 
 import {
+  AJUSTE_POR_RIESGO,
   type CasoParaOrquestador,
   deducirRiesgo,
   escenarioDelCaso,
   huellaDelPrompt,
   huellaDeSincronizacion,
+  MARGEN_HASTA_EL_PISO,
   perfilDelCaso,
   severidadDelCaso,
 } from './mapeo';
@@ -92,7 +94,7 @@ describe('severidadDelCaso', () => {
   it('sale de la dificultad cuando no hay riesgo', () => {
     expect(severidadDelCaso('basico', 'clinico', 'ninguno')).toEqual({
       inicial: 2,
-      min: 1,
+      min: 0,
       max: 4,
     });
     expect(severidadDelCaso('intermedio', 'clinico', 'ninguno')).toEqual({
@@ -102,7 +104,7 @@ describe('severidadDelCaso', () => {
     });
     expect(severidadDelCaso('avanzado', 'clinico', 'ninguno')).toEqual({
       inicial: 3,
-      min: 2,
+      min: 1,
       max: 5,
     });
   });
@@ -126,13 +128,49 @@ describe('severidadDelCaso', () => {
     );
   });
 
-  it('un caso cotidiano empieza un punto más tranquilo, nunca por debajo de 1', () => {
+  it('un caso cotidiano empieza un punto más tranquilo, nunca por debajo de 2', () => {
     expect(severidadDelCaso('basico', 'cotidiano', 'ninguno')).toEqual({
-      inicial: 1,
-      min: 1,
+      inicial: 2,
+      min: 0,
       max: 4,
     });
+    expect(severidadDelCaso('intermedio', 'cotidiano', 'ninguno').inicial).toBe(2);
     expect(severidadDelCaso('avanzado', 'cotidiano', 'ninguno').inicial).toBe(2);
+  });
+
+  it('el riesgo alto conserva el piso de su dificultad si ya queda a 2 puntos', () => {
+    // E-09 (avanzado, autolesión): empieza en 4 y no baja de 2.
+    expect(severidadDelCaso('avanzado', 'clinico', 'autolesion')).toEqual({
+      inicial: 4,
+      min: 2,
+      max: 5,
+    });
+  });
+
+  // E-08 tocó su piso en 4 turnos empáticos (3 → 2,7 → 2,4 → 2,1 → 2,0) y el orquestador cerró.
+  const BAJADA_POR_TURNO = 0.3;
+  const turnosHastaElPiso = ({ inicial, min }: { inicial: number; min: number }) =>
+    Math.ceil((inicial - min) / BAJADA_POR_TURNO);
+
+  it.each(['basico', 'intermedio', 'avanzado'] as const)(
+    'ningún caso %s empieza a menos de 2 puntos de su piso',
+    dificultad => {
+      for (const categoria of ['clinico', 'cotidiano'] as const) {
+        for (const riesgo of Object.keys(AJUSTE_POR_RIESGO) as (keyof typeof AJUSTE_POR_RIESGO)[]) {
+          const rango = severidadDelCaso(dificultad, categoria, riesgo);
+          expect(rango.inicial - rango.min).toBeGreaterThanOrEqual(MARGEN_HASTA_EL_PISO);
+          expect(rango.min).toBeGreaterThanOrEqual(0);
+          expect(rango.max).toBeGreaterThan(rango.inicial);
+          expect(turnosHastaElPiso(rango)).toBeGreaterThanOrEqual(7);
+        }
+      }
+    }
+  );
+
+  it('E-08 (avanzado, clínico) ya no toca su piso en 4 turnos', () => {
+    const rango = severidadDelCaso('avanzado', 'clinico', 'ninguno');
+    expect(turnosHastaElPiso({ inicial: 3, min: 2 })).toBe(4);
+    expect(turnosHastaElPiso(rango)).toBe(7);
   });
 });
 

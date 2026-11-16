@@ -14,7 +14,7 @@ export const PREFIJO_3D = '-3D-';
  * Versión del mapeo. Al cambiar cómo se traduce un caso (esta tabla, los rasgos, las reglas
  * fijas), se sube: la huella de todos los casos cambia y se vuelven a sincronizar solos.
  */
-export const VERSION_MAPEO = 2;
+export const VERSION_MAPEO = 3;
 
 /** Lo que PsySim sabe de un caso y hace falta para describirlo en el orquestador. */
 export interface CasoParaOrquestador {
@@ -33,7 +33,8 @@ export interface CasoParaOrquestador {
 /**
  * Severidad inicial y rango de comportamiento según la dificultad del caso. El orquestador mueve
  * la severidad dentro de `[min, max]` en cada turno; 5 es la zona de cierre automático, así que
- * solo los casos avanzados o con riesgo alto pueden llegar a ella.
+ * solo los casos avanzados o con riesgo alto pueden llegar a ella. `min` es el piso más alto que
+ * puede tener un caso de esa dificultad: con `MARGEN_HASTA_EL_PISO` puede quedar más abajo.
  */
 export const SEVERIDAD_POR_DIFICULTAD: Record<
   DificultadEscenario,
@@ -61,6 +62,23 @@ export const AJUSTE_POR_RIESGO: Record<
 
 const SEVERIDAD_INICIAL_MAXIMA = 4;
 
+/**
+ * Severidad inicial mínima. El orquestador acepta enteros de 1 a 5, pero un paciente que empieza
+ * en 1 queda en su piso desde el primer turno (los cotidianos básicos E-05, E-06 y E-12): 2 es un
+ * malestar leve-moderado, creíble en quien pide una consulta.
+ */
+const SEVERIDAD_INICIAL_MINIMA = 2;
+
+/**
+ * Distancia mínima entre la severidad inicial y el piso del rango. El orquestador cierra la
+ * sesión cuando la severidad se queda en un límite varios turnos, también en el inferior (el
+ * paciente se calmó): con un punto de margen, E-08 llegó al piso en 4 turnos empáticos (unos 0,3
+ * por turno) y la consulta mejor llevada era la más corta. Con 2, hacen falta unos 7. El piso no
+ * baja de 0 («calmado, receptivo» según el orquestador); el realismo lo cuidan el prompt y la
+ * regla de que el paciente no da por terminada la consulta.
+ */
+export const MARGEN_HASTA_EL_PISO = 2;
+
 function sinTildes(texto: string): string {
   return texto
     .normalize('NFD')
@@ -84,7 +102,7 @@ export function deducirRiesgo(prompt: string, campos?: CamposCaso | null): IdRie
   return 'ninguno';
 }
 
-/** Severidad inicial (entera, 1 a 4) y rango de comportamiento del caso. */
+/** Severidad inicial (entera, 2 a 4) y rango de comportamiento del caso. */
 export function severidadDelCaso(
   dificultad: DificultadEscenario,
   categoria: CategoriaEscenario,
@@ -96,11 +114,11 @@ export function severidadDelCaso(
   const cotidiano = categoria === 'cotidiano' ? 1 : 0;
   const inicial = Math.min(
     SEVERIDAD_INICIAL_MAXIMA,
-    Math.max(1, base.inicial + ajuste.suma - cotidiano)
+    Math.max(SEVERIDAD_INICIAL_MINIMA, base.inicial + ajuste.suma - cotidiano)
   );
   return {
     inicial,
-    min: Math.min(base.min, inicial),
+    min: Math.max(0, Math.min(base.min, inicial - MARGEN_HASTA_EL_PISO)),
     max: ajuste.maximo ? 5 : base.max,
   };
 }
