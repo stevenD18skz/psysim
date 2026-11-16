@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleHelp, LogOut, SlidersHorizontal } from 'lucide-react';
+import { CircleHelp, Eye, EyeOff, LogOut, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -18,7 +18,40 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { fijarAmbienteEmocional, useAmbienteEmocional } from '@/hooks/use-ambiente-emocional';
 import { plazoAlSalir } from '@/lib/fechas';
 
+/** Tecla (con Ctrl) que esconde o muestra los controles: H de «hud». La nombran el tooltip y la ayuda. */
+export const TECLA_OCULTAR_HUD = 'KeyH';
+
 const CLASE_BOTON_HUD = 'pointer-events-auto bg-card/90 backdrop-blur';
+
+/**
+ * Esconde o muestra los controles de la pantalla (datos de la práctica y botones) para ver el
+ * consultorio despejado. La conversación no se esconde: es la práctica misma.
+ */
+export function BotonOcultarHud({
+  oculto,
+  onAlternar,
+}: {
+  oculto: boolean;
+  onAlternar: () => void;
+}) {
+  const etiqueta = oculto ? 'Mostrar controles' : 'Ocultar controles';
+  const conAtajo = `${etiqueta} (Ctrl + H)`;
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      className={CLASE_BOTON_HUD}
+      aria-pressed={oculto}
+      aria-label={etiqueta}
+      aria-keyshortcuts="Control+H"
+      title={conAtajo}
+      onClick={onAlternar}
+    >
+      {oculto ? <Eye aria-hidden /> : <EyeOff aria-hidden />}
+    </Button>
+  );
+}
 
 /** Libera el ratón capturado: con Pointer Lock no se puede usar un diálogo ni un menú. */
 function liberarRaton() {
@@ -101,6 +134,7 @@ export function BotonControles() {
             ['W A S D o flechas', 'caminar'],
             ['Ratón', 'mirar alrededor'],
             ['E (o clic sobre el paciente)', 'conversar'],
+            ['Ctrl + H', 'ocultar o mostrar los controles'],
             ['Esc', 'liberar el ratón'],
           ].map(([tecla, accion]) => (
             <div key={tecla} className="flex items-baseline justify-between gap-3">

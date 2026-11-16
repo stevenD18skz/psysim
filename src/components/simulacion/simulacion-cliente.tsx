@@ -31,7 +31,13 @@ import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
-import { BotonAjustes, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
+import {
+  BotonAjustes,
+  BotonControles,
+  BotonOcultarHud,
+  BotonSalir,
+  TECLA_OCULTAR_HUD,
+} from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import {
   BotonHerramienta,
@@ -191,6 +197,29 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     remision: false,
     notas: false,
   });
+  // Esconde los controles (no la conversación) para ver el consultorio despejado.
+  const [hudOculto, setHudOculto] = useState(false);
+  // Atajo Ctrl + H: mismo efecto que el botón. Con el modificador no estorba al escribir (chat,
+  // notas), pero no actúa con un diálogo abierto.
+  const puedeOcultarHud = lista && !resumen;
+  useEffect(() => {
+    if (!puedeOcultarHud) return;
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (evento.code !== TECLA_OCULTAR_HUD || evento.repeat) return;
+      if (!(evento.ctrlKey || evento.metaKey) || evento.altKey || evento.shiftKey) return;
+      if (
+        evento.target instanceof Element &&
+        evento.target.closest('[role="dialog"], [role="alertdialog"]')
+      ) {
+        return;
+      }
+      // Evita que el navegador abra su historial (Ctrl + H).
+      evento.preventDefault();
+      setHudOculto(valor => !valor);
+    };
+    window.addEventListener('keydown', alPulsar);
+    return () => window.removeEventListener('keydown', alPulsar);
+  }, [puedeOcultarHud]);
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && comenzada && !resumen && !cierre;
@@ -220,14 +249,16 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
-          <HudSesion
-            sesion={sesion}
-            duracionFinalSegundos={resumen?.duracionSegundos}
-            compacto={conversando}
-          />
-          <div className="flex flex-wrap items-start justify-end gap-2">
+          {!hudOculto && (
+            <HudSesion
+              sesion={sesion}
+              duracionFinalSegundos={resumen?.duracionSegundos}
+              compacto={conversando}
+            />
+          )}
+          <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
             {depuracion && <IndicadorFps />}
-            {enConsulta && (
+            {!hudOculto && enConsulta && (
               <>
                 <BotonHerramienta
                   herramienta="remision"
@@ -241,10 +272,10 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
                 />
               </>
             )}
-            <BotonSonido motor={motorAudio} />
-            <BotonAjustes />
-            {!conversando && <BotonControles />}
-            {enConsulta && (
+            {!hudOculto && <BotonSonido motor={motorAudio} />}
+            {!hudOculto && <BotonAjustes />}
+            {!hudOculto && !conversando && <BotonControles />}
+            {!hudOculto && enConsulta && (
               <BotonFinalizar
                 onFinalizar={finalizar}
                 finalizando={finalizando}
@@ -254,7 +285,13 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
             )}
             {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
                 confirmación dice la hora. */}
-            {!resumen && !cierre && <BotonSalir compacto={conversando} />}
+            {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
+            {puedeOcultarHud && (
+              <BotonOcultarHud
+                oculto={hudOculto}
+                onAlternar={() => setHudOculto(valor => !valor)}
+              />
+            )}
           </div>
         </div>
 
@@ -269,14 +306,14 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         )}
       </div>
 
-      {enConsulta && herramientas.remision && (
+      {enConsulta && !hudOculto && herramientas.remision && (
         <HojaRemision
           sesion={sesion}
           conversando={conversando}
           onCerrar={() => alternarHerramienta('remision')}
         />
       )}
-      {enConsulta && herramientas.notas && (
+      {enConsulta && !hudOculto && herramientas.notas && (
         <LibretaNotas
           sesionId={sesion.id}
           conversando={conversando}
