@@ -1,9 +1,23 @@
-import { ArrowRight, Bot, ShieldCheck } from 'lucide-react';
-import { type Route } from 'next';
+import {
+  Activity,
+  Bot,
+  ClipboardCheck,
+  Library,
+  MonitorPlay,
+  ShieldCheck,
+  UserCheck,
+  UsersRound,
+} from 'lucide-react';
 import Link from 'next/link';
 
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { type Indicador, Indicadores } from '@/components/comun/indicadores';
+import {
+  BarraSubHero,
+  EncabezadoHeroTrabajo,
+  type EnlaceHero,
+  MarcoHeroInicio,
+} from '@/components/inicio/marco-hero';
 import { leerConfiguracionIa } from '@/lib/admin/ia';
 import { formatearTiempoPractica } from '@/lib/estudiantes/estudiantes';
 import { tiempoRelativo } from '@/lib/fechas';
@@ -16,7 +30,7 @@ const CASOS_OFICIALES = 12;
 const DOCENTES_DESTACADOS = 5;
 const ESTUDIANTES_DESTACADOS = 5;
 
-const ACCESOS: { href: Route; texto: string }[] = [
+const ACCESOS: readonly EnlaceHero[] = [
   { href: '/admin', texto: 'Docentes' },
   { href: '/estudiantes', texto: 'Estudiantes' },
   { href: '/configuracion/casos', texto: 'Casos' },
@@ -33,8 +47,55 @@ const formatoNota = new Intl.NumberFormat('es-CO', {
 });
 
 /**
- * Vista del Administrador sobre toda la plataforma: el proveedor del paciente, las cifras globales
- * de docentes, estudiantes y prácticas, y qué docentes tienen más actividad o más pendientes.
+ * Encabezado superior de nogal del panel administrador: agrupa el saludo, las acciones globales,
+ * los accesos a las secciones de administración y el proveedor activo de IA. Las tarjetas de datos
+ * se superponen parcialmente sobre su borde inferior.
+ */
+export function HeroPlataforma({
+  textoSaludo,
+  primerNombre,
+  resumen,
+}: {
+  textoSaludo: string;
+  primerNombre: string;
+  resumen: string;
+}) {
+  const configIa = leerConfiguracionIa();
+  const orquestador = configIa.proveedor === 'orquestador' && configIa.orquestadorListo;
+
+  return (
+    <MarcoHeroInicio>
+      <EncabezadoHeroTrabajo
+        textoSaludo={textoSaludo}
+        primerNombre={primerNombre}
+        resumen={resumen}
+        etiquetaEstudiantes="Ver estudiantes"
+      />
+      <BarraSubHero
+        tituloId="resumen-plataforma"
+        titulo="La plataforma"
+        icono={ShieldCheck}
+        ariaNavegacion="Administración"
+        enlaces={ACCESOS}
+        estadoDerecha={
+          <Link
+            href="/admin/ia"
+            className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-laton-texto transition-colors hover:border-laton/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            <Bot className="size-3.5 shrink-0" aria-hidden />
+            {orquestador
+              ? `Orquestador · ${plural(configIa.capacidad, 'práctica', 'prácticas')} a la vez`
+              : 'Paciente con Gemini directo'}
+          </Link>
+        }
+      />
+    </MarcoHeroInicio>
+  );
+}
+
+/**
+ * Vista del Administrador sobre toda la plataforma: las cifras globales de docentes, estudiantes y
+ * prácticas, y qué docentes y estudiantes concentran actividad reciente.
  */
 export function PanelPlataforma({
   docentes,
@@ -45,7 +106,6 @@ export function PanelPlataforma({
   estudiantes: EstudianteRegistrado[];
   ahora: Date;
 }) {
-  const configIa = leerConfiguracionIa();
   const docentesActivos = docentes.filter(d => d.activo).length;
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada).length;
   const totalSesiones = docentes.reduce((s, d) => s + d.metricas.sesiones, 0);
@@ -61,12 +121,14 @@ export function PanelPlataforma({
 
   const indicadores: Indicador[] = [
     {
+      icono: UserCheck,
       etiqueta: 'Docentes activos',
       valor: docentesActivos,
       detalle: `de ${docentes.length} en el equipo`,
       ayuda: 'Docentes con acceso para registrar estudiantes, crear casos y asignar prácticas.',
     },
     {
+      icono: UsersRound,
       etiqueta: 'Estudiantes',
       valor: estudiantes.length,
       detalle: `${conCuenta} ya entraron`,
@@ -74,6 +136,7 @@ export function PanelPlataforma({
         'Estudiantes registrados por todos los docentes. Solo quienes ya entraron con su correo institucional pueden recibir un código.',
     },
     {
+      icono: MonitorPlay,
       etiqueta: 'Prácticas',
       valor: totalSesiones,
       detalle:
@@ -84,6 +147,7 @@ export function PanelPlataforma({
         'Todas las prácticas de la plataforma y el tiempo total que duraron las conversaciones.',
     },
     {
+      icono: Activity,
       etiqueta: 'Practicando ahora',
       valor: totalEnCurso,
       detalle: totalEnCurso === 0 ? 'Nadie en el consultorio' : 'En toda la plataforma',
@@ -91,6 +155,7 @@ export function PanelPlataforma({
       ayuda: 'Prácticas abiertas en este momento en toda la plataforma, de cualquier docente.',
     },
     {
+      icono: ClipboardCheck,
       etiqueta: 'Por revisar',
       valor: totalPorRevisar,
       detalle:
@@ -102,6 +167,7 @@ export function PanelPlataforma({
         'Prácticas terminadas en toda la plataforma que esperan la retroalimentación de su docente. Debajo, la nota media de las ya publicadas.',
     },
     {
+      icono: Library,
       etiqueta: 'Casos propios',
       valor: totalCasosPropios,
       detalle: `más ${CASOS_OFICIALES} de PsySim`,
@@ -134,57 +200,20 @@ export function PanelPlataforma({
     .slice(0, ESTUDIANTES_DESTACADOS);
 
   const conPracticas = estudiantes.filter(e => e.metricas.sesiones > 0).length;
-  const orquestador = configIa.proveedor === 'orquestador' && configIa.orquestadorListo;
 
   return (
-    <section aria-labelledby="resumen-plataforma" className="flex min-w-0 flex-col gap-5">
-      <div className="flex flex-col gap-4 rounded-2xl vetas-nogal px-5 py-4 text-sidebar-foreground sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-1 size-5 shrink-0 text-laton" aria-hidden />
-            <div className="flex min-w-0 flex-col gap-1">
-              <h2 id="resumen-plataforma" className="text-xl font-bold tracking-[-0.015em]">
-                La plataforma
-              </h2>
-              <p className="text-sm text-sidebar-muted">
-                Docentes, estudiantes y prácticas de todo el equipo, no solo los tuyos.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/admin/ia"
-            className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-laton-texto transition-colors hover:border-laton/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-          >
-            <Bot className="size-3.5 shrink-0" aria-hidden />
-            {orquestador
-              ? `Orquestador · ${plural(configIa.capacidad, 'práctica', 'prácticas')} a la vez`
-              : 'Paciente con Gemini directo'}
-          </Link>
-        </div>
-        <nav
-          aria-label="Administración"
-          className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-sidebar-border pt-3 text-sm"
-        >
-          {ACCESOS.map(acceso => (
-            <Link
-              key={acceso.href}
-              href={acceso.href}
-              className="group -mx-1 inline-flex min-h-8 items-center gap-1 rounded-md px-1 font-semibold text-laton-texto underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-            >
-              {acceso.texto}
-              <ArrowRight
-                className="size-3.5 transition-transform duration-200 ease-salida group-hover:translate-x-0.5"
-                aria-hidden
-              />
-            </Link>
-          ))}
-        </nav>
-      </div>
-
-      <Indicadores indicadores={indicadores} disposicion="rejilla" />
+    <section
+      aria-label="Indicadores y actividad de la plataforma"
+      className="flex min-w-0 flex-col gap-6"
+    >
+      <Indicadores
+        indicadores={indicadores}
+        disposicion="rejilla"
+        className="rounded-2xl shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]"
+      />
 
       {destacados.length > 0 && (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-hidden rounded-2xl border bg-card">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 pt-4 pb-3">
             <div className="flex items-center gap-1.5">
               <h3 className="text-base font-bold tracking-[-0.015em]">Actividad por docente</h3>
@@ -255,7 +284,7 @@ export function PanelPlataforma({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="overflow-hidden rounded-2xl border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 pt-4 pb-3">
           <div className="flex items-center gap-1.5">
             <h3 className="text-base font-bold tracking-[-0.015em]">Actividad de estudiantes</h3>

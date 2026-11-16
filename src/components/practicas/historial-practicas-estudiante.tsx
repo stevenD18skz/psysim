@@ -1,6 +1,15 @@
 'use client';
 
-import { ArrowRight, ChevronDown, MessageSquareText, Search, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  MessageSquareText,
+  Quote,
+  Search,
+  Sparkles,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -40,7 +49,25 @@ export interface PracticaEstudianteVista {
   tieneReflexion: boolean;
 }
 
-type FiltroHistorial = 'todas' | 'con_retro' | 'esperando' | 'sin_conversacion';
+type EstadoGrupo = 'esperando' | 'con_retro' | 'sin_conversacion';
+type FiltroHistorial = 'todas' | EstadoGrupo;
+
+const INFO_GRUPO: Record<EstadoGrupo, { titulo: string; ayuda: string }> = {
+  esperando: {
+    titulo: 'Esperando retroalimentación',
+    ayuda:
+      'Prácticas terminadas cuya conversación ya está lista para que tu docente la revise y publique sus observaciones.',
+  },
+  con_retro: {
+    titulo: 'Con retroalimentación',
+    ayuda:
+      'Prácticas revisadas por tu docente. Abre cada una para leer su comentario general y las notas sobre tus frases.',
+  },
+  sin_conversacion: {
+    titulo: 'Sin conversación',
+    ayuda: 'Prácticas que se cerraron antes de que enviaras tu primera intervención al paciente.',
+  },
+};
 
 /** Prácticas visibles por grupo; las más antiguas se despliegan a pedido. */
 const FILAS_POR_GRUPO = 6;
@@ -56,12 +83,17 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
     // Una tarjeta, una lectura: estado y fecha, el caso, quién y cuánto, y a la derecha lo único
     // que se hace aquí (la nota y la acción principal). El detalle completo vive en la página de
     // la práctica; la reflexión pasó de etiqueta a enlace secundario.
-    <li className="grid gap-4 px-4 py-4 transition-colors hover:bg-muted/40 sm:px-6 sm:py-5 md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:gap-8">
+    <li
+      className={cn(
+        'grid gap-4 px-4 py-4 transition-colors hover:bg-muted/40 sm:px-6 sm:py-5',
+        sinConversacion === false && 'md:grid-cols-[minmax(0,1fr)_12.5rem] md:items-center md:gap-6'
+      )}
+    >
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span
             className={cn(
-              'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+              'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold',
               sinConversacion
                 ? 'bg-muted text-muted-foreground'
                 : publicada
@@ -69,6 +101,12 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
                   : 'bg-ambar-suave text-ambar'
             )}
           >
+            {sinConversacion === false &&
+              (publicada ? (
+                <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+              ) : (
+                <Clock className="size-3.5 shrink-0" aria-hidden />
+              ))}
             {sinConversacion
               ? 'Sin conversación'
               : publicada
@@ -110,7 +148,8 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
         </p>
 
         {publicada && comentario && (
-          <p className="flex gap-2 border-l-2 border-salvia/50 pl-3 text-sm leading-relaxed text-foreground">
+          <p className="flex items-start gap-2 rounded-lg bg-muted/45 px-3 py-2 text-sm leading-relaxed text-foreground">
+            <Quote className="mt-0.5 size-3.5 shrink-0 text-salvia" aria-hidden />
             <span className="line-clamp-2">{comentario}</span>
           </p>
         )}
@@ -125,7 +164,7 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
         )}
       </div>
 
-      {!sinConversacion && (
+      {sinConversacion === false && (
         <div className="flex flex-col gap-3 md:items-stretch md:text-center">
           {publicada && (
             <p className="flex items-baseline gap-1.5 md:flex-col md:items-center md:gap-0">
@@ -150,7 +189,7 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
           </Link>
           <Link
             href={`/resultados?sesion=${sesion.id}`}
-            className="rounded-md text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+            className="inline-flex min-h-8 items-center justify-center rounded-md px-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
           >
             {sesion.tieneReflexion ? 'Ver mi reflexión' : 'Escribir reflexión'}
           </Link>
@@ -178,7 +217,7 @@ function OpcionFiltro({
       aria-pressed={activo}
       onClick={onSelect}
       className={cn(
-        'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+        'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
         activo ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
       )}
     >
@@ -215,20 +254,20 @@ function Grupo({
 
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <div className="flex items-center gap-1.5">
-          <h2 id={id} className="text-xl font-bold tracking-[-0.015em]">
+          <h3 id={id} className="text-base font-bold tracking-[-0.015em]">
             {titulo}{' '}
             <span className="text-sm font-semibold text-muted-foreground tabular-nums">
               {sesiones.length}
             </span>
-          </h2>
+          </h3>
           {ayuda && <AyudaContextual etiqueta={`Qué es ${titulo}`} texto={ayuda} />}
         </div>
         {extra}
       </div>
 
-      <ol className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+      <ol className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
         {visibles.map(sesion => (
           <FilaPractica key={sesion.id} sesion={sesion} />
         ))}
@@ -238,7 +277,7 @@ function Grupo({
         <div className="flex flex-col">
           <Desplegable abierto={expandido}>
             <div className="pt-3">
-              <ol className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+              <ol className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
                 {ocultas.map(sesion => (
                   <FilaPractica key={sesion.id} sesion={sesion} />
                 ))}
@@ -347,47 +386,24 @@ export function HistorialPracticasEstudiante({
           : filtradasPorTexto;
 
   return (
-    <div className="flex flex-col gap-6">
-      {mostrarControles && (
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <PistaSegmentada
-            role="group"
-            aria-label="Filtrar prácticas por estado"
-            claseIndicador="rounded-lg bg-card shadow-xs"
-            // En celular, rejilla de dos columnas (una fila de cuatro opciones no cabe y se
-            // rompía); desde 640 px, una sola fila. La última opción sola ocupa el ancho completo.
-            className="grid grid-cols-2 gap-1 rounded-xl border bg-muted/60 p-1 sm:flex sm:self-start [&>:last-child:nth-child(odd)]:col-span-2"
-          >
-            <OpcionFiltro
-              activo={filtro === 'todas'}
-              onSelect={() => setFiltro('todas')}
-              etiqueta="Todas"
-              total={terminadas.length}
+    <section aria-labelledby="historial-practicas-titulo" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1.5">
+            <h2 id="historial-practicas-titulo" className="text-xl font-bold tracking-[-0.015em]">
+              Historial de prácticas{' '}
+              <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+                {terminadas.length}
+              </span>
+            </h2>
+            <AyudaContextual
+              etiqueta="Qué muestra el historial"
+              texto="Todas tus entrevistas terminadas, separadas según si ya tienen retroalimentación o están esperando revisión de tu docente."
             />
-            <OpcionFiltro
-              activo={filtro === 'con_retro'}
-              onSelect={() => setFiltro('con_retro')}
-              etiqueta="Con retroalimentación"
-              total={totalConRetro}
-            />
-            <OpcionFiltro
-              activo={filtro === 'esperando'}
-              onSelect={() => setFiltro('esperando')}
-              etiqueta="Esperando revisión"
-              total={totalEsperando}
-            />
-            {totalSinConversacion > 0 && (
-              <OpcionFiltro
-                activo={filtro === 'sin_conversacion'}
-                onSelect={() => setFiltro('sin_conversacion')}
-                etiqueta="Sin conversación"
-                total={totalSinConversacion}
-              />
-            )}
-          </PistaSegmentada>
+          </div>
 
           {mostrarBuscador && (
-            <div className="relative w-full lg:w-80 lg:shrink-0">
+            <div className="relative w-full sm:w-72 sm:shrink-0 md:w-80">
               <label htmlFor="buscar-practica-estudiante" className="sr-only">
                 Buscar por caso, paciente o docente
               </label>
@@ -406,10 +422,46 @@ export function HistorialPracticasEstudiante({
             </div>
           )}
         </div>
-      )}
+
+        {mostrarControles && (
+          <PistaSegmentada
+            role="group"
+            aria-label="Filtrar prácticas por estado"
+            claseIndicador="rounded-lg bg-card shadow-xs"
+            className="flex flex-wrap gap-1 rounded-xl border bg-muted/60 p-1 sm:inline-flex sm:self-start"
+          >
+            <OpcionFiltro
+              activo={filtro === 'todas'}
+              onSelect={() => setFiltro('todas')}
+              etiqueta="Todas"
+              total={terminadas.length}
+            />
+            <OpcionFiltro
+              activo={filtro === 'esperando'}
+              onSelect={() => setFiltro('esperando')}
+              etiqueta="Esperando revisión"
+              total={totalEsperando}
+            />
+            <OpcionFiltro
+              activo={filtro === 'con_retro'}
+              onSelect={() => setFiltro('con_retro')}
+              etiqueta="Con retroalimentación"
+              total={totalConRetro}
+            />
+            {totalSinConversacion > 0 && (
+              <OpcionFiltro
+                activo={filtro === 'sin_conversacion'}
+                onSelect={() => setFiltro('sin_conversacion')}
+                etiqueta="Sin conversación"
+                total={totalSinConversacion}
+              />
+            )}
+          </PistaSegmentada>
+        )}
+      </div>
 
       {listaSegunFiltro.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-card/50 p-6 text-center">
+        <div className="rounded-2xl border border-dashed bg-card/50 p-6 text-center">
           <p className="text-sm font-semibold text-foreground">
             No encontramos prácticas con este filtro.
           </p>
@@ -430,38 +482,19 @@ export function HistorialPracticasEstudiante({
           )}
         </div>
       ) : filtro === 'todas' ? (
-        <div className="flex flex-col gap-8">
-          <Grupo
-            titulo="Esperando retroalimentación"
-            ayuda="Prácticas terminadas cuya conversación ya está lista para que tu docente la revise y publique sus observaciones."
-            sesiones={esperando}
-          />
-          <Grupo
-            titulo="Con retroalimentación"
-            ayuda="Prácticas revisadas por tu docente. Abre cada una para leer su comentario general y las notas sobre tus frases."
-            sesiones={conRetro}
-            extra={extraPromedio}
-          />
-          <Grupo
-            titulo="Sin conversación"
-            ayuda="Prácticas que se cerraron antes de que enviaras tu primera intervención al paciente."
-            sesiones={sinConversacion}
-          />
+        <div className="flex flex-col gap-6">
+          <Grupo {...INFO_GRUPO.esperando} sesiones={esperando} />
+          <Grupo {...INFO_GRUPO.con_retro} sesiones={conRetro} extra={extraPromedio} />
+          <Grupo {...INFO_GRUPO.sin_conversacion} sesiones={sinConversacion} />
         </div>
       ) : (
         <Grupo
-          titulo={
-            filtro === 'con_retro'
-              ? 'Con retroalimentación'
-              : filtro === 'esperando'
-                ? 'Esperando retroalimentación'
-                : 'Sin conversación'
-          }
+          {...INFO_GRUPO[filtro]}
           sesiones={listaSegunFiltro}
           extra={filtro === 'con_retro' ? extraPromedio : undefined}
         />
       )}
-    </div>
+    </section>
   );
 }
 
@@ -469,7 +502,7 @@ export function GuiaConsultorioEstudiante() {
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section className="rounded-2xl border bg-card p-4">
       <button
         type="button"
         aria-expanded={abierto}

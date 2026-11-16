@@ -1,4 +1,4 @@
-import { UsersRound } from 'lucide-react';
+import { Activity, KeyRound, MessageSquareText, MonitorPlay, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
@@ -100,6 +100,7 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
           <Indicadores
             indicadores={[
               {
+                icono: UsersRound,
                 etiqueta: 'Estudiantes',
                 valor: estudiantes.length,
                 detalle: `${conCuenta} con cuenta de Google`,
@@ -107,24 +108,28 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                   'Estudiantes registrados. Los que figuran con cuenta ya entraron al menos una vez con su correo institucional.',
               },
               {
+                icono: Activity,
                 etiqueta: 'Practicando ahora',
                 valor: totales.enCurso,
                 detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
                 tono: totales.enCurso > 0 ? 'activo' : undefined,
               },
               {
+                icono: MessageSquareText,
                 etiqueta: 'Por revisar',
                 valor: totales.pendientes,
                 detalle: totales.pendientes === 0 ? 'Al día' : 'Esperan retroalimentación',
                 tono: totales.pendientes > 0 ? 'atencion' : undefined,
               },
               {
+                icono: KeyRound,
                 etiqueta: 'Códigos sin usar',
                 valor: totales.codigos,
                 detalle: totales.codigos === 0 ? 'Ninguno esperando' : 'Aún vigentes',
                 ayuda: 'Códigos de un solo uso que el estudiante todavía no ha usado.',
               },
               {
+                icono: MonitorPlay,
                 etiqueta: 'Prácticas',
                 valor: totales.sesiones,
                 detalle: 'Entre todos tus estudiantes',

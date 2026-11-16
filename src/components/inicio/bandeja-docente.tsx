@@ -152,43 +152,27 @@ export function BandejaDocente({
   if (enRiel) {
     return (
       <aside aria-labelledby="bandeja-titulo" className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-col gap-0.5 px-0.5">
-          <h2 id="bandeja-titulo" className="text-xl font-bold tracking-[-0.015em]">
-            Tu bandeja
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Tus estudiantes asignados: en vivo, por revisar y códigos.
-          </p>
+        <div
+          className={cn(
+            'overflow-hidden rounded-2xl border bg-card @5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]',
+            practicando.length > 0 && 'border-salvia/50'
+          )}
+        >
+          <div className="flex flex-col gap-0.5 px-5 pt-4.5 pb-4">
+            <h2 id="bandeja-titulo" className="text-xl font-bold tracking-[-0.015em]">
+              Tu bandeja
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Tus estudiantes asignados: en vivo, por revisar y códigos.
+            </p>
+          </div>
+
+          <div className="border-t">{bloquePracticando}</div>
         </div>
 
         <div className="grid gap-4 @2xl/inicio:grid-cols-2 @5xl/inicio:grid-cols-1">
-          {practicando.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-salvia/50 bg-card @2xl/inicio:col-span-2 @5xl/inicio:col-span-1">
-              {bloquePracticando}
-            </div>
-          ) : (
-            <section
-              aria-labelledby="practicando"
-              className="flex items-center justify-between gap-3 rounded-xl border bg-card px-5 py-3.5 @2xl/inicio:col-span-2 @5xl/inicio:col-span-1"
-            >
-              <div className="flex items-center gap-2">
-                <h3 id="practicando" className="text-base font-bold tracking-[-0.015em]">
-                  Practicando ahora
-                </h3>
-                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
-                  0
-                </span>
-                <AyudaContextual
-                  etiqueta="Qué es Practicando ahora"
-                  texto="Estudiantes con un consultorio abierto en este momento. La página se actualiza sola cada 30 segundos mientras haya alguno."
-                />
-              </div>
-              <span className="text-xs text-muted-foreground">Nadie en el consultorio</span>
-            </section>
-          )}
-
-          <div className="overflow-hidden rounded-xl border bg-card">{bloquePorRevisar}</div>
-          <div className="overflow-hidden rounded-xl border bg-card">{bloqueCodigos}</div>
+          <div className="overflow-hidden rounded-2xl border bg-card">{bloquePorRevisar}</div>
+          <div className="overflow-hidden rounded-2xl border bg-card">{bloqueCodigos}</div>
         </div>
       </aside>
     );
@@ -218,7 +202,7 @@ export function BandejaDocente({
   return (
     <div className="grid items-start gap-8 @5xl/inicio:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
       <div className="flex min-w-0 flex-col gap-6">
-        <div className="overflow-hidden rounded-xl border bg-card">{bloquePorRevisar}</div>
+        <div className="overflow-hidden rounded-2xl border bg-card">{bloquePorRevisar}</div>
 
         <BloqueEstudiantesDocente
           visibles={estudiantesOrdenados}
@@ -232,32 +216,16 @@ export function BandejaDocente({
       </div>
 
       <div className="grid min-w-0 gap-4 @2xl/inicio:grid-cols-2 @5xl/inicio:grid-cols-1">
-        {practicando.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border border-salvia/50 bg-card @2xl/inicio:col-span-2 @5xl/inicio:col-span-1">
-            {bloquePracticando}
-          </div>
-        ) : (
-          <section
-            aria-labelledby="practicando"
-            className="flex items-center justify-between gap-3 rounded-xl border bg-card px-5 py-3.5 @2xl/inicio:col-span-2 @5xl/inicio:col-span-1"
-          >
-            <div className="flex items-center gap-2">
-              <h2 id="practicando" className="text-xl font-bold tracking-[-0.015em]">
-                Practicando ahora
-              </h2>
-              <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
-                0
-              </span>
-              <AyudaContextual
-                etiqueta="Qué es Practicando ahora"
-                texto="Estudiantes con un consultorio abierto en este momento. La página se actualiza sola cada 30 segundos mientras haya alguno."
-              />
-            </div>
-            <span className="text-xs text-muted-foreground">Nadie en el consultorio</span>
-          </section>
-        )}
+        <div
+          className={cn(
+            'overflow-hidden rounded-2xl border bg-card @2xl/inicio:col-span-2 @5xl/inicio:col-span-1',
+            practicando.length > 0 && 'border-salvia/50'
+          )}
+        >
+          {bloquePracticando}
+        </div>
 
-        <div className="overflow-hidden rounded-xl border bg-card">{bloqueCodigos}</div>
+        <div className="overflow-hidden rounded-2xl border bg-card">{bloqueCodigos}</div>
 
         {casosPracticados.length > 0 ? (
           <BloqueCasosPracticados grupos={casosPracticados} />
@@ -539,7 +507,7 @@ function BloqueEstudiantesDocente({
   return (
     <section
       aria-labelledby="tus-estudiantes"
-      className="overflow-hidden rounded-xl border bg-card"
+      className="overflow-hidden rounded-2xl border bg-card"
     >
       <div className="flex flex-wrap items-center gap-2 px-5 pt-4 pb-3">
         <h2 id="tus-estudiantes" className="text-xl font-bold tracking-[-0.015em]">
@@ -666,7 +634,7 @@ function BloqueRevisadas({ sesiones, ahora }: { sesiones: SesionDocente[]; ahora
   return (
     <section
       aria-labelledby="ultimas-revisadas"
-      className="overflow-hidden rounded-xl border bg-card"
+      className="overflow-hidden rounded-2xl border bg-card"
     >
       <div className="flex items-center gap-2 px-5 pt-4 pb-3">
         <h2 id="ultimas-revisadas" className="text-xl font-bold tracking-[-0.015em]">
@@ -730,7 +698,7 @@ function BloqueCasosPracticados({ grupos }: { grupos: ResumenGrupo[] }) {
   return (
     <section
       aria-labelledby="casos-practicados"
-      className="overflow-hidden rounded-xl border bg-card"
+      className="overflow-hidden rounded-2xl border bg-card"
     >
       <div className="flex items-center gap-2 px-5 pt-4 pb-3">
         <h2 id="casos-practicados" className="text-xl font-bold tracking-[-0.015em]">
@@ -814,7 +782,7 @@ function BloquePrimerosPasos({
   return (
     <section
       aria-labelledby="primeros-pasos"
-      className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+      className="flex flex-col gap-3 rounded-2xl border bg-card p-5"
     >
       <div className="flex flex-col gap-0.5">
         <h2 id="primeros-pasos" className="text-xl font-bold tracking-[-0.015em]">

@@ -1,4 +1,13 @@
-import { ArrowRight, Mail, Pencil, Printer } from 'lucide-react';
+import {
+  ArrowRight,
+  ClipboardCheck,
+  Clock,
+  Mail,
+  MessageSquareText,
+  MonitorPlay,
+  Pencil,
+  Printer,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import { type Route } from 'next';
 import Link from 'next/link';
@@ -134,13 +143,18 @@ export default async function EstudiantePage({
 
       <Indicadores
         indicadores={[
-          { etiqueta: 'Prácticas', valor: metricas.sesiones },
+          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.sesiones },
           {
+            icono: Clock,
             etiqueta: 'Tiempo de práctica',
             valor: formatearTiempoPractica(metricas.segundosPractica),
           },
-          { etiqueta: 'Intervenciones', valor: metricas.intervenciones },
-          { etiqueta: 'Nota promedio', valor: formatearNota(metricas.notaPromedio) },
+          { icono: MessageSquareText, etiqueta: 'Intervenciones', valor: metricas.intervenciones },
+          {
+            icono: ClipboardCheck,
+            etiqueta: 'Nota promedio',
+            valor: formatearNota(metricas.notaPromedio),
+          },
         ]}
       />
 

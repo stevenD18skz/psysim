@@ -1,13 +1,25 @@
-import { ClipboardList, Users } from 'lucide-react';
+import {
+  Activity,
+  GraduationCap,
+  KeyRound,
+  MessageSquareText,
+  MonitorPlay,
+  UsersRound,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { type Indicador, Indicadores } from '@/components/comun/indicadores';
 import { BandejaDocente } from '@/components/inicio/bandeja-docente';
-import { PanelPlataforma } from '@/components/inicio/panel-plataforma';
+import {
+  BarraSubHero,
+  EncabezadoHeroTrabajo,
+  type EnlaceHero,
+  MarcoHeroInicio,
+} from '@/components/inicio/marco-hero';
+import { HeroPlataforma, PanelPlataforma } from '@/components/inicio/panel-plataforma';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
-import { Button } from '@/components/ui/button';
 import { obtenerDocentes, obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { RUTA_INICIO } from '@/lib/auth/routes';
@@ -65,7 +77,7 @@ export default async function InicioPage() {
     .filter(estaPorRevisar)
     .sort((a, b) => (a.fin ?? a.inicio).localeCompare(b.fin ?? b.inicio));
   const practicando = sesiones.filter(s => s.estado === 'en_curso');
-  const primerNombre = perfil.nombre.split(' ')[0];
+  const primerNombre = perfil.nombre.trim().split(' ')[0] ?? perfil.nombre;
   const grupoDocente = estudiantesDocente ?? [];
   const conCuentaDocente = grupoDocente.filter(e => e.cuentaVinculada).length;
   const conBorrador = porRevisar.filter(s => s.retroalimentacion !== null).length;
@@ -101,6 +113,7 @@ export default async function InicioPage() {
 
   const indicadoresDocente: Indicador[] = [
     {
+      icono: MessageSquareText,
       etiqueta: 'Por revisar',
       valor: porRevisar.length,
       detalle:
@@ -114,6 +127,7 @@ export default async function InicioPage() {
         'Prácticas terminadas, o con al menos 3 intervenciones del estudiante, que aún no tienen tu retroalimentación publicada.',
     },
     {
+      icono: Activity,
       etiqueta: 'Practicando ahora',
       valor: practicando.length,
       detalle: practicando.length === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
@@ -122,6 +136,7 @@ export default async function InicioPage() {
         'Estudiantes conversando con el paciente en este momento. La página se actualiza sola cada 30 segundos.',
     },
     {
+      icono: KeyRound,
       etiqueta: 'Códigos sin usar',
       valor: codigos.length,
       detalle:
@@ -134,6 +149,7 @@ export default async function InicioPage() {
         'Códigos de un solo uso que generaste y que el estudiante todavía no ha usado para empezar su práctica.',
     },
     {
+      icono: UsersRound,
       etiqueta: 'Estudiantes',
       valor: grupoDocente.length,
       detalle: grupoDocente.length === 0 ? 'Sin registros aún' : `${conCuentaDocente} con cuenta`,
@@ -141,6 +157,7 @@ export default async function InicioPage() {
         'Estudiantes registrados en tu grupo. Quienes ya entraron con su correo institucional pueden recibir códigos.',
     },
     {
+      icono: MonitorPlay,
       etiqueta: 'Prácticas',
       valor: sesiones.length,
       detalle:
@@ -164,47 +181,95 @@ export default async function InicioPage() {
     />
   );
 
+  if (docentes && estudiantesPlataforma) {
+    return (
+      <div className="@container/inicio flex flex-1 flex-col">
+        <RefrescoAutomatico activo={practicando.length > 0} segundos={30} />
+        <HeroPlataforma textoSaludo={saludo(ahora)} primerNombre={primerNombre} resumen={resumen} />
+        {/* Las tarjetas clave invaden la franja superior de nogal para anclar los dos niveles. */}
+        <div className="relative z-10 mx-auto -mt-10 w-full max-w-[1400px] px-4 pb-10 sm:-mt-16 sm:px-6 sm:pb-12">
+          <div className="grid items-start gap-6 @5xl/inicio:grid-cols-[minmax(0,1.55fr)_minmax(21.5rem,25.5rem)] @5xl/inicio:gap-8">
+            <PanelPlataforma
+              docentes={docentes}
+              estudiantes={estudiantesPlataforma}
+              ahora={ahora}
+            />
+            {bandeja}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const enlacesDocente: readonly EnlaceHero[] = [
+    {
+      href: '/sesiones',
+      texto: 'Revisiones',
+      contador: porRevisar.length > 0 ? porRevisar.length : undefined,
+    },
+    { href: '/estudiantes', texto: 'Estudiantes' },
+    { href: '/configuracion/casos', texto: 'Casos' },
+  ];
+
+  const estadoGrupo =
+    practicando.length > 0 ? (
+      <a
+        href="#practicando"
+        className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-salvia/60 bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-sidebar-foreground transition-colors hover:border-laton/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+      >
+        <span aria-hidden className="relative flex size-2">
+          <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-65 motion-safe:animate-ping" />
+          <span className="relative inline-flex size-2 rounded-full bg-salvia" />
+        </span>
+        {plural(practicando.length, 'practicando ahora', 'practicando ahora')}
+      </a>
+    ) : porRevisar.length > 0 ? (
+      <Link
+        href="/sesiones"
+        className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-laton-texto transition-colors hover:border-laton/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+      >
+        <MessageSquareText className="size-3.5 shrink-0" aria-hidden />
+        {plural(porRevisar.length, 'práctica por revisar', 'prácticas por revisar')}
+      </Link>
+    ) : (
+      <Link
+        href="/estudiantes"
+        className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-laton-texto transition-colors hover:border-laton/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+      >
+        <UsersRound className="size-3.5 shrink-0" aria-hidden />
+        {plural(grupoDocente.length, 'estudiante en tu grupo', 'estudiantes en tu grupo')}
+      </Link>
+    );
+
   return (
-    <div className="@container/inicio mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="@container/inicio flex flex-1 flex-col">
       <RefrescoAutomatico activo={practicando.length > 0} segundos={30} />
-
-      <header className="@container">
-        <div className="flex flex-col gap-5 @2xl:flex-row @2xl:items-end @2xl:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="text-3xl leading-[1.05] font-bold tracking-[-0.025em] sm:text-[2.6rem]">
-              {saludo(ahora)}, {primerNombre}
-            </h1>
-            <p className="text-lg text-muted-foreground">{resumen}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Button asChild variant="outline" size="lg">
-              <Link href="/estudiantes">
-                <Users aria-hidden />
-                {esAdmin || grupoDocente.length > 0 ? 'Ver estudiantes' : 'Registrar estudiantes'}
-              </Link>
-            </Button>
-            <Button asChild variant="accion" size="lg">
-              <Link href="/configuracion">
-                <ClipboardList aria-hidden />
-                Asignar práctica
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {docentes && estudiantesPlataforma ? (
-        // La plataforma lidera; el riel personal acompaña solo cuando hay ancho suficiente.
-        <div className="grid items-start gap-8 @5xl/inicio:grid-cols-[minmax(0,1.55fr)_minmax(21.5rem,25.5rem)]">
-          <PanelPlataforma docentes={docentes} estudiantes={estudiantesPlataforma} ahora={ahora} />
-          {bandeja}
-        </div>
-      ) : (
-        <>
-          <Indicadores indicadores={indicadoresDocente} />
-          {bandeja}
-        </>
-      )}
+      <MarcoHeroInicio>
+        <EncabezadoHeroTrabajo
+          textoSaludo={saludo(ahora)}
+          primerNombre={primerNombre}
+          resumen={resumen}
+          etiquetaEstudiantes={
+            grupoDocente.length > 0 ? 'Ver estudiantes' : 'Registrar estudiantes'
+          }
+        />
+        <BarraSubHero
+          tituloId="resumen-docente"
+          titulo="Tu grupo"
+          icono={GraduationCap}
+          ariaNavegacion="Secciones de trabajo"
+          enlaces={enlacesDocente}
+          estadoDerecha={estadoGrupo}
+        />
+      </MarcoHeroInicio>
+      {/* La franja de métricas sube sobre la madera para destacar el estado del grupo hoy. */}
+      <div className="relative z-10 mx-auto -mt-10 flex w-full max-w-[1400px] flex-col gap-8 px-4 pb-10 sm:-mt-16 sm:px-6 sm:pb-12">
+        <Indicadores
+          indicadores={indicadoresDocente}
+          className="shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]"
+        />
+        {bandeja}
+      </div>
     </div>
   );
 }

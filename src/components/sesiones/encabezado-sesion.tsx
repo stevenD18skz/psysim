@@ -1,4 +1,12 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  GraduationCap,
+  MessageSquareText,
+  User,
+} from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
@@ -101,13 +109,19 @@ export function EncabezadoSesion({
         indicadores={[
           para === 'docente'
             ? {
+                icono: User,
                 etiqueta: 'Estudiante',
                 valor: `${sesion.estudiante.nombre} · ${sesion.estudiante.codigo}`,
               }
-            : { etiqueta: 'Docente', valor: sesion.docente ?? '—' },
-          { etiqueta: 'Fecha', valor: formatearFechaHora(sesion.inicio) },
-          { etiqueta: 'Duración', valor: duracion === null ? '—' : formatearDuracion(duracion) },
+            : { icono: GraduationCap, etiqueta: 'Docente', valor: sesion.docente ?? '—' },
+          { icono: CalendarDays, etiqueta: 'Fecha', valor: formatearFechaHora(sesion.inicio) },
           {
+            icono: Clock,
+            etiqueta: 'Duración',
+            valor: duracion === null ? '—' : formatearDuracion(duracion),
+          },
+          {
+            icono: MessageSquareText,
             etiqueta: 'Intervenciones',
             valor:
               reformuladas > 0

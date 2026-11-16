@@ -1,3 +1,4 @@
+import { ClipboardCheck, MonitorPlay, UserCheck, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { BotonNuevoDocente } from '@/components/admin/boton-nuevo-docente';
@@ -39,10 +40,15 @@ export default async function AdminPage() {
 
       <Indicadores
         indicadores={[
-          { etiqueta: 'Cuentas activas', valor: totales.activos },
-          { etiqueta: 'Estudiantes', valor: totales.estudiantes },
-          { etiqueta: 'Prácticas', valor: totales.sesiones },
-          { etiqueta: 'Por revisar', valor: totales.pendientes },
+          { icono: UserCheck, etiqueta: 'Cuentas activas', valor: totales.activos },
+          { icono: UsersRound, etiqueta: 'Estudiantes', valor: totales.estudiantes },
+          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: totales.sesiones },
+          {
+            icono: ClipboardCheck,
+            etiqueta: 'Por revisar',
+            valor: totales.pendientes,
+            tono: totales.pendientes > 0 ? 'atencion' : undefined,
+          },
         ]}
       />
 

@@ -1,3 +1,4 @@
+import { AlertTriangle, Bot, MonitorPlay, RefreshCw } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -130,10 +131,15 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
 
       <Indicadores
         indicadores={[
-          { etiqueta: 'Respuestas del paciente', valor: turnos },
-          { etiqueta: 'Prácticas', valor: metricas.practicas.total },
-          { etiqueta: 'Pasaron a Gemini', valor: metricas.practicas.pasaron_a_gemini },
+          { icono: Bot, etiqueta: 'Respuestas del paciente', valor: turnos },
+          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.practicas.total },
           {
+            icono: RefreshCw,
+            etiqueta: 'Pasaron a Gemini',
+            valor: metricas.practicas.pasaron_a_gemini,
+          },
+          {
+            icono: AlertTriangle,
             etiqueta: 'Cierres automáticos',
             valor: metricas.practicas.cierres_por_crisis + metricas.practicas.cierres_por_conducta,
           },
