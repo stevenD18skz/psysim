@@ -130,17 +130,31 @@ El orquestador mueve la severidad del paciente dentro de `[behavior_min, behavio
 zona de cierre automático. Se deducen de la dificultad y del riesgo del caso
 (`src/lib/orquestador/mapeo.ts`):
 
-| Dificultad | Severidad inicial | Rango   |
-| ---------- | ----------------- | ------- |
-| Básico     | 2                 | 1 – 4   |
-| Intermedio | 3                 | 1 – 4,5 |
-| Avanzado   | 3                 | 2 – 5   |
+| Dificultad | Severidad inicial | Rango (sin riesgo) |
+| ---------- | ----------------- | ------------------ |
+| Básico     | 2                 | 0 – 4              |
+| Intermedio | 3                 | 1 – 4,5            |
+| Avanzado   | 3                 | 1 – 5              |
 
 - **Riesgo** (campo del constructor o línea «Riesgo:» del prompt): ideación activa, autolesión o
   riesgo para terceros suman 1 a la severidad inicial y amplían el rango hasta 5. La ideación
   pasiva solo añade su bandera en `risk_flags`.
-- **Casos cotidianos** empiezan un punto más tranquilos.
+- **Casos cotidianos** empiezan un punto más tranquilos, pero nunca por debajo de 2.
 - Ninguna práctica empieza por encima de 4.
+- **El piso queda al menos 2 puntos por debajo de la severidad inicial** (y nunca por debajo de 0).
+  El orquestador cierra la sesión cuando la severidad se queda en un límite, también en el
+  inferior: con un punto de margen, E-08 tocó su piso en 4 turnos empáticos (unos 0,3 por turno) y
+  E-05, E-06 y E-12 empezaban ya en él. Con 2 puntos hacen falta unos 7 turnos calmantes. El
+  límite superior de la dificultad se conserva cuando ya queda a 2 puntos (E-09: 4, rango 2 – 5).
+
+Así quedan los casos oficiales (`pnpm orquestador:sincronizar --simular`):
+
+| Casos                  | Severidad inicial | Rango   |
+| ---------------------- | ----------------- | ------- |
+| E-01, E-05, E-06, E-12 | 2                 | 0 – 4   |
+| E-02, E-03, E-07, E-10 | 3                 | 1 – 4,5 |
+| E-04, E-08, E-11       | 3                 | 1 – 5   |
+| E-09                   | 4                 | 2 – 5   |
 
 Si esta tabla cambia, se sube `VERSION_MAPEO` y todos los casos se vuelven a sincronizar solos.
 
@@ -212,6 +226,13 @@ razón pasan a Gemini:
 - las respuestas del orquestador que PsySim rechaza (copiaban las instrucciones o venían vacías):
   allá quedaron guardadas y en PsySim no.
 
+También pasan a Gemini las prácticas cuya sesión **cerró el orquestador sin que la práctica deba
+terminar**: un cierre `success` (el paciente se calmó y la severidad se quedó en el piso), un
+`should_close` sin `closing_kind` o con un valor desconocido, y un 400 «sesión ya cerrada» (ver
+sección 8). El motivo queda en `sesion_ia.cambio_motivo` (`cierre_orquestador`, `cierre_sin_motivo`,
+`cierre_desconocido`) y en `/admin/ia`. Es una red de seguridad: con los rangos de la sección 3 no
+debería ser lo habitual.
+
 El laboratorio y el chat de prueba del constructor de casos usan siempre Gemini.
 
 **Volver a Gemini en una emergencia:** poner `IA_PROVEEDOR=gemini` en Vercel y volver a desplegar.
@@ -256,7 +277,29 @@ Cuántas respuestas llegaron sin etiqueta se ve en la vista del Administrador (�
 
 ## 8. Cierre automático
 
-Si el orquestador decide cerrar (`should_close`), la respuesta de ese turno es la última:
+El orquestador cierra su sesión (`should_close: true`) cuando la severidad se queda en un límite
+del rango por varios turnos seguidos o hay maltrato reiterado. El límite puede ser el **inferior**
+(el paciente se calmó). Una sesión cerrada no se reabre: los mensajes nuevos reciben 400 «sesión
+ya cerrada», y una sesión nueva empezaría sin el historial. Qué hace PsySim según `closing_kind`
+(`src/lib/orquestador/cierre.ts`):
+
+| `closing_kind` del orquestador | Estado allá  | Qué pasa en PsySim                                     |
+| ------------------------------ | ------------ | ------------------------------------------------------ |
+| `crisis`                       | `terminated` | La práctica termina con este turno (`crisis`)          |
+| `inappropriate`                | `terminated` | La práctica termina con este turno (`inapropiada`)     |
+| `success`                      | `completed`  | Se entrega la respuesta y la práctica sigue con Gemini |
+| ausente, `null` o desconocido  | —            | Igual que `success`, y queda en el registro (`warn`)   |
+
+Lo que no se reconoce nunca se convierte en un motivo clínico. El camino del stream, el de
+recuperación (`recuperar()`, que solo ve el estado de la sesión: `completed` = `success`;
+`terminated` = crisis, o inapropiada si el turno trae `abuse` o `repeat_abuse`) y el barrido de
+cierres llegan a la misma conclusión con los mismos datos. Una bandera `risk` sola no cierra nada.
+
+Cuando la práctica sigue tras un cierre ajeno, la sesión se marca como cerrada allá
+(`cerrada_en_orquestador`) para no volver a cerrarla con otro motivo, y se registra un evento en
+`orquestador_evento`.
+
+Si el cierre es por crisis o trato inapropiado, la respuesta de ese turno es la última:
 
 - El servidor guarda el motivo (`crisis` o `inapropiada`) y no acepta más intervenciones (409).
 - En el navegador, cuando la respuesta termina de mostrarse, el campo de texto se reemplaza por un
@@ -269,11 +312,62 @@ Si el orquestador decide cerrar (`should_close`), la respuesta de ese turno es l
 
 ## 9. Al terminar la práctica
 
+Una práctica termina por uno de estos caminos (los cuatro guardan las métricas, que calcula la base
+de datos):
+
+1. El estudiante pulsa «Terminar práctica».
+2. **Se cumplen el tiempo de la consulta y su margen de cierre** (ver «Tiempo de consulta», abajo).
+3. Diez minutos sin actividad (queda `interrumpida`).
+4. Un cierre del paciente por crisis o trato inapropiado (sección 8).
+
 Después de responderle al estudiante, PsySim reporta al orquestador la duración que calculó su
 base de datos (`PATCH /time`, en tramos de 600 s como máximo, con la cuenta dueña) y cierra la
-sesión (`PATCH /end` con `success`, `crisis` o `inappropriate`, con la cuenta `teacher`). Las
-prácticas que terminan por otro camino (el barrido de inactividad, una pestaña cerrada) se cierran
-allá la próxima vez que alguien empieza una práctica.
+sesión (`PATCH /end`, con la cuenta `teacher`). El `closing_kind` refleja lo que pasó en PsySim:
+`crisis` o `inappropriate` si el paciente cerró la consulta, `success` si la práctica terminó
+(también por tiempo) y ninguno si quedó interrumpida (allá queda `completed`). Si el orquestador ya
+había cerrado la sesión por su cuenta, no se vuelve a cerrar. Un 4xx por sesión ya cerrada o
+inexistente no deja la práctica pendiente para siempre. Las prácticas que terminan por otro camino
+(el barrido de inactividad, una pestaña cerrada) se cierran allá la próxima vez que alguien empieza
+una práctica.
+
+### Tiempo de consulta
+
+Siguiendo el estándar de diseño de simulación de INACSL (marco de tiempo y punto final planeados y
+conocidos por quien participa), cada práctica tiene una duración de consulta. El encuadre del tiempo
+y el cierre de la entrevista son parte de lo que practica el estudiante.
+
+- **Duración:** el docente la elige al asignar (10, 15, 20 o 30 minutos; 15 por defecto). Se
+  guarda en `asignacion.duracion_minutos` y `canjear_codigo` la copia a `sesion.duracion_minutos`.
+  El modo presencial usa la misma asignación.
+- **Inicio:** con la primera intervención guardada del estudiante (`sesion.consulta_inicio`, que
+  anota el trigger `mensaje_registrar_actividad` con la hora de la base de datos), no al abrir las
+  instrucciones.
+- **Cálculo:** `tiempo_de_consulta(sesion)` devuelve la duración y los segundos transcurridos con
+  `now()`. El navegador recibe ese dato al abrir la práctica y con cada respuesta, y solo lo
+  muestra (avanza con su reloj monotónico). El reloj del navegador nunca decide nada.
+- **Preparación previa:** las instrucciones del caso dicen cuánto dura la consulta, que se avisa a
+  los 3 minutos del final y que el estudiante la cierra antes de pulsar «Terminar práctica».
+- **Durante la práctica:** el HUD muestra los minutos que quedan, sin segundos ni rojo. A los 3
+  minutos del final: «Quedan 3 minutos de consulta». Al cumplirse: «Es momento de cerrar la
+  consulta». El lector de pantalla solo anuncia esos cambios.
+- **Margen y fin:** tras cumplirse el tiempo hay 5 minutos más para cerrar. Pasado el margen,
+  `/api/npc/chat` responde 409 con `fin: 'tiempo'` (sin llamar a la IA ni gastar el límite por
+  minuto) y el navegador, tras confirmarlo con el servidor (`consultarTiempo`), termina la práctica
+  por el camino de «Terminar práctica». El estudiante lee «Se cumplió el tiempo de la consulta» y
+  sigue a los resultados.
+- **Lo que ve el docente:** al cerrar, el servidor compara el inicio de la consulta y el fin de la
+  práctica (horas de la base de datos) y, si pasó el margen, anota `sesion.fin_motivo = 'tiempo'`.
+  La transcripción dice «Terminó al cumplirse el tiempo de la consulta». Es un dato neutro, no una
+  falta.
+- **El paciente nota el tiempo (solo con Gemini):** en el primer turno con el tiempo ya cumplido,
+  el servidor añade a las instrucciones del sistema de ese turno una nota de escena: el paciente
+  puede notarlo una vez («¿ya se nos acabó el tiempo por hoy?») si el estudiante no ha empezado a
+  cerrar. No va en el mensaje del estudiante ni en el historial, y el filtro de fuga la trata como
+  instrucción. **Con el orquestador no se hace:** su único canal por turno es el mensaje del
+  estudiante, y escribir ahí una instrucción ensuciaría su historial y la transcripción.
+- **El paciente no cierra la consulta:** una regla fija, en los dos proveedores, dice que quien
+  cierra es el estudiante; si resume, acuerda otra cita o se despide, el paciente se despide con
+  naturalidad, y no da por terminada la consulta por sentirse mejor.
 
 **PsySim no usa `/evaluation/*`.** El orquestador calcula una evaluación automática al cerrar la
 sesión: no se lee, no se guarda y no se muestra. PsySim no evalúa al estudiante.

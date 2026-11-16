@@ -43,6 +43,38 @@ orquestador simulado (unitarias en verde); **falta probarlo contra el servicio r
    práctica y el consentimiento (hoy nombran solo a Google Gemini), y citar el orquestador en el
    documento de grado.
 
+## Cierre del orquestador y tiempo de consulta (rama `fix/cierre-orquestador`, 15 de noviembre)
+
+Rama sobre `develop`, sin push. Detalle en [`docs/orquestador.md`](orquestador.md), secciones 3, 5,
+8 y 9.
+
+- **Error corregido:** el orquestador cierra su sesión también cuando el paciente se calma
+  (`closing_kind: success`). PsySim lo tomaba como crisis y terminaba la práctica (51b8aecd, E-08).
+  Ahora solo `crisis` e `inappropriate` terminan la práctica; lo demás pasa a Gemini y se registra.
+  La auditoría de la integración corrigió además el 400 «sesión ya cerrada», un `done` con otra
+  forma, la severidad fuera de 0–5, los cierres en el orquestador y los plazos.
+- **Fin normal de una práctica:** tiempo de consulta (10, 15, 20 o 30 minutos, que elige el
+  docente), aviso a los 3 minutos, invitación a cerrar, 5 minutos de margen y fin automático con
+  motivo neutro. Con Gemini, el paciente puede notar una vez que se acabó el tiempo.
+- **El paciente no cierra la consulta** por sentirse mejor (regla fija en los dos proveedores) y
+  **ningún caso empieza a menos de 2 puntos de su piso** de severidad (`VERSION_MAPEO = 3`).
+
+Para desplegar, en este orden:
+
+1. Aplicar `20261115010000_corrige_cierre_practica_51b8aecd.sql` (corrección de datos; se puede
+   aplicar ya).
+2. Aplicar `20261115020000_tiempo_de_consulta.sql` **antes de desplegar** el código: solo añade, y
+   el código nuevo escribe `asignacion.duracion_minutos`.
+3. Fusionar en `develop`. Los casos se actualizan solos en el orquestador la próxima vez que se
+   practican (o con `pnpm orquestador:sincronizar`). Mientras `main` siga con `VERSION_MAPEO = 1`,
+   producción y staging se pisan el escenario de cada caso (comparten la base): conviene llevar
+   esta rama a `main` pronto.
+4. Correr los E2E de conversación y de flujo completo con `--workers=1` (no se corrieron: falta
+   `.env.test.local` en este equipo).
+
+La sesión del orquestador `c6842e66…` (práctica 51b8aecd) quedó `terminated` allá y no se puede
+corregir desde PsySim.
+
 ## Documentos clave
 
 | Documento                                                                 | Para qué                                                           |

@@ -45,6 +45,10 @@ práctica».
 Recuerda que el paciente es una inteligencia artificial y puede equivocarse, y que tu docente
 leerá la conversación completa.
 
+Las instrucciones también dicen cuánto dura la consulta (15 minutos si tu docente no eligió otra
+duración). El tiempo corre desde tu primera intervención, no mientras lees ni mientras caminas por
+el consultorio.
+
 ### 2.3 Moverte y conversar
 
 | Acción                    | Cómo                                                                     |
@@ -67,6 +71,10 @@ Mientras conversas:
 - «Ensayar otra respuesta» te deja reformular una intervención: el paciente olvida esa
   intervención y las siguientes, y tu docente las verá como intentos reformulados.
 - En «Ajustes del consultorio» puedes desactivar el ambiente emocional y el sonido.
+- Arriba a la izquierda ves los minutos de consulta que quedan. Cuando falten 3 minutos verás
+  «Quedan 3 minutos de consulta» y, al cumplirse, «Es momento de cerrar la consulta». Cerrar la
+  entrevista te corresponde a ti, como en una consulta real: resume, acuerda lo que sigue y
+  despídete. El paciente no da por terminada la consulta por sentirse mejor.
 
 Si el paciente no responde, verás un aviso con «Reintentar»: tu conversación no se pierde. Si
 cierras la pestaña o se cae la conexión, puedes volver a entrar desde «Mis prácticas» mientras la
@@ -74,8 +82,12 @@ práctica siga abierta.
 
 ### 2.4 Terminar
 
-Pulsa «Terminar práctica» y confirma. Después puedes escribir una reflexión personal, que tu
-docente leerá junto con la conversación.
+Cuando hayas cerrado la entrevista, pulsa «Terminar práctica» y confirma. Después puedes escribir
+una reflexión personal, que tu docente leerá junto con la conversación.
+
+Cumplido el tiempo de la consulta tienes 5 minutos más para cerrarla. **Pasado ese margen, la
+práctica termina sola**, guarda lo conversado y te lleva a los resultados. No es una falta: tu
+docente verá que terminó al cumplirse el tiempo.
 
 **La práctica se cierra sola después de 10 minutos sin actividad.** Si eso pasa, tu docente
 revisará lo que alcanzaste a conversar.
@@ -105,8 +117,13 @@ ves a los estudiantes que registras.
 1. En «Asignar práctica», elige un caso: uno de los doce del catálogo o uno propio.
 2. Si quieres, pulsa «Ajustar para esta práctica» para cambiar cuánto se abre el paciente, cuánto
    se le notan las emociones o qué datos guarda.
-3. Elige al estudiante y la vigencia del código, y pulsa «Generar código».
-4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
+3. Elige al estudiante, cuánto dura la consulta (10, 15, 20 o 30 minutos; 15 por defecto) y la
+   vigencia del código, y pulsa «Generar código».
+
+El estudiante conoce la duración desde las instrucciones del caso. El tiempo corre desde su
+primera intervención; a los 3 minutos del final recibe un aviso y, al cumplirse, una invitación a
+cerrar la entrevista. Tiene 5 minutos más para cerrarla; después, la práctica termina sola y en la
+transcripción verás «Terminó al cumplirse el tiempo de la consulta». 4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
 
 Un código sin usar se puede anular con «Anular». Si el estudiante va a practicar en tu computador,
 usa «Practicar en este equipo»: la plataforma cierra primero tu sesión para que el estudiante
@@ -155,6 +172,7 @@ desactiva o las elimina. Una cuenta desactivada pierde el acceso de inmediato.
 | «No pudimos cargar el consultorio»       | El navegador no tiene WebGL o la conexión falló. Recarga, actualiza el navegador o prueba con otro.                 |
 | El paciente no responde                  | Pulsa «Reintentar». Si enviaste muchos mensajes seguidos, espera un minuto: hay un límite de diez por minuto.       |
 | La práctica se cerró por inactividad     | Pasaron 10 minutos sin actividad. Tu docente revisará lo conversado; para practicar de nuevo necesitas otro código. |
+| La práctica terminó sola por el tiempo   | Se cumplieron el tiempo de la consulta y los 5 minutos para cerrarla. Lo conversado quedó guardado para tu docente. |
 | No encuentro la retroalimentación        | Aparece en «Mis prácticas» solo cuando el docente la publica.                                                       |
 
 ## 6. Privacidad
