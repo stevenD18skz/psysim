@@ -19,7 +19,7 @@ import {
 import { useTextoProgresivo } from '@/components/simulacion/use-texto-progresivo';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { AVISO_CIERRE, type MotivoCierre } from '@/lib/conversacion/cierre';
+import { AVISO_CIERRE, type FinDePractica } from '@/lib/conversacion/cierre';
 import { emocionActual } from '@/lib/conversacion/emociones';
 import { type EstadoNpc } from '@/lib/conversacion/estados-npc';
 import { enviarMensaje, MENSAJE_NO_DISPONIBLE } from '@/lib/conversacion/enviar-mensaje';
@@ -611,7 +611,7 @@ function AvisoCierre({
   onContinuar,
   ocupado,
 }: {
-  motivo: MotivoCierre;
+  motivo: FinDePractica;
   onContinuar: () => void;
   ocupado: boolean;
 }) {

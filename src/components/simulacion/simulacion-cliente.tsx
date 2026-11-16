@@ -45,6 +45,7 @@ import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
 import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
+import { useFinPorTiempo } from '@/components/simulacion/use-tiempo-consulta';
 import { useMuestreoProximidad } from '@/components/simulacion/use-proximidad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
@@ -146,7 +147,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const estadoNpc = useAppStore(state => state.npc.estado);
   const cerca = useInteraccion(interaccion => interaccion.cerca);
   const apuntando = useInteraccion(interaccion => interaccion.apuntando);
-  // El paciente dio por terminada la consulta (crisis o trato inapropiado).
+  // La práctica termina sola: el paciente cerró la consulta (crisis o trato inapropiado) o se
+  // cumplieron el tiempo de la consulta y su margen de cierre.
   const cierre = useAppStore(state => state.conversacion.cierre);
   const enCamino = useAppStore(respuestaEnCamino);
   const {
@@ -192,6 +194,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && comenzada && !resumen && !cierre;
+  useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
   useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
 

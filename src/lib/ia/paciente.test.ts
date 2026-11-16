@@ -7,11 +7,13 @@ import {
   construirMensajes,
   ErrorIA,
   generarRespuestaPaciente,
+  instruccionesDelTurno,
   limpiarRespuesta,
   MAX_MENSAJES_CONTEXTO,
   transmitirRespuestaPaciente,
 } from './paciente';
 import { type ParteTurno } from './partes';
+import { componerInstrucciones, NOTA_TIEMPO_CUMPLIDO } from './reglas';
 
 function modeloQueResponde(texto: string) {
   return new MockLanguageModelV4({
@@ -453,5 +455,28 @@ describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
     );
     expect(error).toBeInstanceOf(ErrorIA);
     expect(error).toMatchObject({ tipo: 'proveedor' });
+  });
+});
+
+describe('instruccionesDelTurno', () => {
+  it('sin nota de escena son el caso y las reglas fijas', () => {
+    expect(
+      instruccionesDelTurno({ promptSistema: 'Eres Marta.', historial: [], mensaje: 'Hola' })
+    ).toBe(componerInstrucciones('Eres Marta.'));
+  });
+
+  it('la nota de escena va al final de las instrucciones, nunca en el mensaje del estudiante', () => {
+    const entrada = {
+      promptSistema: 'Eres Marta.',
+      historial: [],
+      mensaje: 'Hola',
+      notaDeEscena: NOTA_TIEMPO_CUMPLIDO,
+    };
+    const instrucciones = instruccionesDelTurno(entrada);
+    expect(instrucciones.startsWith(componerInstrucciones('Eres Marta.'))).toBe(true);
+    expect(instrucciones.endsWith(NOTA_TIEMPO_CUMPLIDO)).toBe(true);
+    expect(construirMensajes(entrada.historial, entrada.mensaje)).toEqual([
+      { role: 'user', content: 'Hola' },
+    ]);
   });
 });

@@ -463,6 +463,44 @@ describe('enviarMensaje con la respuesta por partes', () => {
     expect(hacerFetch).toHaveBeenCalledOnce();
   });
 
+  it('actualiza el tiempo de consulta con lo que informa el servidor', async () => {
+    const store = storeListo();
+    const fin = {
+      respuesta: { ...finOk.respuesta, consulta: { duracion_s: 900, transcurrido_s: 480 } },
+    };
+    await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () => flujoDeEventos([evento('fin', fin)])),
+      ahora,
+    });
+    expect(store.getState().conversacion.consulta).toMatchObject({
+      duracionS: 900,
+      transcurridoS: 480,
+    });
+  });
+
+  it('pasado el margen de la consulta, el servidor no la acepta: termina por tiempo sin error', async () => {
+    const store = storeListo();
+    const hacerFetch = vi.fn(async () =>
+      jsonResponse(
+        { error: 'Se cumplió el tiempo de la consulta. La práctica termina aquí.', fin: 'tiempo' },
+        409
+      )
+    );
+    const resultado = await enviarMensaje(store, 'Una pregunta más', { fetch: hacerFetch, ahora });
+
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'Se cumplió el tiempo de la consulta. La práctica termina aquí.',
+    });
+    const { conversacion, npc } = store.getState();
+    expect(conversacion.cierre).toBe('tiempo');
+    // La intervención no se guardó: no queda en la conversación ni para reintentar.
+    expect(conversacion.mensajes).toEqual([]);
+    expect(conversacion.pendiente).toBeNull();
+    expect(conversacion.error).toBeNull();
+    expect(npc.estado).toBe('esperando_input');
+  });
+
   it('ignora eventos desconocidos o ilegibles sin romper la respuesta', async () => {
     const store = storeListo();
     const resultado = await enviarMensaje(store, 'Hola', {

@@ -32,6 +32,7 @@ describe('obtenerIaDeSesion', () => {
     expect(await obtenerIaDeSesion(SESION)).toEqual({
       cierre: 'crisis',
       severidades: { m1: 2.5, m2: 5 },
+      finPorTiempo: false,
     });
     expect(db.de('mensaje_ia')[0]!.filtros).toEqual(
       expect.arrayContaining([['eq', 'sesion_id', SESION]])
@@ -42,6 +43,28 @@ describe('obtenerIaDeSesion', () => {
     db.responder('sesion_ia', { data: { cierre_motivo: null } });
     db.responder('mensaje_ia', { data: [] });
     expect(await obtenerIaDeSesion(SESION)).toBeNull();
+  });
+
+  it('una práctica que terminó al cumplirse el tiempo lo indica, aunque no tenga cierre', async () => {
+    db.responder('sesion_ia', { data: { cierre_motivo: null } });
+    db.responder('mensaje_ia', { data: [] });
+    db.responder('sesion', { data: { fin_motivo: 'tiempo' } });
+    expect(await obtenerIaDeSesion(SESION)).toEqual({
+      cierre: null,
+      severidades: {},
+      finPorTiempo: true,
+    });
+  });
+
+  it('si no se puede leer el motivo del fin (columna aún sin crear), la revisión sigue', async () => {
+    db.responder('sesion_ia', { data: { cierre_motivo: 'inapropiada' } });
+    db.responder('mensaje_ia', { data: [] });
+    db.responder('sesion', { error: { code: '42703' } });
+    expect(await obtenerIaDeSesion(SESION)).toEqual({
+      cierre: 'inapropiada',
+      severidades: {},
+      finPorTiempo: false,
+    });
   });
 
   it('si no se puede leer, la revisión sigue sin estos datos', async () => {

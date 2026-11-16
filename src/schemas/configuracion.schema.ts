@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+import {
+  DURACION_CONSULTA_POR_DEFECTO,
+  DURACIONES_CONSULTA_MIN,
+} from '@/lib/sesiones/tiempo-consulta';
+
 /**
  * Límites compartidos con las restricciones CHECK de la base de datos
  * (supabase/migrations/20260930010000_escenarios_npc_sesiones.sql).
@@ -74,6 +79,10 @@ export const generarAsignacionSchema = z.object({
   promptSistema: promptSchema,
   estudianteId: z.uuid('Elige al estudiante que va a practicar.'),
   vigenciaDias: z.literal(VIGENCIAS_DIAS, 'Elige cuánto tiempo será válido el código.'),
+  /** Duración de la consulta (minutos). Coincide con el `check` de `asignacion.duracion_minutos`. */
+  duracionMinutos: z
+    .literal(DURACIONES_CONSULTA_MIN, 'Elige cuánto dura la consulta.')
+    .default(DURACION_CONSULTA_POR_DEFECTO),
 });
 
 export type GenerarAsignacionInput = z.input<typeof generarAsignacionSchema>;
@@ -83,6 +92,9 @@ export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
 
 /** HU-23: el estudiante confirma las instrucciones y comienza la simulación. */
 export const comenzarSesionSchema = z.object({ sesionId: z.uuid() });
+
+/** El navegador confirma con el servidor cuánto lleva la consulta. */
+export const consultarTiempoSchema = z.object({ sesionId: z.uuid() });
 
 /** Latido de la simulación y cierre por inactividad (10 minutos sin interactuar). */
 export const actividadSesionSchema = z.object({ sesionId: z.uuid() });

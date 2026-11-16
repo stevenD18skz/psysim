@@ -1,6 +1,7 @@
 import { type StateCreator } from 'zustand';
 
-import { type MotivoCierre } from '@/lib/conversacion/cierre';
+import { type FinDePractica } from '@/lib/conversacion/cierre';
+import { type ConsultaEnPantalla, type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type MensajeConversacion } from '@/types';
 
 import { type AppState } from './app-store';
@@ -26,8 +27,13 @@ export interface ConversacionState {
   error: string | null;
   /** Espera anunciada por el servidor para la respuesta en camino. */
   espera: EsperaPaciente | null;
-  /** El paciente dio por terminada la consulta: no se conversa más y la práctica se cierra. */
-  cierre: MotivoCierre | null;
+  /**
+   * La práctica termina sin que el estudiante pulse «Terminar práctica»: el paciente dio por
+   * terminada la consulta o se cumplió su tiempo y el margen de cierre. No se conversa más.
+   */
+  cierre: FinDePractica | null;
+  /** Tiempo de consulta según el último dato del servidor (`null`: no se conoce). */
+  consulta: ConsultaEnPantalla | null;
 }
 
 export interface ConversacionSlice {
@@ -46,7 +52,9 @@ export interface ConversacionSlice {
     establecerPendiente: (mensaje: MensajeConversacion | null) => void;
     establecerError: (error: string | null) => void;
     establecerEspera: (espera: EsperaPaciente | null) => void;
-    establecerCierre: (cierre: MotivoCierre | null) => void;
+    establecerCierre: (cierre: FinDePractica | null) => void;
+    /** El servidor informó cuánto lleva la consulta (`ahora`: reloj monotónico, inyectable). */
+    actualizarConsulta: (tiempo: TiempoConsulta | null, ahora?: number) => void;
     /** El servidor guardó el intercambio: los mensajes locales reciben el id de la base de datos. */
     confirmarGuardado: (ids: Readonly<Record<string, string | null>>) => void;
     /**
@@ -63,6 +71,7 @@ export const estadoInicialConversacion: ConversacionState = {
   error: null,
   espera: null,
   cierre: null,
+  consulta: null,
 };
 
 /** ¿Hay una respuesta del paciente en camino (pedida o llegando por partes)? */
@@ -140,6 +149,13 @@ export const crearConversacionSlice =
         set(state => ({ conversacion: { ...state.conversacion, espera } })),
       establecerCierre: cierre =>
         set(state => ({ conversacion: { ...state.conversacion, cierre } })),
+      actualizarConsulta: (tiempo, ahora = performance.now()) =>
+        set(state => ({
+          conversacion: {
+            ...state.conversacion,
+            consulta: tiempo && { ...tiempo, medidoEn: ahora },
+          },
+        })),
       confirmarGuardado: ids =>
         set(state => ({
           conversacion: {

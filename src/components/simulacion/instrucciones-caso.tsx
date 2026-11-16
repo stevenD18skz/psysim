@@ -42,6 +42,7 @@ import {
 } from '@/lib/escenarios/etiquetas';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { MINUTOS_CIERRE_INACTIVIDAD, plazoAlSalir } from '@/lib/fechas';
+import { AVISO_FINAL_S, enMinutos, GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
@@ -79,6 +80,22 @@ const REGLAS = [
     reanudar.
   </>,
 ];
+
+/**
+ * Preparación previa (INACSL): el estudiante conoce desde el principio el marco de tiempo y el
+ * punto final de la práctica, y sabe que cerrar la entrevista le corresponde a él.
+ */
+function reglaDelTiempo(duracionS: number) {
+  return (
+    <>
+      La consulta dura {enMinutos(Math.round(duracionS / 60))} desde tu primera intervención. Te
+      avisamos cuando queden {enMinutos(AVISO_FINAL_S / 60)}. Ciérrala tú, como en una consulta real
+      (resume, acuerda lo que sigue y despídete), y luego pulsa{' '}
+      <ControlCitado>Terminar práctica</ControlCitado>. Cumplido el tiempo tienes{' '}
+      {enMinutos(GRACIA_CONSULTA_S / 60)} más para cerrar; después, la práctica termina sola.
+    </>
+  );
+}
 
 const CONTROLES = [
   ['W A S D o flechas', 'caminar'],
@@ -119,6 +136,10 @@ export function InstruccionesCaso({
   const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
   const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
   const aviso = avisoDeContenido(escenario.codigo);
+  // La regla del tiempo va justo antes de la de «Terminar práctica», que la completa.
+  const reglas = sesion.consulta
+    ? [...REGLAS.slice(0, -1), reglaDelTiempo(sesion.consulta.duracionS), ...REGLAS.slice(-1)]
+    : REGLAS;
 
   const comenzar = () =>
     startTransition(async () => {
@@ -329,7 +350,7 @@ export function InstruccionesCaso({
                 saber:
               </p>
               <ol className="flex flex-col gap-3">
-                {REGLAS.map((regla, i) => (
+                {reglas.map((regla, i) => (
                   // Lista fija: el orden nunca cambia, así que la posición es una clave estable.
                   <li key={i} className="flex gap-3 text-sm leading-relaxed">
                     <span

@@ -17,6 +17,10 @@ import { leerSesionIa, type SesionIa } from '@/lib/orquestador/datos';
 import { barrerDespues } from '@/lib/orquestador/diferido';
 import { crearPlazo } from '@/lib/orquestador/turno';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
+import { leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
+import { debeNotarElTiempo, faseDeConsulta, TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
+import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
+import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
 import { codificarEventoSse } from '@/lib/sse';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -41,9 +45,13 @@ const LATIDO_MS = 15_000;
 function responderError(
   status: number,
   error: string,
-  extra: { campos?: NpcChatError['campos']; esperaS?: number } = {}
+  extra: { campos?: NpcChatError['campos']; esperaS?: number; fin?: NpcChatError['fin'] } = {}
 ) {
-  const cuerpo: NpcChatError = extra.campos ? { error, campos: extra.campos } : { error };
+  const cuerpo: NpcChatError = {
+    error,
+    ...(extra.campos && { campos: extra.campos }),
+    ...(extra.fin && { fin: extra.fin }),
+  };
   return Response.json(cuerpo, {
     status,
     headers: extra.esperaS ? { ...SIN_CACHE, 'Retry-After': String(extra.esperaS) } : SIN_CACHE,
@@ -167,6 +175,8 @@ export async function POST(request: Request): Promise<Response> {
   let npc: { id: string; nombre: string } | undefined;
   let promptSistema: string | null;
   let sesionIa: SesionIa | null;
+  // El tiempo de consulta lo mide la base de datos (`null` si no se pudo leer: la práctica sigue).
+  const tiempoLeido = leerTiempoDeConsulta(supabase, sesion_id);
   try {
     // RLS ya verificó que la práctica es del estudiante: el caso, el prompt y el proveedor de IA
     // se leen con la clave secreta.
@@ -201,6 +211,8 @@ export async function POST(request: Request): Promise<Response> {
     return responderError(500, 'No pudimos cargar la sesión.');
   }
   const mensajesGuardados = filas;
+  const tiempo = await tiempoLeido;
+  const tiempoLeidoEn = performance.now();
 
   // Reintento de un intercambio que sí se guardó (la respuesta se perdió en la red): se devuelve
   // lo guardado, sin otra llamada a la IA ni un intercambio duplicado en la transcripción.
@@ -222,12 +234,22 @@ export async function POST(request: Request): Promise<Response> {
       id_mensaje_npc: respuestaGuardada.id,
       // Tras un cierre automático no se guardan más intercambios: el último es el del cierre.
       cierre: sesionIa?.cierreMotivo ?? null,
+      consulta: tiempo && {
+        duracion_s: tiempo.duracionS,
+        transcurrido_s: tiempo.transcurridoS ?? 0,
+      },
     };
     return Response.json(cuerpoRepetido, { status: 200, headers: SIN_CACHE });
   }
   // El paciente dio por terminada la consulta (crisis o trato inapropiado): no hay más turnos.
   if (sesionIa?.cierreMotivo) {
     return responderError(409, MENSAJE_PRACTICA_TERMINADA);
+  }
+  // Pasado el tiempo de la consulta y su margen de cierre no se conversa más: el navegador termina
+  // la práctica con el motivo neutro (no es una falta del estudiante).
+  if (tiempo && faseDeConsulta(tiempo) === 'vencida') {
+    log.info('npc_chat.tiempo_cumplido', { peticion, sesion_id });
+    return responderError(409, TEXTO_TIEMPO.vencida, { fin: FIN_POR_TIEMPO });
   }
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
     log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
@@ -254,6 +276,13 @@ export async function POST(request: Request): Promise<Response> {
   const ultimaEmocion = vigentes.findLast(fila => fila.remitente === 'npc')?.emocion;
   const emocionAnterior: EmocionNpc | null =
     ultimaEmocion && esEmocionNpc(ultimaEmocion) ? ultimaEmocion : null;
+  // Opción B: el primer turno con el tiempo ya cumplido, el paciente puede notarlo (solo Gemini).
+  const ultimaRespuesta = vigentes.findLast(fila => fila.remitente === 'npc');
+  const desdeLaUltimaRespuestaS = ultimaRespuesta
+    ? Math.max(0, (Date.now() - Date.parse(ultimaRespuesta.creado_en)) / 1000)
+    : null;
+  const notaDeEscena =
+    tiempo && debeNotarElTiempo(tiempo, desdeLaUltimaRespuestaS) ? NOTA_TIEMPO_CUMPLIDO : null;
 
   // Al empezar una práctica se aprovecha para cerrar en el orquestador las que quedaron abiertas.
   if (intercambios === 0) barrerDespues();
@@ -272,6 +301,8 @@ export async function POST(request: Request): Promise<Response> {
     emocionAnterior,
     sesionIa,
     plazo,
+    notaDeEscena,
+    consulta: tiempo && { tiempo, leidoEn: tiempoLeidoEn },
   });
 
   if (por_partes) return responderPorPartes(eventos);

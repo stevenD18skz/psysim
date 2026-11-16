@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe('generarAsignacion', () => {
-  it('crea el código con la configuración del docente y la vigencia elegida', async () => {
+  it('crea el código con la configuración del docente, la vigencia y la duración elegidas', async () => {
     vi.useFakeTimers({ now: new Date('2026-10-07T12:00:00.000Z'), toFake: ['Date'] });
     db.responder('estudiante', { data: { usuario_id: 'u1' } });
     db.responder('asignacion', {
@@ -58,7 +58,26 @@ describe('generarAsignacion', () => {
       prompt_sistema: VALORES.promptSistema,
       codigo: expect.stringMatching(/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/),
       expira_en: '2026-10-14T12:00:00.000Z',
+      // Sin elección explícita, 15 minutos (el `check` de la BD admite 10, 15, 20 y 30).
+      duracion_minutos: 15,
     });
+  });
+
+  it('guarda la duración de consulta que eligió el docente', async () => {
+    db.responder('estudiante', { data: { usuario_id: 'u1' } });
+    db.responder('asignacion', {
+      data: { id: ASIGNACION_ID, codigo: 'abc-defg-hij', expira_en: 'T' },
+    });
+    await generarAsignacion({ ...VALORES, duracionMinutos: 30 });
+    expect(db.de('asignacion')[0]!.valores).toMatchObject({ duracion_minutos: 30 });
+  });
+
+  it('rechaza una duración de consulta que no ofrece la interfaz', async () => {
+    expect(await generarAsignacion({ ...VALORES, duracionMinutos: 45 })).toEqual({
+      ok: false,
+      error: 'Revisa los datos del formulario.',
+    });
+    expect(db.de('asignacion')).toHaveLength(0);
   });
 
   it('reintenta con otro código si choca con uno existente', async () => {

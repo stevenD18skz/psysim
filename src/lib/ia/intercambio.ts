@@ -64,6 +64,26 @@ export function errorDeIa(error: unknown): ErrorDeChat {
 }
 
 /**
+ * Tiempo de consulta para devolver con la respuesta: lo que leyó la base de datos al empezar la
+ * petición más lo que tardó el turno (reloj monotónico del servidor). Si la consulta no había
+ * empezado, empieza con este intercambio: lleva 0 segundos.
+ */
+export function consultaAlResponder(
+  consulta: TurnoPaciente['consulta'],
+  ahora: number = performance.now()
+): NpcChatResponse['consulta'] {
+  if (!consulta) return null;
+  const { tiempo, leidoEn } = consulta;
+  return {
+    duracion_s: tiempo.duracionS,
+    transcurrido_s:
+      tiempo.transcurridoS === null
+        ? 0
+        : tiempo.transcurridoS + Math.max(0, Math.round((ahora - leidoEn) / 1000)),
+  };
+}
+
+/**
  * Responde una intervención del estudiante de punta a punta: pide el turno al proveedor de la
  * práctica, reenvía la respuesta por partes y, cuando está completa, guarda el intercambio.
  * Termina siempre con un evento `fin` (respuesta guardada) o `error`; nunca lanza.
@@ -167,6 +187,7 @@ export async function* responderIntercambio(
     id_mensaje_estudiante: guardado?.id_estudiante ?? null,
     id_mensaje_npc: guardado?.id_npc ?? null,
     cierre: resultado.cierre,
+    consulta: consultaAlResponder(turno.consulta),
   };
   yield { tipo: 'fin', respuesta };
 }

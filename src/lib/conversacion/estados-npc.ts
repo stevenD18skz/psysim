@@ -23,8 +23,10 @@ export type EstadoNpc = (typeof ESTADOS_NPC)[number];
 const TRANSICIONES: Record<EstadoNpc, readonly EstadoNpc[]> = {
   inactivo: ['esperando_input', 'sesion_finalizada'],
   esperando_input: ['procesando', 'inactivo', 'sesion_finalizada'],
-  // Mientras se espera a la IA no se puede cerrar la sesión (evita cierres accidentales).
-  procesando: ['respondiendo', 'error_comunicacion'],
+  // Mientras se espera a la IA no se puede cerrar la sesión (evita cierres accidentales). Si el
+  // servidor no acepta la intervención porque se cumplió el tiempo de la consulta, no hubo
+  // respuesta ni error: se vuelve a esperar y la práctica termina con su aviso.
+  procesando: ['respondiendo', 'error_comunicacion', 'esperando_input'],
   // La respuesta llega por partes: puede cortarse cuando ya había empezado a mostrarse.
   respondiendo: ['esperando_input', 'error_comunicacion', 'sesion_finalizada'],
   error_comunicacion: ['procesando', 'sesion_finalizada'],

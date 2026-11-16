@@ -6,10 +6,13 @@ import { getProveedorIa } from '@/lib/env/orquestador';
 import { mensajeConsultorioOcupado } from '@/lib/orquestador/cuentas';
 import { cerrarDespues } from '@/lib/orquestador/diferido';
 import { reservarCuentaAlComenzar } from '@/lib/orquestador/practica';
+import { anotarFinPorTiempo, leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
+import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { createClient } from '@/lib/supabase/server';
 import {
   actividadSesionSchema,
   comenzarSesionSchema,
+  consultarTiempoSchema,
   finalizarSesionSchema,
   reformularSchema,
 } from '@/schemas/configuracion.schema';
@@ -54,6 +57,7 @@ export async function finalizarSesion(
     return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
   }
 
+  await anotarFinPorTiempo(supabase, datos.data.sesionId);
   cerrarDespues(datos.data.sesionId);
   return { ok: true, datos: { inicio: data.inicio, fin: data.fin } };
 }
@@ -215,4 +219,21 @@ export async function cerrarSesionPorInactividad(
   cerrarDespues(datos.data.sesionId);
 
   return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };
+}
+
+/**
+ * Cuánto lleva la consulta según la base de datos. El navegador la pide cuando su reloj indica que
+ * se acabó el margen de cierre: solo termina la práctica por tiempo si el servidor lo confirma.
+ */
+export async function consultarTiempo(valores: unknown): Promise<ResultadoAccion<TiempoConsulta>> {
+  await requerirEstudiante();
+
+  const datos = consultarTiempoSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const tiempo = await leerTiempoDeConsulta(await createClient(), datos.data.sesionId);
+  if (!tiempo) return { ok: false, error: 'No pudimos leer el tiempo de la consulta.' };
+  return { ok: true, datos: tiempo };
 }

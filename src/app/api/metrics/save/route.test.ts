@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { anotarFinPorTiempo } from '@/lib/sesiones/consulta';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../../../test/supabase-falso';
@@ -22,6 +23,7 @@ import { POST } from './route';
 vi.mock('@/lib/auth/dal', () => ({ obtenerSesionUsuario: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+vi.mock('@/lib/sesiones/consulta', () => ({ anotarFinPorTiempo: vi.fn() }));
 
 const SESION_ID = '44444444-4444-4444-8444-444444444444';
 const CUERPO = {
@@ -78,6 +80,20 @@ describe('POST /api/metrics/save (HU-19)', () => {
         p_indicadores: { proximidad_promedio: 1.8 },
       })
     );
+  });
+
+  it('al cerrar, anota si terminó al cumplirse el tiempo de la consulta (con el cliente del usuario)', async () => {
+    db.responder('sesion', { data: { estado: 'en_curso' } });
+    db.responder('rpc:guardar_metricas_cierre', { data: 'metrica-1' });
+    expect((await POST(peticion(CUERPO))).status).toBe(200);
+    expect(anotarFinPorTiempo).toHaveBeenCalledWith(db.cliente, SESION_ID);
+  });
+
+  it('si no se guardan las métricas, no anota nada', async () => {
+    db.responder('sesion', { data: { estado: 'en_curso' } });
+    db.responder('rpc:guardar_metricas_cierre', { error: { code: 'XX000' } });
+    expect((await POST(peticion(CUERPO))).status).toBe(500);
+    expect(anotarFinPorTiempo).not.toHaveBeenCalled();
   });
 
   it('acepta latencias e indicadores nulos (sesión sin respuestas del paciente)', async () => {

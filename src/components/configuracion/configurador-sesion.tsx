@@ -50,6 +50,10 @@ import { coincideBusqueda } from '@/lib/listas';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
+import {
+  DURACION_CONSULTA_POR_DEFECTO,
+  DURACIONES_CONSULTA_MIN,
+} from '@/lib/sesiones/tiempo-consulta';
 import { cn } from '@/lib/utils';
 import {
   type GenerarAsignacionData,
@@ -136,12 +140,13 @@ export function ConfiguradorSesion({
       promptSistema: casoInicial?.npc.promptSistema ?? '',
       estudianteId: estudianteInicial?.cuentaVinculada ? estudianteInicial.id : '',
       vigenciaDias: VIGENCIA_POR_DEFECTO,
+      duracionMinutos: DURACION_CONSULTA_POR_DEFECTO,
     },
   });
 
-  const [escenarioId, promptSistema, estudianteId, vigenciaDias] = useWatch({
+  const [escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos] = useWatch({
     control,
-    name: ['escenarioId', 'promptSistema', 'estudianteId', 'vigenciaDias'],
+    name: ['escenarioId', 'promptSistema', 'estudianteId', 'vigenciaDias', 'duracionMinutos'],
   });
   const escenario = escenarios.find(e => e.id === escenarioId) ?? null;
   const promptPersonalizado = escenario !== null && promptSistema !== escenario.npc.promptSistema;
@@ -636,41 +641,29 @@ export function ConfiguradorSesion({
               </div>
             )}
 
-            <div
-              role="radiogroup"
-              aria-labelledby="vigencia-titulo"
-              className="flex flex-col gap-2 border-t pt-4"
-            >
-              <p id="vigencia-titulo" className="text-sm font-semibold">
-                El código sirve durante
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {VIGENCIAS_DIAS.map(dias => (
-                  <label
-                    key={dias}
-                    className={cn(
-                      'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
-                      vigenciaDias === dias
-                        ? 'border-nogal bg-nogal font-semibold text-lino'
-                        : 'bg-background hover:bg-muted'
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      name="vigenciaDias"
-                      checked={vigenciaDias === dias}
-                      onChange={() => setValue('vigenciaDias', dias, { shouldDirty: true })}
-                      disabled={generando}
-                    />
-                    {textoDias(dias)}
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha.
-              </p>
-            </div>
+            <OpcionesEnPildora
+              id="duracion-titulo"
+              titulo="La consulta dura"
+              nombre="duracionMinutos"
+              opciones={DURACIONES_CONSULTA_MIN}
+              valor={duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO}
+              etiqueta={minutos => `${minutos} min`}
+              onCambiar={minutos => setValue('duracionMinutos', minutos, { shouldDirty: true })}
+              deshabilitado={generando}
+              ayuda="Corre desde la primera intervención. El estudiante lo sabe desde las instrucciones, recibe un aviso 3 minutos antes y tiene 5 minutos más para cerrar la entrevista."
+            />
+
+            <OpcionesEnPildora
+              id="vigencia-titulo"
+              titulo="El código sirve durante"
+              nombre="vigenciaDias"
+              opciones={VIGENCIAS_DIAS}
+              valor={vigenciaDias}
+              etiqueta={textoDias}
+              onCambiar={dias => setValue('vigenciaDias', dias, { shouldDirty: true })}
+              deshabilitado={generando}
+              ayuda="Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha."
+            />
           </div>
         </Paso>
 
@@ -703,9 +696,9 @@ export function ConfiguradorSesion({
                 <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
                 <span>
                   <span className="font-medium text-foreground">{escenario.titulo}</span> para{' '}
-                  <span className="font-medium text-foreground">{estudiante.nombre}</span> · el
-                  código vence el{' '}
-                  {formatearDia(new Date(ahora + vigenciaDias * 86_400_000).toISOString())}
+                  <span className="font-medium text-foreground">{estudiante.nombre}</span> ·
+                  consulta de {duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO} min · el código
+                  vence el {formatearDia(new Date(ahora + vigenciaDias * 86_400_000).toISOString())}
                 </span>
               </>
             )}
@@ -940,4 +933,62 @@ function iniciales(nombre: string) {
     .map(parte => parte[0] ?? '')
     .join('')
     .toUpperCase();
+}
+
+/**
+ * Elección de una opción entre pocas (duración de la consulta, vigencia del código) como píldoras:
+ * todas a la vista y con un clic, sin desplegar nada.
+ */
+function OpcionesEnPildora<T extends number>({
+  id,
+  titulo,
+  nombre,
+  opciones,
+  valor,
+  etiqueta,
+  onCambiar,
+  deshabilitado,
+  ayuda,
+}: {
+  id: string;
+  titulo: string;
+  nombre: string;
+  opciones: readonly T[];
+  valor: T;
+  etiqueta: (opcion: T) => string;
+  onCambiar: (opcion: T) => void;
+  deshabilitado: boolean;
+  ayuda: string;
+}) {
+  return (
+    <div role="radiogroup" aria-labelledby={id} className="flex flex-col gap-2 border-t pt-4">
+      <p id={id} className="text-sm font-semibold">
+        {titulo}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {opciones.map(opcion => (
+          <label
+            key={opcion}
+            className={cn(
+              'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
+              valor === opcion
+                ? 'border-nogal bg-nogal font-semibold text-lino'
+                : 'bg-background hover:bg-muted'
+            )}
+          >
+            <input
+              type="radio"
+              className="sr-only"
+              name={nombre}
+              checked={valor === opcion}
+              onChange={() => onCambiar(opcion)}
+              disabled={deshabilitado}
+            />
+            {etiqueta(opcion)}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{ayuda}</p>
+    </div>
+  );
 }

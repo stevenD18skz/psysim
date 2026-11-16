@@ -91,6 +91,7 @@ export type Database = {
           codigo: string;
           creado_en: string;
           docente_id: string;
+          duracion_minutos: number;
           escenario_id: string;
           estudiante_id: string;
           expira_en: string;
@@ -103,6 +104,7 @@ export type Database = {
           codigo: string;
           creado_en?: string;
           docente_id?: string;
+          duracion_minutos?: number;
           escenario_id: string;
           estudiante_id: string;
           expira_en: string;
@@ -115,6 +117,7 @@ export type Database = {
           codigo?: string;
           creado_en?: string;
           docente_id?: string;
+          duracion_minutos?: number;
           escenario_id?: string;
           estudiante_id?: string;
           expira_en?: string;
@@ -636,10 +639,13 @@ export type Database = {
         Row: {
           codigo_estudiante: string;
           comenzada: boolean;
+          consulta_inicio: string | null;
+          duracion_minutos: number;
           escenario_id: string;
           estado: Database['public']['Enums']['estado_sesion'];
           estudiante_id: string;
           fin: string | null;
+          fin_motivo: string | null;
           id: string;
           inicio: string;
           nombre_estudiante: string;
@@ -650,10 +656,13 @@ export type Database = {
         Insert: {
           codigo_estudiante: string;
           comenzada?: boolean;
+          consulta_inicio?: string | null;
+          duracion_minutos?: number;
           escenario_id: string;
           estado?: Database['public']['Enums']['estado_sesion'];
           estudiante_id: string;
           fin?: string | null;
+          fin_motivo?: string | null;
           id?: string;
           inicio?: string;
           nombre_estudiante: string;
@@ -664,10 +673,13 @@ export type Database = {
         Update: {
           codigo_estudiante?: string;
           comenzada?: boolean;
+          consulta_inicio?: string | null;
+          duracion_minutos?: number;
           escenario_id?: string;
           estado?: Database['public']['Enums']['estado_sesion'];
           estudiante_id?: string;
           fin?: string | null;
+          fin_motivo?: string | null;
           id?: string;
           inicio?: string;
           nombre_estudiante?: string;
@@ -926,6 +938,10 @@ export type Database = {
         Returns: number;
       };
       sesion_limite_inactividad: { Args: never; Returns: string };
+      tiempo_de_consulta: {
+        Args: { p_sesion_id: string };
+        Returns: { duracion_s: number; transcurrido_s: number | null }[];
+      };
     };
     Enums: {
       categoria_escenario: 'clinico' | 'cotidiano';

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { esMotivoCierre, type IaDeSesion } from '@/lib/conversacion/cierre';
+import { esMotivoCierre, FIN_POR_TIEMPO, type IaDeSesion } from '@/lib/conversacion/cierre';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -14,13 +14,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function obtenerIaDeSesion(sesionId: string): Promise<IaDeSesion | null> {
   try {
     const admin = createAdminClient();
-    const [sesion, mensajes] = await Promise.all([
+    const [sesion, mensajes, practica] = await Promise.all([
       admin.from('sesion_ia').select('cierre_motivo').eq('sesion_id', sesionId).maybeSingle(),
       admin
         .from('mensaje_ia')
         .select('mensaje_id, severidad')
         .eq('sesion_id', sesionId)
         .not('severidad', 'is', null),
+      admin.from('sesion').select('fin_motivo').eq('id', sesionId).maybeSingle(),
     ]);
     if (sesion.error || mensajes.error) {
       throw new Error('No pudimos leer los datos de la IA.', {
@@ -34,8 +35,10 @@ export async function obtenerIaDeSesion(sesionId: string): Promise<IaDeSesion | 
     for (const { mensaje_id, severidad } of mensajes.data) {
       if (severidad !== null) severidades[mensaje_id] = severidad;
     }
-    if (!cierre && Object.keys(severidades).length === 0) return null;
-    return { cierre, severidades };
+    // Si esta lectura falla (o la columna todavía no existe), la revisión sigue sin el dato.
+    const finPorTiempo = !practica.error && practica.data?.fin_motivo === FIN_POR_TIEMPO;
+    if (!cierre && !finPorTiempo && Object.keys(severidades).length === 0) return null;
+    return { cierre, severidades, finPorTiempo };
   } catch {
     log.warn('orquestador.revision_no_leida', { sesion_id: sesionId });
     return null;

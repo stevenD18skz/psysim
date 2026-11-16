@@ -34,7 +34,11 @@ import {
   recortarSeleccion,
   seSolapa,
 } from '@/lib/retroalimentacion/fragmentos';
-import { ETIQUETA_CIERRE, type IaDeSesion } from '@/lib/conversacion/cierre';
+import {
+  ETIQUETA_CIERRE,
+  ETIQUETA_FIN_POR_TIEMPO,
+  type IaDeSesion,
+} from '@/lib/conversacion/cierre';
 import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
@@ -372,6 +376,18 @@ export function RevisionSesion({
                 <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
                 <span className="text-muted-foreground">
                   La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
+                </span>
+              </li>
+            )}
+            {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
+            {!ia?.cierre && ia?.finPorTiempo && (
+              <li
+                data-testid="fin-por-tiempo"
+                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
+                <span className="text-muted-foreground">
+                  Pasado el margen para cerrar la entrevista, la práctica terminó sola.
                 </span>
               </li>
             )}

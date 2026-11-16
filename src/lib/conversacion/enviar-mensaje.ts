@@ -1,4 +1,6 @@
+import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
 import { type IntensidadEmocion } from '@/lib/conversacion/emociones';
+import { TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
 import { crearLectorSse } from '@/lib/sse';
 import {
   type EventoChat,
@@ -198,9 +200,31 @@ export async function enviarMensaje(
     final.metricas.registrarTokens(datos.tokens_entrada, datos.tokens_salida);
     final.conversacion.establecerPendiente(null);
     final.conversacion.establecerEspera(null);
+    if (datos.consulta) {
+      final.conversacion.actualizarConsulta({
+        duracionS: datos.consulta.duracion_s,
+        transcurridoS: datos.consulta.transcurrido_s,
+      });
+    }
     if (datos.cierre) final.conversacion.establecerCierre(datos.cierre);
     final.npc.actualizarEstadoNPC('respondiendo');
     return { ok: true };
+  };
+
+  /**
+   * El servidor ya no acepta intervenciones: se cumplieron el tiempo de la consulta y su margen.
+   * No es un error: la intervención se retira (no se guardó) y la práctica termina con el aviso.
+   */
+  const terminarPorTiempo = (): ResultadoEnvio => {
+    if (!sigueAbierta()) return DESCARTADA;
+    const actual = store.getState();
+    if (idRespuesta) actual.conversacion.quitarMensaje(idRespuesta);
+    actual.conversacion.quitarMensaje(mensaje.id);
+    actual.conversacion.establecerPendiente(null);
+    actual.conversacion.establecerEspera(null);
+    actual.conversacion.establecerCierre(FIN_POR_TIEMPO);
+    actual.npc.actualizarEstadoNPC('esperando_input');
+    return { ok: false, motivo: TEXTO_TIEMPO.vencida };
   };
 
   let respuesta: Response;
@@ -223,6 +247,7 @@ export async function enviarMensaje(
     const json: unknown = await respuesta.json().catch(() => null);
     if (!respuesta.ok) {
       const error = npcChatErrorSchema.safeParse(json);
+      if (error.success && error.data.fin) return terminarPorTiempo();
       return fallar(mensajeDeError(respuesta.status, error.success ? error.data.error : null));
     }
     const datos = npcChatResponseSchema.safeParse(json);
@@ -274,6 +299,8 @@ export async function enviarMensaje(
         if (idRespuesta) actual.conversacion.actualizarMensaje(idRespuesta, { contenido: '' });
       } else if (evento.tipo === 'fin') {
         return completar(evento.respuesta);
+      } else if (evento.fin) {
+        return terminarPorTiempo();
       } else {
         return fallar(mensajeDeError(evento.status, evento.error));
       }

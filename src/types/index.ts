@@ -1,4 +1,5 @@
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
+import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import { type BorradorCaso } from '@/schemas/caso.schema';
 
@@ -102,6 +103,8 @@ export interface SesionActiva {
    * sin cerrar, p. ej. porque se recargó la página justo después: se cierra al abrirla.
    */
   cierre?: MotivoCierre | null;
+  /** Duración de la consulta y cuánto lleva, según la base de datos (`null`: no se pudo leer). */
+  consulta?: TiempoConsulta | null;
 }
 
 export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];

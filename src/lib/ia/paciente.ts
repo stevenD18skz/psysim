@@ -85,6 +85,18 @@ export interface EntradaPaciente {
   mensaje: string;
   /** Nombre del paciente, para limpiar respuestas que empiezan con "Nombre:". */
   nombrePaciente?: string;
+  /**
+   * Indicación del servidor válida solo para este turno (p. ej. que se cumplió el tiempo de la
+   * consulta). Va en las instrucciones del sistema, después de las reglas: nunca en lo que
+   * escribió el estudiante ni en el historial.
+   */
+  notaDeEscena?: string | null;
+}
+
+/** Instrucciones del sistema de un turno: el caso, las reglas fijas y la nota de escena, si hay. */
+export function instruccionesDelTurno(entrada: EntradaPaciente): string {
+  const base = componerInstrucciones(entrada.promptSistema);
+  return entrada.notaDeEscena ? `${base}\n\n${entrada.notaDeEscena}` : base;
 }
 
 export interface RespuestaPaciente {
@@ -204,7 +216,7 @@ async function generarCon(
   try {
     resultado = await generateText({
       model: modelo,
-      instructions: componerInstrucciones(entrada.promptSistema),
+      instructions: instruccionesDelTurno(entrada),
       messages: construirMensajes(entrada.historial, entrada.mensaje),
       temperature: AI_TEMPERATURE,
       maxOutputTokens: AI_MAX_TOKENS,
@@ -287,7 +299,7 @@ async function* transmitirCon(
   let fallo: unknown = null;
   const resultado = streamText({
     model: modelo,
-    instructions: componerInstrucciones(entrada.promptSistema),
+    instructions: instruccionesDelTurno(entrada),
     messages: construirMensajes(entrada.historial, entrada.mensaje),
     temperature: AI_TEMPERATURE,
     maxOutputTokens: AI_MAX_TOKENS,

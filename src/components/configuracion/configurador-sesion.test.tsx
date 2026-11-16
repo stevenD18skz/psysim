@@ -194,6 +194,9 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
 
     await usuario.click(screen.getByRole('radio', { name: '3 días' }));
+    // La consulta dura 15 minutos si el docente no elige otra duración.
+    expect(screen.getByRole('radio', { name: '15 min' })).toBeChecked();
+    await usuario.click(screen.getByRole('radio', { name: '20 min' }));
     await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
     expect(mockGenerar).toHaveBeenCalledWith({
@@ -201,6 +204,7 @@ describe('ConfiguradorSesion', () => {
       promptSistema: E01.npc.promptSistema,
       estudianteId: ANA.id,
       vigenciaDias: 3,
+      duracionMinutos: 20,
     });
     const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');

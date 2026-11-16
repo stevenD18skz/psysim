@@ -31,7 +31,7 @@ export async function generarAsignacion(
   if (!datos.success) {
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
-  const { escenarioId, promptSistema, estudianteId, vigenciaDias } = datos.data;
+  const { escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos } = datos.data;
 
   const supabase = esAdmin ? createAdminClient() : await createClient();
   const { data: estudiante, error: errorEstudiante } = await supabase
@@ -62,6 +62,7 @@ export async function generarAsignacion(
         prompt_sistema: promptSistema,
         codigo: generarCodigoAcceso(),
         expira_en: expiraEn,
+        duracion_minutos: duracionMinutos,
       })
       .select('id, codigo, expira_en')
       .single();

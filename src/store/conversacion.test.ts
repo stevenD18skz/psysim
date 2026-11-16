@@ -64,8 +64,8 @@ describe('acciones de conversación y NPC (HU-14 · T02)', () => {
 
     expect(actualizarEstadoNPC('esperando_input')).toBe(true);
     expect(actualizarEstadoNPC('procesando')).toBe(true);
-    // Doble envío durante la petición: se ignora.
-    expect(actualizarEstadoNPC('esperando_input')).toBe(false);
+    // Salir de la conversación con la respuesta en camino: se ignora.
+    expect(actualizarEstadoNPC('inactivo')).toBe(false);
     expect(store.getState().npc.estado).toBe('procesando');
     expect(aviso).toHaveBeenCalledOnce();
 

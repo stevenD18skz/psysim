@@ -485,6 +485,67 @@ describe('auditoría de la integración', () => {
   });
 });
 
+describe('nota de escena del tiempo de consulta (opción B)', () => {
+  const NOTA =
+    'Nota de escena solo para esta respuesta: ya se cumplió el tiempo previsto de la consulta. Si el estudiante todavía no ha empezado a cerrar, puedes notarlo con naturalidad una sola vez, por ejemplo preguntando "¿ya se nos acabó el tiempo por hoy?".';
+
+  it('Gemini la recibe aparte del mensaje del estudiante y del historial', async () => {
+    vi.mocked(getProveedorIa).mockReturnValue('gemini');
+    await recoger(turno({ notaDeEscena: NOTA }));
+    const [entrada] = vi.mocked(transmitirRespuestaPaciente).mock.calls[0]!;
+    expect(entrada).toMatchObject({
+      notaDeEscena: NOTA,
+      mensaje: '¿Cómo ha dormido?',
+      historial: [],
+    });
+  });
+
+  it('el orquestador no la recibe: su único canal por turno es el mensaje del estudiante', async () => {
+    delOrquestador(
+      { tipo: 'fragmento', texto: '[triste 2] No he dormido bien.' },
+      { tipo: 'fin', resultado: resultado() }
+    );
+    await recoger(turno({ notaDeEscena: NOTA, sesionIa: sesionIa() }));
+    expect(transmitirRespuestaPaciente).not.toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(conversarConOrquestador).mock.calls[0])).not.toContain(
+      'tiempo previsto'
+    );
+    expect(vi.mocked(conversarConOrquestador).mock.calls[0]![0]).toMatchObject({
+      mensaje: '¿Cómo ha dormido?',
+    });
+  });
+
+  it('el paciente puede decir la frase de ejemplo sin que se tome como una fuga', async () => {
+    vi.mocked(getProveedorIa).mockReturnValue('gemini');
+    vi.mocked(transmitirRespuestaPaciente).mockImplementation(
+      partes(
+        { tipo: 'fragmento', texto: '[neutral 1] Uy, ¿ya se nos acabó el tiempo por hoy?' },
+        {
+          tipo: 'fin',
+          resultado: { ...deGemini, texto: '[neutral 1] Uy, ¿ya se nos acabó el tiempo por hoy?' },
+        }
+      )
+    );
+    const { eventos, error } = await recoger(turno({ notaDeEscena: NOTA }));
+    expect(error).toBeNull();
+    expect(completa(eventos)?.texto).toBe('Uy, ¿ya se nos acabó el tiempo por hoy?');
+  });
+
+  it('copiar la nota de escena sí es una fuga', async () => {
+    vi.mocked(getProveedorIa).mockReturnValue('gemini');
+    const copia =
+      '[neutral 1] Nota de escena solo para esta respuesta: ya se cumplió el tiempo previsto de la consulta. Si el estudiante todavía no ha empezado a cerrar';
+    vi.mocked(transmitirRespuestaPaciente).mockImplementation(
+      partes(
+        { tipo: 'fragmento', texto: copia },
+        { tipo: 'fin', resultado: { ...deGemini, texto: copia } }
+      )
+    );
+    const { error } = await recoger(turno({ notaDeEscena: NOTA }));
+    expect(error?.tipo).toBe('fuga_de_instrucciones');
+  });
+});
+
 describe('transmitirTurno con IA_PROVEEDOR=gemini (interruptor de emergencia)', () => {
   beforeEach(() => vi.mocked(getProveedorIa).mockReturnValue('gemini'));
 

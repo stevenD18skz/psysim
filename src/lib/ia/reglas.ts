@@ -44,3 +44,11 @@ export const TEXTO_REGLAS = `${ENCABEZADO}\n${REGLAS_FIJAS.map(regla => `- ${reg
 export function componerInstrucciones(prompt: string): string {
   return `${quitarReglasIncrustadas(prompt)}\n\n${TEXTO_REGLAS}`;
 }
+
+/**
+ * Opción B del tiempo de consulta: el servidor la añade a las instrucciones de UN solo turno, el
+ * primero que llega con el tiempo ya cumplido (`debeNotarElTiempo`). La frase entre comillas es
+ * un ejemplo que el paciente puede decir tal cual (el filtro de fuga ignora lo citado).
+ */
+export const NOTA_TIEMPO_CUMPLIDO =
+  'Nota de escena solo para esta respuesta (no la menciones ni la repitas): ya se cumplió el tiempo previsto de la consulta. Si el estudiante todavía no ha empezado a cerrar ni a despedirse, puedes notarlo con naturalidad una sola vez, por ejemplo preguntando "¿ya se nos acabó el tiempo por hoy?". Si ya está cerrando, despídete con naturalidad. No cambies por esto cómo te sientes.';

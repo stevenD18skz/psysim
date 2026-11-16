@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MOTIVOS_CIERRE } from '@/lib/conversacion/cierre';
+import { FIN_POR_TIEMPO, MOTIVOS_CIERRE } from '@/lib/conversacion/cierre';
 import { EMOCIONES_NPC } from '@/lib/conversacion/emociones';
 
 /** Límites del contrato de /api/npc/chat (HU-12 · T02). */
@@ -80,6 +80,17 @@ export const npcChatResponseSchema = z.object({
    * consulta por el trato recibido. El navegador bloquea el campo y termina la práctica.
    */
   cierre: z.enum(MOTIVOS_CIERRE).nullable().default(null),
+  /**
+   * Tiempo de consulta según la base de datos, al guardar esta respuesta: el navegador lo usa para
+   * mostrar cuánto queda (avanza con su reloj monotónico, nunca decide nada con él).
+   */
+  consulta: z
+    .object({
+      duracion_s: z.number().int().positive(),
+      transcurrido_s: z.number().int().nonnegative(),
+    })
+    .nullable()
+    .default(null),
 });
 
 const intensidadSchema = z.number().int().min(1).max(3).nullable();
@@ -109,6 +120,7 @@ export const eventoChatSchema = z.discriminatedUnion('tipo', [
     status: z.number().int(),
     error: z.string(),
     espera_s: z.number().int().positive().optional(),
+    fin: z.literal(FIN_POR_TIEMPO).optional(),
   }),
 ]);
 
@@ -117,6 +129,8 @@ export const npcChatErrorSchema = z.object({
   error: z.string(),
   /** Detalle por campo cuando la validación falla (400). */
   campos: z.record(z.string(), z.array(z.string())).optional(),
+  /** La práctica ya no acepta intervenciones porque se cumplió el tiempo de la consulta. */
+  fin: z.literal(FIN_POR_TIEMPO).optional(),
 });
 
 export type MensajeHistorial = z.infer<typeof mensajeHistorialSchema>;

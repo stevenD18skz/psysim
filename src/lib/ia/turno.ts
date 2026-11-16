@@ -7,6 +7,7 @@ import { fijarGemini, marcarCerradaEnOrquestador, type SesionIa } from '@/lib/or
 import { ErrorOrquestador, esFalloDelServicio } from '@/lib/orquestador/errores';
 import { olvidarSesionOrquestador, prepararPractica } from '@/lib/orquestador/practica';
 import { conversarConOrquestador, type Plazo, RESERVA_RESPALDO_MS } from '@/lib/orquestador/turno';
+import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
 import { ErrorIA, transmitirRespuestaPaciente } from './paciente';
@@ -55,6 +56,14 @@ export interface TurnoPaciente {
   /** Proveedor y sesión del orquestador de la práctica, ya leídos (`null`: aún no tiene). */
   sesionIa: SesionIa | null;
   plazo: Plazo;
+  /**
+   * Indicación para este turno (el paciente puede notar que se cumplió el tiempo). Solo la recibe
+   * Gemini, en sus instrucciones del sistema. El orquestador arma su propio prompt y su único
+   * canal por turno es el mensaje del estudiante, donde PsySim no escribe instrucciones.
+   */
+  notaDeEscena?: string | null;
+  /** Tiempo de consulta leído al empezar la petición, para devolverlo actualizado. */
+  consulta?: { tiempo: TiempoConsulta; leidoEn: number } | null;
 }
 
 /**
@@ -78,7 +87,12 @@ export async function* transmitirTurno(
   try {
     yield* procesarTurno(partesDelTurno(turno, estado), {
       nombrePaciente: turno.nombrePaciente,
-      fuentes: [turno.promptSistema, TEXTO_REGLAS],
+      // La nota de escena también es una instrucción: copiarla sería una fuga.
+      fuentes: [
+        turno.promptSistema,
+        TEXTO_REGLAS,
+        ...(turno.notaDeEscena ? [turno.notaDeEscena] : []),
+      ],
       emocionAnterior: turno.emocionAnterior,
     });
   } catch (error) {
@@ -127,6 +141,7 @@ async function* partesDelTurno(
         historial: turno.historial,
         mensaje: turno.mensaje,
         nombrePaciente: turno.nombrePaciente,
+        notaDeEscena: turno.notaDeEscena ?? null,
       },
       undefined,
       { tiempoMaximoMs }

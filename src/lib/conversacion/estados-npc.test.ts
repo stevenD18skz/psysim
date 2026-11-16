@@ -9,6 +9,7 @@ describe('máquina de estados del NPC (HU-14 · T01)', () => {
     ['procesando', 'respondiendo'],
     ['respondiendo', 'esperando_input'],
     ['procesando', 'error_comunicacion'],
+    ['procesando', 'esperando_input'],
     ['error_comunicacion', 'procesando'],
     ['error_comunicacion', 'sesion_finalizada'],
     ['esperando_input', 'inactivo'],

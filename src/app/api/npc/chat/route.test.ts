@@ -8,7 +8,10 @@ import { transmitirTurno } from '@/lib/ia/turno';
 import { leerSesionIa, type SesionIa } from '@/lib/orquestador/datos';
 import { barrerDespues } from '@/lib/orquestador/diferido';
 import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
+import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
+import { leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
+import { GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { crearLectorSse } from '@/lib/sse';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -22,6 +25,8 @@ vi.mock('@/lib/sesiones/datos-privados', () => ({
   leerEscenarioDeSesion: vi.fn(),
   leerPromptDeSesion: vi.fn(),
 }));
+// El tiempo de consulta lo calcula la base de datos (`tiempo_de_consulta`): aquí se fija.
+vi.mock('@/lib/sesiones/consulta', () => ({ leerTiempoDeConsulta: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 // El proveedor del paciente (orquestador o Gemini) se prueba en `lib/ia/turno.test.ts`: aquí se
 // simula lo que entrega, ya limpio, para probar todo lo que hace la ruta alrededor.
@@ -215,6 +220,7 @@ describe('POST /api/npc/chat', () => {
     vi.mocked(leerEscenarioDeSesion).mockResolvedValue(escenarioDeLaSesion);
     vi.mocked(leerPromptDeSesion).mockResolvedValue(PROMPT);
     vi.mocked(leerSesionIa).mockResolvedValue(null);
+    vi.mocked(leerTiempoDeConsulta).mockResolvedValue(null);
     turno({ tipo: 'completo', respuesta: deGemini });
   });
 
@@ -236,6 +242,7 @@ describe('POST /api/npc/chat', () => {
       id_mensaje_estudiante: ID_MENSAJE_ESTUDIANTE,
       id_mensaje_npc: ID_MENSAJE_NPC,
       cierre: null,
+      consulta: null,
     });
 
     // Usa el prompt de la sesión (leído en el servidor) y el mensaje del estudiante.
@@ -884,6 +891,148 @@ describe('POST /api/npc/chat', () => {
       seguir();
 
       await vi.waitFor(() => expect(guardar).toHaveBeenCalledOnce());
+    });
+  });
+
+  describe('tiempo de consulta', () => {
+    const QUINCE_MIN = 15 * 60;
+
+    it('devuelve cuánto lleva la consulta según la base de datos, no según el navegador', async () => {
+      clienteFalso(sesionEnCurso);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: 120,
+      });
+      // Lo que mande el navegador sobre la hora no se lee.
+      const respuesta = await POST(
+        peticion({ ...cuerpoValido, transcurrido_s: 9999, ahora: '2099-01-01T00:00:00Z' })
+      );
+      expect(respuesta.status).toBe(200);
+      const json = await respuesta.json();
+      expect(json.consulta).toEqual({ duracion_s: QUINCE_MIN, transcurrido_s: 120 });
+      expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ notaDeEscena: null }));
+    });
+
+    it('si la consulta aún no empezaba, empieza con esta intervención', async () => {
+      clienteFalso(sesionEnCurso);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: null,
+      });
+      const json = await (await POST(peticion(cuerpoValido))).json();
+      expect(json.consulta).toEqual({ duracion_s: QUINCE_MIN, transcurrido_s: 0 });
+    });
+
+    it('durante el margen de cierre todavía se conversa', async () => {
+      clienteFalso(sesionEnCurso);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S - 1,
+      });
+      expect((await POST(peticion(cuerpoValido))).status).toBe(200);
+    });
+
+    it('pasado el margen rechaza la intervención (409) con el motivo neutro, sin llamar a la IA', async () => {
+      const { guardar, rpc } = clienteFalso(sesionEnCurso);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S,
+      });
+      const respuesta = await POST(peticion({ ...cuerpoValido, por_partes: true }));
+      expect(respuesta.status).toBe(409);
+      expect(await respuesta.json()).toEqual({
+        error: 'Se cumplió el tiempo de la consulta. La práctica termina aquí.',
+        fin: 'tiempo',
+      });
+      expect(transmitirTurno).not.toHaveBeenCalled();
+      expect(guardar).not.toHaveBeenCalled();
+      // No gasta un turno del límite de mensajes por minuto.
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it('el reintento de un intercambio ya guardado se devuelve aunque se haya cumplido el tiempo', async () => {
+      clienteFalso(sesionEnCurso, {
+        guardados: [
+          {
+            id: ID_MENSAJE_ESTUDIANTE,
+            remitente: 'estudiante',
+            contenido: cuerpoValido.mensaje_usuario,
+            descartado_en: null,
+            creado_en: '2026-11-15T10:00:00Z',
+          },
+          {
+            id: ID_MENSAJE_NPC,
+            remitente: 'npc',
+            contenido: TEXTO,
+            descartado_en: null,
+            creado_en: '2026-11-15T10:00:00Z',
+          },
+        ],
+      });
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S + 30,
+      });
+      const respuesta = await POST(peticion({ ...cuerpoValido, reintento: true }));
+      expect(respuesta.status).toBe(200);
+      expect((await respuesta.json()).respuesta_npc).toBe(TEXTO);
+    });
+
+    it('opción B: el primer turno con el tiempo cumplido lleva la nota de escena para el paciente', async () => {
+      // La última respuesta se guardó hace 3 minutos, cuando faltaba 1 minuto de consulta.
+      const haceTresMinutos = new Date(Date.now() - 180_000).toISOString();
+      clienteFalso(sesionEnCurso, {
+        guardados: [
+          {
+            remitente: 'estudiante',
+            contenido: 'Hola',
+            descartado_en: null,
+            creado_en: haceTresMinutos,
+          },
+          { remitente: 'npc', contenido: 'Hola.', descartado_en: null, creado_en: haceTresMinutos },
+        ],
+      });
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + 120,
+      });
+      await POST(peticion(cuerpoValido));
+      // La nota va aparte: el mensaje del estudiante llega intacto.
+      expect(transmitirTurno).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notaDeEscena: NOTA_TIEMPO_CUMPLIDO,
+          mensaje: cuerpoValido.mensaje_usuario,
+        })
+      );
+    });
+
+    it('opción B: si ya hubo un turno con el tiempo cumplido, el paciente no lo vuelve a notar', async () => {
+      const haceUnMinuto = new Date(Date.now() - 60_000).toISOString();
+      clienteFalso(sesionEnCurso, {
+        guardados: [
+          {
+            remitente: 'estudiante',
+            contenido: 'Hola',
+            descartado_en: null,
+            creado_en: haceUnMinuto,
+          },
+          { remitente: 'npc', contenido: 'Hola.', descartado_en: null, creado_en: haceUnMinuto },
+        ],
+      });
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + 120,
+      });
+      await POST(peticion(cuerpoValido));
+      expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ notaDeEscena: null }));
+    });
+
+    it('si no se puede leer el tiempo, la práctica sigue sin él', async () => {
+      clienteFalso(sesionEnCurso);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue(null);
+      const respuesta = await POST(peticion(cuerpoValido));
+      expect(respuesta.status).toBe(200);
+      expect((await respuesta.json()).consulta).toBeNull();
     });
   });
 });
