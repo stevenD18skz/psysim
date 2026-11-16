@@ -14,7 +14,7 @@ export const PREFIJO_3D = '-3D-';
  * Versión del mapeo. Al cambiar cómo se traduce un caso (esta tabla, los rasgos, las reglas
  * fijas), se sube: la huella de todos los casos cambia y se vuelven a sincronizar solos.
  */
-export const VERSION_MAPEO = 1;
+export const VERSION_MAPEO = 2;
 
 /** Lo que PsySim sabe de un caso y hace falta para describirlo en el orquestador. */
 export interface CasoParaOrquestador {

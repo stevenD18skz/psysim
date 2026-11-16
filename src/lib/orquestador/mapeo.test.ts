@@ -185,6 +185,8 @@ describe('escenarioDelCaso', () => {
     expect(escenario.severity).toBe(4);
     expect(escenario.risk_flags).toEqual(['autolesión']);
     expect(escenario.constraints).toMatchObject({ origen: 'PsySim', caso: 'E-09' });
+    // La regla de cierre de la entrevista también llega al paciente del orquestador.
+    expect(escenario.context).toContain('Quien cierra la consulta es el estudiante.');
   });
 
   it('no duplica las reglas si un prompt antiguo ya las traía pegadas', () => {
