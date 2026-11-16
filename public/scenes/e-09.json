@@ -31,7 +31,7 @@
     { "id": "libros-escritorio", "tipo": "decoracion", "modelo": "muebles/book-stack.glb", "ajuste": { "alto": 0.14 }, "posicion": [2.35, 0.76, -1.1], "rotacion": 15, "colision": false }
   ],
   "npc": {
-    "personaje": "lucia",
+    "personaje": "sara",
     "alturaAsiento": 0.49,
     "piernas": "dobladas",
     "posicion": [0, 0, -1.95],

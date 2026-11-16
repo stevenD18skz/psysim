@@ -1,7 +1,7 @@
 // @vitest-environment node
 // (GLTFLoader comprueba `instanceof ArrayBuffer`, que falla entre el realm de Node y el de jsdom.)
 
-import { type Bone, type Object3D, Vector3 } from 'three';
+import { type Bone, type Mesh, type Object3D, Vector3 } from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { type Silaba } from '@/lib/audio/voz';
@@ -9,7 +9,7 @@ import { type Silaba } from '@/lib/audio/voz';
 import { leerGlb } from '../../../test/leer-glb';
 
 import { AnimadorPaciente } from './animador-paciente';
-import { buscarModeloNpc, urlModeloNpc } from './catalogo';
+import { buscarModeloNpc, IDS_MODELO_NPC, urlModeloNpc } from './catalogo';
 import { BOCA_CERRADA, formaHabla } from './rostro';
 
 const FRENTE = new Vector3(0, 1.25, 1.7);
@@ -67,17 +67,39 @@ describe('formaHabla', () => {
 });
 
 describe('rostro del paciente', () => {
-  it.each(['rosa', 'tomas', 'lucia', 'marina', 'leo', 'ernesto'])(
-    '%s tiene cejas, párpados y boca colgados de la cabeza',
-    async id => {
-      const animador = await paciente(id);
-      const rostro = buscar(animador.modelo, 'rostro');
-      expect(rostro).toBeDefined();
-      expect((rostro!.parent as Bone).name).toBe('head');
-      // 2 cejas + 2 párpados + boca.
-      expect(rostro!.children).toHaveLength(5);
-    }
-  );
+  it.each(IDS_MODELO_NPC)('%s abre y cierra su boca con el plan de sílabas', async id => {
+    const animador = await paciente(id);
+    animador.permitirGestosEspontaneos(false);
+    animador.actualizarConducta('respondiendo', 'neutral');
+    avanzar(animador, 2);
+    const rostro = buscar(animador.modelo, 'rostro')!;
+    const boca = rostro.children[4] as Mesh;
+    const altura = () => {
+      const pos = boca.geometry.getAttribute('position');
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < pos.count; i++) {
+        expect([pos.getX(i), pos.getY(i), pos.getZ(i)].every(Number.isFinite)).toBe(true);
+        min = Math.min(min, pos.getY(i));
+        max = Math.max(max, pos.getY(i));
+      }
+      return max - min;
+    };
+    animador.hablar([silaba(0, 900)]);
+    avanzar(animador, 0.05);
+    const abierta = altura();
+    avanzar(animador, 0.2);
+    expect(altura()).toBeLessThan(abierta);
+  });
+
+  it.each(IDS_MODELO_NPC)('%s tiene cejas, párpados y boca colgados de la cabeza', async id => {
+    const animador = await paciente(id);
+    const rostro = buscar(animador.modelo, 'rostro');
+    expect(rostro).toBeDefined();
+    expect((rostro!.parent as Bone).name).toBe('head');
+    // 2 cejas + 2 párpados + boca.
+    expect(rostro!.children).toHaveLength(5);
+  });
 
   it('al desmontar se quita y se puede volver a montar (StrictMode)', async () => {
     const animador = new AnimadorPaciente(await glb(), { postura: 'sentado', alturaAsiento: 0.56 });

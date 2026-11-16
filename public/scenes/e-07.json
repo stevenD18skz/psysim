@@ -29,7 +29,7 @@
     { "id": "libros-escritorio", "tipo": "decoracion", "modelo": "muebles/book-stack.glb", "ajuste": { "alto": 0.12 }, "posicion": [2.4, 0.76, 2.4], "rotacion": 10, "colision": false }
   ],
   "npc": {
-    "personaje": "tomas",
+    "personaje": "hernan",
     "alturaAsiento": 0.56,
     "posicion": [0.2, 0, -2],
     "rotacion": -8,
