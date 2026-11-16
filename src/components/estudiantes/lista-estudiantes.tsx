@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, ChevronRight, KeyRound, MailPlus } from 'lucide-react';
+import { ClipboardPlus, KeyRound, MailPlus } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -175,7 +175,7 @@ export function ListaEstudiantes({
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/configuracion?estudiante=${codigo}`}>
                             Asignar
-                            <ArrowRight aria-hidden />
+                            <ClipboardPlus aria-hidden />
                           </Link>
                         </Button>
                       ) : (
@@ -191,10 +191,6 @@ export function ListaEstudiantes({
                         />
                       )}
                       <AccionesEstudiante estudiante={estudiante} />
-                      <ChevronRight
-                        className="size-4 text-muted-foreground transition-transform group-hover/fila:translate-x-0.5 group-hover/fila:text-foreground"
-                        aria-hidden
-                      />
                     </div>
                   </td>
                 </tr>
