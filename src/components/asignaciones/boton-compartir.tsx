@@ -1,7 +1,8 @@
 'use client';
 
-import { ChevronDown, Mail, MessageCircle, Share2 } from 'lucide-react';
+import { ChevronDown, Copy, Mail, MessageCircle, Share2 } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,8 @@ export function BotonCompartir({
   correo,
   etiqueta = 'Compartir código',
   size = 'default',
+  textoCopiable,
+  className,
 }: {
   asunto: string;
   mensaje: string;
@@ -41,6 +44,9 @@ export function BotonCompartir({
   correo?: string | null;
   etiqueta?: string;
   size?: 'default' | 'sm';
+  /** Si se pasa, añade «Copiar mensaje completo» dentro del menú de compartir. */
+  textoCopiable?: string;
+  className?: string;
 }) {
   const nativo = usePuedeCompartirNativo();
   const texto = encodeURIComponent(mensaje);
@@ -73,17 +79,36 @@ export function BotonCompartir({
     }
   };
 
+  const copiarMensaje = async () => {
+    if (!textoCopiable) return;
+    try {
+      await navigator.clipboard.writeText(textoCopiable);
+      toast.success('Mensaje copiado.');
+    } catch {
+      toast.error('No pudimos copiar el mensaje. Selecciona el enlace y cópialo a mano.');
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size={size}>
+        <Button type="button" variant="outline" size={size} className={className}>
           <Share2 aria-hidden />
           {etiqueta}
           <ChevronDown className="opacity-60" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>Enviar por</DropdownMenuLabel>
+        {textoCopiable && (
+          <>
+            <DropdownMenuItem onSelect={() => void copiarMensaje()}>
+              <Copy aria-hidden />
+              Copiar mensaje completo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {opciones.map(opcion => (
           <DropdownMenuItem key={opcion.nombre} asChild>
             <a

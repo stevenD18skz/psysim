@@ -209,6 +209,10 @@ describe('ConfiguradorSesion', () => {
     const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
     expect(within(dialogo).getByText(/\/unirse\/abc-defg-hij$/)).toBeVisible();
+    const accionesEnvio = within(dialogo)
+      .getAllByRole('button')
+      .map(b => b.textContent?.trim());
+    expect(accionesEnvio.slice(0, 3)).toEqual(['Copiar código', 'Copiar enlace', 'Compartir']);
     expect(within(dialogo).getByRole('link', { name: /Ver ficha de/ })).toHaveAttribute(
       'href',
       `/estudiantes/${ANA.id}`
