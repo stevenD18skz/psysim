@@ -34,7 +34,7 @@ const EXPERIMENTOS: Experimento[] = [
 export default async function LaboratorioPage() {
   await requerirSuperadmin();
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
         titulo="Herramientas de desarrollo"
         descripcion="Pruebas internas del proyecto. Solo las ve la administración; no forman parte de la práctica ni afectan a los estudiantes."

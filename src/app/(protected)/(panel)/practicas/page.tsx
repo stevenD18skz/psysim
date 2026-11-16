@@ -83,7 +83,7 @@ export default async function PracticasPage() {
   const nombresDocentes = docentesVinculados.join(', ');
 
   return (
-    <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">

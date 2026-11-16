@@ -67,7 +67,7 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
   const proxima = restantes[indice === -1 ? 0 : indice] ?? restantes[0] ?? null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <RefrescoAutomatico activo={enCurso} />
       <EncabezadoSesion
         sesion={sesion}

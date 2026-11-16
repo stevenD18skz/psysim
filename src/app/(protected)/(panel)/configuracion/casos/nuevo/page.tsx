@@ -31,7 +31,7 @@ export default async function NuevoCasoPage({
     : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1620px] flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-10 sm:px-6">
       <EncabezadoCaso
         titulo={
           casoOrigen ? (

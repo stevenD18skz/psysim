@@ -39,7 +39,7 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
     new Date(retro.actualizadoEn).getTime() - new Date(retro.publicadaEn).getTime() > 1000;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoSesion
         sesion={sesion}
         para="estudiante"

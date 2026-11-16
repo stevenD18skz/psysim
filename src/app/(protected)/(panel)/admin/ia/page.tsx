@@ -103,7 +103,7 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <EncabezadoPagina
         titulo="Paciente con IA"
         descripcion="Quién responde como paciente, cuánto tarda y qué pasó cuando algo falló. Estas cifras describen el servicio, no a los estudiantes."
