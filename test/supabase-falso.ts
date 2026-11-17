@@ -111,6 +111,8 @@ export function crearSupabaseFalso() {
 
   const auth = {
     getUser: vi.fn(async () => ({ data: { user: null }, error: null }) as unknown),
+    /** Sesión de las cookies; de su token sale el método de acceso (`amr`). */
+    getSession: vi.fn(async () => ({ data: { session: null }, error: null }) as unknown),
     signInWithPassword: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     signInWithOAuth: vi.fn(
       async () =>

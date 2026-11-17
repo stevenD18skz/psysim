@@ -30,6 +30,11 @@ export const RUTA_INICIO_ADMIN = '/inicio' satisfies Route;
 export const RUTA_INICIO_DOCENTE = '/inicio' satisfies Route;
 export const RUTA_INICIO_ESTUDIANTE = '/practicas' satisfies Route;
 export const RUTA_ACCESO_DENEGADO = '/acceso-denegado' satisfies Route;
+/**
+ * A donde va un docente que todavía usa la contraseña temporal que le generó el Administrador:
+ * hasta que la cambie, el panel no le abre nada más.
+ */
+export const RUTA_CAMBIAR_CONTRASENA = '/contrasena' satisfies Route;
 
 /** Ruta de inicio de cada rol: a donde llega tras iniciar sesión. */
 export const RUTA_INICIO: Record<RolUsuario, Route> = {
@@ -56,7 +61,7 @@ export const PREFIJOS_POR_ROL: Record<RolUsuario, readonly string[]> = {
  * Rutas protegidas para cualquier rol (redirigen a la ruta de inicio de cada uno). Los resultados
  * de una práctica los ven el estudiante que la hizo y el docente que la asignó: RLS decide cuáles.
  */
-const PREFIJOS_COMUNES = ['/inicio', '/resultados'] as const;
+const PREFIJOS_COMUNES = ['/inicio', '/resultados', RUTA_CAMBIAR_CONTRASENA] as const;
 
 /** Parámetro de búsqueda con la ruta a la que volver tras iniciar sesión. */
 export const PARAM_SIGUIENTE = 'siguiente';

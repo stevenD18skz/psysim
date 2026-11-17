@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/routes';
 import { publicEnv } from '@/lib/env/public';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
+import { esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -80,8 +81,17 @@ export async function iniciarSesion(
     redirect(RUTA_ACCESO_DENEGADO);
   }
 
+  // El estudiante entra con Google. Si su cuenta tiene una contraseña es porque alguien se la
+  // puso por la API de Auth (la aplicación no lo permite): no abre la sesión. La DAL rechaza
+  // igual una sesión así obtenida por fuera de este formulario.
+  if (perfil.rol === 'estudiante' && !esCuentaDePrueba(data.user.email)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    log.warn('auth.estudiante_con_contrasena', { usuario_id: data.user.id });
+    return { error: 'Tu cuenta entra con Google. Usa «Continuar con Google».' };
+  }
+
   // El docente vuelve a su equipo después de entregarlo a un estudiante (modo presencial). Si
-  // quien entra es el estudiante (con contraseña en lugar de Google), el equipo sigue entregado.
+  // quien entra es el estudiante (una cuenta de prueba, con contraseña), el equipo sigue entregado.
   if (perfil.rol !== 'estudiante') await olvidarEntrega();
   redirect(rutaSiguienteSegura(siguiente, perfil.rol));
 }
@@ -181,11 +191,25 @@ export async function cambiarContrasena(valores: unknown): Promise<ResultadoAcci
     return { ok: false, error: 'No pudimos cambiar la contraseña. Inténtalo de nuevo.' };
   }
 
+  // La comprobación de arriba vive solo en esta acción: la API de Auth aceptaría la contraseña
+  // nueva de cualquiera con un token de sesión. Para cerrarlo hay que activar en Supabase Auth
+  // «Require current password when updating» y «Secure password change»; con el primero, Auth
+  // exige `current_password` (se envía siempre: si el ajuste está apagado, lo ignora) y, con el
+  // segundo, una sesión de más de 24 horas debe volver a entrar antes de cambiarla.
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: datos.data.nueva });
+  const { error } = await supabase.auth.updateUser({
+    password: datos.data.nueva,
+    current_password: datos.data.actual,
+  });
   if (error) {
     if (error.code === 'same_password') {
       return { ok: false, error: 'La nueva contraseña debe ser distinta de la actual.' };
+    }
+    if (error.code === 'reauthentication_needed') {
+      return {
+        ok: false,
+        error: 'Por seguridad, cierra la sesión, vuelve a entrar y cambia la contraseña enseguida.',
+      };
     }
     if (error.code === 'weak_password') {
       return { ok: false, error: 'Esa contraseña es muy débil. Elige una más larga o variada.' };
