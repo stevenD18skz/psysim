@@ -3,7 +3,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { TopePracticas } from '@/components/admin/tope-practicas';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import {
@@ -104,20 +108,25 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <EncabezadoPagina
         titulo="Paciente con IA"
         descripcion="Quién responde como paciente, cuánto tarda y qué pasó cuando algo falló. Estas cifras describen el servicio, no a los estudiantes."
         acciones={
-          <nav aria-label="Periodo" className="flex gap-1 rounded-lg border bg-card p-1">
+          <nav
+            aria-label="Periodo"
+            className="flex gap-1 rounded-xl border border-sidebar-border bg-sidebar-accent/70 p-1"
+          >
             {PERIODOS_METRICAS.map(dias => (
               <Link
                 key={dias}
                 href={`/admin/ia?dias=${dias}`}
                 aria-current={dias === periodo ? 'page' : undefined}
                 className={cn(
-                  'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                  dias === periodo && 'bg-accent text-accent-foreground'
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
+                  dias === periodo
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-sidebar-muted hover:text-sidebar-foreground'
                 )}
               >
                 {ETIQUETA_PERIODO[dias]}
@@ -127,123 +136,126 @@ export default async function AdminIaPage({ searchParams }: PageProps<'/admin/ia
         }
       />
 
-      <EstadoDelProveedor configuracion={configuracion} />
+      <ContenedorHero>
+        <EstadoDelProveedor configuracion={configuracion} />
 
-      <Indicadores
-        indicadores={[
-          { icono: Bot, etiqueta: 'Respuestas del paciente', valor: turnos },
-          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.practicas.total },
-          {
-            icono: RefreshCw,
-            etiqueta: 'Pasaron a Gemini',
-            valor: metricas.practicas.pasaron_a_gemini,
-          },
-          {
-            icono: AlertTriangle,
-            etiqueta: 'Cierres automáticos',
-            valor: metricas.practicas.cierres_por_crisis + metricas.practicas.cierres_por_conducta,
-          },
-        ]}
-      />
-
-      <Seccion id="proveedores" titulo="Respuestas por proveedor" vacio={false}>
-        <Tabla
-          titulo="Respuestas por proveedor"
-          columnas={[
-            'Proveedor',
-            'Respuestas',
-            'Latencia media',
-            'Latencia p95',
-            'Tokens (entrada / salida)',
-            'Severidad media',
-            'Emoción deducida',
+        <Indicadores
+          indicadores={[
+            { icono: Bot, etiqueta: 'Respuestas del paciente', valor: turnos },
+            { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.practicas.total },
+            {
+              icono: RefreshCw,
+              etiqueta: 'Pasaron a Gemini',
+              valor: metricas.practicas.pasaron_a_gemini,
+            },
+            {
+              icono: AlertTriangle,
+              etiqueta: 'Cierres automáticos',
+              valor:
+                metricas.practicas.cierres_por_crisis + metricas.practicas.cierres_por_conducta,
+            },
           ]}
-          filas={filasProveedores}
         />
-        <p className="text-sm text-muted-foreground">
-          La latencia incluye la espera por cupo.{' '}
-          <span className="font-medium text-foreground">Emoción deducida</span> cuenta las
-          respuestas en las que el modelo no escribió la etiqueta de emoción y se dedujo de la
-          severidad.{' '}
-          {metricas.turnos_de_respaldo > 0 &&
-            `${numero.format(metricas.turnos_de_respaldo)} de las respuestas de Gemini fueron en prácticas que empezaron en el orquestador.`}
-        </p>
-      </Seccion>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Seccion
-          id="cambios"
-          titulo="Prácticas que pasaron a Gemini"
-          vacio={metricas.cambios.length === 0 && 'Ninguna práctica necesitó el respaldo.'}
-        >
+        <Seccion id="proveedores" titulo="Respuestas por proveedor" vacio={false}>
           <Tabla
-            titulo="Motivos del paso a Gemini"
-            columnas={['Motivo', 'Prácticas']}
-            filas={metricas.cambios.map(cambio => [
-              ETIQUETA_CAMBIO[cambio.motivo ?? ''] ?? cambio.motivo ?? 'Sin motivo',
-              numero.format(cambio.practicas),
-            ])}
+            titulo="Respuestas por proveedor"
+            columnas={[
+              'Proveedor',
+              'Respuestas',
+              'Latencia media',
+              'Latencia p95',
+              'Tokens (entrada / salida)',
+              'Severidad media',
+              'Emoción deducida',
+            ]}
+            filas={filasProveedores}
           />
+          <p className="text-sm text-muted-foreground">
+            La latencia incluye la espera por cupo.{' '}
+            <span className="font-medium text-foreground">Emoción deducida</span> cuenta las
+            respuestas en las que el modelo no escribió la etiqueta de emoción y se dedujo de la
+            severidad.{' '}
+            {metricas.turnos_de_respaldo > 0 &&
+              `${numero.format(metricas.turnos_de_respaldo)} de las respuestas de Gemini fueron en prácticas que empezaron en el orquestador.`}
+          </p>
         </Seccion>
 
-        <Seccion
-          id="errores"
-          titulo="Errores del orquestador"
-          vacio={errores.length === 0 && 'Sin errores en este periodo.'}
-        >
-          <Tabla
-            titulo="Errores del orquestador por tipo"
-            columnas={['Tipo', 'Veces']}
-            filas={errores.map(error => [
-              ETIQUETA_ERROR[error.detalle] ?? error.detalle,
-              numero.format(error.veces),
-            ])}
-          />
-        </Seccion>
-      </div>
+        <div className="grid gap-8 lg:grid-cols-2">
+          <Seccion
+            id="cambios"
+            titulo="Prácticas que pasaron a Gemini"
+            vacio={metricas.cambios.length === 0 && 'Ninguna práctica necesitó el respaldo.'}
+          >
+            <Tabla
+              titulo="Motivos del paso a Gemini"
+              columnas={['Motivo', 'Prácticas']}
+              filas={metricas.cambios.map(cambio => [
+                ETIQUETA_CAMBIO[cambio.motivo ?? ''] ?? cambio.motivo ?? 'Sin motivo',
+                numero.format(cambio.practicas),
+              ])}
+            />
+          </Seccion>
 
-      <Seccion
-        id="esperas"
-        titulo="Esperas por el límite de mensajes"
-        vacio={esperas.length === 0 && 'Nadie tuvo que esperar por cupo en este periodo.'}
-      >
-        <Tabla
+          <Seccion
+            id="errores"
+            titulo="Errores del orquestador"
+            vacio={errores.length === 0 && 'Sin errores en este periodo.'}
+          >
+            <Tabla
+              titulo="Errores del orquestador por tipo"
+              columnas={['Tipo', 'Veces']}
+              filas={errores.map(error => [
+                ETIQUETA_ERROR[error.detalle] ?? error.detalle,
+                numero.format(error.veces),
+              ])}
+            />
+          </Seccion>
+        </div>
+
+        <Seccion
+          id="esperas"
           titulo="Esperas por el límite de mensajes"
-          columnas={['Qué pasó', 'Veces', 'Espera media', 'Espera máxima']}
-          filas={esperas.map(evento => [
-            describirEspera(evento),
-            numero.format(evento.veces),
-            segundos(evento.espera_media_ms),
-            segundos(evento.espera_maxima_ms),
-          ])}
-        />
-      </Seccion>
+          vacio={esperas.length === 0 && 'Nadie tuvo que esperar por cupo en este periodo.'}
+        >
+          <Tabla
+            titulo="Esperas por el límite de mensajes"
+            columnas={['Qué pasó', 'Veces', 'Espera media', 'Espera máxima']}
+            filas={esperas.map(evento => [
+              describirEspera(evento),
+              numero.format(evento.veces),
+              segundos(evento.espera_media_ms),
+              segundos(evento.espera_maxima_ms),
+            ])}
+          />
+        </Seccion>
 
-      <Seccion
-        id="cuentas"
-        titulo="Cuentas del orquestador"
-        vacio={
-          filasCuentas.length === 0 &&
-          'No hay cuentas del orquestador configuradas en este despliegue.'
-        }
-      >
-        <Tabla
-          titulo="Uso de las cuentas del orquestador"
-          columnas={['Cuenta', 'Prácticas', 'En curso ahora', 'Mensajes en el último minuto']}
-          filas={filasCuentas}
-        />
-      </Seccion>
+        <Seccion
+          id="cuentas"
+          titulo="Cuentas del orquestador"
+          vacio={
+            filasCuentas.length === 0 &&
+            'No hay cuentas del orquestador configuradas en este despliegue.'
+          }
+        >
+          <Tabla
+            titulo="Uso de las cuentas del orquestador"
+            columnas={['Cuenta', 'Prácticas', 'En curso ahora', 'Mensajes en el último minuto']}
+            filas={filasCuentas}
+          />
+        </Seccion>
 
-      <section aria-labelledby="tope-titulo" className="flex flex-col gap-4">
-        <h2 id="tope-titulo" className="text-xl font-semibold tracking-tight">
-          Tope de prácticas simultáneas
-        </h2>
-        <TopePracticas
-          tope={metricas.tope_practicas_por_cuenta}
-          sugerido={PRACTICAS_POR_CUENTA}
-          cuentas={cuentas}
-        />
-      </section>
+        <section aria-labelledby="tope-titulo" className="flex flex-col gap-4">
+          <h2 id="tope-titulo" className="text-xl font-semibold tracking-tight">
+            Tope de prácticas simultáneas
+          </h2>
+          <TopePracticas
+            tope={metricas.tope_practicas_por_cuenta}
+            sugerido={PRACTICAS_POR_CUENTA}
+            cuentas={cuentas}
+          />
+        </section>
+      </ContenedorHero>
     </div>
   );
 }
@@ -291,7 +303,8 @@ function EstadoDelProveedor({
     <section
       aria-labelledby="proveedor-activo-titulo"
       className={cn(
-        'flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs',
+        'flex flex-col gap-4 rounded-2xl border bg-card p-5',
+        SOMBRA_SOBRE_NOGAL,
         proveedor === 'orquestador' && !orquestadorListo && 'border-destructive/40'
       )}
     >

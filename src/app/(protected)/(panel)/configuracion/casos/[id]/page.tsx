@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { ConstructorCaso } from '@/components/casos/constructor-caso';
 import { EncabezadoCaso } from '@/components/casos/encabezado-caso';
+import { ContenedorHero, SOMBRA_SOBRE_NOGAL } from '@/components/comun/encabezado-pagina';
 import { requerirDocente } from '@/lib/auth/dal';
 import { valoresDeCaso } from '@/lib/casos/valores';
 import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
@@ -23,16 +24,22 @@ export default async function EditarCasoPage({ params }: PageProps<'/configuraci
   if (!caso) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="flex flex-1 flex-col">
       <EncabezadoCaso
         titulo={
           <>
-            <span className="text-muted-foreground">Editar</span> {caso.titulo}
+            <span className="text-sidebar-muted">Editar</span> {caso.titulo}
           </>
         }
         descripcion="Los cambios valen para las prácticas que asignes desde ahora. Las ya asignadas conservan su copia del caso."
       />
-      <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />
+      <ContenedorHero>
+        <div
+          className={`rounded-2xl border border-border/80 bg-background p-5 sm:p-7 ${SOMBRA_SOBRE_NOGAL}`}
+        >
+          <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />
+        </div>
+      </ContenedorHero>
     </div>
   );
 }

@@ -15,7 +15,11 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 
 import { ListaCodigos } from '@/components/asignaciones/lista-codigos';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { Paginacion } from '@/components/comun/paginacion';
 import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
@@ -84,7 +88,7 @@ export default async function EstudiantePage({
     conParametros(ruta, actuales, cambios, { estado: 'todas' });
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <RefrescoAutomatico activo={metricas.enCurso > 0} />
 
       <EncabezadoPagina
@@ -115,10 +119,10 @@ export default async function EstudiantePage({
           </>
         }
       >
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="font-mono">{estudiante.codigo}</span>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sidebar-muted">
+          <span className="font-mono text-sidebar-foreground">{estudiante.codigo}</span>
           <span className="flex items-center gap-1.5">
-            <Mail className="size-4" aria-hidden />
+            <Mail className="size-4 text-laton-texto" aria-hidden />
             {estudiante.correo ?? 'Sin correo institucional'}
           </span>
           {estudiante.docente && (
@@ -126,7 +130,7 @@ export default async function EstudiantePage({
               · Docente:{' '}
               <Link
                 href={`/admin/docentes/${estudiante.docente.id}`}
-                className="font-medium text-foreground underline-offset-4 hover:underline"
+                className="font-medium text-laton-texto underline-offset-4 hover:text-sidebar-foreground hover:underline"
               >
                 {estudiante.docente.nombre}
               </Link>
@@ -141,95 +145,102 @@ export default async function EstudiantePage({
         </p>
       </EncabezadoPagina>
 
-      <Indicadores
-        indicadores={[
-          { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.sesiones },
-          {
-            icono: Clock,
-            etiqueta: 'Tiempo de práctica',
-            valor: formatearTiempoPractica(metricas.segundosPractica),
-          },
-          { icono: MessageSquareText, etiqueta: 'Intervenciones', valor: metricas.intervenciones },
-          {
-            icono: ClipboardCheck,
-            etiqueta: 'Nota promedio',
-            valor: formatearNota(metricas.notaPromedio),
-          },
-        ]}
-      />
+      <ContenedorHero>
+        <Indicadores
+          className={SOMBRA_SOBRE_NOGAL}
+          indicadores={[
+            { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.sesiones },
+            {
+              icono: Clock,
+              etiqueta: 'Tiempo de práctica',
+              valor: formatearTiempoPractica(metricas.segundosPractica),
+            },
+            {
+              icono: MessageSquareText,
+              etiqueta: 'Intervenciones',
+              valor: metricas.intervenciones,
+            },
+            {
+              icono: ClipboardCheck,
+              etiqueta: 'Nota promedio',
+              valor: formatearNota(metricas.notaPromedio),
+            },
+          ]}
+        />
 
-      <section aria-labelledby="sesiones-titulo" className="flex flex-col gap-4">
-        <h2 id="sesiones-titulo" className="text-xl font-bold tracking-[-0.015em]">
-          Prácticas
-        </h2>
-        {sesiones.length > 0 && (
-          <nav
-            aria-label="Filtrar prácticas por estado"
-            className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
-          >
-            {FILTROS_PRACTICAS.map(f => {
-              const activo = f.valor === filtro;
-              return (
-                <Link
-                  key={f.valor}
-                  href={url({ estado: f.valor }) as Route}
-                  scroll={false}
-                  aria-current={activo ? 'page' : undefined}
-                  className={cn(
-                    'flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                    activo
-                      ? 'bg-nogal text-lino'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  {f.etiqueta}
-                  <span
+        <section aria-labelledby="sesiones-titulo" className="flex flex-col gap-4">
+          <h2 id="sesiones-titulo" className="text-xl font-bold tracking-[-0.015em]">
+            Prácticas
+          </h2>
+          {sesiones.length > 0 && (
+            <nav
+              aria-label="Filtrar prácticas por estado"
+              className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
+            >
+              {FILTROS_PRACTICAS.map(f => {
+                const activo = f.valor === filtro;
+                return (
+                  <Link
+                    key={f.valor}
+                    href={url({ estado: f.valor }) as Route}
+                    scroll={false}
+                    aria-current={activo ? 'page' : undefined}
                     className={cn(
-                      'rounded-full px-1.5 text-xs tabular-nums',
-                      activo ? 'bg-lino/15' : 'bg-muted'
+                      'flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                      activo
+                        ? 'bg-nogal text-lino'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
-                    {conteos[f.valor]}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-        <ListaSesiones
-          sesiones={pagina.visibles}
-          para="docente"
-          enlace={sesion => `/sesiones/${sesion.id}`}
-          vacio={
-            sesiones.length === 0
-              ? 'Aún no ha hecho ninguna práctica. Aparecerá aquí en cuanto use un código.'
-              : 'Ninguna práctica en este estado.'
-          }
-        />
-        {pagina.totalPaginas > 1 && (
-          <Paginacion
-            pagina={pagina}
-            enlace={n => url({ pagina: n })}
-            sustantivo={['práctica', 'prácticas']}
+                    {f.etiqueta}
+                    <span
+                      className={cn(
+                        'rounded-full px-1.5 text-xs tabular-nums',
+                        activo ? 'bg-lino/15' : 'bg-muted'
+                      )}
+                    >
+                      {conteos[f.valor]}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+          <ListaSesiones
+            sesiones={pagina.visibles}
+            para="docente"
+            enlace={sesion => `/sesiones/${sesion.id}`}
+            vacio={
+              sesiones.length === 0
+                ? 'Aún no ha hecho ninguna práctica. Aparecerá aquí en cuanto use un código.'
+                : 'Ninguna práctica en este estado.'
+            }
           />
-        )}
-      </section>
+          {pagina.totalPaginas > 1 && (
+            <Paginacion
+              pagina={pagina}
+              enlace={n => url({ pagina: n })}
+              sustantivo={['práctica', 'prácticas']}
+            />
+          )}
+        </section>
 
-      <section aria-labelledby="codigos-titulo" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 id="codigos-titulo" className="text-xl font-bold tracking-[-0.015em]">
-            Códigos de acceso
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Cada código sirve una sola vez y solo con la cuenta de {estudiante.nombre.split(' ')[0]}
-            .
-          </p>
-        </div>
-        <ListaCodigos
-          asignaciones={asignaciones}
-          estudiante={{ nombre: estudiante.nombre, correo: estudiante.correo }}
-        />
-      </section>
+        <section aria-labelledby="codigos-titulo" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 id="codigos-titulo" className="text-xl font-bold tracking-[-0.015em]">
+              Códigos de acceso
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Cada código sirve una sola vez y solo con la cuenta de{' '}
+              {estudiante.nombre.split(' ')[0]}.
+            </p>
+          </div>
+          <ListaCodigos
+            asignaciones={asignaciones}
+            estudiante={{ nombre: estudiante.nombre, correo: estudiante.correo }}
+          />
+        </section>
+      </ContenedorHero>
     </div>
   );
 }

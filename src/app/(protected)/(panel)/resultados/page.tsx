@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import {
   AccionesResultados,
   LimpiarSesionActiva,
@@ -55,9 +59,10 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
   const publicada = sesion.retroalimentacion?.publicadaEn != null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <LimpiarSesionActiva sesionId={sesion.id} />
       <EncabezadoPagina
+        conBordeLateral={rol === 'docente'}
         volver={
           rol === 'estudiante'
             ? { href: '/practicas', etiqueta: 'Mis prácticas' }
@@ -67,7 +72,7 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
           <>
             <CodigoCaso
               codigo={sesion.escenario.codigo}
-              className="mr-3 align-middle font-mono text-base font-medium text-muted-foreground"
+              className="mr-3 align-middle font-mono text-base font-medium text-laton-texto print:text-muted-foreground"
             />
             {sesion.escenario.titulo}
           </>
@@ -78,89 +83,107 @@ export default async function ResultadosPage({ searchParams }: PageProps<'/resul
             : 'Práctica terminada. Este es el resumen de la práctica.'
         }
       >
-        <p className="text-muted-foreground">
-          Estudiante:{' '}
-          <span className="font-medium text-foreground">{sesion.estudiante.nombre}</span>
-          {' · '}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-sidebar-muted print:text-muted-foreground">
+          <span>
+            Estudiante:{' '}
+            <span className="font-medium text-sidebar-foreground print:text-foreground">
+              {sesion.estudiante.nombre}
+            </span>
+          </span>
+          <span aria-hidden>·</span>
           <span className="tabular-nums">{sesion.estudiante.codigo}</span>
-          <span aria-hidden> · </span>
-          Paciente: <span className="font-medium text-terracota">{sesion.npc.nombre}</span>
+          <span aria-hidden>·</span>
+          <span>
+            Paciente:{' '}
+            <span className="rounded-md bg-terracota-suave px-2 py-0.5 text-xs font-medium text-terracota">
+              {sesion.npc.nombre}
+            </span>
+          </span>
           {sesion.escenario.competenciaCentral && sesion.escenario.competenciaCentral !== '—' && (
             <>
-              <span aria-hidden> · </span>
-              Competencia: {sesion.escenario.competenciaCentral}
+              <span aria-hidden>·</span>
+              <span>Competencia: {sesion.escenario.competenciaCentral}</span>
             </>
           )}
         </p>
       </EncabezadoPagina>
 
-      <TarjetasMetricas metricas={metricas} para={rol} />
-
-      {rol === 'estudiante' &&
-        (publicada ? (
-          <div className="flex items-start gap-3 rounded-xl bg-salvia-suave p-5 text-sm">
-            <MessageSquareQuote className="mt-0.5 size-5 shrink-0 text-salvia-oscuro" aria-hidden />
-            <p>
-              <span className="font-semibold">Tu docente ya publicó la retroalimentación.</span>{' '}
-              <Link
-                href={`/practicas/${sesion.id}`}
-                className="font-medium underline underline-offset-4"
-              >
-                Léela aquí
-              </Link>
-              .
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 rounded-xl bg-ambar-suave p-5 text-sm">
-            <Hourglass className="mt-0.5 size-5 shrink-0 text-ambar" aria-hidden />
-            <p>
-              <span className="font-semibold">Ahora le toca a tu docente.</span>{' '}
-              <span className="text-muted-foreground">
-                Leerá la conversación y publicará su retroalimentación con una nota. La verás en Mis
-                prácticas; no enviamos avisos, así que vuelve a revisar.
-              </span>
-            </p>
-          </div>
-        ))}
-
-      {rol === 'estudiante' && sesion.comenzada && (
-        <ReflexionEstudiante sesionId={sesion.id} inicial={reflexion} />
-      )}
-      {rol === 'docente' && reflexion && (
-        <ReflexionLeida
-          contenido={reflexion.contenido}
-          actualizadoEn={reflexion.actualizadoEn}
-          estudiante={sesion.estudiante.nombre}
-        />
-      )}
-
-      <section aria-labelledby="historial-titulo" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="historial-titulo" className="text-xl font-bold tracking-[-0.015em]">
-            Conversación
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Las respuestas del paciente las generó una IA.
-          </p>
+      <ContenedorHero className="gap-8 print:mt-0 print:gap-6 print:px-0">
+        <div
+          className={`rounded-2xl border border-border/80 bg-background p-5 sm:p-6 ${SOMBRA_SOBRE_NOGAL} print:border-0 print:bg-transparent print:p-0`}
+        >
+          <TarjetasMetricas metricas={metricas} para={rol} />
         </div>
-        <HistorialResultados sesion={sesion} para={rol} />
-      </section>
 
-      {rol === 'docente' && (
-        <p className="text-sm text-muted-foreground">
-          Para comentar frases y publicar la nota, abre la{' '}
-          <Link
-            href={`/sesiones/${sesion.id}`}
-            className="font-medium underline underline-offset-4"
-          >
-            revisión de esta práctica
-          </Link>
-          .
-        </p>
-      )}
+        {rol === 'estudiante' &&
+          (publicada ? (
+            <div className="flex items-start gap-3 rounded-xl bg-salvia-suave p-5 text-sm">
+              <MessageSquareQuote
+                className="mt-0.5 size-5 shrink-0 text-salvia-oscuro"
+                aria-hidden
+              />
+              <p>
+                <span className="font-semibold">Tu docente ya publicó la retroalimentación.</span>{' '}
+                <Link
+                  href={`/practicas/${sesion.id}`}
+                  className="font-medium underline underline-offset-4"
+                >
+                  Léela aquí
+                </Link>
+                .
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 rounded-xl bg-ambar-suave p-5 text-sm">
+              <Hourglass className="mt-0.5 size-5 shrink-0 text-ambar" aria-hidden />
+              <p>
+                <span className="font-semibold">Ahora le toca a tu docente.</span>{' '}
+                <span className="text-muted-foreground">
+                  Leerá la conversación y publicará su retroalimentación con una nota. La verás en
+                  Mis prácticas; no enviamos avisos, así que vuelve a revisar.
+                </span>
+              </p>
+            </div>
+          ))}
 
-      <AccionesResultados rol={rol} />
+        {rol === 'estudiante' && sesion.comenzada && (
+          <ReflexionEstudiante sesionId={sesion.id} inicial={reflexion} />
+        )}
+        {rol === 'docente' && reflexion && (
+          <ReflexionLeida
+            contenido={reflexion.contenido}
+            actualizadoEn={reflexion.actualizadoEn}
+            estudiante={sesion.estudiante.nombre}
+          />
+        )}
+
+        <section aria-labelledby="historial-titulo" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="historial-titulo" className="text-xl font-bold tracking-[-0.015em]">
+              Conversación
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Las respuestas del paciente las generó una IA.
+            </p>
+          </div>
+          <HistorialResultados sesion={sesion} para={rol} />
+        </section>
+
+        {rol === 'docente' && (
+          <p className="text-sm text-muted-foreground">
+            Para comentar frases y publicar la nota, abre la{' '}
+            <Link
+              href={`/sesiones/${sesion.id}`}
+              className="font-medium underline underline-offset-4"
+            >
+              revisión de esta práctica
+            </Link>
+            .
+          </p>
+        )}
+
+        <AccionesResultados rol={rol} />
+      </ContenedorHero>
     </div>
   );
 }

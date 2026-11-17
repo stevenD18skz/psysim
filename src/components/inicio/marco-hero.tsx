@@ -37,7 +37,7 @@ export function MarcoHeroInicio({
       <div
         className={cn(
           '@container mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 pt-6 sm:px-6',
-          compacto ? 'pb-14 sm:pt-7 sm:pb-20' : 'pb-16 sm:pt-8 sm:pb-24'
+          compacto ? 'pb-16 sm:pt-7 sm:pb-20' : 'pb-16 sm:pt-8 sm:pb-24'
         )}
       >
         {children}

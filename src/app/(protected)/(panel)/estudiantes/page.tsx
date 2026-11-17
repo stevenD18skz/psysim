@@ -1,8 +1,20 @@
-import { Activity, KeyRound, MessageSquareText, MonitorPlay, UsersRound } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  KeyRound,
+  MessageSquareText,
+  MonitorPlay,
+  UsersRound,
+} from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { Paginacion } from '@/components/comun/paginacion';
 import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
@@ -73,143 +85,176 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
 
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada).length;
 
+  const subbarra =
+    estudiantes.length > 0 ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Accesos rápidos" className="flex flex-wrap items-center gap-1.5">
+          {[
+            { href: '/configuracion', texto: 'Asignar práctica' },
+            { href: '/sesiones', texto: 'Revisiones' },
+          ].map(enlace => (
+            <Link
+              key={enlace.href}
+              href={enlace.href as '/configuracion' | '/sesiones'}
+              className="group inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-sidebar-accent/55 px-3 py-1 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-laton-texto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+            >
+              {enlace.texto}
+              <ArrowRight
+                className="size-3.5 text-laton-texto transition-transform duration-200 ease-salida group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Link>
+          ))}
+        </nav>
+        <span className="text-xs text-sidebar-muted tabular-nums">
+          {conCuenta} con cuenta · {estudiantes.length - conCuenta} sin entrar aún
+        </span>
+      </div>
+    ) : undefined;
+
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <EncabezadoPagina
         titulo="Estudiantes"
         descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con su cuenta de Google de la universidad, sin contraseña."
         acciones={estudiantes.length > 0 ? <BotonRegistrarEstudiante /> : undefined}
+        subbarra={subbarra}
       />
 
-      {estudiantes.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-input/50 p-10 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
-            <UsersRound className="size-6" aria-hidden />
-          </span>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-bold">Aún no tienes estudiantes</h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Regístralos con su código, nombre y correo @correounivalle.edu.co. Después podrás
-              asignarles prácticas.
-            </p>
+      <ContenedorHero>
+        {estudiantes.length === 0 ? (
+          <div
+            className={`flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card p-10 text-center ${SOMBRA_SOBRE_NOGAL}`}
+          >
+            <span className="flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
+              <UsersRound className="size-6" aria-hidden />
+            </span>
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-bold">Aún no tienes estudiantes</h2>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Regístralos con su código, nombre y correo @correounivalle.edu.co. Después podrás
+                asignarles prácticas.
+              </p>
+            </div>
+            <BotonRegistrarEstudiante />
           </div>
-          <BotonRegistrarEstudiante />
-        </div>
-      ) : (
-        <>
-          <Indicadores
-            indicadores={[
-              {
-                icono: UsersRound,
-                etiqueta: 'Estudiantes',
-                valor: estudiantes.length,
-                detalle: `${conCuenta} con cuenta de Google`,
-                ayuda:
-                  'Estudiantes registrados. Los que figuran con cuenta ya entraron al menos una vez con su correo institucional.',
-              },
-              {
-                icono: Activity,
-                etiqueta: 'Practicando ahora',
-                valor: totales.enCurso,
-                detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
-                tono: totales.enCurso > 0 ? 'activo' : undefined,
-              },
-              {
-                icono: MessageSquareText,
-                etiqueta: 'Por revisar',
-                valor: totales.pendientes,
-                detalle: totales.pendientes === 0 ? 'Al día' : 'Esperan retroalimentación',
-                tono: totales.pendientes > 0 ? 'atencion' : undefined,
-              },
-              {
-                icono: KeyRound,
-                etiqueta: 'Códigos sin usar',
-                valor: totales.codigos,
-                detalle: totales.codigos === 0 ? 'Ninguno esperando' : 'Aún vigentes',
-                ayuda: 'Códigos de un solo uso que el estudiante todavía no ha usado.',
-              },
-              {
-                icono: MonitorPlay,
-                etiqueta: 'Prácticas',
-                valor: totales.sesiones,
-                detalle: 'Entre todos tus estudiantes',
-              },
-            ]}
-          />
-          <div className="flex flex-col gap-4">
-            <ListaEstudiantes
-              estudiantes={resultado.visibles}
-              vacio={
-                consulta ? (
-                  <>
-                    Ningún estudiante coincide con{' '}
-                    <span className="font-medium text-foreground">{consulta}</span>.
-                  </>
-                ) : (
-                  'Ningún estudiante cumple este filtro.'
-                )
-              }
-              controles={
-                <div
-                  className={cn(
-                    'grid gap-3 sm:grid-cols-2 lg:items-end',
-                    docentesOpciones.length > 0
-                      ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
-                      : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
-                  )}
-                >
-                  <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
-                    <span className="text-xs font-medium text-muted-foreground">Buscar</span>
-                    <BusquedaLista
-                      etiqueta="Buscar estudiante"
-                      placeholder="Código, nombre o correo"
-                    />
-                  </div>
-                  {docentesOpciones.length > 0 && (
+        ) : (
+          <>
+            <Indicadores
+              className={SOMBRA_SOBRE_NOGAL}
+              indicadores={[
+                {
+                  icono: UsersRound,
+                  etiqueta: 'Estudiantes',
+                  valor: estudiantes.length,
+                  detalle: `${conCuenta} con cuenta de Google`,
+                  ayuda:
+                    'Estudiantes registrados. Los que figuran con cuenta ya entraron al menos una vez con su correo institucional.',
+                },
+                {
+                  icono: Activity,
+                  etiqueta: 'Practicando ahora',
+                  valor: totales.enCurso,
+                  detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
+                  tono: totales.enCurso > 0 ? 'activo' : undefined,
+                },
+                {
+                  icono: MessageSquareText,
+                  etiqueta: 'Por revisar',
+                  valor: totales.pendientes,
+                  detalle: totales.pendientes === 0 ? 'Al día' : 'Esperan retroalimentación',
+                  tono: totales.pendientes > 0 ? 'atencion' : undefined,
+                },
+                {
+                  icono: KeyRound,
+                  etiqueta: 'Códigos sin usar',
+                  valor: totales.codigos,
+                  detalle: totales.codigos === 0 ? 'Ninguno esperando' : 'Aún vigentes',
+                  ayuda: 'Códigos de un solo uso que el estudiante todavía no ha usado.',
+                },
+                {
+                  icono: MonitorPlay,
+                  etiqueta: 'Prácticas',
+                  valor: totales.sesiones,
+                  detalle: 'Entre todos tus estudiantes',
+                },
+              ]}
+            />
+            <div className="flex flex-col gap-4">
+              <ListaEstudiantes
+                estudiantes={resultado.visibles}
+                vacio={
+                  consulta ? (
+                    <>
+                      Ningún estudiante coincide con{' '}
+                      <span className="font-medium text-foreground">{consulta}</span>.
+                    </>
+                  ) : (
+                    'Ningún estudiante cumple este filtro.'
+                  )
+                }
+                controles={
+                  <div
+                    className={cn(
+                      'grid gap-3 sm:grid-cols-2 lg:items-end',
+                      docentesOpciones.length > 0
+                        ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                        : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                    )}
+                  >
+                    <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
+                      <span className="text-xs font-medium text-muted-foreground">Buscar</span>
+                      <BusquedaLista
+                        etiqueta="Buscar estudiante"
+                        placeholder="Código, nombre o correo"
+                      />
+                    </div>
+                    {docentesOpciones.length > 0 && (
+                      <SelectorLista
+                        etiqueta="Docente"
+                        parametro="docente"
+                        defecto=""
+                        opciones={[
+                          { valor: '', etiqueta: 'Todos los docentes' },
+                          ...docentesOpciones.map(d => ({ valor: d.id, etiqueta: d.nombre })),
+                        ]}
+                      />
+                    )}
                     <SelectorLista
-                      etiqueta="Docente"
-                      parametro="docente"
-                      defecto=""
-                      opciones={[
-                        { valor: '', etiqueta: 'Todos los docentes' },
-                        ...docentesOpciones.map(d => ({ valor: d.id, etiqueta: d.nombre })),
-                      ]}
+                      etiqueta="Mostrar"
+                      parametro="filtro"
+                      defecto="todos"
+                      opciones={FILTROS_ESTUDIANTES}
                     />
-                  )}
-                  <SelectorLista
-                    etiqueta="Mostrar"
-                    parametro="filtro"
-                    defecto="todos"
-                    opciones={FILTROS_ESTUDIANTES}
-                  />
-                  <SelectorLista
-                    etiqueta="Ordenar por"
-                    parametro="orden"
-                    defecto="nombre"
-                    opciones={ORDENES_ESTUDIANTES}
-                  />
-                  <QuitarFiltros claves={['q', 'filtro', 'docente']} />
-                </div>
-              }
-            />
-            <Paginacion
-              pagina={resultado}
-              enlace={n =>
-                conParametros(
-                  '/estudiantes',
-                  actuales,
-                  { pagina: n },
-                  {
-                    filtro: 'todos',
-                    orden: 'nombre',
-                  }
-                )
-              }
-              sustantivo={['estudiante', 'estudiantes']}
-            />
-          </div>
-        </>
-      )}
+                    <SelectorLista
+                      etiqueta="Ordenar por"
+                      parametro="orden"
+                      defecto="nombre"
+                      opciones={ORDENES_ESTUDIANTES}
+                    />
+                    <QuitarFiltros claves={['q', 'filtro', 'docente']} />
+                  </div>
+                }
+              />
+              <Paginacion
+                pagina={resultado}
+                enlace={n =>
+                  conParametros(
+                    '/estudiantes',
+                    actuales,
+                    { pagina: n },
+                    {
+                      filtro: 'todos',
+                      orden: 'nombre',
+                    }
+                  )
+                }
+                sustantivo={['estudiante', 'estudiantes']}
+              />
+            </div>
+          </>
+        )}
+      </ContenedorHero>
     </div>
   );
 }

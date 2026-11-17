@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { ConstructorCaso } from '@/components/casos/constructor-caso';
 import { EncabezadoCaso } from '@/components/casos/encabezado-caso';
+import { ContenedorHero, SOMBRA_SOBRE_NOGAL } from '@/components/comun/encabezado-pagina';
 import { requerirDocente } from '@/lib/auth/dal';
 import { valoresDesdePlantilla } from '@/lib/casos/valores';
 import { obtenerCatalogoEscenarios } from '@/lib/escenarios/queries';
@@ -31,13 +32,12 @@ export default async function NuevoCasoPage({
     : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-10 sm:px-6">
+    <div className="flex flex-1 flex-col">
       <EncabezadoCaso
         titulo={
           casoOrigen ? (
             <>
-              <span className="text-muted-foreground">Nuevo caso a partir de</span>{' '}
-              {casoOrigen.titulo}
+              <span className="text-sidebar-muted">Nuevo caso a partir de</span> {casoOrigen.titulo}
             </>
           ) : (
             'Crear caso'
@@ -45,12 +45,18 @@ export default async function NuevoCasoPage({
         }
         descripcion="Completa los campos y el comportamiento del paciente se arma solo. Puedes partir de un caso previo, variar su nivel de dificultad y probarlo antes de guardar."
       />
-      <ConstructorCaso
-        key={`${casoOrigen?.id ?? 'nuevo'}:${nivelParam}`}
-        catalogo={catalogo}
-        casoOrigenInicial={casoOrigen}
-        valoresIniciales={valoresIniciales}
-      />
+      <ContenedorHero>
+        <div
+          className={`rounded-2xl border border-border/80 bg-background p-5 sm:p-7 ${SOMBRA_SOBRE_NOGAL}`}
+        >
+          <ConstructorCaso
+            key={`${casoOrigen?.id ?? 'nuevo'}:${nivelParam}`}
+            catalogo={catalogo}
+            casoOrigenInicial={casoOrigen}
+            valoresIniciales={valoresIniciales}
+          />
+        </div>
+      </ContenedorHero>
     </div>
   );
 }

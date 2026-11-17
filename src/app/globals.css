@@ -189,6 +189,20 @@
   }
 }
 
+/* Entrada suave con altura real para filas o tarjetas que se añaden en pantalla. */
+@keyframes entrar-desplegado {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -276,6 +290,26 @@
   }
 }
 
+/* Botones secundarios dentro de encabezados sobre nogal: contorno claro sobre la madera y foco en latón. */
+.hero-acciones-nogal [data-slot='button'][data-variant='outline'] {
+  border-color: rgb(241 243 238 / 0.35);
+  background-color: transparent;
+  color: var(--sidebar-foreground);
+  box-shadow: none;
+}
+.hero-acciones-nogal [data-slot='button'][data-variant='outline']:hover {
+  border-color: rgb(241 243 238 / 0.7);
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+}
+.hero-acciones-nogal [data-slot='button'][data-variant='ghost'] {
+  color: var(--sidebar-foreground);
+}
+.hero-acciones-nogal [data-slot='button'][data-variant='ghost']:hover {
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+}
+
 /* Todo <details> (preguntas, historial, texto avanzado): la altura se despliega donde el navegador
    sabe interpolar hasta `auto`; en el resto abre de golpe, como siempre. Abrir dura más que cerrar
    y el contenido aparece con un fundido corto para que no se lea a medio recortar. El margen de
@@ -354,5 +388,9 @@ html {
   html,
   body {
     background: #fff;
+  }
+  .vetas-nogal {
+    background: transparent !important;
+    color: var(--foreground) !important;
   }
 }
