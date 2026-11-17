@@ -1,19 +1,23 @@
 'use client';
 
-import { Ban, ChevronDown, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition } from 'react';
-import { toast } from 'sonner';
+import { Ban, ChevronDown, Search } from 'lucide-react';
+import { useId, useState } from 'react';
 
+import { ConfirmacionAnularCodigo, useAnularCodigo } from '@/components/asignaciones/anular-codigo';
 import { BotonEntregarEquipo } from '@/components/asignaciones/boton-entregar-equipo';
 import { ReenviarCodigo } from '@/components/asignaciones/reenviar-codigo';
+import { PaginacionLocal } from '@/components/comun/paginacion';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
-import { anularAsignacion } from '@/lib/asignaciones/actions';
+import { Input } from '@/components/ui/input';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
+import { coincideBusqueda, paginar } from '@/lib/listas';
 import { type EstadoVisible } from '@/lib/sesiones/estados';
+import { cn } from '@/lib/utils';
 import { type Asignacion, type EstadoAsignacion } from '@/types';
-import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
+
+const VIGENTES_POR_PAGINA = 6;
+const HISTORIAL_POR_PAGINA = 10;
 
 const ESTADOS: Record<EstadoAsignacion, EstadoVisible> = {
   pendiente: { texto: 'Sin usar', tono: 'pendiente' },
@@ -22,9 +26,19 @@ const ESTADOS: Record<EstadoAsignacion, EstadoVisible> = {
   vencida: { texto: 'Vencido', tono: 'neutro' },
 };
 
+const FILTROS_HISTORIAL: {
+  valor: 'todos' | Exclude<EstadoAsignacion, 'pendiente'>;
+  etiqueta: string;
+}[] = [
+  { valor: 'todos', etiqueta: 'Todos' },
+  { valor: 'usada', etiqueta: 'Usados' },
+  { valor: 'vencida', etiqueta: 'Vencidos' },
+  { valor: 'anulada', etiqueta: 'Anulados' },
+];
+
 /**
  * Códigos de acceso de un estudiante: los que aún no se han usado se pueden compartir de nuevo
- * (con el mismo mensaje que al generarlos) o anular.
+ * (con el mismo mensaje que al generarlos) o anular, con paginación y filtro en historiales largos.
  */
 export function ListaCodigos({
   asignaciones,
@@ -33,6 +47,14 @@ export function ListaCodigos({
   asignaciones: Asignacion[];
   estudiante: { nombre: string; correo: string | null };
 }) {
+  const idBusquedaHistorial = useId();
+  const [paginaVigentes, setPaginaVigentes] = useState(1);
+  const [paginaHistorial, setPaginaHistorial] = useState(1);
+  const [busquedaHistorial, setBusquedaHistorial] = useState('');
+  const [estadoHistorial, setEstadoHistorial] = useState<
+    'todos' | Exclude<EstadoAsignacion, 'pendiente'>
+  >('todos');
+
   if (asignaciones.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
@@ -46,14 +68,30 @@ export function ListaCodigos({
   const vigentes = asignaciones.filter(a => a.estado === 'pendiente');
   const historial = asignaciones.filter(a => a.estado !== 'pendiente');
 
+  const resultadoVigentes = paginar(vigentes, paginaVigentes, VIGENTES_POR_PAGINA);
+  const historialFiltrado = historial.filter(
+    a =>
+      (estadoHistorial === 'todos' || a.estado === estadoHistorial) &&
+      coincideBusqueda(busquedaHistorial, a.codigo, a.escenario.titulo)
+  );
+  const resultadoHistorial = paginar(historialFiltrado, paginaHistorial, HISTORIAL_POR_PAGINA);
+
   return (
     <div className="flex flex-col gap-3">
       {vigentes.length > 0 ? (
-        <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
-          {vigentes.map(asignacion => (
-            <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
-          ))}
-        </ul>
+        <div className="flex flex-col gap-3">
+          <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+            {resultadoVigentes.visibles.map(asignacion => (
+              <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
+            ))}
+          </ul>
+          <PaginacionLocal
+            pagina={resultadoVigentes}
+            onCambiar={setPaginaVigentes}
+            sustantivo={['código vigente', 'códigos vigentes']}
+            soloSiHayVarias
+          />
+        </div>
       ) : (
         <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
           No tiene códigos sin usar.
@@ -71,11 +109,77 @@ export function ListaCodigos({
               aria-hidden
             />
           </summary>
+          {historial.length > 8 && (
+            <div className="flex flex-col gap-2.5 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                role="group"
+                aria-label="Filtrar historial de códigos"
+                className="flex flex-wrap gap-1.5"
+              >
+                {FILTROS_HISTORIAL.map(f => (
+                  <button
+                    key={f.valor}
+                    type="button"
+                    aria-pressed={estadoHistorial === f.valor}
+                    onClick={() => {
+                      setEstadoHistorial(f.valor);
+                      setPaginaHistorial(1);
+                    }}
+                    className={cn(
+                      'h-8 rounded-lg border px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                      estadoHistorial === f.valor
+                        ? 'border-nogal bg-nogal text-lino'
+                        : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    {f.etiqueta}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-64">
+                <label htmlFor={idBusquedaHistorial} className="sr-only">
+                  Buscar en historial de códigos
+                </label>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  id={idBusquedaHistorial}
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Código o caso…"
+                  className="h-8 pl-8 text-xs"
+                  value={busquedaHistorial}
+                  onChange={evento => {
+                    setBusquedaHistorial(evento.target.value);
+                    setPaginaHistorial(1);
+                  }}
+                />
+              </div>
+            </div>
+          )}
           <ul className="flex flex-col divide-y border-t">
-            {historial.map(asignacion => (
+            {resultadoHistorial.visibles.map(asignacion => (
               <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
             ))}
+            {resultadoHistorial.visibles.length === 0 && (
+              <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                Ningún código coincide con este filtro.
+              </li>
+            )}
           </ul>
+          {(historial.length > HISTORIAL_POR_PAGINA ||
+            estadoHistorial !== 'todos' ||
+            busquedaHistorial.trim().length > 0) && (
+            <div className="border-t bg-muted/20 px-4 py-3">
+              <PaginacionLocal
+                pagina={resultadoHistorial}
+                onCambiar={setPaginaHistorial}
+                sustantivo={['código', 'códigos']}
+              />
+            </div>
+          )}
         </details>
       )}
     </div>
@@ -89,33 +193,11 @@ function FilaCodigo({
   asignacion: Asignacion;
   estudiante: { nombre: string; correo: string | null };
 }) {
-  const router = useRouter();
-  const [confirmando, setConfirmando] = useState(false);
-  const [anulando, startTransition] = useTransition();
   const pendiente = asignacion.estado === 'pendiente';
-  // Al cancelar, el foco vuelve a «Anular»: el botón «No» que lo tenía desaparece.
-  const botonAnular = useRef<HTMLButtonElement>(null);
-  const volverAlBoton = useRef(false);
-  useEffect(() => {
-    if (!confirmando && volverAlBoton.current) {
-      volverAlBoton.current = false;
-      botonAnular.current?.focus();
-    }
-  }, [confirmando]);
-
-  const anular = () =>
-    startTransition(
-      sinPerderElPanel(async () => {
-        const resultado = await anularAsignacion({ id: asignacion.id });
-        if (!resultado.ok) {
-          toast.error(resultado.error);
-        } else {
-          toast.success(`Anulamos el código ${asignacion.codigo}.`);
-        }
-        setConfirmando(false);
-        router.refresh();
-      })
-    );
+  const { confirmando, anulando, botonAnular, abrir, cancelar, confirmar } = useAnularCodigo({
+    id: asignacion.id,
+    codigo: asignacion.codigo,
+  });
 
   return (
     <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
@@ -134,33 +216,12 @@ function FilaCodigo({
       {pendiente && (
         <div className="flex flex-wrap items-center gap-2">
           {confirmando ? (
-            <>
-              <span role="alert" className="text-sm text-muted-foreground">
-                ¿Anular el código {asignacion.codigo}? Dejará de funcionar.
-              </span>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={anular}
-                disabled={anulando}
-                // El botón que abrió la confirmación desaparece: el foco pasa a la acción.
-                autoFocus
-              >
-                {anulando && <Loader2 className="animate-spin" aria-hidden />}
-                Sí, anular
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  volverAlBoton.current = true;
-                  setConfirmando(false);
-                }}
-                disabled={anulando}
-              >
-                No
-              </Button>
-            </>
+            <ConfirmacionAnularCodigo
+              codigo={asignacion.codigo}
+              anulando={anulando}
+              onConfirmar={confirmar}
+              onCancelar={cancelar}
+            />
           ) : (
             <>
               <ReenviarCodigo
@@ -170,12 +231,7 @@ function FilaCodigo({
                 estudiante={estudiante}
               />
               <BotonEntregarEquipo asignacionId={asignacion.id} estudiante={estudiante.nombre} />
-              <Button
-                ref={botonAnular}
-                size="sm"
-                variant="ghost"
-                onClick={() => setConfirmando(true)}
-              >
+              <Button ref={botonAnular} size="sm" variant="ghost" onClick={abrir}>
                 <Ban aria-hidden />
                 Anular
               </Button>

@@ -1,9 +1,12 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { Check, Copy } from 'lucide-react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { toast } from 'sonner';
 
 import { BotonCompartir } from '@/components/asignaciones/boton-compartir';
 import { mensajeParaEstudiante } from '@/components/asignaciones/codigo-generado';
+import { Button } from '@/components/ui/button';
 import { rutaUnirse } from '@/lib/asignaciones/codigo';
 
 const sinSuscripcion = () => () => {};
@@ -31,14 +34,55 @@ export function ReenviarCodigo({
     () => ''
   );
   const enlace = `${origen}${rutaUnirse(codigo)}`;
+  const mensaje = mensajeParaEstudiante({ codigo, expiraEn, caso, estudiante }, enlace);
 
   return (
     <BotonCompartir
       etiqueta="Reenviar"
       size={size}
       asunto={`Tu práctica en PsySim: ${caso}`}
-      mensaje={mensajeParaEstudiante({ codigo, expiraEn, caso, estudiante }, enlace)}
+      mensaje={mensaje}
+      textoCopiable={mensaje}
       correo={estudiante.correo}
     />
+  );
+}
+
+/** Botón compacto de un clic para copiar solo el código de acceso desde la bandeja de inicio. */
+export function BotonCopiarCodigo({ codigo }: { codigo: string }) {
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    if (!copiado) return;
+    const temporizador = setTimeout(() => setCopiado(false), 2000);
+    return () => clearTimeout(temporizador);
+  }, [copiado]);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      toast.success('Código copiado.');
+    } catch {
+      toast.error('No pudimos copiar el código. Selecciónalo y cópialo a mano.');
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-8 shrink-0"
+      title={copiado ? 'Código copiado' : 'Copiar código'}
+      aria-label={`Copiar código ${codigo}`}
+      onClick={() => void copiar()}
+    >
+      {copiado ? (
+        <Check className="size-3.5 text-salvia-oscuro" aria-hidden />
+      ) : (
+        <Copy className="size-3.5 text-muted-foreground" aria-hidden />
+      )}
+    </Button>
   );
 }

@@ -1,8 +1,8 @@
-import { ArrowRight, Check, CheckCircle2, Users } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Clock3, Users } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
-import { ReenviarCodigo } from '@/components/asignaciones/reenviar-codigo';
+import { BarraCodigoPendiente } from '@/components/asignaciones/anular-codigo';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { ControlCitado } from '@/components/comun/control-citado';
@@ -15,6 +15,8 @@ import { type CodigoPendiente, type EstudianteRegistrado, type SesionDocente } f
 
 /** Filas visibles por bloque; el resto se ve en su página. */
 const MAXIMO_POR_REVISAR = 8;
+const MAXIMO_PRACTICANDO = 6;
+const MAXIMO_PRACTICANDO_RIEL = 4;
 const MAXIMO_CODIGOS = 6;
 const MAXIMO_ESTUDIANTES = 6;
 const MAXIMO_REVISADAS = 4;
@@ -102,6 +104,8 @@ export function BandejaDocente({
     </Bloque>
   );
 
+  const maximoPracticando = enRiel ? MAXIMO_PRACTICANDO_RIEL : MAXIMO_PRACTICANDO;
+
   const bloquePracticando = (
     <Bloque
       id="practicando"
@@ -110,11 +114,22 @@ export function BandejaDocente({
       cantidad={practicando.length}
       tono="vivo"
       ayuda="Estudiantes con un consultorio abierto en este momento. La página se actualiza sola cada 30 segundos mientras haya alguno."
+      enlace={
+        practicando.length > maximoPracticando
+          ? { href: '/sesiones?vista=en-curso', texto: 'Ver en curso' }
+          : undefined
+      }
       vacio="Nadie está practicando en este momento."
     >
-      {practicando.map(sesion => (
+      {practicando.slice(0, maximoPracticando).map(sesion => (
         <FilaPracticando key={sesion.id} sesion={sesion} ahora={ahora} />
       ))}
+      {practicando.length > maximoPracticando && (
+        <FilaMas href="/sesiones?vista=en-curso">
+          {mas(practicando.length - maximoPracticando, 'práctica', 'prácticas')} en curso en
+          Revisiones
+        </FilaMas>
+      )}
     </Bloque>
   );
 
@@ -126,7 +141,13 @@ export function BandejaDocente({
       cantidad={codigos.length}
       tono="neutro"
       ayuda="Códigos que generaste, aún vigentes, que el estudiante no ha usado. Desde aquí puedes reenviarlos."
-      enlace={codigos.length === 0 ? { href: '/configuracion', texto: 'Asignar' } : undefined}
+      enlace={
+        codigos.length === 0
+          ? { href: '/configuracion', texto: 'Asignar' }
+          : codigos.length > MAXIMO_CODIGOS
+            ? { href: '/estudiantes', texto: 'Ver todos' }
+            : undefined
+      }
       vacio={
         enRiel ? (
           'Ninguno vigente por usar.'
@@ -151,13 +172,8 @@ export function BandejaDocente({
 
   if (enRiel) {
     return (
-      <aside aria-labelledby="bandeja-titulo" className="flex min-w-0 flex-col gap-4">
-        <div
-          className={cn(
-            'overflow-hidden rounded-2xl border bg-card @5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]',
-            practicando.length > 0 && 'border-salvia/50'
-          )}
-        >
+      <aside aria-labelledby="bandeja-titulo" className="min-w-0">
+        <div className="overflow-hidden rounded-2xl border bg-card @5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]">
           <div className="flex flex-col gap-0.5 px-5 pt-4.5 pb-4">
             <h2 id="bandeja-titulo" className="text-xl font-bold tracking-[-0.015em]">
               Tu bandeja
@@ -168,11 +184,11 @@ export function BandejaDocente({
           </div>
 
           <div className="border-t">{bloquePracticando}</div>
-        </div>
 
-        <div className="grid gap-4 @2xl/inicio:grid-cols-2 @5xl/inicio:grid-cols-1">
-          <div className="overflow-hidden rounded-2xl border bg-card">{bloquePorRevisar}</div>
-          <div className="overflow-hidden rounded-2xl border bg-card">{bloqueCodigos}</div>
+          <div className="grid divide-y border-t @2xl/inicio:grid-cols-2 @2xl/inicio:divide-x @2xl/inicio:divide-y-0 @5xl/inicio:grid-cols-1 @5xl/inicio:divide-x-0 @5xl/inicio:divide-y">
+            <div>{bloquePorRevisar}</div>
+            <div>{bloqueCodigos}</div>
+          </div>
         </div>
       </aside>
     );
@@ -323,13 +339,7 @@ function PuntoVivo() {
 }
 
 /** Última fila de un bloque cuando hay más de las que caben. */
-function FilaMas({
-  href,
-  children,
-}: {
-  href: '/sesiones' | '/estudiantes';
-  children: React.ReactNode;
-}) {
+function FilaMas({ href, children }: { href: Route; children: React.ReactNode }) {
   return (
     <li>
       <Link
@@ -419,48 +429,72 @@ function FilaPorRevisar({
   );
 }
 
-/** Quién practica ahora, desde cuándo, y a qué hora se cerrará si deja de escribir. */
+/** Quién practica ahora, en qué caso, fase de la consulta y hora estimada de cierre por pausa. */
 function FilaPracticando({ sesion, ahora }: { sesion: SesionDocente; ahora: Date }) {
   const cierre = cierrePorInactividad(sesion.ultimaActividad);
+  const etapa = sesion.comenzada
+    ? sesion.intervenciones > 0
+      ? plural(sesion.intervenciones, 'intervención', 'intervenciones')
+      : 'Conversando'
+    : 'Leyendo caso';
+
   return (
-    <li className="group relative flex flex-col gap-1 px-5 py-3.5 transition-colors hover:bg-muted/50">
-      <p className="flex items-center gap-2 font-semibold">
-        <PuntoVivo />
-        <Link
-          href={`/sesiones/${sesion.id}`}
-          className="truncate rounded-sm underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+    <li className="group relative flex flex-col gap-2 px-5 py-4 transition-colors hover:bg-muted/45">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <p className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
+          <PuntoVivo />
+          <Link
+            href={`/sesiones/${sesion.id}`}
+            className="truncate rounded-sm underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            {sesion.estudiante.nombre}
+          </Link>
+        </p>
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums',
+            sesion.comenzada
+              ? 'bg-salvia-suave text-salvia-oscuro'
+              : 'bg-muted text-muted-foreground'
+          )}
         >
-          {sesion.estudiante.nombre}
-        </Link>
-      </p>
+          {etapa}
+        </span>
+      </div>
+
       <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
         <CodigoCaso
           codigo={sesion.escenario.codigo}
-          className="shrink-0 font-mono text-xs text-foreground"
+          className="shrink-0 font-mono text-xs text-muted-foreground"
         />
-        <span className="truncate">
-          {sesion.comenzada
-            ? `Conversando desde ${tiempoRelativo(sesion.inicio, ahora)}`
-            : 'Leyendo las instrucciones del caso'}
-        </span>
+        <span className="truncate font-medium text-foreground/85">{sesion.escenario.titulo}</span>
       </p>
-      {cierre > ahora && (
-        <p className="text-sm text-muted-foreground">
-          Si no escribe, se cierra a las {formatearHora(cierre)}.
-        </p>
-      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span className="inline-flex items-center gap-1">
+            <Clock3 className="size-3.5 shrink-0" aria-hidden />
+            Inició {tiempoRelativo(sesion.inicio, ahora)}
+          </span>
+          {cierre > ahora && <span>· Pausa hasta {formatearHora(cierre)}</span>}
+        </span>
+        <span aria-hidden className="inline-flex items-center gap-1 font-semibold text-foreground">
+          Ver estado
+          <ArrowRight className="size-3.5 transition-transform duration-200 ease-salida group-hover:translate-x-0.5" />
+        </span>
+      </div>
     </li>
   );
 }
 
-/** Código sin usar: de quién es, qué caso, cuándo vence y cómo reenviarlo. */
+/** Código sin usar: quién lo tiene, cuándo vence, qué caso abre y acciones directas sobre el código. */
 function FilaCodigo({ codigo, ahora }: { codigo: CodigoPendiente; ahora: Date }) {
   const horasRestantes = (new Date(codigo.expiraEn).getTime() - ahora.getTime()) / 3_600_000;
   const urgente = horasRestantes < 24;
   return (
-    <li className="flex items-center gap-3 px-5 py-3.5">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate font-semibold">
+    <li className="flex flex-col gap-2.5 px-5 py-4 transition-colors hover:bg-muted/35">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="min-w-0 truncate font-semibold text-foreground">
           {codigo.estudiante ? (
             <Link
               href={`/estudiantes/${codigo.estudiante.id}`}
@@ -472,24 +506,34 @@ function FilaCodigo({ codigo, ahora }: { codigo: CodigoPendiente; ahora: Date })
             'Estudiante'
           )}
         </p>
-        <p className="truncate text-sm text-muted-foreground">
-          <span className="font-mono text-xs text-foreground">{codigo.codigo}</span> ·{' '}
-          {codigo.escenario.titulo}
-        </p>
-        <p
-          className={cn('text-sm', urgente ? 'font-semibold text-ambar' : 'text-muted-foreground')}
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1 text-xs tabular-nums',
+            urgente
+              ? 'rounded-full bg-ambar-suave px-2 py-0.5 font-semibold text-ambar'
+              : 'text-muted-foreground'
+          )}
         >
+          <Clock3 className="size-3.5 shrink-0" aria-hidden />
           Vence {tiempoRelativo(codigo.expiraEn, ahora)}
-        </p>
+        </span>
       </div>
-      {codigo.estudiante && (
-        <ReenviarCodigo
-          codigo={codigo.codigo}
-          expiraEn={codigo.expiraEn}
-          caso={codigo.escenario.titulo}
-          estudiante={codigo.estudiante}
+
+      <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+        <CodigoCaso
+          codigo={codigo.escenario.codigo}
+          className="shrink-0 font-mono text-xs text-muted-foreground"
         />
-      )}
+        <span className="truncate">{codigo.escenario.titulo}</span>
+      </p>
+
+      <BarraCodigoPendiente
+        id={codigo.id}
+        codigo={codigo.codigo}
+        expiraEn={codigo.expiraEn}
+        caso={codigo.escenario.titulo}
+        estudiante={codigo.estudiante}
+      />
     </li>
   );
 }
