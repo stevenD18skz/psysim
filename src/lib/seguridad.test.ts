@@ -86,13 +86,107 @@ describe('base de datos (Supabase)', () => {
     expect(sinRuta.map(f => f.split('(')[0]!.trim())).toEqual([]);
   });
 
-  it('las funciones security definer no se pueden ejecutar sin sesión', () => {
-    // Las que escriben datos (reservar, guardar, canjear…) piden rol dentro de la función.
-    const guardar = leer(path.join(RAIZ, 'supabase/migrations/20261025010000_metricas_sesion.sql'));
-    expect(guardar).toMatch(
-      /revoke execute on function public\.guardar_metricas_cierre[\s\S]*?from public, anon/i
+  describe('funciones security definer', () => {
+    // Última definición de cada función de `public` (una migración posterior puede reemplazarla).
+    const ultimaCabecera = new Map<string, string>();
+    for (const [cabecera, nombre] of SQL.matchAll(
+      /create (?:or replace )?function\s+public\.(\w+)\s*\([\s\S]*?\bas\s+\$\w*\$/gi
+    )) {
+      ultimaCabecera.set(nombre!, cabecera);
+    }
+    const eliminadas = new Set(
+      [...SQL.matchAll(/drop function (?:if exists )?public\.(\w+)/gi)].map(([, f]) => f!)
     );
-    expect(guardar).toMatch(/es_estudiante\(\)/);
+    const definer = [...ultimaCabecera]
+      .filter(([nombre, cabecera]) => /security definer/i.test(cabecera) && !eliminadas.has(nombre))
+      .map(([nombre]) => nombre);
+
+    /** Sentencias `revoke`/`grant execute on function` que nombran a la función. */
+    const sentencias = (verbo: 'revoke' | 'grant', funcion: string) =>
+      [...SQL.matchAll(new RegExp(`^\\s*${verbo} execute on function\\b[^;]*;`, 'gim'))]
+        .map(([texto]) => texto)
+        .filter(texto => new RegExp(`public\\.${funcion}\\b`).test(texto));
+
+    it('lee las funciones de las migraciones', () => {
+      expect(definer.length).toBeGreaterThan(10);
+      expect(definer).toContain('guardar_intercambio_ia');
+      expect(definer).toContain('canjear_codigo');
+    });
+
+    it('ninguna se puede ejecutar sin sesión', () => {
+      // Una función nueva nace sin `execute` para `public` y `anon` (privilegios por defecto), pero
+      // el cierre se escribe igual en la migración: es lo que se puede leer y revisar.
+      const abiertas = definer.filter(
+        funcion =>
+          !sentencias('revoke', funcion).some(
+            texto => /\bfrom\b[^;]*\bpublic\b/i.test(texto) && /\bfrom\b[^;]*\banon\b/i.test(texto)
+          )
+      );
+      expect(abiertas).toEqual([]);
+    });
+
+    it('cada una declara si la ejecuta el navegador (authenticated) o solo el servidor', () => {
+      // Sin esta decisión escrita, una función pensada solo para el servidor («confía en sus
+      // parámetros porque la llama /api/npc/chat») quedaba al alcance de `supabase.rpc(...)`.
+      const sinDecidir = definer.filter(funcion => {
+        const concedida = sentencias('grant', funcion).some(texto =>
+          /\bto\b[^;]*\bauthenticated\b/i.test(texto)
+        );
+        const cerrada = sentencias('revoke', funcion).some(texto =>
+          /\bfrom\b[^;]*\bauthenticated\b/i.test(texto)
+        );
+        return !concedida && !cerrada;
+      });
+      expect(sinDecidir).toEqual([]);
+    });
+
+    it('las que el navegador puede ejecutar comprueban quién llama', () => {
+      // Con `security definer` RLS no protege: la función debe mirar el rol o la propiedad.
+      const cuerpos = new Map<string, string>();
+      // Grupos: nombre, etiqueta del delimitador (`$$` o `$f$`) y cuerpo.
+      for (const [, nombre, , cuerpo] of SQL.matchAll(
+        /create (?:or replace )?function\s+public\.(\w+)\s*\([\s\S]*?\bas\s+\$(\w*)\$([\s\S]*?)\$\2\$/gi
+      )) {
+        cuerpos.set(nombre!, cuerpo ?? '');
+      }
+      const paraElNavegador = definer.filter(funcion => {
+        const grants = sentencias('grant', funcion);
+        return grants.some(texto => /\bto\b[^;]*\bauthenticated\b/i.test(texto));
+      });
+      expect(paraElNavegador.length).toBeGreaterThan(5);
+      const sinComprobar = paraElNavegador.filter(
+        funcion =>
+          !/auth\.uid\(\)|es_(?:docente|estudiante|superadmin)\(\)/.test(cuerpos.get(funcion)!)
+      );
+      expect(sinComprobar).toEqual([]);
+    });
+
+    it('las funciones nuevas nacen cerradas para anon, public y authenticated', () => {
+      for (const rol of ['anon', 'authenticated']) {
+        expect(SQL, rol).toMatch(
+          new RegExp(
+            `alter default privileges for role postgres in schema public\\s+revoke execute on functions from[^;]*\\b${rol}\\b`,
+            'i'
+          )
+        );
+      }
+      // El `execute` de `PUBLIC` es un privilegio por defecto global: quitarlo «in schema public»
+      // no tiene efecto, porque Postgres suma los del esquema a los globales.
+      expect(SQL).toMatch(
+        /alter default privileges for role postgres\s+revoke execute on functions from public;/i
+      );
+    });
+  });
+
+  it('ninguna secuencia queda al alcance del navegador', () => {
+    // `revoke all on table` no alcanza a la secuencia de una columna `identity` creada antes de
+    // cerrar los privilegios por defecto: así quedó `peticion_ia_id_seq`.
+    expect(SQL).toMatch(
+      /revoke all on sequence public\.peticion_ia_id_seq\s+from anon, authenticated/i
+    );
+    expect(SQL).toMatch(
+      /alter default privileges for role postgres in schema public\s+revoke all on sequences from anon, authenticated/i
+    );
   });
 });
 
