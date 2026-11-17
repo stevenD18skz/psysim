@@ -1,20 +1,14 @@
 'use client';
 
-import { ChevronDown, Globe, Loader2, LogOut, MonitorPlay } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut, MonitorPlay } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
@@ -102,12 +96,12 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
           {perfil && (
             <div className="flex items-center gap-2.5">
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex h-10 items-center gap-2 rounded-lg px-1.5 outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
+                <DropdownMenuTrigger className="group/cuenta flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
                   {/* Nombre por contenido (no aria-label): así coincide con lo visible (WCAG 2.5.3). */}
                   <span className="sr-only">Cuenta de {perfil.nombre}</span>
                   <span
                     aria-hidden
-                    className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro"
+                    className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro ring-1 ring-lino/20"
                   >
                     {iniciales(perfil.nombre)}
                   </span>
@@ -117,40 +111,18 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
                   >
                     {perfil.nombre.split(' ')[0]}
                   </span>
-                  <ChevronDown className="size-4 text-sidebar-muted" aria-hidden />
+                  <ChevronDown
+                    className="size-4 text-sidebar-muted transition-transform duration-200 ease-salida group-data-[state=open]/cuenta:rotate-180"
+                    aria-hidden
+                  />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" sideOffset={8} className="w-64">
-                  <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
-                    <span className="truncate font-medium text-foreground">{perfil.nombre}</span>
-                    <span className="truncate text-xs text-muted-foreground">{perfil.correo}</span>
-                    <span className="text-xs text-muted-foreground">
-                      Estudiante · Código {perfil.codigoInstitucional}
-                    </span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/">
-                      <Globe aria-hidden />
-                      Ir a la página pública
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={cerrando}
-                    onSelect={evento => {
-                      evento.preventDefault();
-                      salir();
-                    }}
-                  >
-                    {cerrando ? (
-                      <Loader2 className="animate-spin" aria-hidden />
-                    ) : (
-                      <LogOut aria-hidden />
-                    )}
-                    Cerrar sesión
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                <MenuCuenta
+                  perfil={perfil}
+                  align="end"
+                  sideOffset={8}
+                  cerrando={cerrando}
+                  onSalir={salir}
+                />
               </DropdownMenu>
             </div>
           )}

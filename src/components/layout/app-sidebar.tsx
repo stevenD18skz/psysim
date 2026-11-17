@@ -4,13 +4,8 @@ import {
   Activity,
   ChevronsUpDown,
   ClipboardList,
-  FlaskConical,
-  Globe,
   House,
-  KeyRound,
   Library,
-  Loader2,
-  LogOut,
   type LucideIcon,
   MessageSquareText,
   PanelLeftClose,
@@ -25,15 +20,9 @@ import { useState } from 'react';
 
 import { DialogoCambiarContrasena } from '@/components/layout/dialogo-cambiar-contrasena';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
   SidebarContent,
@@ -200,13 +189,13 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
                   <SidebarMenuButton
                     size="lg"
                     tooltip={perfil.nombre}
-                    className="h-14 text-sidebar-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
+                    className="h-14 text-sidebar-foreground transition-colors group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
                   >
                     {/* Nombre por contenido (no aria-label): coincide con lo visible (WCAG 2.5.3). */}
                     <span className="sr-only">Cuenta de {perfil.nombre}</span>
                     <span
                       aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro ring-1 ring-lino/20"
                     >
                       {iniciales(perfil.nombre)}
                     </span>
@@ -223,58 +212,16 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
                     />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
+                <MenuCuenta
+                  perfil={perfil}
                   side={isMobile ? 'top' : 'right'}
                   align="end"
-                  sideOffset={8}
-                  className="w-64"
-                >
-                  <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
-                    <span className="truncate font-medium text-foreground">{perfil.nombre}</span>
-                    <span className="truncate text-xs text-muted-foreground">{perfil.correo}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {etiquetaRol} · Código {perfil.codigoInstitucional}
-                    </span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/" onClick={alNavegar}>
-                      <Globe aria-hidden />
-                      Ir a la página pública
-                    </Link>
-                  </DropdownMenuItem>
-                  {/* El estudiante entra con Google: no tiene contraseña que cambiar. */}
-                  {rol !== 'estudiante' && (
-                    <DropdownMenuItem onSelect={() => setCambiandoContrasena(true)}>
-                      <KeyRound aria-hidden />
-                      Cambiar contraseña
-                    </DropdownMenuItem>
-                  )}
-                  {esAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/laboratorio" onClick={alNavegar}>
-                        <FlaskConical aria-hidden />
-                        Herramientas de desarrollo
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={cerrando}
-                    onSelect={evento => {
-                      evento.preventDefault();
-                      salir();
-                    }}
-                  >
-                    {cerrando ? (
-                      <Loader2 className="animate-spin" aria-hidden />
-                    ) : (
-                      <LogOut aria-hidden />
-                    )}
-                    Cerrar sesión
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                  sideOffset={10}
+                  cerrando={cerrando}
+                  onSalir={salir}
+                  onCambiarContrasena={() => setCambiandoContrasena(true)}
+                  onNavegar={alNavegar}
+                />
               </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
