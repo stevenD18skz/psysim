@@ -16,6 +16,7 @@ import { useId } from 'react';
 import { ControlCitado } from '@/components/comun/control-citado';
 import { GrupoChips, SelectorOpciones, Sugerencias } from '@/components/casos/selectores';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { Desplegable } from '@/components/comun/desplegable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,7 +71,7 @@ export function AjustesPaciente({
   const sinCambios = !textoManual && resumen.length === 0;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b bg-muted/35 px-5 py-4">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
@@ -113,154 +114,162 @@ export function AjustesPaciente({
       </div>
 
       <div className="flex flex-col gap-5 p-5">
-        {textoManual && (
-          <p className="rounded-lg bg-ambar-suave px-3.5 py-2.5 text-sm text-ambar motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in-0">
-            Editaste el texto completo a mano, así que los ajustes rápidos están en pausa. Pulsa{' '}
-            <ControlCitado icono={<RotateCcw aria-hidden />}>Volver al original</ControlCitado> para
-            usarlos de nuevo.
-          </p>
-        )}
-
-        <fieldset disabled={bloqueado} className="flex flex-col gap-5 disabled:opacity-60">
-          <div className="grid gap-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-semibold">¿Qué tan fácil se abre?</span>
-              <SelectorOpciones
-                etiqueta="¿Qué tan fácil se abre?"
-                valor={ajustes.apertura}
-                opciones={OPCIONES_APERTURA}
-                onCambio={apertura => cambiar({ apertura })}
-                className="grid-cols-1"
-                deshabilitado={bloqueado}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-semibold">¿Cuánto se le notan las emociones?</span>
-              <SelectorOpciones
-                etiqueta="¿Cuánto se le notan las emociones?"
-                valor={ajustes.intensidad}
-                opciones={OPCIONES_INTENSIDAD}
-                onCambio={intensidad => cambiar({ intensidad })}
-                className="grid-cols-1"
-                deshabilitado={bloqueado}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-semibold">Hoy, además, se muestra… (opcional)</span>
-            <GrupoChips
-              etiqueta="Actitud adicional en esta práctica"
-              opciones={ACTITUDES}
-              seleccionadas={ajustes.actitudes}
-              onCambio={s => cambiar({ actitudes: s as IdActitud[] })}
-              deshabilitado={bloqueado}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/20 p-4">
-            <div className="flex flex-col gap-0.5">
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <Lock className="size-4 text-salvia" aria-hidden />
-                Algo que guarda en esta práctica (opcional)
-              </span>
-              <p className="text-xs text-muted-foreground">
-                No lo cuenta de entrada: solo si el estudiante se lo gana durante la conversación.
+        <div>
+          <Desplegable abierto={textoManual}>
+            <div className="pb-5">
+              <p className="rounded-lg bg-ambar-suave px-3.5 py-2.5 text-sm text-ambar">
+                Editaste el texto completo a mano, así que los ajustes rápidos están en pausa. Pulsa{' '}
+                <ControlCitado icono={<RotateCcw aria-hidden />}>Volver al original</ControlCitado>{' '}
+                para usarlos de nuevo.
               </p>
             </div>
-            {ajustes.secretos.map((secreto, indice) => {
-              const ejemplo = EJEMPLOS_SECRETOS[indice % EJEMPLOS_SECRETOS.length]!;
-              const actualizar = (cambios: Partial<typeof secreto>) =>
-                cambiar({
-                  secretos: ajustes.secretos.map((s, i) =>
-                    i === indice ? { ...s, ...cambios } : s
-                  ),
-                });
-              return (
-                <div
-                  key={indice}
-                  className="grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
-                >
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium">Qué guarda</span>
-                    <Input
-                      value={secreto.dato}
-                      placeholder={`Ej.: ${ejemplo.dato}`}
-                      maxLength={220}
-                      onChange={e => actualizar({ dato: e.target.value })}
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium">Lo cuenta solo si…</span>
-                    <Input
-                      value={secreto.condicion}
-                      placeholder={`Ej.: ${ejemplo.condicion}`}
-                      maxLength={220}
-                      onChange={e => actualizar({ condicion: e.target.value })}
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Quitar el dato ${indice + 1}`}
-                    onClick={() =>
-                      cambiar({ secretos: ajustes.secretos.filter((_, i) => i !== indice) })
-                    }
-                  >
-                    <Trash2 aria-hidden />
-                  </Button>
-                </div>
-              );
-            })}
-            {ajustes.secretos.length < MAXIMO_SECRETOS_AJUSTE && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                onClick={() =>
-                  cambiar({ secretos: [...ajustes.secretos, { dato: '', condicion: '' }] })
-                }
-              >
-                <Plus aria-hidden />
-                Añadir algo que guarda
-              </Button>
-            )}
-          </div>
+          </Desplegable>
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor={idIndicacion} className="text-sm font-semibold">
-              Una indicación con tus palabras (opcional)
-            </label>
-            <Textarea
-              id={idIndicacion}
-              rows={2}
-              maxLength={MAXIMO_INDICACION}
-              value={ajustes.indicacion}
-              placeholder="Escribe como se lo contarías a un actor: qué le pasó hoy o cómo llega."
-              onChange={e => cambiar({ indicacion: e.target.value })}
-            />
-            <Sugerencias
-              etiqueta="Ejemplos de indicaciones"
-              sugerencias={EJEMPLOS_INDICACION}
-              texto={ajustes.indicacion}
-              onAgregar={ejemplo =>
-                cambiar({
-                  indicacion: ajustes.indicacion.trim()
-                    ? `${ajustes.indicacion.trim()} ${ejemplo}`
-                    : ejemplo,
-                })
-              }
-            />
-          </div>
-        </fieldset>
+          <fieldset disabled={bloqueado} className="flex flex-col gap-5 disabled:opacity-60">
+            <div className="grid gap-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-semibold">¿Qué tan fácil se abre?</span>
+                <SelectorOpciones
+                  etiqueta="¿Qué tan fácil se abre?"
+                  valor={ajustes.apertura}
+                  opciones={OPCIONES_APERTURA}
+                  onCambio={apertura => cambiar({ apertura })}
+                  className="grid-cols-1"
+                  deshabilitado={bloqueado}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-semibold">¿Cuánto se le notan las emociones?</span>
+                <SelectorOpciones
+                  etiqueta="¿Cuánto se le notan las emociones?"
+                  valor={ajustes.intensidad}
+                  opciones={OPCIONES_INTENSIDAD}
+                  onCambio={intensidad => cambiar({ intensidad })}
+                  className="grid-cols-1"
+                  deshabilitado={bloqueado}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold">Hoy, además, se muestra… (opcional)</span>
+              <GrupoChips
+                etiqueta="Actitud adicional en esta práctica"
+                opciones={ACTITUDES}
+                seleccionadas={ajustes.actitudes}
+                onCambio={s => cambiar({ actitudes: s as IdActitud[] })}
+                deshabilitado={bloqueado}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/20 p-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <Lock className="size-4 text-salvia" aria-hidden />
+                  Algo que guarda en esta práctica (opcional)
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  No lo cuenta de entrada: solo si el estudiante se lo gana durante la conversación.
+                </p>
+              </div>
+              {ajustes.secretos.map((secreto, indice) => {
+                const ejemplo = EJEMPLOS_SECRETOS[indice % EJEMPLOS_SECRETOS.length]!;
+                const actualizar = (cambios: Partial<typeof secreto>) =>
+                  cambiar({
+                    secretos: ajustes.secretos.map((s, i) =>
+                      i === indice ? { ...s, ...cambios } : s
+                    ),
+                  });
+                return (
+                  <div
+                    key={indice}
+                    className="grid motion-safe:animate-[entrar-desplegado_280ms_var(--ease-salida)_both]"
+                  >
+                    <div className="min-h-0 overflow-clip [overflow-clip-margin:4px]">
+                      <div className="grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="font-medium">Qué guarda</span>
+                          <Input
+                            value={secreto.dato}
+                            placeholder={`Ej.: ${ejemplo.dato}`}
+                            maxLength={220}
+                            onChange={e => actualizar({ dato: e.target.value })}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="font-medium">Lo cuenta solo si…</span>
+                          <Input
+                            value={secreto.condicion}
+                            placeholder={`Ej.: ${ejemplo.condicion}`}
+                            maxLength={220}
+                            onChange={e => actualizar({ condicion: e.target.value })}
+                          />
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Quitar el dato ${indice + 1}`}
+                          onClick={() =>
+                            cambiar({ secretos: ajustes.secretos.filter((_, i) => i !== indice) })
+                          }
+                        >
+                          <Trash2 aria-hidden />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {ajustes.secretos.length < MAXIMO_SECRETOS_AJUSTE && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() =>
+                    cambiar({ secretos: [...ajustes.secretos, { dato: '', condicion: '' }] })
+                  }
+                >
+                  <Plus aria-hidden />
+                  Añadir algo que guarda
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor={idIndicacion} className="text-sm font-semibold">
+                Una indicación con tus palabras (opcional)
+              </label>
+              <Textarea
+                id={idIndicacion}
+                rows={2}
+                maxLength={MAXIMO_INDICACION}
+                value={ajustes.indicacion}
+                placeholder="Escribe como se lo contarías a un actor: qué le pasó hoy o cómo llega."
+                onChange={e => cambiar({ indicacion: e.target.value })}
+              />
+              <Sugerencias
+                etiqueta="Ejemplos de indicaciones"
+                sugerencias={EJEMPLOS_INDICACION}
+                texto={ajustes.indicacion}
+                onAgregar={ejemplo =>
+                  cambiar({
+                    indicacion: ajustes.indicacion.trim()
+                      ? `${ajustes.indicacion.trim()} ${ejemplo}`
+                      : ejemplo,
+                  })
+                }
+              />
+            </div>
+          </fieldset>
+        </div>
 
         <div
           aria-live="polite"
           className={cn(
-            'flex flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-sm transition-colors duration-300 ease-salida',
-            resumen.length > 0 && !textoManual
+            'flex flex-col rounded-xl border px-4 py-3.5 text-sm transition-colors duration-300 ease-salida',
+            resumen.length > 0 && textoManual === false
               ? 'border-salvia/40 bg-salvia-suave/50'
               : 'border-border bg-muted/40 text-muted-foreground'
           )}
@@ -273,15 +282,15 @@ export function AjustesPaciente({
                 ? `${nombreCorto} se comportará como describe el caso.`
                 : `Así cambiará ${nombreCorto} en esta práctica:`}
           </p>
-          {!textoManual && resumen.length > 0 && (
-            <ul className="flex flex-col gap-0.5 pl-6 text-foreground">
+          <Desplegable abierto={textoManual === false && resumen.length > 0}>
+            <ul className="flex flex-col gap-0.5 pt-1.5 pl-6 text-foreground">
               {resumen.map(linea => (
                 <li key={linea} className="list-disc">
                   {linea}
                 </li>
               ))}
             </ul>
-          )}
+          </Desplegable>
         </div>
 
         <details className="group/avanzado rounded-xl border bg-muted/15">

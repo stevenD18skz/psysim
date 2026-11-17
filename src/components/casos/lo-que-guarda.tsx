@@ -9,6 +9,7 @@ import {
 } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
+import { Desplegable } from '@/components/comun/desplegable';
 import { Input } from '@/components/ui/input';
 import { EJEMPLOS_SECRETOS, MAXIMO_SECRETOS } from '@/lib/casos/opciones';
 import { type CasoFormData, type CasoFormInput, LIMITES_CASO } from '@/schemas/caso.schema';
@@ -49,66 +50,74 @@ export function LoQueGuarda({ control, register, errores, deshabilitado }: LoQue
             return (
               <li
                 key={campo.id}
-                className="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                className="grid motion-safe:animate-[entrar-desplegado_280ms_var(--ease-salida)_both]"
               >
-                <div className="flex flex-col gap-2">
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium">Dato {indice + 1}</span>
-                    <Input
-                      placeholder={`Ej.: ${ejemplo.dato}`}
-                      maxLength={LIMITES_CASO.secreto.max}
-                      aria-invalid={error?.dato ? true : undefined}
-                      {...register(`secretos.${indice}.dato`)}
-                    />
-                    {error?.dato?.message && (
-                      <span className="text-sm text-destructive">{error.dato.message}</span>
-                    )}
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium">Lo cuenta solo si…</span>
-                    <Input
-                      placeholder={`Ej.: ${ejemplo.condicion}`}
-                      maxLength={LIMITES_CASO.secreto.max}
-                      aria-invalid={error?.condicion ? true : undefined}
-                      {...register(`secretos.${indice}.condicion`)}
-                    />
-                    {error?.condicion?.message && (
-                      <span className="text-sm text-destructive">{error.condicion.message}</span>
-                    )}
-                  </label>
+                <div className="min-h-0 overflow-clip [overflow-clip-margin:4px]">
+                  <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="flex flex-col gap-2">
+                      <label className="flex flex-col gap-1 text-sm">
+                        <span className="font-medium">Dato {indice + 1}</span>
+                        <Input
+                          placeholder={`Ej.: ${ejemplo.dato}`}
+                          maxLength={LIMITES_CASO.secreto.max}
+                          aria-invalid={error?.dato ? true : undefined}
+                          {...register(`secretos.${indice}.dato`)}
+                        />
+                        {error?.dato?.message && (
+                          <span className="text-sm text-destructive">{error.dato.message}</span>
+                        )}
+                      </label>
+                      <label className="flex flex-col gap-1 text-sm">
+                        <span className="font-medium">Lo cuenta solo si…</span>
+                        <Input
+                          placeholder={`Ej.: ${ejemplo.condicion}`}
+                          maxLength={LIMITES_CASO.secreto.max}
+                          aria-invalid={error?.condicion ? true : undefined}
+                          {...register(`secretos.${indice}.condicion`)}
+                        />
+                        {error?.condicion?.message && (
+                          <span className="text-sm text-destructive">
+                            {error.condicion.message}
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="justify-self-end sm:mt-6"
+                      onClick={() => remove(indice)}
+                      aria-label={`Quitar el dato ${indice + 1}`}
+                    >
+                      <Trash2 aria-hidden />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="justify-self-end sm:mt-6"
-                  onClick={() => remove(indice)}
-                  aria-label={`Quitar el dato ${indice + 1}`}
-                >
-                  <Trash2 aria-hidden />
-                </Button>
               </li>
             );
           })}
         </ol>
       )}
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-fit"
-        onClick={() => append({ dato: '', condicion: '' })}
-        disabled={lleno}
-      >
-        <Plus aria-hidden />
-        {fields.length === 0 ? 'Añadir un dato que guarda' : 'Añadir otro dato'}
-      </Button>
-      {lleno && (
-        <p className="text-sm text-muted-foreground">
-          Hasta {MAXIMO_SECRETOS} datos: más hacen al paciente difícil de seguir.
-        </p>
-      )}
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => append({ dato: '', condicion: '' })}
+          disabled={lleno}
+        >
+          <Plus aria-hidden />
+          {fields.length === 0 ? 'Añadir un dato que guarda' : 'Añadir otro dato'}
+        </Button>
+        <Desplegable abierto={lleno}>
+          <p className="pt-2 text-sm text-muted-foreground">
+            Hasta {MAXIMO_SECRETOS} datos: más hacen al paciente difícil de seguir.
+          </p>
+        </Desplegable>
+      </div>
     </fieldset>
   );
 }

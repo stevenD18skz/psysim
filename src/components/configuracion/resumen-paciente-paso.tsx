@@ -37,7 +37,7 @@ export function ResumenPacientePaso({
   const primerNombre = escenario.npc.nombre.split(' ')[0];
 
   return (
-    <div className="flex flex-col justify-between overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0">
+    <div className="flex flex-col justify-between overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/35 px-5 py-4">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">

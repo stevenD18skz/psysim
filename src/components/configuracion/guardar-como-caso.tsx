@@ -4,6 +4,7 @@ import { Check, Loader2, Save, X } from 'lucide-react';
 import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { Desplegable } from '@/components/comun/desplegable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { guardarVariante } from '@/lib/casos/actions';
@@ -82,6 +83,7 @@ export function GuardarComoCaso({
         type="button"
         variant="outline"
         size="lg"
+        className="motion-safe:animate-in motion-safe:duration-200 motion-safe:ease-salida motion-safe:fade-in-0"
         disabled={!escenarioId || deshabilitado}
         onClick={() => {
           setTitulo(tituloSugerido ? `${tituloSugerido} (mi versión)` : '');
@@ -98,7 +100,7 @@ export function GuardarComoCaso({
 
   return (
     // El campo entra desde el botón que lo abrió, para que se lea como su continuación.
-    <div className="flex flex-col gap-1 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-left-2">
+    <div className="flex flex-col motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:zoom-in-98">
       <div className="flex items-center gap-2">
         <label htmlFor={idCampo} className="sr-only">
           Nombre del caso
@@ -139,15 +141,11 @@ export function GuardarComoCaso({
           <X aria-hidden />
         </Button>
       </div>
-      {error && (
-        <p
-          id={`${idCampo}-error`}
-          role="alert"
-          className="text-sm text-destructive motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0"
-        >
+      <Desplegable abierto={Boolean(error)}>
+        <p id={`${idCampo}-error`} role="alert" className="pt-1.5 text-sm text-destructive">
           {error}
         </p>
-      )}
+      </Desplegable>
     </div>
   );
 }
