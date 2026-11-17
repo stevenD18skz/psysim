@@ -14,8 +14,8 @@ import { POST } from './route';
  * Contrato acordado en Taiga, con las mismas convenciones que `/api/npc/chat`:
  *
  * - 401/403 sin sesión del estudiante (quien finaliza la sesión desde su equipo); 400 con el
- *   detalle por campo (`campos`) si el cuerpo no pasa Zod; 409 si la sesión no está `en_curso`
- *   (se consulta `sesion.estado` antes de guardar).
+ *   detalle por campo (`campos`) si el cuerpo no pasa Zod; 409 si la sesión quedó interrumpida
+ *   (se consulta `sesion.estado` antes de guardar) o si ya tenía sus métricas (55000).
  * - Guarda de forma atómica con la función de PostgreSQL `guardar_metricas_cierre` (INSERT en
  *   `metrica` + UPDATE de la sesión), invocada con `supabase.rpc` y parámetros `p_<campo>`.
  * - 500 con un mensaje genérico si falla la base de datos: nunca expone detalles internos.
@@ -126,15 +126,32 @@ describe('POST /api/metrics/save (HU-19)', () => {
     expect((await POST(peticion('{no json'))).status).toBe(400);
   });
 
-  it.each(['finalizada', 'interrumpida'])(
-    'responde 409 si la sesión está %s (no se guardan métricas dos veces)',
-    async estado => {
-      db.responder('sesion', { data: { estado } });
-      const respuesta = await POST(peticion(CUERPO));
-      expect(respuesta.status).toBe(409);
-      expect(db.rpc).not.toHaveBeenCalled();
-    }
-  );
+  it('responde 409 si la sesión quedó interrumpida, sin llamar a la base', async () => {
+    db.responder('sesion', { data: { estado: 'interrumpida' } });
+    const respuesta = await POST(peticion(CUERPO));
+    expect(respuesta.status).toBe(409);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  // P2-06: si el servidor terminó la práctica (el paciente cerró la consulta o se cumplió el
+  // tiempo), el navegador todavía entrega lo que solo él mide. La función decide si corresponde.
+  it('una práctica que terminó el servidor todavía recibe las medidas del navegador', async () => {
+    db.responder('sesion', { data: { estado: 'finalizada' } });
+    db.responder('rpc:guardar_metricas_cierre', { data: 'metrica-1' });
+    const respuesta = await POST(peticion(CUERPO));
+
+    expect(respuesta.status).toBe(200);
+    expect(db.rpc).toHaveBeenCalledWith(
+      'guardar_metricas_cierre',
+      expect.objectContaining({ p_sesion_id: SESION_ID, p_latencia_maxima_ms: 3400 })
+    );
+  });
+
+  it('responde 409 si la práctica finalizada ya tenía sus métricas (no se guardan dos veces)', async () => {
+    db.responder('sesion', { data: { estado: 'finalizada' } });
+    db.responder('rpc:guardar_metricas_cierre', { error: { code: '55000' } });
+    expect((await POST(peticion(CUERPO))).status).toBe(409);
+  });
 
   it('responde 401 sin sesión y 403 sin rol', async () => {
     vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({ estado: 'sin-sesion' });

@@ -7,6 +7,7 @@ import {
   decidirCierre,
   decidirCierrePorEstado,
   MOTIVO_CAMBIO_POR_CIERRE,
+  SEVERIDAD_DE_CRISIS,
 } from './cierre';
 
 describe('decidirCierre (evento done del stream)', () => {
@@ -41,47 +42,83 @@ describe('decidirCierre (evento done del stream)', () => {
 
 describe('decidirCierrePorEstado (turno recuperado del historial)', () => {
   it('active: la sesión sigue', () => {
-    expect(decidirCierrePorEstado('active', ['abuse'])).toEqual({ tipo: 'sigue' });
+    expect(decidirCierrePorEstado('active', { banderas: ['abuse'], severidad: 5 })).toEqual({
+      tipo: 'sigue',
+    });
   });
 
   it('completed es el cierre success: la práctica no termina', () => {
-    expect(decidirCierrePorEstado('completed', [])).toEqual({
+    expect(decidirCierrePorEstado('completed')).toEqual({
       tipo: 'cerrada_alla',
       codigo: 'success',
     });
   });
 
-  it('terminated es crisis, o trato inapropiado si el turno trae banderas de abuso', () => {
-    expect(decidirCierrePorEstado('terminated', [])).toEqual({ tipo: 'termina', motivo: 'crisis' });
-    expect(decidirCierrePorEstado('terminated', ['risk'])).toEqual({
-      tipo: 'termina',
-      motivo: 'crisis',
-    });
-    expect(decidirCierrePorEstado('terminated', ['repeat_abuse'])).toEqual({
+  it('terminated con banderas de abuso es trato inapropiado, con cualquier severidad', () => {
+    expect(decidirCierrePorEstado('terminated', { banderas: ['repeat_abuse'] })).toEqual({
       tipo: 'termina',
       motivo: 'inapropiada',
     });
   });
 
+  it.each([SEVERIDAD_DE_CRISIS, 4.5, 5])(
+    'terminated con la severidad en el límite superior (%s) es una crisis',
+    severidad => {
+      expect(decidirCierrePorEstado('terminated', { banderas: ['risk'], severidad })).toEqual({
+        tipo: 'termina',
+        motivo: 'crisis',
+      });
+    }
+  );
+
+  // P2-05: una sesión también queda `terminated` por un cierre manual o una limpieza allá.
+  it.each([undefined, null, 0, 2, 3.9])(
+    'terminated sin maltrato y con severidad %s no se anota como crisis',
+    severidad => {
+      expect(decidirCierrePorEstado('terminated', { banderas: ['risk'], severidad })).toEqual({
+        tipo: 'cerrada_alla',
+        codigo: 'desconocido',
+      });
+    }
+  );
+
+  it('si la sesión trae su closing_kind, decide él', () => {
+    expect(decidirCierrePorEstado('terminated', { cierre: 'crisis', severidad: 1 })).toEqual({
+      tipo: 'termina',
+      motivo: 'crisis',
+    });
+    expect(decidirCierrePorEstado('terminated', { cierre: 'success', severidad: 5 })).toEqual({
+      tipo: 'cerrada_alla',
+      codigo: 'success',
+    });
+    // Un motivo en blanco es como no tenerlo: se decide por el estado.
+    expect(decidirCierrePorEstado('completed', { cierre: '  ' })).toEqual({
+      tipo: 'cerrada_alla',
+      codigo: 'success',
+    });
+  });
+
   it('un estado desconocido no termina la práctica', () => {
-    expect(decidirCierrePorEstado('archived', ['abuse'])).toEqual({
+    expect(decidirCierrePorEstado('archived', { banderas: ['abuse'], severidad: 5 })).toEqual({
       tipo: 'cerrada_alla',
       codigo: 'desconocido',
     });
   });
 
   it('la bandera risk por sí sola nunca cierra una sesión activa', () => {
-    expect(decidirCierrePorEstado('active', ['risk'])).toEqual({ tipo: 'sigue' });
+    expect(decidirCierrePorEstado('active', { banderas: ['risk'] })).toEqual({ tipo: 'sigue' });
   });
 });
 
 describe('los dos caminos concluyen lo mismo con los mismos hechos', () => {
   it.each([
-    ['success', 'completed', []],
-    ['crisis', 'terminated', []],
-    ['inappropriate', 'terminated', ['repeat_abuse']],
-  ] as const)('closing_kind %s y estado %s', (kind, estado, banderas) => {
-    expect(decidirCierrePorEstado(estado, banderas)).toEqual(decidirCierre(true, kind));
+    ['success', 'completed', [], 1],
+    ['crisis', 'terminated', [], 5],
+    ['inappropriate', 'terminated', ['repeat_abuse'], 3],
+  ] as const)('closing_kind %s y estado %s', (kind, estado, banderas, severidad) => {
+    expect(decidirCierrePorEstado(estado, { banderas, severidad })).toEqual(
+      decidirCierre(true, kind)
+    );
   });
 });
 

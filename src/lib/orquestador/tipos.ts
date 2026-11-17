@@ -42,6 +42,11 @@ export const sesionOrquestadorSchema = z.object({
   id: z.guid(),
   /** `active`, `completed` (cierre `success` o manual) o `terminated` (crisis o inapropiado). */
   status: z.string().default(ESTADO_SESION_ACTIVA),
+  /**
+   * Motivo del cierre. Hoy `GET /sessions/{id}` no lo devuelve (pendiente de pedírselo a Juan
+   * José): si algún día llega, `decidirCierrePorEstado` decide con él y deja de deducirlo.
+   */
+  closing_kind: z.string().nullish(),
   user_id: z.string().nullish(),
   /** Se acota con `acotarSeveridad` antes de guardarla: la base solo acepta de 0 a 5. */
   current_severity: z.number().nullish(),

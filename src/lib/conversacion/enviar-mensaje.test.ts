@@ -75,6 +75,8 @@ describe('enviarMensaje (HU-13 · T03)', () => {
       sesion_id: sesion.id,
       npc_id: sesion.npc.id,
       mensaje_usuario: 'Hola, Marta.',
+      // Identifica la intervención: el servidor reconoce por él un reintento.
+      turno_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       // Pide la respuesta por partes; si el servidor responde un JSON completo, también vale.
       por_partes: true,
     });
@@ -113,6 +115,11 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     expect(cuerpo.mensaje_usuario).toBe('Segundo');
     expect(cuerpo).not.toHaveProperty('reintento');
     expect(cuerpo).not.toHaveProperty('historial');
+    // Cada intervención nueva lleva su propio identificador, aunque repita el texto.
+    const primero = JSON.parse(
+      (hacerFetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string
+    );
+    expect(cuerpo.turno_id).not.toBe(primero.turno_id);
   });
 
   it('impide envíos concurrentes mientras el NPC está procesando', async () => {
@@ -178,6 +185,8 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     );
     // Si el intercambio sí se guardó y solo se perdió la respuesta, el servidor no lo duplica.
     expect(cuerpo).toMatchObject({ mensaje_usuario: 'Hola', reintento: true });
+    // El reintento lleva el identificador del mensaje que falló; un mensaje nuevo lleva otro.
+    expect(cuerpo.turno_id).toBe(store.getState().conversacion.mensajes[0]?.id);
     const { conversacion, npc, metricas } = store.getState();
     expect(conversacion.mensajes.map(m => m.remitente)).toEqual(['estudiante', 'npc']);
     expect(conversacion.error).toBeNull();

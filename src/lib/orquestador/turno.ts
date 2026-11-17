@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
+import { LARGO_MAXIMO_FLUJO } from '@/lib/ia/limpieza';
 import { type ParteTurno } from '@/lib/ia/partes';
 
 import { type CierreAjeno, decidirCierre, decidirCierrePorEstado } from './cierre';
@@ -183,9 +184,14 @@ export async function* conversarConOrquestador({
 
     const { respuesta, banderasDelTurno } = resultado;
     // El historial no dice si el orquestador cerró la sesión con este turno: se le pregunta. Con
-    // los mismos hechos debe concluir lo mismo que el stream (`completed` no es una crisis).
+    // los mismos hechos debe concluir lo mismo que el stream (`completed` no es una crisis), y sin
+    // motivo declarado solo anota una crisis si la severidad de la respuesta la respalda.
     const sesion = await cliente.sesion(cuenta, sesionOrquestador);
-    const decision = decidirCierrePorEstado(sesion.status, banderasDelTurno);
+    const decision = decidirCierrePorEstado(sesion.status, {
+      banderas: banderasDelTurno,
+      severidad: respuesta.severity,
+      cierre: sesion.closing_kind,
+    });
     yield { tipo: 'fragmento', texto: respuesta.content };
     yield fin(respuesta.content, {
       severidad: respuesta.severity,
@@ -234,6 +240,9 @@ export async function* conversarConOrquestador({
         tiempoTotalMs: Math.floor(plazo.restanteMs() - MARGEN_DE_CIERRE_MS),
       })) {
         if (parte.tipo === 'fragmento') {
+          // El largo lo decide el orquestador. Pasado el tope se sigue leyendo hasta su `done`
+          // (ya guardó el turno), pero no se acumula más: lo que se guarda se recorta igual.
+          if (texto.length > LARGO_MAXIMO_FLUJO) continue;
           texto += parte.texto;
           yield parte;
         } else if (parte.tipo === 'fin') {

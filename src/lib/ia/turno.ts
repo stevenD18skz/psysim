@@ -47,6 +47,11 @@ export interface TurnoPaciente {
   historial: readonly MensajeHistorial[];
   mensaje: string;
   reintento: boolean;
+  /**
+   * Marca con la que la petición tomó el turno de la práctica (`turno_ia`). Si el turno termina
+   * sin guardarse, se suelta con ella. `null`: no se pudo tomar y la práctica sigue sin marca.
+   */
+  marcaDeTurno?: string | null;
   /** Intercambios vigentes guardados en PsySim. */
   intercambios: number;
   /** El estudiante volvió a un momento anterior («ensayar otra respuesta»). */
@@ -114,8 +119,10 @@ async function pasarAGemini(turno: TurnoPaciente, motivo: string): Promise<void>
   try {
     await fijarGemini(turno.sesionId, motivo);
   } catch {
-    // Si no se pudo anotar, este turno lo responde Gemini igual; el siguiente lo detecta por el
-    // historial (el orquestador tendrá un intercambio menos) y vuelve a fijarlo.
+    // Si no se pudo anotar, este turno lo responde Gemini igual. Al guardar el intercambio, la
+    // base de datos deja la práctica en Gemini (`guardar_intercambio_ia`): un turno que el
+    // orquestador no tiene no puede volver a él. Si tampoco se guarda, la marca del turno queda
+    // `sin_guardar` y el siguiente concilia con el orquestador antes de enviarle nada.
     log.error('npc_chat.proveedor_no_fijado', {
       peticion: turno.peticion,
       sesion_id: turno.sesionId,

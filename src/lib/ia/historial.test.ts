@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { LIMITES_CHAT } from '@/schemas/npc-chat.schema';
-
 import {
   contarIntervenciones,
   type FilaMensaje,
   historialDesdeFilas,
   MAX_INTERVENCIONES_POR_SESION,
+  MAX_MENSAJES_CONTEXTO,
   respuestaYaGuardada,
 } from './historial';
 
@@ -39,12 +38,20 @@ describe('historialDesdeFilas (OWASP LLM01: el contexto sale del servidor)', () 
   });
 
   it('no supera el máximo de mensajes de contexto: conserva los más recientes', () => {
-    const filas = Array.from({ length: LIMITES_CHAT.historial + 10 }, (_, i) =>
+    const filas = Array.from({ length: MAX_MENSAJES_CONTEXTO + 10 }, (_, i) =>
       fila(i % 2 === 0 ? 'estudiante' : 'npc', `m${i}`)
     );
     const historial = historialDesdeFilas(filas);
-    expect(historial).toHaveLength(LIMITES_CHAT.historial);
+    expect(historial).toHaveLength(MAX_MENSAJES_CONTEXTO);
     expect(historial.at(-1)?.contenido).toBe(`m${filas.length - 1}`);
+  });
+
+  it('el contexto cubre la práctica entera: el paciente no olvida el principio', () => {
+    expect(MAX_MENSAJES_CONTEXTO).toBe(MAX_INTERVENCIONES_POR_SESION * 2);
+    const filas = Array.from({ length: 80 }, (_, i) =>
+      fila(i % 2 === 0 ? 'estudiante' : 'npc', `m${i}`)
+    );
+    expect(historialDesdeFilas(filas)[0]?.contenido).toBe('m0');
   });
 
   it('no modifica las filas recibidas', () => {

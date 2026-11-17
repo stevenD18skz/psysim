@@ -2,6 +2,7 @@ import 'server-only';
 
 import { log } from '@/lib/log';
 import { mensajeConsultorioOcupado } from '@/lib/orquestador/cuentas';
+import { soltarTurno } from '@/lib/orquestador/datos';
 import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type EventoChat, type NpcChatResponse } from '@/schemas/npc-chat.schema';
@@ -91,10 +92,26 @@ export function consultaAlResponder(
  * El estudiante no puede escribir en `mensaje` (podría fabricar turnos del paciente): el
  * intercambio lo guarda el servidor con la clave secreta, ya verificada la práctica con RLS. La
  * función de la base de datos vuelve a comprobar, con la práctica bloqueada, que sigue en curso y
- * el tope de intervenciones.
+ * el tope de intervenciones. Al guardar, esa función suelta el turno de la práctica; si el turno
+ * termina sin guardarse (falló la IA, se rechazó la respuesta, nadie siguió leyendo), se suelta
+ * aquí como `sin_guardar`, para que el siguiente concilie con el proveedor.
  */
 export async function* responderIntercambio(
   turno: TurnoPaciente
+): AsyncGenerator<EventoChat, void, void> {
+  const resultado = { guardado: false };
+  try {
+    yield* responderTurno(turno, resultado);
+  } finally {
+    if (!resultado.guardado && turno.marcaDeTurno) {
+      await soltarTurno(turno.sesionId, turno.marcaDeTurno);
+    }
+  }
+}
+
+async function* responderTurno(
+  turno: TurnoPaciente,
+  final: { guardado: boolean }
 ): AsyncGenerator<EventoChat, void, void> {
   const { peticion, sesionId } = turno;
   const inicio = performance.now();
@@ -156,6 +173,7 @@ export async function* responderIntercambio(
     else yield fallo(503, 'No pudimos guardar tu mensaje. Inténtalo de nuevo.');
     return;
   }
+  final.guardado = true;
 
   // El orquestador cerró su sesión con este turno. Solo crisis y trato inapropiado terminan la
   // práctica (`resultado.cierre`); con cualquier otro cierre sigue, desde ahora con Gemini.

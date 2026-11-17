@@ -9,12 +9,14 @@ export const LIMITES_CHAT = {
   mensaje: 1000,
   /** Máximo de caracteres de un mensaje del historial (las respuestas del NPC son breves). */
   contenidoHistorial: 4000,
-  /** Máximo de mensajes de historial aceptados en una petición. */
-  historial: 80,
 } as const;
 
 export const ROLES_HISTORIAL = ['user', 'assistant'] as const;
 
+/**
+ * Un mensaje del contexto que el servidor arma para la IA con lo que guardó (`lib/ia/historial.ts`).
+ * El navegador no lo envía: si pudiera fijarlo, podría fabricar turnos del paciente.
+ */
 export const mensajeHistorialSchema = z.object({
   rol: z.enum(ROLES_HISTORIAL, 'El rol debe ser "user" o "assistant".'),
   contenido: z
@@ -47,14 +49,11 @@ export const npcChatRequestSchema = z.object({
    */
   por_partes: z.boolean().optional(),
   /**
-   * Obsoleto: el servidor ya no lo usa. El contexto de la IA sale de los mensajes guardados
-   * (`lib/ia/historial.ts`); si el navegador pudiera fijarlo, podría fabricar turnos del paciente.
-   * Se sigue aceptando (y validando) solo por compatibilidad con clientes anteriores.
+   * Identificador que el navegador le da a la intervención, el mismo cuando la reintenta. Con él
+   * el servidor reconoce un reintento sin comparar textos (el estudiante puede repetir a propósito
+   * lo que acaba de decir) y sabe si el turno anterior quedó guardado.
    */
-  historial: z
-    .array(mensajeHistorialSchema, 'historial debe ser un arreglo.')
-    .max(LIMITES_CHAT.historial, `historial no puede superar ${LIMITES_CHAT.historial} mensajes.`)
-    .optional(),
+  turno_id: z.uuid('turno_id debe ser un UUID válido.').optional(),
 });
 
 /** HU-12 · T01/T05 — Respuesta exitosa del Route Handler. */

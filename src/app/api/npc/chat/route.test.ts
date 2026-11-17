@@ -5,11 +5,17 @@ import { MAX_INTERVENCIONES_POR_SESION } from '@/lib/ia/historial';
 import { ErrorIA } from '@/lib/ia/paciente';
 import { type EventoTurno, type RespuestaProcesada } from '@/lib/ia/procesar';
 import { transmitirTurno } from '@/lib/ia/turno';
-import { leerSesionIa, type SesionIa } from '@/lib/orquestador/datos';
-import { barrerDespues } from '@/lib/orquestador/diferido';
+import {
+  leerSesionIa,
+  leerTurno,
+  type SesionIa,
+  soltarTurno,
+  tomarTurno,
+} from '@/lib/orquestador/datos';
+import { barrerDespues, cerrarDespues } from '@/lib/orquestador/diferido';
 import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
 import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
-import { leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
+import { leerTiempoDeConsulta, terminarPorTiempo } from '@/lib/sesiones/consulta';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { crearLectorSse } from '@/lib/sse';
@@ -26,23 +32,35 @@ vi.mock('@/lib/sesiones/datos-privados', () => ({
   leerPromptDeSesion: vi.fn(),
 }));
 // El tiempo de consulta lo calcula la base de datos (`tiempo_de_consulta`): aquí se fija.
-vi.mock('@/lib/sesiones/consulta', () => ({ leerTiempoDeConsulta: vi.fn() }));
+vi.mock('@/lib/sesiones/consulta', () => ({
+  leerTiempoDeConsulta: vi.fn(),
+  terminarPorTiempo: vi.fn(),
+}));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 // El proveedor del paciente (orquestador o Gemini) se prueba en `lib/ia/turno.test.ts`: aquí se
 // simula lo que entrega, ya limpio, para probar todo lo que hace la ruta alrededor.
 vi.mock('@/lib/ia/turno', () => ({ transmitirTurno: vi.fn() }));
-vi.mock('@/lib/orquestador/datos', () => ({ leerSesionIa: vi.fn() }));
-vi.mock('@/lib/orquestador/diferido', () => ({ barrerDespues: vi.fn() }));
+// La marca de turno (`turno_ia`) la decide la base de datos (`tomar_turno_ia`): aquí se fija.
+vi.mock('@/lib/orquestador/datos', () => ({
+  leerSesionIa: vi.fn(),
+  leerTurno: vi.fn(),
+  tomarTurno: vi.fn(),
+  soltarTurno: vi.fn(),
+}));
+vi.mock('@/lib/orquestador/diferido', () => ({ barrerDespues: vi.fn(), cerrarDespues: vi.fn() }));
 vi.mock('@/lib/orquestador/practica', () => ({ anotarCierreDelOrquestador: vi.fn() }));
 
 const SESION_ID = '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60';
 const NPC_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+/** Identificador que el navegador le da a la intervención (el mismo al reintentar). */
+const TURNO_ID = '0d8f2f6e-3c1b-4a7e-9b1a-2f6c1d3e4a5b';
+/** Marca con la que la petición toma el turno de la práctica. */
+const MARCA = '6f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f';
 
 const cuerpoValido = {
   sesion_id: SESION_ID,
   npc_id: NPC_ID,
   mensaje_usuario: 'Hola, ¿cómo se ha sentido?',
-  historial: [],
 };
 
 const ESCENARIO_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
@@ -220,7 +238,10 @@ describe('POST /api/npc/chat', () => {
     vi.mocked(leerEscenarioDeSesion).mockResolvedValue(escenarioDeLaSesion);
     vi.mocked(leerPromptDeSesion).mockResolvedValue(PROMPT);
     vi.mocked(leerSesionIa).mockResolvedValue(null);
+    vi.mocked(leerTurno).mockResolvedValue(null);
+    vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'libre', marca: MARCA });
     vi.mocked(leerTiempoDeConsulta).mockResolvedValue(null);
+    vi.mocked(terminarPorTiempo).mockResolvedValue(true);
     turno({ tipo: 'completo', respuesta: deGemini });
   });
 
@@ -484,12 +505,6 @@ describe('POST /api/npc/chat', () => {
       expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ historial: [] }));
     });
 
-    it('acepta una petición sin historial', async () => {
-      clienteFalso(sesionEnCurso);
-      const { historial: _omitido, ...sinHistorial } = cuerpoValido;
-      expect((await POST(peticion(sinHistorial))).status).toBe(200);
-    });
-
     it('si no puede leer la conversación guardada responde 500 sin llamar a la IA', async () => {
       const { rpc } = clienteFalso(sesionEnCurso, { errorHistorial: true });
       const respuesta = await POST(peticion(cuerpoValido));
@@ -597,6 +612,114 @@ describe('POST /api/npc/chat', () => {
       clienteFalso(sesionEnCurso);
       await POST(peticion({ ...cuerpoValido, reintento: true }));
       expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ reintento: true }));
+    });
+
+    // P2-02: con identificador de turno, el reintento se reconoce por él y no por el texto.
+    describe('con el identificador de la intervención', () => {
+      const conTurno = { ...cuerpoValido, turno_id: TURNO_ID, reintento: true };
+
+      it('el mismo identificador ya guardado devuelve lo guardado', async () => {
+        vi.mocked(leerTurno).mockResolvedValue({ turnoId: TURNO_ID, estado: 'guardado' });
+        clienteFalso(sesionEnCurso, { guardados });
+        const respuesta = await POST(peticion(conTurno));
+
+        expect(respuesta.status).toBe(200);
+        expect(await respuesta.json()).toMatchObject({ respuesta_npc: 'Mal, la verdad.' });
+        expect(transmitirTurno).not.toHaveBeenCalled();
+        expect(tomarTurno).not.toHaveBeenCalled();
+      });
+
+      it('repetir a propósito la misma frase es otra intervención, aunque su envío se reintente', async () => {
+        // El estudiante dijo «sí», se guardó, volvió a decir «sí» y ese segundo envío falló: el
+        // reintento lleva otro identificador y no debe devolver la respuesta del primero.
+        vi.mocked(leerTurno).mockResolvedValue({
+          turnoId: '11111111-2222-4333-8444-555555555555',
+          estado: 'guardado',
+        });
+        const { guardar } = clienteFalso(sesionEnCurso, { guardados });
+        const respuesta = await POST(peticion(conTurno));
+
+        expect(respuesta.status).toBe(200);
+        expect((await respuesta.json()).respuesta_npc).toBe(TEXTO);
+        expect(transmitirTurno).toHaveBeenCalledOnce();
+        expect(guardar).toHaveBeenCalledOnce();
+      });
+
+      it('el mismo identificador que no llegó a guardarse se vuelve a responder', async () => {
+        vi.mocked(leerTurno).mockResolvedValue({ turnoId: TURNO_ID, estado: 'sin_guardar' });
+        clienteFalso(sesionEnCurso, { guardados });
+        await POST(peticion(conTurno));
+        expect(transmitirTurno).toHaveBeenCalledOnce();
+      });
+
+      it('si la marca la dejó un cliente sin identificador, compara el texto como antes', async () => {
+        vi.mocked(leerTurno).mockResolvedValue({ turnoId: null, estado: 'guardado' });
+        clienteFalso(sesionEnCurso, { guardados });
+        const respuesta = await POST(peticion(conTurno));
+        expect(await respuesta.json()).toMatchObject({ respuesta_npc: 'Mal, la verdad.' });
+        expect(transmitirTurno).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // P2-02: la marca de turno de la práctica (`turno_ia`).
+  describe('un turno a la vez por práctica', () => {
+    it('toma el turno con el identificador de la intervención y pasa la marca al turno', async () => {
+      clienteFalso(sesionEnCurso);
+      await POST(peticion({ ...cuerpoValido, turno_id: TURNO_ID }));
+
+      expect(tomarTurno).toHaveBeenCalledWith(SESION_ID, TURNO_ID);
+      expect(transmitirTurno).toHaveBeenCalledWith(
+        expect.objectContaining({ marcaDeTurno: MARCA, reintento: false })
+      );
+      // El intercambio se guardó: la base de datos soltó el turno al guardarlo.
+      expect(soltarTurno).not.toHaveBeenCalled();
+    });
+
+    it('si otra petición todavía responde, 409 con cuánto esperar y sin llamar a la IA', async () => {
+      vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'ocupado' });
+      const { guardar } = clienteFalso(sesionEnCurso);
+      const respuesta = await POST(peticion({ ...cuerpoValido, por_partes: true }));
+
+      expect(respuesta.status).toBe(409);
+      expect(respuesta.headers.get('Retry-After')).toBe('5');
+      expect((await respuesta.json()).error).toMatch(/todavía está respondiendo/);
+      expect(transmitirTurno).not.toHaveBeenCalled();
+      expect(guardar).not.toHaveBeenCalled();
+    });
+
+    it('si el turno anterior no se guardó, el proveedor concilia como en un reintento', async () => {
+      vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'pendiente', marca: MARCA });
+      clienteFalso(sesionEnCurso);
+      await POST(peticion(cuerpoValido));
+      expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ reintento: true }));
+    });
+
+    it('no toma el turno si la petición se rechaza antes (límite por minuto)', async () => {
+      clienteFalso(sesionEnCurso, { esperaLimite: 20 });
+      expect((await POST(peticion(cuerpoValido))).status).toBe(429);
+      expect(tomarTurno).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['falla la IA', () => turno(new ErrorIA('tiempo_agotado')), {}],
+      ['no se puede guardar', () => undefined, { errorInsercion: true }],
+    ])(
+      'si %s, suelta el turno para que el siguiente concilie',
+      async (_caso, preparar, opciones) => {
+        preparar();
+        clienteFalso(sesionEnCurso, opciones);
+        await POST(peticion(cuerpoValido));
+        expect(soltarTurno).toHaveBeenCalledWith(SESION_ID, MARCA);
+      }
+    );
+
+    it('sin marca (la base aún no tiene la tabla) la práctica sigue igual', async () => {
+      vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'libre', marca: null });
+      turno(new ErrorIA('tiempo_agotado'));
+      clienteFalso(sesionEnCurso);
+      expect((await POST(peticion(cuerpoValido))).status).toBe(504);
+      expect(soltarTurno).not.toHaveBeenCalled();
     });
   });
 
@@ -765,6 +888,55 @@ describe('POST /api/npc/chat', () => {
         respuesta_npc: 'No puedo más.',
         cierre: 'crisis',
       });
+    });
+
+    // P2-06: al guardar el intercambio que cierra la consulta, la base termina la práctica. Si lo
+    // que se perdió fue esa respuesta, el reintento todavía debe recibirla con su motivo.
+    it('el reintento del turno de cierre funciona aunque la práctica ya esté finalizada', async () => {
+      vi.mocked(leerSesionIa).mockResolvedValue({
+        ...sesionDelOrquestador,
+        cierreMotivo: 'crisis',
+      });
+      clienteFalso(
+        { ...sesionEnCurso, estado: 'finalizada' },
+        {
+          guardados: [
+            {
+              id: ID_MENSAJE_ESTUDIANTE,
+              remitente: 'estudiante',
+              contenido: cuerpoValido.mensaje_usuario,
+              descartado_en: null,
+              creado_en: '2026-11-07T15:00:00+00:00',
+            },
+            {
+              id: ID_MENSAJE_NPC,
+              remitente: 'npc',
+              contenido: 'No puedo más.',
+              descartado_en: null,
+              emocion: 'abrumado',
+              creado_en: '2026-11-07T15:00:02+00:00',
+            },
+          ],
+        }
+      );
+      const respuesta = await POST(peticion({ ...cuerpoValido, reintento: true }));
+
+      expect(respuesta.status).toBe(200);
+      expect(await respuesta.json()).toMatchObject({
+        respuesta_npc: 'No puedo más.',
+        cierre: 'crisis',
+      });
+      expect(transmitirTurno).not.toHaveBeenCalled();
+    });
+
+    it('un reintento que no corresponde a lo guardado no reabre una práctica finalizada', async () => {
+      const { rpc } = clienteFalso({ ...sesionEnCurso, estado: 'finalizada' });
+      const respuesta = await POST(peticion({ ...cuerpoValido, reintento: true }));
+
+      expect(respuesta.status).toBe(409);
+      expect(transmitirTurno).not.toHaveBeenCalled();
+      expect(tomarTurno).not.toHaveBeenCalled();
+      expect(rpc).not.toHaveBeenCalled();
     });
 
     it('al empezar una práctica agenda el cierre de las sesiones que quedaron abiertas', async () => {
@@ -948,6 +1120,32 @@ describe('POST /api/npc/chat', () => {
       expect(guardar).not.toHaveBeenCalled();
       // No gasta un turno del límite de mensajes por minuto.
       expect(rpc).not.toHaveBeenCalled();
+      // P2-06: la práctica termina en el servidor, avise o no el navegador, y se cierra allá.
+      expect(terminarPorTiempo).toHaveBeenCalledWith(SESION_ID);
+      expect(cerrarDespues).toHaveBeenCalledWith(SESION_ID);
+    });
+
+    it('si no logra terminarla, responde igual y la termina el navegador', async () => {
+      clienteFalso(sesionEnCurso);
+      vi.mocked(terminarPorTiempo).mockResolvedValue(false);
+      vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S,
+      });
+      const respuesta = await POST(peticion(cuerpoValido));
+      expect(respuesta.status).toBe(409);
+      expect((await respuesta.json()).fin).toBe('tiempo');
+      expect(cerrarDespues).not.toHaveBeenCalled();
+    });
+
+    it('una práctica que ya terminó por tiempo responde con el motivo neutro', async () => {
+      clienteFalso({ ...sesionEnCurso, estado: 'finalizada', fin_motivo: 'tiempo' });
+      const respuesta = await POST(peticion(cuerpoValido));
+      expect(respuesta.status).toBe(409);
+      expect(await respuesta.json()).toEqual({
+        error: 'Se cumplió el tiempo de la consulta. La práctica termina aquí.',
+        fin: 'tiempo',
+      });
     });
 
     it('el reintento de un intercambio ya guardado se devuelve aunque se haya cumplido el tiempo', async () => {

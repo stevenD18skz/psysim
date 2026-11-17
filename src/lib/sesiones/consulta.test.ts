@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-import { anotarFinPorTiempo, leerTiempoDeConsulta } from './consulta';
+import { anotarFinPorTiempo, leerTiempoDeConsulta, terminarPorTiempo } from './consulta';
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
 vi.mock('server-only', () => ({}));
@@ -54,6 +54,41 @@ describe('leerTiempoDeConsulta', () => {
 
     usuario.responder('rpc:tiempo_de_consulta', { data: [] });
     expect(await leerTiempoDeConsulta(usuario.cliente as never, SESION)).toBeNull();
+  });
+});
+
+describe('terminarPorTiempo', () => {
+  it('termina la práctica en curso con el motivo neutro, con la clave secreta', async () => {
+    admin.responder('sesion', { data: [{ id: SESION }] });
+    expect(await terminarPorTiempo(SESION)).toBe(true);
+
+    const [escritura] = admin.de('sesion');
+    expect(escritura).toMatchObject({
+      operacion: 'update',
+      valores: { estado: 'finalizada', fin_motivo: 'tiempo' },
+    });
+    // Solo si sigue en curso: no reabre ni reetiqueta una práctica que ya terminó por otro camino.
+    expect(escritura!.filtros).toEqual(
+      expect.arrayContaining([
+        ['eq', 'id', SESION],
+        ['eq', 'estado', 'en_curso'],
+      ])
+    );
+    expect(log.info).toHaveBeenCalledWith('practica.termino_por_tiempo', { sesion_id: SESION });
+  });
+
+  it('si ya no estaba en curso, no cambia nada', async () => {
+    admin.responder('sesion', { data: [] });
+    expect(await terminarPorTiempo(SESION)).toBe(false);
+    expect(log.info).not.toHaveBeenCalled();
+  });
+
+  it('un fallo no lanza: la práctica sigue y la termina el navegador', async () => {
+    admin.responder('sesion', { error: { code: '42501' } });
+    expect(await terminarPorTiempo(SESION)).toBe(false);
+    expect(log.warn).toHaveBeenCalledWith('practica.no_terminada_por_tiempo', {
+      sesion_id: SESION,
+    });
   });
 });
 

@@ -142,6 +142,8 @@ export async function enviarMensaje(
     sesion_id: sesion.id,
     npc_id: sesion.npc.id,
     mensaje_usuario: mensaje.contenido,
+    // El mismo al reintentar: el servidor reconoce la intervención por él, no por su texto.
+    turno_id: mensaje.id,
     por_partes: true,
     // Si la respuesta anterior se perdió después de guardarse, el servidor devuelve la guardada en
     // lugar de duplicar el intercambio.

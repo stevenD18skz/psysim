@@ -1,4 +1,4 @@
-import { LIMITES_CHAT, type MensajeHistorial } from '@/schemas/npc-chat.schema';
+import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
 /**
  * LLM10 (consumo sin límite) — Tope de intervenciones del estudiante en una práctica. Cada una es
@@ -6,6 +6,15 @@ import { LIMITES_CHAT, type MensajeHistorial } from '@/schemas/npc-chat.schema';
  * las que reformuló: gastaron cuota aunque ya no estén en la conversación vigente.
  */
 export const MAX_INTERVENCIONES_POR_SESION = 150;
+
+/**
+ * Mensajes previos que se envían al modelo como contexto: la práctica entera. El tope de
+ * intervenciones ya acota el costo (150 intercambios cortos son unos 30 000 tokens, lejos del
+ * límite del modelo), así que no hace falta una ventana más corta. Con una de 40 mensajes, desde
+ * el intercambio 21 el paciente dejaba de ver el motivo de consulta y el encuadre, y podía
+ * contradecir lo que ya había contado.
+ */
+export const MAX_MENSAJES_CONTEXTO = MAX_INTERVENCIONES_POR_SESION * 2;
 
 /** Lo que se lee de `mensaje` para reconstruir el contexto de la IA. */
 export interface FilaMensaje {
@@ -27,7 +36,7 @@ export function historialDesdeFilas(filas: readonly FilaMensaje[]): MensajeHisto
       rol: fila.remitente === 'estudiante' ? 'user' : 'assistant',
       contenido: fila.contenido,
     }))
-    .slice(-LIMITES_CHAT.historial);
+    .slice(-MAX_MENSAJES_CONTEXTO);
 }
 
 /**

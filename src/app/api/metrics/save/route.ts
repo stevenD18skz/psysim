@@ -22,10 +22,11 @@ function responderError(status: number, error: string, campos?: MetricsSaveError
  *
  * 1. Verifica la sesión del estudiante (401/403): solo quien practicó termina su práctica.
  * 2. Valida el cuerpo con Zod (400 con el detalle por campo).
- * 3. Comprueba con RLS que la sesión es suya (404) y sigue en curso (409): las métricas no se
- *    guardan dos veces ni sobre una práctica cerrada por inactividad.
+ * 3. Comprueba con RLS que la sesión es suya (404) y que no quedó interrumpida (409): las métricas
+ *    no se guardan sobre una práctica cerrada por inactividad.
  * 4. Llama a `guardar_metricas_cierre`, que inserta en `metrica` y marca la sesión como
- *    finalizada en una sola transacción (HU-19 · T02). Las intervenciones las cuenta la base de
+ *    finalizada en una sola transacción (HU-19 · T02); si el servidor ya la había terminado, solo
+ *    completa sus métricas, una vez (409 si ya las tenía). Las intervenciones las cuenta la base de
  *    datos con los mensajes guardados; del navegador solo toma la latencia percibida y los
  *    indicadores, acotados. Si falla, responde 500 sin detalles
  *    internos y la sesión sigue en curso, así que el estudiante puede reintentar.
@@ -69,7 +70,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!sesion) {
     return responderError(404, 'La práctica no existe.');
   }
-  if (sesion.estado !== 'en_curso') {
+  // Una práctica `finalizada` sigue hasta la función: si la terminó el servidor (el paciente cerró
+  // la consulta o se cumplió el tiempo), todavía acepta una vez lo que midió el navegador. La
+  // función decide; si ya no corresponde responde 55000, igual que con una interrumpida.
+  if (sesion.estado === 'interrumpida') {
     return responderError(409, 'La práctica ya terminó.');
   }
 
@@ -83,7 +87,8 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   if (error) {
-    // 55000: otra pestaña la cerró entre la lectura y el guardado.
+    // 55000: ya estaba terminada con sus métricas, o la cerró otra pestaña entre la lectura y el
+    // guardado.
     if (error.code === '55000') return responderError(409, 'La práctica ya terminó.');
     log.error('metrics_save.no_guardadas', { peticion, codigo: error.code, sesion_id });
     return responderError(500, 'No pudimos guardar los resultados de la práctica.');

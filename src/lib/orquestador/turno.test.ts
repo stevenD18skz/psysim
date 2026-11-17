@@ -60,7 +60,7 @@ const mensaje = (
 /** Cliente falso: cada llamada a `conversar` consume el siguiente intento de la lista. */
 function clienteFalso(
   intentos: (EventoOrquestador[] | ErrorOrquestador)[],
-  opciones: { historial?: MensajeOrquestador[]; estado?: string } = {}
+  opciones: { historial?: MensajeOrquestador[]; estado?: string; cierre?: string } = {}
 ) {
   const cola = [...intentos];
   const conversar = vi.fn(async function* () {
@@ -74,6 +74,7 @@ function clienteFalso(
     id: SESION_ORQUESTADOR,
     status: opciones.estado ?? 'active',
     current_severity: 3,
+    ...(opciones.cierre && { closing_kind: opciones.cierre }),
   }));
   return {
     cliente: { conversar, historial, sesion } as unknown as ClienteOrquestador,
@@ -487,22 +488,49 @@ describe('conversarConOrquestador', () => {
     });
 
     it.each([
-      [['abuse'], 'inapropiada'],
-      [['risk'], 'crisis'],
+      [['abuse'], 2, 'inapropiada'],
+      [['risk'], 4.5, 'crisis'],
     ])(
-      'un turno recuperado que cerró la sesión allá conserva el motivo (%s → %s)',
-      async (banderas, motivo) => {
+      'un turno recuperado que cerró la sesión allá conserva el motivo (%s, severidad %s → %s)',
+      async (banderas, severity, motivo) => {
         const { cliente } = clienteFalso([], {
           estado: 'terminated',
           historial: [
             mensaje('trainee', MENSAJE),
-            mensaje('patient', 'Me voy.', { risk_flags: banderas }),
+            mensaje('patient', 'Me voy.', { risk_flags: banderas, severity }),
           ],
         });
         const { partes } = await conversar(cliente, { reintento: true });
         expect(partes.at(-1)).toMatchObject({ resultado: { cierre: motivo, cierreAjeno: null } });
       }
     );
+
+    // P2-05: `terminated` también es un cierre manual o una limpieza del lado del orquestador.
+    it('una sesión terminated sin maltrato ni severidad alta no se anota como crisis', async () => {
+      const { cliente } = clienteFalso([], {
+        estado: 'terminated',
+        historial: [
+          mensaje('trainee', MENSAJE),
+          mensaje('patient', 'Estoy un poco mejor.', { severity: 2 }),
+        ],
+      });
+      const { partes, error } = await conversar(cliente, { reintento: true });
+
+      expect(error).toBeNull();
+      expect(partes.at(-1)).toMatchObject({
+        resultado: { texto: 'Estoy un poco mejor.', cierre: null, cierreAjeno: 'desconocido' },
+      });
+    });
+
+    it('si la sesión dice su motivo de cierre, decide él y no la severidad', async () => {
+      const { cliente } = clienteFalso([], {
+        estado: 'terminated',
+        cierre: 'crisis',
+        historial: [mensaje('trainee', MENSAJE), mensaje('patient', 'No puedo.', { severity: 2 })],
+      });
+      const { partes } = await conversar(cliente, { reintento: true });
+      expect(partes.at(-1)).toMatchObject({ resultado: { cierre: 'crisis', cierreAjeno: null } });
+    });
 
     it('la bandera de abuso puede venir en el mensaje del estudiante, no en la respuesta', async () => {
       const { cliente } = clienteFalso([], {

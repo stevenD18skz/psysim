@@ -137,6 +137,7 @@ export const ETIQUETA_CAMBIO: Record<string, string> = {
   historial_previo: 'La práctica ya había empezado con Gemini',
   sesion_incompleta: 'La sesión no llegó a abrirse',
   cuenta_retirada: 'La cuenta se quitó de la configuración',
+  turno_de_gemini: 'Gemini respondió un turno y el cambio no se había anotado',
 };
 
 /** Tipos de fallo del orquestador (`orquestador_evento` con tipo `error`), en palabras. */

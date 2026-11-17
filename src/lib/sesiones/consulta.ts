@@ -37,6 +37,32 @@ export async function leerTiempoDeConsulta(
 }
 
 /**
+ * Se cumplieron el tiempo de la consulta y su margen, y el estudiante intentó seguir: la práctica
+ * termina aquí, en el servidor, con el motivo neutro. Antes dependía de que el navegador avisara;
+ * si la pestaña se cerraba, quedaba `interrumpida` y sin el motivo.
+ *
+ * Llamar solo con una práctica que ya pasó por RLS y cuyo tiempo midió la base de datos. Escribe
+ * con la clave secreta porque el estudiante no puede escribir `fin_motivo`. No lanza: si falla, la
+ * práctica sigue en curso y el navegador la termina por el camino de siempre.
+ */
+export async function terminarPorTiempo(sesionId: string): Promise<boolean> {
+  try {
+    const { data, error } = await createAdminClient()
+      .from('sesion')
+      .update({ estado: 'finalizada', fin_motivo: 'tiempo' })
+      .eq('id', sesionId)
+      .eq('estado', 'en_curso')
+      .select('id');
+    if (error) throw new Error('No pudimos terminar la práctica.', { cause: error });
+    if (data.length > 0) log.info('practica.termino_por_tiempo', { sesion_id: sesionId });
+    return data.length > 0;
+  } catch {
+    log.warn('practica.no_terminada_por_tiempo', { sesion_id: sesionId });
+    return false;
+  }
+}
+
+/**
  * La práctica acaba de terminar: si fue al cumplirse el tiempo de la consulta y su margen, lo
  * anota (`sesion.fin_motivo = 'tiempo'`) para que el docente lo vea en la transcripción. Es un
  * dato neutro: no es un error ni una falta del estudiante.

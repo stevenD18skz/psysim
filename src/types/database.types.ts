@@ -768,6 +768,38 @@ export type Database = {
           },
         ];
       };
+      turno_ia: {
+        Row: {
+          estado: string;
+          marca: string;
+          sesion_id: string;
+          tomado_en: string;
+          turno_id: string | null;
+        };
+        Insert: {
+          estado: string;
+          marca: string;
+          sesion_id: string;
+          tomado_en: string;
+          turno_id?: string | null;
+        };
+        Update: {
+          estado?: string;
+          marca?: string;
+          sesion_id?: string;
+          tomado_en?: string;
+          turno_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'turno_ia_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: true;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       usuario: {
         Row: {
           activo: boolean;
@@ -941,6 +973,10 @@ export type Database = {
       tiempo_de_consulta: {
         Args: { p_sesion_id: string };
         Returns: { duracion_s: number; transcurrido_s: number | null }[];
+      };
+      tomar_turno_ia: {
+        Args: { p_sesion_id: string; p_turno_id?: string; p_vigencia_s?: number };
+        Returns: { resultado: string; marca: string | null }[];
       };
     };
     Enums: {
