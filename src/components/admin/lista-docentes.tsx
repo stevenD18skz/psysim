@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 
 import { AccionesDocente } from '@/components/admin/acciones-docente';
+import { PaginacionLocal } from '@/components/comun/paginacion';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Input } from '@/components/ui/input';
 import { describirAcceso, filtrarDocentes, type FiltroEstadoDocente } from '@/lib/admin/docentes';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
+import { paginar } from '@/lib/listas';
 import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { type DocenteAdmin } from '@/types';
@@ -28,8 +30,8 @@ const ORDENES: { valor: OrdenDocentes; etiqueta: string }[] = [
   { valor: 'estudiantes', etiqueta: 'Más estudiantes' },
 ];
 
-/** Filas que se muestran de entrada; el resto, al pedirlas. */
-const FILAS_INICIALES = 20;
+/** Cuentas visibles por página para mantener la tabla manejable aunque supere las 100 filas. */
+const DOCENTES_POR_PAGINA = 15;
 
 const comparadorNombre = new Intl.Collator('es', { sensitivity: 'base' });
 
@@ -65,9 +67,10 @@ export function ListaDocentes({
   const [termino, setTermino] = useState('');
   const [estado, setEstado] = useState<FiltroEstadoDocente>('todos');
   const [orden, setOrden] = useState<OrdenDocentes>('nombre');
-  const [todas, setTodas] = useState(false);
+  const [pagina, setPagina] = useState(1);
   const filtradas = ordenar(filtrarDocentes(docentes, termino, estado), orden);
-  const visibles = todas ? filtradas : filtradas.slice(0, FILAS_INICIALES);
+  const resultado = paginar(filtradas, pagina, DOCENTES_POR_PAGINA);
+  const visibles = resultado.visibles;
 
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
@@ -82,7 +85,10 @@ export function ListaDocentes({
                 key={filtro.valor}
                 type="button"
                 aria-pressed={estado === filtro.valor}
-                onClick={() => setEstado(filtro.valor)}
+                onClick={() => {
+                  setEstado(filtro.valor);
+                  setPagina(1);
+                }}
                 className={cn(
                   'h-9 rounded-full border px-3.5 text-sm outline-hidden transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   estado === filtro.valor
@@ -98,7 +104,10 @@ export function ListaDocentes({
             <span className="whitespace-nowrap">Ordenar por</span>
             <select
               value={orden}
-              onChange={evento => setOrden(evento.target.value as OrdenDocentes)}
+              onChange={evento => {
+                setOrden(evento.target.value as OrdenDocentes);
+                setPagina(1);
+              }}
               className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground shadow-xs outline-hidden focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               {ORDENES.map(o => (
@@ -123,7 +132,10 @@ export function ListaDocentes({
               placeholder="Buscar por nombre, correo o código"
               className="pl-9"
               value={termino}
-              onChange={evento => setTermino(evento.target.value)}
+              onChange={evento => {
+                setTermino(evento.target.value);
+                setPagina(1);
+              }}
             />
           </div>
         </div>
@@ -246,20 +258,16 @@ export function ListaDocentes({
           </tbody>
         </table>
       </div>
-      <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-        <p aria-live="polite" className="tabular-nums">
-          {filtradas.length === docentes.length
-            ? `${docentes.length} ${docentes.length === 1 ? 'cuenta' : 'cuentas'}`
-            : `${filtradas.length} de ${docentes.length} cuentas`}
-        </p>
-        {filtradas.length > FILAS_INICIALES && (
-          <button
-            type="button"
-            onClick={() => setTodas(actual => !actual)}
-            className="rounded-md px-2 py-1 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-          >
-            {todas ? 'Mostrar menos' : `Mostrar las ${filtradas.length} cuentas`}
-          </button>
+      <div className="flex flex-col gap-2">
+        <PaginacionLocal
+          pagina={resultado}
+          onCambiar={setPagina}
+          sustantivo={['cuenta', 'cuentas']}
+        />
+        {filtradas.length < docentes.length && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            Filtradas de {docentes.length} cuentas registradas.
+          </p>
         )}
       </div>
     </section>

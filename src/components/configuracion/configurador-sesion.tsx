@@ -28,6 +28,7 @@ import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { BotonSeccion } from '@/components/comun/boton-seccion';
+import { PaginacionLocal } from '@/components/comun/paginacion';
 import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
@@ -45,8 +46,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { textoDias } from '@/lib/asignaciones/codigo';
 import { AJUSTES_VACIOS, type AjustesPractica, promptConAjustes } from '@/lib/casos/ajustes';
-import { coincideBusqueda } from '@/lib/listas';
+import { coincideBusqueda, paginar } from '@/lib/listas';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
+import { iniciales } from '@/lib/nombres';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import {
   DURACION_CONSULTA_POR_DEFECTO,
@@ -64,6 +66,8 @@ import {
 } from '@/schemas/configuracion.schema';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
+
+const CASOS_PASO_POR_PAGINA = 12;
 
 interface ConfiguradorSesionProps {
   /** Catálogo oficial y casos propios del docente. */
@@ -108,6 +112,7 @@ export function ConfiguradorSesion({
   const totalPropios = escenarios.filter(e => e.propio).length;
   const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada);
+  const pendientesDeIngreso = estudiantes.length - conCuenta.length;
   const [seccionCasos, setSeccionCasos] = useState<'propios' | 'predefinidos'>(() =>
     casoInicial
       ? casoInicial.propio
@@ -117,6 +122,15 @@ export function ConfiguradorSesion({
         ? 'propios'
         : 'predefinidos'
   );
+  const [paginaCasos, setPaginaCasos] = useState(() => {
+    if (!casoInicial) return 1;
+    const lista = casoInicial.propio ? propios : oficiales;
+    const indice = lista.findIndex(e => e.id === casoInicial.id);
+    return indice >= 0 ? Math.floor(indice / CASOS_PASO_POR_PAGINA) + 1 : 1;
+  });
+
+  const paginaOficiales = paginar(oficiales, paginaCasos, CASOS_PASO_POR_PAGINA);
+  const paginaPropios = paginar(propios, paginaCasos, CASOS_PASO_POR_PAGINA);
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
@@ -305,14 +319,20 @@ export function ConfiguradorSesion({
             >
               <BotonSeccion
                 activa={seccionCasos === 'propios'}
-                onClick={() => setSeccionCasos('propios')}
+                onClick={() => {
+                  setSeccionCasos('propios');
+                  setPaginaCasos(1);
+                }}
                 cantidad={busquedaCaso.trim() ? propios.length : totalPropios}
               >
                 Mis casos
               </BotonSeccion>
               <BotonSeccion
                 activa={seccionCasos === 'predefinidos'}
-                onClick={() => setSeccionCasos('predefinidos')}
+                onClick={() => {
+                  setSeccionCasos('predefinidos');
+                  setPaginaCasos(1);
+                }}
                 cantidad={busquedaCaso.trim() ? oficiales.length : totalOficiales}
               >
                 Casos predefinidos
@@ -342,7 +362,10 @@ export function ConfiguradorSesion({
                     placeholder="Buscar por título, paciente o competencia"
                     className="pl-9"
                     value={busquedaCaso}
-                    onChange={evento => setBusquedaCaso(evento.target.value)}
+                    onChange={evento => {
+                      setBusquedaCaso(evento.target.value);
+                      setPaginaCasos(1);
+                    }}
                   />
                 </div>
               )}
@@ -370,19 +393,27 @@ export function ConfiguradorSesion({
                   <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {oficiales.map(e => (
-                    <TarjetaEscenario
-                      key={e.id}
-                      escenario={e}
-                      nombreGrupo={idGrupo}
-                      seleccionado={e.id === escenarioId}
-                      onSeleccionar={onSeleccionar}
-                      onDeseleccionar={onDeseleccionar}
-                      describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {paginaOficiales.visibles.map(e => (
+                      <TarjetaEscenario
+                        key={e.id}
+                        escenario={e}
+                        nombreGrupo={idGrupo}
+                        seleccionado={e.id === escenarioId}
+                        onSeleccionar={onSeleccionar}
+                        onDeseleccionar={onDeseleccionar}
+                        describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                      />
+                    ))}
+                  </div>
+                  <PaginacionLocal
+                    pagina={paginaOficiales}
+                    onCambiar={setPaginaCasos}
+                    sustantivo={['caso', 'casos']}
+                    soloSiHayVarias
+                  />
+                </>
               )
             ) : totalPropios === 0 ? (
               <EstadoVacioMisCasos />
@@ -392,27 +423,35 @@ export function ConfiguradorSesion({
                 <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
               </p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {propios.map(e => (
-                  <TarjetaEscenario
-                    key={e.id}
-                    escenario={e}
-                    nombreGrupo={idGrupo}
-                    seleccionado={e.id === escenarioId}
-                    onSeleccionar={onSeleccionar}
-                    onDeseleccionar={onDeseleccionar}
-                    describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                    acciones={
-                      <AccionesCasoPropio
-                        casoId={e.id}
-                        titulo={e.titulo}
-                        onEliminado={onCasoEliminado}
-                      />
-                    }
-                  />
-                ))}
-                <TarjetaNuevoCaso />
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {paginaPropios.visibles.map(e => (
+                    <TarjetaEscenario
+                      key={e.id}
+                      escenario={e}
+                      nombreGrupo={idGrupo}
+                      seleccionado={e.id === escenarioId}
+                      onSeleccionar={onSeleccionar}
+                      onDeseleccionar={onDeseleccionar}
+                      describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                      acciones={
+                        <AccionesCasoPropio
+                          casoId={e.id}
+                          titulo={e.titulo}
+                          onEliminado={onCasoEliminado}
+                        />
+                      }
+                    />
+                  ))}
+                  <TarjetaNuevoCaso />
+                </div>
+                <PaginacionLocal
+                  pagina={paginaPropios}
+                  onCambiar={setPaginaCasos}
+                  sustantivo={['caso', 'casos']}
+                  soloSiHayVarias
+                />
+              </>
             )}
           </div>
         </Paso>
@@ -434,7 +473,7 @@ export function ConfiguradorSesion({
             </div>
           )}
           {escenario && (
-            <div className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-500 motion-safe:fade-in-0 motion-safe:slide-in-from-top-2">
+            <div className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-2">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-stretch">
                 {/* Izquierda: el perfil del paciente y, debajo, las reglas que siempre se aplican. */}
                 <div className="flex flex-col gap-4">
@@ -487,7 +526,7 @@ export function ConfiguradorSesion({
                       </div>
                     </div>
                   </article>
-                  <ReglasFijas />
+                  <ReglasFijas className="lg:flex-1" expandido={ajustando || promptPersonalizado} />
                 </div>
 
                 {!ajustando && !promptPersonalizado ? (
@@ -572,18 +611,18 @@ export function ConfiguradorSesion({
             )}
 
             {estudiante ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-salvia-suave/50 p-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-salvia/40 bg-salvia-suave/45 px-4 py-3 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
                 <span
                   aria-hidden
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-oscuro text-sm font-semibold text-lino"
                 >
                   {iniciales(estudiante.nombre)}
                 </span>
                 <div className="min-w-0 flex-1 leading-tight">
-                  <p className="truncate font-medium" data-testid="estudiante-elegido">
+                  <p className="truncate font-semibold" data-testid="estudiante-elegido">
                     {estudiante.nombre}
                   </p>
-                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                     <span className="font-mono">{estudiante.codigo}</span>
                     <span className="flex items-center gap-1">
                       <Mail className="size-3" aria-hidden />
@@ -609,24 +648,34 @@ export function ConfiguradorSesion({
                 </Button>
               </div>
             ) : conCuenta.length > 0 ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <BuscadorEstudiante
-                    estudiantes={conCuenta}
-                    onSeleccionar={elegirEstudiante}
-                    deshabilitado={generando}
-                    mensajeVacio="Ningún estudiante con cuenta coincide. Regístralo con su correo institucional."
+              <div className="flex flex-col gap-2 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <BuscadorEstudiante
+                      estudiantes={conCuenta}
+                      onSeleccionar={elegirEstudiante}
+                      deshabilitado={generando}
+                      mensajeVacio="Ningún estudiante con cuenta coincide. Regístralo con su correo institucional."
+                    />
+                  </div>
+                  <DialogoEstudiante
+                    onGuardado={onEstudianteRegistrado}
+                    disparador={
+                      <Button type="button" variant="outline" size="lg" disabled={generando}>
+                        <UserPlus aria-hidden />
+                        Registrar estudiante
+                      </Button>
+                    }
                   />
                 </div>
-                <DialogoEstudiante
-                  onGuardado={onEstudianteRegistrado}
-                  disparador={
-                    <Button type="button" variant="outline" size="lg" disabled={generando}>
-                      <UserPlus aria-hidden />
-                      Registrar estudiante
-                    </Button>
-                  }
-                />
+                {pendientesDeIngreso > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {pendientesDeIngreso}{' '}
+                    {pendientesDeIngreso === 1
+                      ? 'estudiante registrado aún no entra con Google y no aparece en la lista.'
+                      : 'estudiantes registrados aún no entran con Google y no aparecen en la lista.'}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-input/50 bg-muted/40 p-4 text-sm sm:flex-row sm:items-center">
@@ -634,6 +683,13 @@ export function ConfiguradorSesion({
                 <p className="flex-1 text-muted-foreground">
                   Aún no tienes estudiantes. Regístralos con su correo institucional para asignarles
                   prácticas.
+                  {estudiantes.length > 0 && (
+                    <span className="mt-1 block text-xs">
+                      Tienes {estudiantes.length}{' '}
+                      {estudiantes.length === 1 ? 'registrado' : 'registrados'} esperando su primer
+                      ingreso con Google.
+                    </span>
+                  )}
                 </p>
                 <DialogoEstudiante
                   onGuardado={onEstudianteRegistrado}
@@ -674,7 +730,11 @@ export function ConfiguradorSesion({
         </Paso>
 
         {errorServidor && (
-          <Alert variant="destructive" role="alert" className="mt-6">
+          <Alert
+            variant="destructive"
+            role="alert"
+            className="mt-6 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1"
+          >
             <AlertCircle aria-hidden />
             <AlertDescription>{errorServidor}</AlertDescription>
           </Alert>
@@ -834,16 +894,6 @@ function Paso({
       </div>
     </section>
   );
-}
-
-/** Iniciales para el avatar del estudiante ("Ana María Pérez" → "AM"). */
-function iniciales(nombre: string) {
-  return nombre
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(parte => parte[0] ?? '')
-    .join('')
-    .toUpperCase();
 }
 
 /**

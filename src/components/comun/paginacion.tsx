@@ -5,13 +5,36 @@ import Link from 'next/link';
 import { type Pagina } from '@/lib/listas';
 import { cn } from '@/lib/utils';
 
-interface PaginacionProps {
+interface ResumenPaginacionProps {
   pagina: Pick<Pagina<unknown>, 'pagina' | 'totalPaginas' | 'total' | 'desde' | 'hasta'>;
-  /** URL de una página (conserva los filtros). */
-  enlace: (pagina: number) => string;
   /** Cómo se llaman los elementos: ['práctica', 'prácticas']. */
   sustantivo: readonly [string, string];
   className?: string;
+}
+
+interface PaginacionProps extends ResumenPaginacionProps {
+  /** URL de una página (conserva los filtros). */
+  enlace: (pagina: number) => string;
+}
+
+interface PaginacionLocalProps extends ResumenPaginacionProps {
+  /** Cambia de página en componentes de cliente con filtros locales. */
+  onCambiar: (pagina: number) => void;
+  /** Oculta el bloque cuando todo cabe en una sola página. */
+  soloSiHayVarias?: boolean;
+}
+
+const CLASE_BOTON_PAGINA =
+  'flex h-9 min-w-9 items-center justify-center rounded-lg px-2 font-medium tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden';
+
+function textoResumen(
+  pagina: Pick<Pagina<unknown>, 'totalPaginas' | 'total' | 'desde' | 'hasta'>,
+  sustantivo: readonly [string, string]
+) {
+  const nombre = pagina.total === 1 ? sustantivo[0] : sustantivo[1];
+  if (pagina.total === 0) return 'Sin resultados';
+  if (pagina.totalPaginas === 1) return `${pagina.total} ${nombre}`;
+  return `${pagina.desde}–${pagina.hasta} de ${pagina.total} ${nombre}`;
 }
 
 /** Números de página a mostrar: los extremos y los vecinos de la actual, con saltos «…». */
@@ -32,8 +55,7 @@ function numerosVisibles(actual: number, total: number): (number | 'salto')[] {
  * cercanas. Son enlaces normales: funcionan sin JavaScript y el navegador recuerda la posición.
  */
 export function Paginacion({ pagina, enlace, sustantivo, className }: PaginacionProps) {
-  const { pagina: actual, totalPaginas, total, desde, hasta } = pagina;
-  const nombre = total === 1 ? sustantivo[0] : sustantivo[1];
+  const { pagina: actual, totalPaginas } = pagina;
 
   return (
     <div
@@ -43,14 +65,10 @@ export function Paginacion({ pagina, enlace, sustantivo, className }: Paginacion
       )}
     >
       <p aria-live="polite" className="tabular-nums">
-        {total === 0
-          ? 'Sin resultados'
-          : totalPaginas === 1
-            ? `${total} ${nombre}`
-            : `${desde}–${hasta} de ${total} ${nombre}`}
+        {textoResumen(pagina, sustantivo)}
       </p>
       {totalPaginas > 1 && (
-        <nav aria-label="Páginas" className="flex items-center gap-1">
+        <nav aria-label="Páginas" className="flex flex-wrap items-center justify-center gap-1">
           <EnlacePagina href={actual > 1 ? enlace(actual - 1) : null} etiqueta="Página anterior">
             <ChevronLeft className="size-4" aria-hidden />
           </EnlacePagina>
@@ -77,6 +95,69 @@ export function Paginacion({ pagina, enlace, sustantivo, className }: Paginacion
   );
 }
 
+/**
+ * Variante de cliente con botones para secciones independientes o con filtros inmediatos (docentes,
+ * códigos, biblioteca y grupos) sin recargar la página completa.
+ */
+export function PaginacionLocal({
+  pagina,
+  onCambiar,
+  sustantivo,
+  className,
+  soloSiHayVarias = false,
+}: PaginacionLocalProps) {
+  const { pagina: actual, totalPaginas } = pagina;
+  if (soloSiHayVarias && totalPaginas <= 1) return null;
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-center gap-3 text-sm text-muted-foreground sm:flex-row sm:justify-between',
+        className
+      )}
+    >
+      <p aria-live="polite" className="tabular-nums">
+        {textoResumen(pagina, sustantivo)}
+      </p>
+      {totalPaginas > 1 && (
+        <nav aria-label="Páginas" className="flex flex-wrap items-center justify-center gap-1">
+          <BotonPagina
+            activo={actual > 1}
+            etiqueta="Página anterior"
+            onClick={() => onCambiar(actual - 1)}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+          </BotonPagina>
+          {numerosVisibles(actual, totalPaginas).map((n, i) =>
+            n === 'salto' ? (
+              <span key={`salto-${i}`} aria-hidden className="px-1">
+                …
+              </span>
+            ) : (
+              <BotonPagina
+                key={n}
+                activo
+                actual={n === actual}
+                etiqueta={`Página ${n}`}
+                onClick={() => onCambiar(n)}
+              >
+                {n}
+              </BotonPagina>
+            )
+          )}
+          <BotonPagina
+            activo={actual < totalPaginas}
+            etiqueta="Página siguiente"
+            onClick={() => onCambiar(actual + 1)}
+          >
+            <ChevronRight className="size-4" aria-hidden />
+          </BotonPagina>
+        </nav>
+      )}
+    </div>
+  );
+}
+
 function EnlacePagina({
   href,
   etiqueta,
@@ -88,11 +169,9 @@ function EnlacePagina({
   actual?: boolean;
   children: React.ReactNode;
 }) {
-  const clases =
-    'flex h-9 min-w-9 items-center justify-center rounded-lg px-2 font-medium tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden';
   if (!href) {
     return (
-      <span aria-disabled className={cn(clases, 'text-muted-foreground/40')}>
+      <span aria-disabled className={cn(CLASE_BOTON_PAGINA, 'text-muted-foreground/40')}>
         {children}
         <span className="sr-only">{etiqueta} (no hay)</span>
       </span>
@@ -104,9 +183,46 @@ function EnlacePagina({
       scroll={false}
       aria-label={etiqueta}
       aria-current={actual ? 'page' : undefined}
-      className={cn(clases, actual ? 'bg-nogal text-lino' : 'text-foreground hover:bg-muted')}
+      className={cn(
+        CLASE_BOTON_PAGINA,
+        actual ? 'bg-nogal text-lino' : 'text-foreground hover:bg-muted'
+      )}
     >
       {children}
     </Link>
+  );
+}
+
+function BotonPagina({
+  activo,
+  actual = false,
+  etiqueta,
+  onClick,
+  children,
+}: {
+  activo: boolean;
+  actual?: boolean;
+  etiqueta: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={activo === false}
+      aria-label={etiqueta}
+      aria-current={actual ? 'page' : undefined}
+      onClick={onClick}
+      className={cn(
+        CLASE_BOTON_PAGINA,
+        activo === false
+          ? 'text-muted-foreground/40'
+          : actual
+            ? 'bg-nogal text-lino'
+            : 'text-foreground hover:bg-muted'
+      )}
+    >
+      {children}
+    </button>
   );
 }

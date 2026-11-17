@@ -1,12 +1,26 @@
-import { ArrowRight, ChevronDown, Clock3, Download, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardList,
+  Clock3,
+  Download,
+  MessageSquareQuote,
+  SearchX,
+  Users,
+  Zap,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import { type Route } from 'next';
 import Link from 'next/link';
 
-import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import { Paginacion } from '@/components/comun/paginacion';
 import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
@@ -53,21 +67,12 @@ export const metadata: Metadata = {
   title: 'Revisiones',
 };
 
-const VACIOS: Record<Vista, React.ReactNode> = {
-  pendientes: 'No tienes prácticas por revisar. Cuando un estudiante termine una, aparecerá aquí.',
-  publicadas: 'Aún no has publicado ninguna retroalimentación.',
-  'en-curso': 'Nadie está practicando en este momento.',
-  todas: (
-    <>
-      Todavía no hay prácticas. Asigna una desde <ControlCitado>Asignar práctica</ControlCitado>.
-    </>
-  ),
-};
-
 /** Prácticas por página en la lista (la misma medida que la ficha del estudiante). */
 const PRACTICAS_POR_PAGINA = 10;
 /** Grupos por página en las vistas agrupadas (cada grupo ya resume varias prácticas). */
 const GRUPOS_POR_PAGINA = 10;
+/** Estudiantes por página en la matriz para que quepa en pantalla sin perder el encabezado. */
+const MATRIZ_ESTUDIANTES_POR_PAGINA = 20;
 /** Prácticas visibles dentro de cada grupo; el resto se ve en la lista filtrada. */
 const PRACTICAS_POR_GRUPO = 5;
 const FILTROS_LISTA = ['q', 'caso', 'periodo'] as const;
@@ -115,7 +120,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
   const exportar = conParametros('/sesiones/exportar', actuales, {}, defectos);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <RefrescoAutomatico activo={enCursoTotal > 0} segundos={30} />
       <EncabezadoPagina
         titulo="Revisiones"
@@ -130,103 +135,113 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             </Button>
           ) : undefined
         }
+        subbarra={
+          <PistaSegmentada
+            elemento="nav"
+            aria-label="Filtrar por estado"
+            className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5"
+            claseIndicador="rounded-lg border border-sidebar-border bg-sidebar-accent"
+          >
+            {VISTAS.map(v => {
+              const activa = v.id === vista;
+              return (
+                <Link
+                  key={v.id}
+                  href={url({ vista: v.id, orden: null }) as Route}
+                  scroll={false}
+                  aria-current={activa ? 'page' : undefined}
+                  className={cn(
+                    'flex h-10 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors duration-300 ease-salida focus-visible:ring-2 focus-visible:ring-laton-texto focus-visible:outline-hidden',
+                    activa
+                      ? 'border border-sidebar-border bg-sidebar-accent text-lino'
+                      : 'text-sidebar-muted hover:bg-sidebar-accent/45 hover:text-sidebar-foreground'
+                  )}
+                >
+                  {v.etiqueta}
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 text-xs tabular-nums',
+                      activa ? 'bg-lino/15 text-lino' : 'bg-sidebar-accent/60 text-sidebar-muted'
+                    )}
+                  >
+                    {conteos[v.id]}
+                  </span>
+                </Link>
+              );
+            })}
+          </PistaSegmentada>
+        }
       />
 
-      <PistaSegmentada
-        elemento="nav"
-        aria-label="Filtrar por estado"
-        className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
-        claseIndicador="rounded-lg bg-nogal"
-      >
-        {VISTAS.map(v => {
-          const activa = v.id === vista;
-          return (
-            <Link
-              key={v.id}
-              href={url({ vista: v.id, orden: null }) as Route}
-              scroll={false}
-              aria-current={activa ? 'page' : undefined}
-              className={cn(
-                'flex h-10 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors duration-300 ease-salida focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-                activa
-                  ? 'bg-nogal text-lino'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              {v.etiqueta}
-              <span
-                className={cn(
-                  'rounded-full px-1.5 text-xs tabular-nums',
-                  activa ? 'bg-lino/15' : 'bg-muted'
-                )}
-              >
-                {conteos[v.id]}
-              </span>
-            </Link>
-          );
-        })}
-      </PistaSegmentada>
-
-      {sesiones.length > 0 && (
-        <div className="grid gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end">
-          <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
-            <span className="text-xs font-medium text-muted-foreground">Buscar</span>
-            <BusquedaLista
-              etiqueta="Buscar por estudiante o caso"
-              placeholder="Nombre, código o caso"
+      <ContenedorHero className="gap-6">
+        {sesiones.length > 0 && (
+          <div
+            className={cn(
+              'grid gap-3 rounded-2xl border bg-card p-3.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end',
+              SOMBRA_SOBRE_NOGAL
+            )}
+          >
+            <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
+              <span className="text-xs font-medium text-muted-foreground">Buscar</span>
+              <BusquedaLista
+                etiqueta="Buscar por estudiante o caso"
+                placeholder="Nombre, código o caso"
+              />
+            </div>
+            <SelectorLista
+              etiqueta="Caso"
+              parametro="caso"
+              defecto=""
+              opciones={[
+                { valor: '', etiqueta: 'Todos los casos' },
+                ...casos.map(c => ({ valor: c.codigo, etiqueta: `${c.codigo} · ${c.titulo}` })),
+              ]}
             />
+            <SelectorLista
+              etiqueta="Fecha"
+              parametro="periodo"
+              defecto="todo"
+              opciones={PERIODOS.map(p => ({ valor: p.id, etiqueta: p.etiqueta }))}
+            />
+            <SelectorLista
+              etiqueta="Ordenar por"
+              parametro="orden"
+              defecto={defectoOrden}
+              opciones={ORDENES}
+            />
+            <SelectorLista
+              etiqueta="Ver"
+              parametro="agrupar"
+              defecto="lista"
+              opciones={AGRUPACIONES}
+            />
+            <QuitarFiltros claves={FILTROS_LISTA} />
           </div>
-          <SelectorLista
-            etiqueta="Caso"
-            parametro="caso"
-            defecto=""
-            opciones={[
-              { valor: '', etiqueta: 'Todos los casos' },
-              ...casos.map(c => ({ valor: c.codigo, etiqueta: `${c.codigo} · ${c.titulo}` })),
-            ]}
-          />
-          <SelectorLista
-            etiqueta="Fecha"
-            parametro="periodo"
-            defecto="todo"
-            opciones={PERIODOS.map(p => ({ valor: p.id, etiqueta: p.etiqueta }))}
-          />
-          <SelectorLista
-            etiqueta="Ordenar por"
-            parametro="orden"
-            defecto={defectoOrden}
-            opciones={ORDENES}
-          />
-          <SelectorLista
-            etiqueta="Ver"
-            parametro="agrupar"
-            defecto="lista"
-            opciones={AGRUPACIONES}
-          />
-          <QuitarFiltros claves={FILTROS_LISTA} />
-        </div>
-      )}
+        )}
 
-      {filtradas.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-input/50 px-5 py-8 text-center text-muted-foreground">
-          {hayFiltros && sesiones.length > 0
-            ? 'Ninguna práctica coincide con los filtros. Prueba con otra búsqueda o quita los filtros.'
-            : VACIOS[vista]}
-        </p>
-      ) : agrupar === 'lista' ? (
-        <VistaLista sesiones={filtradas} pagina={pagina} url={url} />
-      ) : agrupar === 'matriz' ? (
-        <VistaMatriz sesiones={filtradas} />
-      ) : (
-        <VistaGrupos
-          grupos={
-            agrupar === 'estudiante' ? agruparPorEstudiante(filtradas) : agruparPorCaso(filtradas)
-          }
-          porEstudiante={agrupar === 'estudiante'}
-          pagina={pagina}
-          url={url}
-        />
-      )}
+        {filtradas.length === 0 ? (
+          <EstadoVacioRevisiones
+            vista={vista}
+            hayFiltros={hayFiltros}
+            totalSesiones={sesiones.length}
+            conteos={conteos}
+            url={url}
+          />
+        ) : agrupar === 'lista' ? (
+          <VistaLista sesiones={filtradas} pagina={pagina} url={url} />
+        ) : agrupar === 'matriz' ? (
+          <VistaMatriz sesiones={filtradas} pagina={pagina} url={url} />
+        ) : (
+          <VistaGrupos
+            grupos={
+              agrupar === 'estudiante' ? agruparPorEstudiante(filtradas) : agruparPorCaso(filtradas)
+            }
+            porEstudiante={agrupar === 'estudiante'}
+            pagina={pagina}
+            url={url}
+          />
+        )}
+      </ContenedorHero>
     </div>
   );
 }
@@ -568,17 +583,33 @@ function CeldaMatriz({ sesiones }: { sesiones: SesionDocente[] | undefined }) {
   );
 }
 
-function VistaMatriz({ sesiones }: { sesiones: SesionDocente[] }) {
+function VistaMatriz({
+  sesiones,
+  pagina,
+  url,
+}: {
+  sesiones: SesionDocente[];
+  pagina: number;
+  url: Url;
+}) {
   const { estudiantes, casos, celdas } = matrizRevisiones(sesiones);
+  const resultado = paginar(estudiantes, pagina, MATRIZ_ESTUDIANTES_POR_PAGINA);
   return (
     <section aria-labelledby="matriz-titulo" className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 id="matriz-titulo" className="text-lg font-bold tracking-[-0.01em]">
-          Estudiantes × casos
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Cada celda muestra la práctica más reciente: la nota publicada, si está por revisar o en
-          curso. Una raya indica un caso que aún no ha practicado.
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <h2 id="matriz-titulo" className="text-lg font-bold tracking-[-0.01em]">
+            Estudiantes × casos
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Cada celda muestra la práctica más reciente: la nota publicada, si está por revisar o en
+            curso. Una raya indica un caso que aún no ha practicado.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {estudiantes.length === 1 ? '1 estudiante' : `${estudiantes.length} estudiantes`} ·{' '}
+          {casos.length === 1 ? '1 caso' : `${casos.length} casos`} ·{' '}
+          {sesiones.length === 1 ? '1 práctica' : `${sesiones.length} prácticas`}
         </p>
       </div>
       <div
@@ -587,14 +618,14 @@ function VistaMatriz({ sesiones }: { sesiones: SesionDocente[] }) {
         aria-labelledby="matriz-titulo"
         // `relative`: el texto para lectores de pantalla (sr-only, absoluto) queda dentro del
         // contenedor con scroll y no ensancha la página en el celular.
-        className="relative overflow-x-auto rounded-xl border bg-card outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative max-h-[70vh] overflow-auto rounded-xl border bg-card outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         <table className="w-full min-w-[36rem] text-sm">
-          <thead className="border-b bg-muted text-xs font-semibold text-muted-foreground">
+          <thead className="sticky top-0 z-10 border-b bg-muted text-xs font-semibold text-muted-foreground">
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-muted px-4 py-3 text-left font-semibold"
+                className="sticky top-0 left-0 z-20 bg-muted px-4 py-3 text-left font-semibold shadow-[1px_0_0_var(--border)]"
               >
                 Estudiante
               </th>
@@ -621,11 +652,11 @@ function VistaMatriz({ sesiones }: { sesiones: SesionDocente[] }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {estudiantes.map(e => (
+            {resultado.visibles.map(e => (
               <tr key={e.id} className="hover:bg-muted/40">
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium"
+                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium shadow-[1px_0_0_var(--border)]"
                 >
                   <span className="block max-w-[14rem] truncate">{e.nombre}</span>
                   <span className="font-mono text-xs font-normal text-muted-foreground">
@@ -642,11 +673,154 @@ function VistaMatriz({ sesiones }: { sesiones: SesionDocente[] }) {
           </tbody>
         </table>
       </div>
-      <p className="text-sm text-muted-foreground tabular-nums">
-        {estudiantes.length === 1 ? '1 estudiante' : `${estudiantes.length} estudiantes`} ·{' '}
-        {casos.length === 1 ? '1 caso' : `${casos.length} casos`} ·{' '}
-        {sesiones.length === 1 ? '1 práctica' : `${sesiones.length} prácticas`}
-      </p>
+      <Paginacion
+        pagina={resultado}
+        enlace={n => url({ pagina: n })}
+        sustantivo={['estudiante', 'estudiantes']}
+      />
+    </section>
+  );
+}
+
+/** Estado vacío contextual de Revisiones: explica qué ocurre y ofrece la salida más útil según la pestaña. */
+function EstadoVacioRevisiones({
+  vista,
+  hayFiltros,
+  totalSesiones,
+  conteos,
+  url,
+}: {
+  vista: Vista;
+  hayFiltros: boolean;
+  totalSesiones: number;
+  conteos: Record<Vista, number>;
+  url: Url;
+}) {
+  const filtroSinResultados = hayFiltros && totalSesiones > 0;
+  const sinPracticas = totalSesiones === 0;
+
+  let Icono = ClipboardList;
+  let claseIcono = 'bg-salvia-suave text-salvia-oscuro';
+  let titulo = 'Aún no tienes prácticas por revisar';
+  let descripcion =
+    'Asigna un caso clínico a tus estudiantes y envíales su código. Cuando conversen con el paciente, su entrevista aparecerá aquí para que dejes retroalimentación.';
+
+  if (filtroSinResultados) {
+    Icono = SearchX;
+    claseIcono = 'bg-muted text-muted-foreground';
+    titulo = 'Ninguna práctica coincide con estos filtros';
+    descripcion =
+      'Prueba con otro término de búsqueda, cambia de periodo o quita los filtros activos para volver a ver tu historial.';
+  } else if (vista === 'pendientes' && sinPracticas === false) {
+    Icono = CheckCircle2;
+    claseIcono = 'bg-salvia-suave text-salvia-oscuro';
+    titulo = 'Estás al día: no tienes prácticas por revisar';
+    descripcion =
+      'Cuando un estudiante termine una entrevista (o alcance al menos 3 intervenciones), aparecerá aquí lista para que comentes sus frases.';
+  } else if (vista === 'publicadas') {
+    Icono = MessageSquareQuote;
+    claseIcono = 'bg-muted text-salvia-oscuro';
+    titulo = 'Aún no has publicado retroalimentaciones';
+    descripcion =
+      'Abre una práctica terminada, anota tus comentarios en las frases del estudiante y publícala para que aparezca aquí y la lea tu grupo.';
+  } else if (vista === 'en-curso') {
+    Icono = Clock3;
+    claseIcono = 'bg-muted text-muted-foreground';
+    titulo = 'Nadie está practicando en este momento';
+    descripcion =
+      'Cuando un estudiante abra el consultorio 3D con uno de tus códigos, verás su progreso aquí automáticamente cada 30 segundos.';
+  } else if (vista === 'todas') {
+    Icono = ClipboardList;
+    claseIcono = 'bg-salvia-suave text-salvia-oscuro';
+    titulo = 'Todavía no hay prácticas registradas';
+    descripcion =
+      'Elige un caso clínico y genera un código de acceso para tu primer estudiante desde Asignar práctica.';
+  }
+
+  return (
+    <section
+      aria-label={titulo}
+      className={cn(
+        'rounded-2xl border px-6 py-12 text-center',
+        sinPracticas ? `bg-card ${SOMBRA_SOBRE_NOGAL}` : 'border-dashed border-border bg-card/70'
+      )}
+    >
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+        <span
+          aria-hidden
+          className={cn('flex size-12 items-center justify-center rounded-2xl', claseIcono)}
+        >
+          <Icono className="size-6" />
+        </span>
+
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-lg font-bold tracking-[-0.015em] text-foreground">{titulo}</h2>
+          <p className="text-sm leading-relaxed text-pretty text-muted-foreground">{descripcion}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+          {filtroSinResultados ? (
+            <Button asChild variant="outline">
+              <Link href={url({ q: null, caso: null, periodo: null }) as Route}>
+                Quitar filtros
+              </Link>
+            </Button>
+          ) : vista === 'pendientes' && sinPracticas === false ? (
+            <>
+              {conteos['en-curso'] > 0 && (
+                <Button asChild variant="outline">
+                  <Link href={url({ vista: 'en-curso', orden: null }) as Route}>
+                    <Clock3 aria-hidden />
+                    Ver {conteos['en-curso']} en curso
+                  </Link>
+                </Button>
+              )}
+              {conteos.publicadas > 0 && (
+                <Button asChild variant="outline">
+                  <Link href={url({ vista: 'publicadas', orden: null }) as Route}>
+                    <MessageSquareQuote aria-hidden />
+                    Ver {conteos.publicadas} {conteos.publicadas === 1 ? 'publicada' : 'publicadas'}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                asChild
+                variant={
+                  conteos.publicadas === 0 && conteos['en-curso'] === 0 ? 'accion' : 'default'
+                }
+              >
+                <Link href="/configuracion">
+                  <ClipboardList aria-hidden />
+                  Asignar práctica
+                </Link>
+              </Button>
+            </>
+          ) : vista === 'publicadas' && conteos.pendientes > 0 ? (
+            <Button asChild variant="default">
+              <Link href={url({ vista: 'pendientes', orden: null }) as Route}>
+                Revisar {conteos.pendientes} {conteos.pendientes === 1 ? 'pendiente' : 'pendientes'}
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant={sinPracticas ? 'accion' : 'outline'}>
+                <Link href="/configuracion">
+                  <ClipboardList aria-hidden />
+                  Asignar práctica
+                </Link>
+              </Button>
+              {sinPracticas && (
+                <Button asChild variant="outline">
+                  <Link href="/estudiantes">
+                    <Users aria-hidden />
+                    Ver estudiantes
+                  </Link>
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

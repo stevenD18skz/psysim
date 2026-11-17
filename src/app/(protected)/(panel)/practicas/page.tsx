@@ -288,7 +288,7 @@ export default async function PracticasPage() {
                     Competencias practicadas ({competenciasPracticadas.length})
                   </p>
                   <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {competenciasPracticadas.map(comp => (
+                    {competenciasPracticadas.slice(0, 8).map(comp => (
                       <li
                         key={comp}
                         className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs text-foreground"
@@ -297,6 +297,23 @@ export default async function PracticasPage() {
                       </li>
                     ))}
                   </ul>
+                  {competenciasPracticadas.length > 8 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs font-semibold text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden">
+                        Ver las {competenciasPracticadas.length - 8} competencias restantes
+                      </summary>
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {competenciasPracticadas.slice(8).map(comp => (
+                          <li
+                            key={comp}
+                            className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs text-foreground"
+                          >
+                            {comp}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </div>
               )}
             </section>

@@ -9,6 +9,7 @@ import {
   Loader2,
   Mail,
   Monitor,
+  Search,
   Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -31,6 +32,7 @@ import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador'
 import { canjearCodigo } from '@/lib/asignaciones/actions';
 import { normalizarCodigoAcceso, rutaUnirse } from '@/lib/asignaciones/codigo';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
+import { coincideBusqueda } from '@/lib/listas';
 import { cn } from '@/lib/utils';
 
 const sinSuscripcion = () => () => {};
@@ -74,11 +76,26 @@ export function FormularioCodigo({
   codigosAsignados = [],
 }: FormularioCodigoProps) {
   const id = useId();
+  const idBusquedaCodigos = useId();
   const esComputador = useEsComputador();
   const [confirmandoForzar, setConfirmandoForzar] = useState(false);
   const [codigo, setCodigo] = useState(codigoInicial);
+  const [filtroCodigo, setFiltroCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [entrando, startTransition] = useTransition();
+
+  const codigosVisibles = filtroCodigo.trim()
+    ? codigosAsignados.filter(item =>
+        coincideBusqueda(
+          filtroCodigo,
+          item.codigo,
+          item.escenario.codigo,
+          item.escenario.titulo,
+          item.escenario.paciente,
+          item.docenteNombre
+        )
+      )
+    : codigosAsignados;
 
   const puedeUsar = esComputador === true;
 
@@ -158,74 +175,110 @@ export function FormularioCodigo({
     <div className="@container flex flex-col gap-5">
       {codigosAsignados.length > 0 && (
         <div className="flex flex-col gap-3">
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Sparkles className="size-4 shrink-0 text-salvia" aria-hidden />
-            {codigosAsignados.length === 1
-              ? 'Práctica asignada por tu docente'
-              : `Prácticas asignadas por tu docente (${codigosAsignados.length})`}
-          </p>
-          <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
-            {codigosAsignados.map(item => {
-              const seleccionado =
-                normalizarCodigoAcceso(codigo) === normalizarCodigoAcceso(item.codigo);
-              return (
-                <li
-                  key={item.id}
-                  className={cn(
-                    'flex flex-col gap-3 p-3.5 transition-colors @md:flex-row @md:items-center @md:justify-between',
-                    seleccionado && 'bg-salvia-suave/45'
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-sm leading-snug font-semibold text-foreground">
-                      <CodigoCaso
-                        codigo={item.escenario.codigo}
-                        className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
-                      />
-                      {item.escenario.titulo}
-                    </p>
-                    {item.escenario.paciente && (
-                      <p className="text-xs text-muted-foreground">
-                        Paciente:{' '}
-                        <span className="font-medium text-terracota">
-                          {item.escenario.paciente}
-                        </span>
-                      </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Sparkles className="size-4 shrink-0 text-salvia" aria-hidden />
+              {codigosAsignados.length === 1
+                ? 'Práctica asignada por tu docente'
+                : `Prácticas asignadas por tu docente (${codigosAsignados.length})`}
+            </p>
+            {codigosAsignados.length > 3 && (
+              <span className="text-xs text-muted-foreground">Desliza para ver más</span>
+            )}
+          </div>
+          {codigosAsignados.length > 5 && (
+            <div className="relative">
+              <label htmlFor={idBusquedaCodigos} className="sr-only">
+                Buscar entre prácticas asignadas
+              </label>
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                id={idBusquedaCodigos}
+                type="search"
+                autoComplete="off"
+                placeholder="Buscar caso, paciente o código…"
+                className="h-9 pl-8 text-xs"
+                value={filtroCodigo}
+                onChange={evento => setFiltroCodigo(evento.target.value)}
+              />
+            </div>
+          )}
+          <ul
+            className={cn(
+              'flex flex-col divide-y rounded-xl border bg-card',
+              codigosAsignados.length > 3 ? 'max-h-72 overflow-y-auto' : 'overflow-hidden'
+            )}
+          >
+            {codigosVisibles.length === 0 ? (
+              <li className="px-3.5 py-4 text-center text-xs text-muted-foreground">
+                Ninguna práctica asignada coincide con tu búsqueda.
+              </li>
+            ) : (
+              codigosVisibles.map(item => {
+                const seleccionado =
+                  normalizarCodigoAcceso(codigo) === normalizarCodigoAcceso(item.codigo);
+                return (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      'flex flex-col gap-3 p-3.5 transition-colors @md:flex-row @md:items-center @md:justify-between',
+                      seleccionado && 'bg-salvia-suave/45'
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      Vence el {formatearDia(item.expiraEn)}
-                      {item.docenteNombre && ` · ${item.docenteNombre}`}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center justify-between gap-2 @md:justify-end">
-                    <code className="font-mono text-sm font-medium tracking-[0.06em] whitespace-nowrap text-foreground">
-                      {item.codigo}
-                    </code>
-                    <Button
-                      type="button"
-                      variant={seleccionado ? 'secondary' : 'outline'}
-                      size="sm"
-                      disabled={entrando}
-                      aria-pressed={seleccionado}
-                      onClick={() => {
-                        setError(null);
-                        setCodigo(item.codigo);
-                        document.getElementById(id)?.focus();
-                      }}
-                    >
-                      {seleccionado ? (
-                        <>
-                          <Check aria-hidden />
-                          Código cargado
-                        </>
-                      ) : (
-                        'Cargar código'
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <p className="text-sm leading-snug font-semibold text-foreground">
+                        <CodigoCaso
+                          codigo={item.escenario.codigo}
+                          className="mr-1.5 font-mono text-xs font-medium text-muted-foreground"
+                        />
+                        {item.escenario.titulo}
+                      </p>
+                      {item.escenario.paciente && (
+                        <p className="text-xs text-muted-foreground">
+                          Paciente:{' '}
+                          <span className="font-medium text-terracota">
+                            {item.escenario.paciente}
+                          </span>
+                        </p>
                       )}
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
+                      <p className="text-xs text-muted-foreground">
+                        Vence el {formatearDia(item.expiraEn)}
+                        {item.docenteNombre && ` · ${item.docenteNombre}`}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center justify-between gap-2 @md:justify-end">
+                      <code className="font-mono text-sm font-medium tracking-[0.06em] whitespace-nowrap text-foreground">
+                        {item.codigo}
+                      </code>
+                      <Button
+                        type="button"
+                        variant={seleccionado ? 'secondary' : 'outline'}
+                        size="sm"
+                        disabled={entrando}
+                        aria-pressed={seleccionado}
+                        onClick={() => {
+                          setError(null);
+                          setCodigo(item.codigo);
+                          document.getElementById(id)?.focus();
+                        }}
+                      >
+                        {seleccionado ? (
+                          <>
+                            <Check aria-hidden />
+                            Código cargado
+                          </>
+                        ) : (
+                          'Cargar código'
+                        )}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </div>
       )}
@@ -349,7 +402,12 @@ function AvisoComputador({
           <p className="text-xs font-semibold">
             Tienes {codigosAsignados.length}{' '}
             {codigosAsignados.length === 1 ? 'código asignado listo' : 'códigos asignados listos'}{' '}
-            para usar en tu computador ({codigosAsignados.map(c => c.codigo).join(', ')}).
+            para usar en un computador (
+            {codigosAsignados
+              .slice(0, 3)
+              .map(c => c.codigo)
+              .join(', ')}
+            {codigosAsignados.length > 3 ? ` y ${codigosAsignados.length - 3} más` : ''}).
           </p>
         )}
         <p className="flex items-start gap-2.5 text-sm leading-relaxed">

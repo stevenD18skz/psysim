@@ -439,6 +439,51 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByRole('radio', { name: /Caso de insomnio/ })).toBeInTheDocument();
   });
 
+  it('al añadir una sugerencia en indicaciones y borrar un carácter, no vuelve a aparecer hasta vaciar el campo', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    const sugerencia = '+ Llega tarde y apurado; al principio quiere irse pronto.';
+    await usuario.click(screen.getByRole('button', { name: sugerencia }));
+    expect(screen.queryByRole('button', { name: sugerencia })).not.toBeInTheDocument();
+
+    const campo = screen.getByLabelText('Una indicación con tus palabras (opcional)');
+    await usuario.type(campo, '{Backspace}');
+    expect(screen.queryByRole('button', { name: sugerencia })).not.toBeInTheDocument();
+
+    await usuario.clear(campo);
+    expect(screen.getByRole('button', { name: sugerencia })).toBeInTheDocument();
+  });
+
+  it('abre las 15 reglas exactas de la IA en un diálogo ordenado por categorías', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver las 15 reglas exactas que recibe la IA' })
+    );
+    expect(
+      screen.getByRole('dialog', { name: /Las 15 reglas exactas que recibe la IA/ })
+    ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Personaje y naturalidad' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ritmo y vínculo clínico' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Límites clínicos y reserva' })).toBeInTheDocument();
+  });
+
+  it('permite añadir un dato que guarda el paciente con su condición', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByRole('button', { name: 'Añadir algo que guarda' }));
+
+    await usuario.type(screen.getByLabelText('Qué guarda'), 'Discutió con su hermana');
+    await usuario.type(screen.getByLabelText('Lo cuenta solo si…'), 'le preguntan por su familia');
+
+    expect(screen.getByText('Guarda: Discutió con su hermana.')).toBeVisible();
+  });
+
   describe('estudiantes', () => {
     it('sin estudiantes con cuenta invita a registrarlos', () => {
       renderizar([E01, E02], undefined, [SIN_CUENTA]);
@@ -482,5 +527,33 @@ describe('ConfiguradorSesion', () => {
       renderizar([E01, E02], undefined, [ANA, SIN_CUENTA], SIN_CUENTA);
       expect(screen.queryByTestId('estudiante-elegido')).not.toBeInTheDocument();
     });
+  });
+
+  it('pagina los casos propios cuando hay más de 12 y reinicia la página al buscar', async () => {
+    const propios = Array.from({ length: 14 }, (_, i) => {
+      const numero = String(i + 1).padStart(2, '0');
+      return escenario(
+        `C-900000${numero}`,
+        `Caso propio ${numero}`,
+        `44444444-4444-4444-8444-4444444444${numero}`,
+        {
+          propio: true,
+          creadoEn: `2026-10-${String(28 - i).padStart(2, '0')}T10:00:00.000Z`,
+        }
+      );
+    });
+    const usuario = userEvent.setup();
+    renderizar([E01, ...propios]);
+
+    expect(screen.getByText('1–12 de 14 casos')).toBeVisible();
+    expect(screen.getByRole('radio', { name: /Caso propio 01/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Caso propio 13/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Página 2' }));
+    expect(screen.getByText('13–14 de 14 casos')).toBeVisible();
+    expect(screen.getByRole('radio', { name: /Caso propio 13/ })).toBeInTheDocument();
+
+    await usuario.type(screen.getByLabelText('Buscar un caso'), 'Caso propio 01');
+    expect(screen.getByRole('radio', { name: /Caso propio 01/ })).toBeInTheDocument();
   });
 });

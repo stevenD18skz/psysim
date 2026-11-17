@@ -16,10 +16,12 @@ import { useMemo, useState } from 'react';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { Desplegable } from '@/components/comun/desplegable';
+import { PaginacionLocal } from '@/components/comun/paginacion';
 import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { Input } from '@/components/ui/input';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { paginar } from '@/lib/listas';
 import { duracionSesion } from '@/lib/sesiones/estados';
 import { cn } from '@/lib/utils';
 import { type EstadoSesion } from '@/types';
@@ -245,12 +247,11 @@ function Grupo({
   sesiones: PracticaEstudianteVista[];
   extra?: React.ReactNode;
 }) {
-  const [expandido, setExpandido] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
   if (sesiones.length === 0) return null;
   const id = `grupo-${titulo.toLowerCase().replaceAll(' ', '-')}`;
-  const visibles = sesiones.slice(0, FILAS_POR_GRUPO);
-  const ocultas = sesiones.slice(FILAS_POR_GRUPO);
+  const resultado = paginar(sesiones, pagina, FILAS_POR_GRUPO);
 
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
@@ -268,40 +269,17 @@ function Grupo({
       </div>
 
       <ol className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
-        {visibles.map(sesion => (
+        {resultado.visibles.map(sesion => (
           <FilaPractica key={sesion.id} sesion={sesion} />
         ))}
       </ol>
 
-      {ocultas.length > 0 && (
-        <div className="flex flex-col">
-          <Desplegable abierto={expandido}>
-            <div className="pt-3">
-              <ol className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
-                {ocultas.map(sesion => (
-                  <FilaPractica key={sesion.id} sesion={sesion} />
-                ))}
-              </ol>
-            </div>
-          </Desplegable>
-          <button
-            type="button"
-            aria-expanded={expandido}
-            onClick={() => setExpandido(v => !v)}
-            className="mt-2 flex min-h-8 w-fit items-center gap-1.5 rounded-md px-1 text-sm font-semibold underline-offset-4 outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span>
-              {expandido
-                ? 'Ocultar las anteriores'
-                : `Ver ${ocultas.length === 1 ? 'la anterior' : `las ${ocultas.length} anteriores`}`}
-            </span>
-            <ChevronDown
-              className={cn('size-4 transition-transform', expandido && 'rotate-180')}
-              aria-hidden
-            />
-          </button>
-        </div>
-      )}
+      <PaginacionLocal
+        pagina={resultado}
+        onCambiar={setPagina}
+        sustantivo={['práctica', 'prácticas']}
+        soloSiHayVarias
+      />
     </section>
   );
 }
@@ -483,12 +461,22 @@ export function HistorialPracticasEstudiante({
         </div>
       ) : filtro === 'todas' ? (
         <div className="flex flex-col gap-6">
-          <Grupo {...INFO_GRUPO.esperando} sesiones={esperando} />
-          <Grupo {...INFO_GRUPO.con_retro} sesiones={conRetro} extra={extraPromedio} />
-          <Grupo {...INFO_GRUPO.sin_conversacion} sesiones={sinConversacion} />
+          <Grupo key={`esperando:${termino}`} {...INFO_GRUPO.esperando} sesiones={esperando} />
+          <Grupo
+            key={`con_retro:${termino}`}
+            {...INFO_GRUPO.con_retro}
+            sesiones={conRetro}
+            extra={extraPromedio}
+          />
+          <Grupo
+            key={`sin_conversacion:${termino}`}
+            {...INFO_GRUPO.sin_conversacion}
+            sesiones={sinConversacion}
+          />
         </div>
       ) : (
         <Grupo
+          key={`${filtro}:${termino}`}
           {...INFO_GRUPO[filtro]}
           sesiones={listaSegunFiltro}
           extra={filtro === 'con_retro' ? extraPromedio : undefined}
