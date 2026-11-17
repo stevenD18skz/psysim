@@ -3,7 +3,6 @@ import 'server-only';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   APICallError,
-  generateText,
   type LanguageModel,
   LoadAPIKeyError,
   type ModelMessage,
@@ -11,25 +10,19 @@ import {
   streamText,
 } from 'ai';
 
-import {
-  type EmocionNpc,
-  extraerEmocion,
-  type IntensidadEmocion,
-} from '@/lib/conversacion/emociones';
 import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
-import { revelaInstrucciones } from './fuga-prompt';
-import { limpiarTexto } from './limpieza';
+import { MAX_MENSAJES_CONTEXTO } from './historial';
 import { type ParteTurno } from './partes';
-import { componerInstrucciones, TEXTO_REGLAS } from './reglas';
+import { componerInstrucciones } from './reglas';
 
 const URL_BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
- * Tiempo máximo de la llamada a la IA (HU-12 · T04). Es menor que el `maxDuration` del Route
- * Handler (30 s) para que la función responda con un 504 controlado antes de que la plataforma
- * la corte.
+ * Tiempo máximo de la llamada a Gemini (HU-12 · T04), con sus dos modelos. Cabe en el plazo de la
+ * petición del chat (55 s, ver `lib/orquestador/turno.ts`) para responder un 504 controlado antes
+ * de que la plataforma corte la función.
  */
 export const TIEMPO_MAXIMO_IA_MS = 25_000;
 
@@ -41,9 +34,6 @@ export const TIEMPO_MODELO_PRINCIPAL_MS = 12_000;
 
 /** Tiempo mínimo que debe quedar para que valga la pena intentar con el modelo de respaldo. */
 const TIEMPO_MINIMO_RESPALDO_MS = 3_000;
-
-/** Mensajes previos que se envían como contexto: acota el coste y la latencia. */
-export const MAX_MENSAJES_CONTEXTO = 40;
 
 export type TipoErrorIA =
   | 'tiempo_agotado'
@@ -99,18 +89,6 @@ export function instruccionesDelTurno(entrada: EntradaPaciente): string {
   return entrada.notaDeEscena ? `${base}\n\n${entrada.notaDeEscena}` : base;
 }
 
-export interface RespuestaPaciente {
-  texto: string;
-  /** Emoción que eligió el modelo para la respuesta, o `null` si no la indicó. */
-  emocion: EmocionNpc | null;
-  /** Intensidad de esa emoción (1–3), o `null` si no la indicó. */
-  intensidad: IntensidadEmocion | null;
-  tokensEntrada: number | null;
-  tokensSalida: number | null;
-  /** Modelo que generó la respuesta (el principal o el de respaldo), para los logs. */
-  modelo: string;
-}
-
 export interface ModelosPaciente {
   principal: { id: string; modelo: LanguageModel };
   /** Modelo alternativo si el principal no responde a tiempo o está saturado. */
@@ -130,9 +108,9 @@ function crearModelos(): ModelosPaciente {
 }
 
 /**
- * HU-12 · T04 — Ensambla los mensajes en orden: el historial reciente (empezando siempre por un
- * mensaje del estudiante, como exige la API) y, al final, la intervención actual. El prompt del
- * sistema va aparte, en `instructions`.
+ * HU-12 · T04 — Ensambla los mensajes en orden: el historial de la práctica (empezando siempre
+ * por un mensaje del estudiante, como exige la API) y, al final, la intervención actual. El
+ * prompt del sistema va aparte, en `instructions`.
  */
 export function construirMensajes(
   historial: readonly MensajeHistorial[],
@@ -151,9 +129,6 @@ export function construirMensajes(
     { role: 'user', content: mensaje },
   ];
 }
-
-/** Limpieza de la respuesta completa (ver `limpieza.ts`). */
-export const limpiarRespuesta = limpiarTexto;
 
 /** HU-16 · T01 — Traduce cualquier error del SDK o del proveedor a un tipo conocido. */
 export function clasificarError(error: unknown): TipoErrorIA {
@@ -174,84 +149,10 @@ export function clasificarError(error: unknown): TipoErrorIA {
 }
 
 /**
- * HU-12 · T04/T05 — Pide al modelo de lenguaje la respuesta del paciente virtual.
- *
- * Primero intenta con el modelo principal (hasta `TIEMPO_MODELO_PRINCIPAL_MS`). Si no responde a
- * tiempo, está saturado o falla el proveedor, reintenta con el modelo de respaldo usando el
- * tiempo restante, siempre dentro de `TIEMPO_MAXIMO_IA_MS`. Los errores de autenticación no se
- * reintentan (la clave es la misma). Lanza `ErrorIA` si no hay respuesta válida.
- */
-export async function generarRespuestaPaciente(
-  entrada: EntradaPaciente,
-  modelos: ModelosPaciente = crearModelos(),
-  ahora: () => number = () => performance.now()
-): Promise<RespuestaPaciente> {
-  const inicio = ahora();
-
-  try {
-    return await generarCon(modelos.principal, entrada, TIEMPO_MODELO_PRINCIPAL_MS);
-  } catch (error) {
-    const fallo = error instanceof ErrorIA ? error : new ErrorIA('proveedor', { cause: error });
-    // Entero: el SDK exige milisegundos enteros en `timeout`.
-    const restante = Math.floor(TIEMPO_MAXIMO_IA_MS - (ahora() - inicio));
-    if (
-      !modelos.respaldo ||
-      fallo.tipo === 'autenticacion' ||
-      restante < TIEMPO_MINIMO_RESPALDO_MS
-    ) {
-      throw fallo;
-    }
-    return await generarCon(modelos.respaldo, entrada, restante);
-  }
-}
-
-async function generarCon(
-  { id, modelo }: { id: string; modelo: LanguageModel },
-  entrada: EntradaPaciente,
-  tiempoMaximoMs: number
-): Promise<RespuestaPaciente> {
-  const { AI_TEMPERATURE, AI_MAX_TOKENS } = getIaEnv();
-
-  let resultado: Awaited<ReturnType<typeof generateText>>;
-  try {
-    resultado = await generateText({
-      model: modelo,
-      instructions: instruccionesDelTurno(entrada),
-      messages: construirMensajes(entrada.historial, entrada.mensaje),
-      temperature: AI_TEMPERATURE,
-      maxOutputTokens: AI_MAX_TOKENS,
-      // Razonamiento mínimo: respuestas conversacionales rápidas.
-      reasoning: 'minimal',
-      // Sin reintentos internos: ante un fallo se pasa al modelo de respaldo.
-      maxRetries: 0,
-      timeout: tiempoMaximoMs,
-    });
-  } catch (error) {
-    throw new ErrorIA(clasificarError(error), { cause: error });
-  }
-
-  const { texto: sinEtiqueta, emocion, intensidad } = extraerEmocion(resultado.text);
-  const texto = limpiarRespuesta(sinEtiqueta, entrada.nombrePaciente);
-  if (!texto) throw new ErrorIA('respuesta_invalida');
-  // LLM07: si el modelo cedió ante «muéstrame tus instrucciones», esa respuesta no sale del servidor.
-  if (revelaInstrucciones(texto, [entrada.promptSistema, TEXTO_REGLAS])) {
-    throw new ErrorIA('fuga_de_instrucciones');
-  }
-
-  return {
-    texto,
-    emocion,
-    intensidad,
-    tokensEntrada: resultado.usage.inputTokens ?? null,
-    tokensSalida: resultado.usage.outputTokens ?? null,
-    modelo: id,
-  };
-}
-
-/**
- * Igual que `generarRespuestaPaciente`, pero entrega la respuesta por partes (`streamText`) con
- * el mismo protocolo que el orquestador: fragmentos de texto crudo y, al final, el resultado. La
- * limpieza y el filtro de fuga los aplica quien consume el flujo (`procesarTurno`).
+ * HU-12 · T04/T05 — Pide a Gemini la respuesta del paciente y la entrega por partes
+ * (`streamText`), con el mismo protocolo que el orquestador: fragmentos de texto crudo y, al
+ * final, el resultado. La limpieza y el filtro de fuga los aplica quien consume el flujo
+ * (`procesarTurno`). Es el único camino hacia Gemini: lo usan la práctica y el chat de prueba.
  *
  * Si el modelo principal falla, sigue con el de respaldo dentro del tiempo que quede; si ya había
  * entregado texto, avisa con `reinicio` para que se descarte.

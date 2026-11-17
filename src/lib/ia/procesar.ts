@@ -2,6 +2,7 @@ import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emoc
 import { lenguajeNoVerbal } from '@/lib/orquestador/severidad';
 
 import { crearLimpiadorDeFlujo } from './flujo';
+import { LARGO_MAXIMO_RESPUESTA, recortarRespuesta } from './limpieza';
 import { type ParteTurno, type ResultadoTurno } from './partes';
 
 /** Lo que la ruta del chat reenvía al navegador mientras el paciente responde. */
@@ -53,14 +54,20 @@ export async function* procesarTurno(
   { nombrePaciente, fuentes, emocionAnterior }: OpcionesProceso
 ): AsyncGenerator<EventoTurno, void, void> {
   const limpiador = crearLimpiadorDeFlujo({ nombrePaciente, fuentes });
+  // Caracteres recibidos de este intento. Pasado el tope no se muestra ni se acumula más: la
+  // respuesta se recorta al final y lo que siga llegando es un proveedor que no se detiene.
+  let recibido = 0;
 
   for await (const parte of partes) {
     if (parte.tipo === 'espera') {
       yield parte;
     } else if (parte.tipo === 'reinicio') {
       limpiador.reiniciar();
+      recibido = 0;
       yield parte;
     } else if (parte.tipo === 'fragmento') {
+      if (recibido > LARGO_MAXIMO_RESPUESTA) continue;
+      recibido += parte.texto.length;
       const avance = limpiador.agregar(parte.texto);
       if (avance.fuga) throw new RespuestaRechazada('fuga_de_instrucciones');
       if (avance.emocion) yield { tipo: 'emocion', ...avance.emocion };
@@ -87,9 +94,12 @@ export async function* procesarTurno(
         intensidad = noVerbal.intensidad;
         emocionDeducida = noVerbal.deducida;
       }
+      // La base no acepta más de `LARGO_MAXIMO_RESPUESTA`: una respuesta más larga se recorta
+      // en el final de una frase. Sin esto el guardado fallaba en cada reintento.
+      const texto = recortarRespuesta(limpia.texto);
       yield {
         tipo: 'completo',
-        respuesta: { texto: limpia.texto, emocion, intensidad, emocionDeducida, resultado },
+        respuesta: { texto, emocion, intensidad, emocionDeducida, resultado },
       };
       return;
     }

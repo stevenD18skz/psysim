@@ -2,7 +2,8 @@
 
 import { requerirDocente } from '@/lib/auth/dal';
 import { type ResultadoAccion } from '@/lib/acciones';
-import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
+import { ErrorIA, type TipoErrorIA } from '@/lib/ia/paciente';
+import { responderDeUnaVez } from '@/lib/ia/prueba';
 import { log } from '@/lib/log';
 import { sincronizarCasoDespues } from '@/lib/orquestador/diferido';
 import { createClient } from '@/lib/supabase/server';
@@ -223,8 +224,9 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
 
 /**
  * Chat de prueba del constructor: responde con el prompt que se está redactando (más las reglas
- * fijas). No guarda nada ni necesita una sesión, pero cuenta en el límite de llamadas a la IA por
- * minuto (si el conteo falla, la prueba sigue, igual que en la práctica).
+ * fijas), por el mismo camino que la práctica real. No guarda nada ni necesita una sesión, pero
+ * cuenta en el límite de llamadas a la IA por minuto (si el conteo falla, la prueba sigue, igual
+ * que en la práctica).
  */
 export async function probarPaciente(
   valores: unknown
@@ -248,7 +250,7 @@ export async function probarPaciente(
   }
 
   try {
-    const respuesta = await generarRespuestaPaciente({
+    const respuesta = await responderDeUnaVez({
       promptSistema: datos.data.prompt,
       historial: datos.data.historial,
       mensaje: datos.data.mensaje,

@@ -58,6 +58,19 @@ describe('getOrquestadorEnv', () => {
     ]);
   });
 
+  it('rechaza una URL con http: por ella viajan contraseñas y conversaciones', () => {
+    conEntorno({ ...BASE, ORQUESTADOR_URL: 'http://orquestador.test' });
+    expect(() => getOrquestadorEnv()).toThrow(/ORQUESTADOR_URL.*https/);
+  });
+
+  it.each(['http://localhost:8000', 'http://127.0.0.1:8000/', 'http://[::1]:8000'])(
+    'admite http solo en el propio equipo (%s)',
+    url => {
+      conEntorno({ ...BASE, ORQUESTADOR_URL: url });
+      expect(getOrquestadorEnv().url).toBe(url.replace(/\/$/, ''));
+    }
+  );
+
   it('falla si faltan la URL o las credenciales, sin mostrar valores', () => {
     conEntorno({ ORQUESTADOR_URL: BASE.ORQUESTADOR_URL });
     expect(() => getOrquestadorEnv()).toThrow(/ORQUESTADOR_CORREO[\s\S]*ORQUESTADOR_CONTRASENA/);

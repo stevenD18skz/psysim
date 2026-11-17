@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { crearLectorSse } from '@/lib/sse';
+import { crearLectorSse, EventoSseDesmedido } from '@/lib/sse';
 
 import { interpretarEvento, leerMetricas } from './sse';
 
@@ -61,6 +61,16 @@ describe('crearLectorSse', () => {
     expect(lector.alimentar('data: {"b":2}\n\n')).toEqual([
       { evento: 'message', datos: '{"b":2}' },
     ]);
+  });
+
+  it('corta un evento que no cierra nunca en lugar de acumularlo sin límite', () => {
+    const lector = crearLectorSse(64);
+    expect(lector.alimentar(`data: {"chunk":"${'a'.repeat(20)}`)).toEqual([]);
+    expect(() => lector.alimentar('a'.repeat(60))).toThrow(EventoSseDesmedido);
+    // Los eventos completos, por largos que sean en conjunto, no cuentan como pendientes.
+    const otro = crearLectorSse(64);
+    const evento = `data: {"chunk":"${'b'.repeat(30)}"}\n\n`;
+    expect(otro.alimentar(evento.repeat(5))).toHaveLength(5);
   });
 });
 

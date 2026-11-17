@@ -25,10 +25,25 @@ function interpretarBloque(bloque: string): EventoSse | null {
 }
 
 /**
+ * Lo máximo que se guarda de un evento a medio llegar. Un evento de conversación ocupa unos
+ * cientos de bytes: uno que no cierra tras 256 KiB es un servidor que falla, no una respuesta.
+ */
+export const MAXIMO_EVENTO_SSE = 256 * 1024;
+
+/** El flujo envió un evento que no cierra y ya no cabe en memoria razonable. */
+export class EventoSseDesmedido extends Error {
+  constructor() {
+    super('El flujo envió un evento demasiado largo.');
+    this.name = 'EventoSseDesmedido';
+  }
+}
+
+/**
  * Lector incremental de Server-Sent Events. La red parte el flujo donde quiere (a mitad de un
  * evento, de una línea o de un `\r\n`), así que guarda lo incompleto hasta el siguiente trozo.
+ * Lanza `EventoSseDesmedido` si lo incompleto pasa de `maximoPendiente`.
  */
-export function crearLectorSse() {
+export function crearLectorSse(maximoPendiente: number = MAXIMO_EVENTO_SSE) {
   let resto = '';
 
   return {
@@ -43,6 +58,10 @@ export function crearLectorSse() {
       }
       const bloques = texto.replace(/\r\n?/g, '\n').split('\n\n');
       resto = (bloques.pop() ?? '') + cola;
+      if (resto.length > maximoPendiente) {
+        resto = '';
+        throw new EventoSseDesmedido();
+      }
       return bloques.flatMap(bloque => interpretarBloque(bloque) ?? []);
     },
     /**

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requerirDocente } from '@/lib/auth/dal';
 import { valoresVacios } from '@/lib/casos/valores';
-import type * as ModuloPaciente from '@/lib/ia/paciente';
-import { ErrorIA, generarRespuestaPaciente } from '@/lib/ia/paciente';
+import { ErrorIA } from '@/lib/ia/paciente';
+import { responderDeUnaVez } from '@/lib/ia/prueba';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
@@ -19,10 +19,7 @@ import {
 vi.mock('@/lib/auth/dal', () => ({ requerirDocente: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
-vi.mock('@/lib/ia/paciente', async importOriginal => ({
-  ...(await importOriginal<typeof ModuloPaciente>()),
-  generarRespuestaPaciente: vi.fn(),
-}));
+vi.mock('@/lib/ia/prueba', () => ({ responderDeUnaVez: vi.fn() }));
 
 const CASO_ID = '33333333-3333-4333-8333-333333333333';
 const CASO = {
@@ -227,20 +224,30 @@ describe('probarPaciente', () => {
   const PRUEBA = { prompt: PROMPT, nombre: 'Camila', mensaje: 'Hola', historial: [] };
 
   it('responde con el prompt en redacción sin guardar nada', async () => {
-    vi.mocked(generarRespuestaPaciente).mockResolvedValueOnce({
+    vi.mocked(responderDeUnaVez).mockResolvedValueOnce({
       texto: 'Hola… no sé por dónde empezar.',
       emocion: 'ansioso',
       intensidad: null,
-      tokensEntrada: 1,
-      tokensSalida: 1,
-      modelo: 'm',
+      emocionDeducida: false,
+      resultado: {
+        proveedor: 'gemini',
+        texto: '[ansioso] Hola… no sé por dónde empezar.',
+        modelo: 'm',
+        tokensEntrada: 1,
+        tokensSalida: 1,
+        severidad: null,
+        severidadAnterior: null,
+        banderas: [],
+        cierre: null,
+        cierreAjeno: null,
+      },
     });
 
     expect(await probarPaciente(PRUEBA)).toEqual({
       ok: true,
       datos: { respuesta: 'Hola… no sé por dónde empezar.' },
     });
-    expect(generarRespuestaPaciente).toHaveBeenCalledWith({
+    expect(responderDeUnaVez).toHaveBeenCalledWith({
       promptSistema: PROMPT,
       historial: [],
       mensaje: 'Hola',
@@ -253,14 +260,14 @@ describe('probarPaciente', () => {
     ['tiempo_agotado', /tardó demasiado/],
     ['limite', /saturado/],
   ] as const)('traduce el error %s de la IA a un mensaje para el docente', async (tipo, texto) => {
-    vi.mocked(generarRespuestaPaciente).mockRejectedValueOnce(new ErrorIA(tipo));
+    vi.mocked(responderDeUnaVez).mockRejectedValueOnce(new ErrorIA(tipo));
     const resultado = await probarPaciente(PRUEBA);
     expect(resultado.ok).toBe(false);
     expect(!resultado.ok && resultado.error).toMatch(texto);
   });
 
   it('un error desconocido se trata como fallo del proveedor', async () => {
-    vi.mocked(generarRespuestaPaciente).mockRejectedValueOnce(new Error('boom'));
+    vi.mocked(responderDeUnaVez).mockRejectedValueOnce(new Error('boom'));
     expect(await probarPaciente(PRUEBA)).toEqual({
       ok: false,
       error: 'El servicio de IA no está disponible.',
@@ -274,7 +281,7 @@ describe('probarPaciente', () => {
       error: 'Estás enviando mensajes muy seguido. Espera 12 s antes de volver a escribir.',
     });
     expect(db.rpc).toHaveBeenCalledWith('reservar_peticion_ia');
-    expect(generarRespuestaPaciente).not.toHaveBeenCalled();
+    expect(responderDeUnaVez).not.toHaveBeenCalled();
   });
 
   it('devuelve el primer error de validación', async () => {

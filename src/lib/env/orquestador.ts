@@ -58,8 +58,24 @@ const proveedorSchema = z.object({
   IA_PROVEEDOR: z.enum(PROVEEDORES_IA).default('gemini'),
 });
 
+/** Equipos donde `http` no sale a la red: el orquestador en la misma máquina, al desarrollar. */
+const EQUIPOS_LOCALES = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Por esta URL viajan la contraseña de las cuentas del orquestador y lo que escriben los
+ * estudiantes: fuera del propio equipo solo se acepta `https`, para que una URL mal copiada con
+ * `http://` falle al arrancar en lugar de enviar todo en claro.
+ */
+function usaCanalSeguro(url: string): boolean {
+  const { protocol, hostname } = new URL(url);
+  return protocol === 'https:' || EQUIPOS_LOCALES.has(hostname);
+}
+
 const orquestadorEnvSchema = z.object({
-  ORQUESTADOR_URL: z.url({ protocol: /^https?$/ }).transform(url => url.replace(/\/+$/, '')),
+  ORQUESTADOR_URL: z
+    .url({ protocol: /^https?$/ })
+    .refine(usaCanalSeguro, 'debe usar https (http solo se admite con localhost)')
+    .transform(url => url.replace(/\/+$/, '')),
   ORQUESTADOR_CORREO: credencialSchema.shape.correo,
   ORQUESTADOR_CONTRASENA: credencialSchema.shape.contrasena,
   ORQUESTADOR_CUENTAS: cuentasGrupoSchema,
