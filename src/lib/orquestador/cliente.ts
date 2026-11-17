@@ -3,7 +3,7 @@ import 'server-only';
 import { type z } from 'zod';
 
 import { type CredencialOrquestador, getOrquestadorEnv } from '@/lib/env/orquestador';
-import { crearLectorSse } from '@/lib/sse';
+import { crearLectorSse, type EventoSse } from '@/lib/sse';
 
 import { clasificarEstado, clasificarExcepcion, ErrorOrquestador, leerRetryAfter } from './errores';
 import { interpretarEvento } from './sse';
@@ -198,17 +198,8 @@ export function crearClienteOrquestador({
       return creado.id;
     },
 
-    async actualizarPerfil(
-      cuenta: CredencialOrquestador,
-      id: string,
-      perfil: PerfilOrquestador
-    ): Promise<void> {
-      await pedir(cuenta, 'PATCH', `/profiles/${id}/update`, {
-        cuerpo: perfil,
-        esquema: recursoSchema,
-      });
-    },
-
+    // No hay «actualizar perfil» ni «actualizar escenario» a propósito: las sesiones abiertas los
+    // comparten, y cambiarlos cambiaría al paciente a mitad de una consulta (`sincronizar.ts`).
     async crearEscenario(
       cuenta: CredencialOrquestador,
       escenario: EscenarioOrquestador
@@ -218,17 +209,6 @@ export function crearClienteOrquestador({
         esquema: recursoSchema,
       });
       return creado.id;
-    },
-
-    async actualizarEscenario(
-      cuenta: CredencialOrquestador,
-      id: string,
-      escenario: EscenarioOrquestador
-    ): Promise<void> {
-      await pedir(cuenta, 'PATCH', `/scenarios/${id}/update`, {
-        cuerpo: escenario,
-        esquema: recursoSchema,
-      });
     },
 
     /** Crea la sesión. Con `usuarioId`, queda asignada a esa cuenta, que es quien conversa. */
@@ -340,9 +320,14 @@ export function crearClienteOrquestador({
             }
             if (trozo.done) break;
             darPlazo(tiempoSilencioMs);
-            for (const bruto of lector.alimentar(
-              decodificador.decode(trozo.value, { stream: true })
-            )) {
+            let eventos: EventoSse[];
+            try {
+              eventos = lector.alimentar(decodificador.decode(trozo.value, { stream: true }));
+            } catch (error) {
+              // Un evento que no cierra nunca: el servicio no cumple el contrato.
+              throw new ErrorOrquestador('respuesta_invalida', { cause: error });
+            }
+            for (const bruto of eventos) {
               const evento = interpretarEvento(bruto);
               if (evento.tipo === 'ignorado') continue;
               yield evento;
@@ -360,26 +345,6 @@ export function crearClienteOrquestador({
       } finally {
         clearTimeout(temporizador);
       }
-    },
-
-    /** Resumen de llamadas de IA del orquestador. Solo responde a cuentas `admin` (403 al resto). */
-    async metricasAdmin(cuenta: CredencialOrquestador): Promise<unknown> {
-      const respuesta = await llamar(
-        cuenta,
-        'GET',
-        '/admin/metrics/summary',
-        undefined,
-        AbortSignal.timeout(TIEMPO_GESTION_MS),
-        false
-      );
-      return respuesta.json().catch(() => null);
-    },
-
-    /** Usuarios con rol `student`: de aquí salen los id de las cuentas del grupo. */
-    async estudiantes(cuenta: CredencialOrquestador): Promise<UsuarioOrquestador[]> {
-      return pedir(cuenta, 'GET', '/admin/students', {
-        esquema: usuarioOrquestadorSchema.array(),
-      });
     },
   };
 }

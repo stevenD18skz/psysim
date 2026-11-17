@@ -197,22 +197,22 @@ describe('gestión de perfiles, escenarios y sesiones', () => {
     constraints: {},
   };
 
-  it('crea y actualiza con las rutas del OpenAPI', async () => {
+  it('crea con las rutas del OpenAPI', async () => {
     const { cliente, llamadas, rutas } = montar(ruta =>
       ruta === '/auth/login' ? login() : json({ id: ID, name: 'x' }, 201)
     );
     await expect(cliente.crearPerfil(DOCENTE, perfil)).resolves.toBe(ID);
     await expect(cliente.crearEscenario(DOCENTE, escenario)).resolves.toBe(ID);
-    await cliente.actualizarPerfil(DOCENTE, ID, perfil);
-    await cliente.actualizarEscenario(DOCENTE, ID, escenario);
 
-    expect(rutas().slice(1)).toEqual([
-      'POST /profiles/create',
-      'POST /scenarios/create',
-      `PATCH /profiles/${ID}/update`,
-      `PATCH /scenarios/${ID}/update`,
-    ]);
+    expect(rutas().slice(1)).toEqual(['POST /profiles/create', 'POST /scenarios/create']);
     expect(JSON.parse(String(llamadas[2]!.init.body))).toEqual(escenario);
+  });
+
+  // P2-04: las sesiones abiertas comparten perfil y escenario; actualizarlos cambiaría al paciente
+  // a mitad de una consulta. Una versión nueva del caso crea otros.
+  it('no ofrece actualizar un perfil ni un escenario ya creados', () => {
+    const { cliente } = montar(() => login());
+    expect(Object.keys(cliente).filter(metodo => /actualizar/i.test(metodo))).toEqual([]);
   });
 
   it('abre la sesión para otra cuenta solo si se indica', async () => {

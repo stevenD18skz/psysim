@@ -35,6 +35,8 @@ const ESCENARIO = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const PERFIL = '11111111-1111-4111-8111-111111111111';
 const ESCENARIO_ORQUESTADOR = '22222222-2222-4222-8222-222222222222';
 const VARIANTE_ORQUESTADOR = '33333333-3333-4333-8333-333333333333';
+const PERFIL_NUEVO = '44444444-4444-4444-8444-444444444444';
+const ESCENARIO_NUEVO = '55555555-5555-4555-8555-555555555555';
 const DOCENTE = { correo: 'docente@correounivalle.edu.co', contrasena: 'secreta-1' };
 
 const PROMPT = 'Eres Marta Lucía, 58 años. Enviudaste hace cuatro meses.';
@@ -76,17 +78,16 @@ function clienteFalso() {
   const falso = {
     crearPerfil: vi.fn(async () => PERFIL),
     crearEscenario: vi.fn(async () => ESCENARIO_ORQUESTADOR),
-    actualizarPerfil: vi.fn(async () => undefined),
-    actualizarEscenario: vi.fn(async () => undefined),
   };
   return { falso, cliente: falso as unknown as ClienteOrquestador };
 }
 
-/** Lo que PsySim tiene anotado de cada variante (`''` = el caso tal cual). */
+/**
+ * Lo que PsySim tiene anotado, por clave: la huella del contenido (o, en filas de versiones
+ * anteriores, `''` para el caso y la huella del prompt para una variante).
+ */
 function sincronizados(filas: Record<string, CasoSincronizado | null>) {
-  vi.mocked(leerCasoSincronizado).mockImplementation(
-    async (_, variante) => filas[variante] ?? null
-  );
+  vi.mocked(leerCasoSincronizado).mockImplementation(async (_, clave) => filas[clave] ?? null);
 }
 
 let db: SupabaseFalso;
@@ -125,14 +126,15 @@ describe('asegurarCaso', () => {
     // El contexto lleva el prompt del caso y las reglas fijas de PsySim.
     expect(escenario.context).toContain(PROMPT);
     expect(escenario.context).toContain('Reglas de interpretación:');
-    expect(guardarCasoSincronizado).toHaveBeenCalledWith(ESCENARIO, '', alDia);
+    // Se guarda bajo la huella de lo enviado: cada versión del contenido tiene los suyos.
+    expect(guardarCasoSincronizado).toHaveBeenCalledWith(ESCENARIO, HUELLA, alDia);
     // Crear por primera vez no es una recreación: no se registra.
     expect(registrarEvento).not.toHaveBeenCalled();
   });
 
-  it('si nada cambió desde la última vez, no llama al orquestador', async () => {
+  it('si ese contenido ya estaba creado, no llama al orquestador', async () => {
     db.responder('escenario', { data: fila });
-    sincronizados({ '': alDia });
+    sincronizados({ [HUELLA]: alDia });
     const { falso, cliente } = clienteFalso();
 
     expect(await asegurarCaso(ESCENARIO, null, { cliente })).toEqual({
@@ -143,68 +145,70 @@ describe('asegurarCaso', () => {
     expect(guardarCasoSincronizado).not.toHaveBeenCalled();
   });
 
-  it('si el caso cambió, actualiza el perfil y el escenario y conserva sus id', async () => {
-    db.responder('escenario', { data: { ...fila, titulo: 'Duelo reciente' } });
-    sincronizados({ '': alDia });
-    const { falso, cliente } = clienteFalso();
-
-    await asegurarCaso(ESCENARIO, null, { cliente });
-
-    expect(falso.actualizarPerfil).toHaveBeenCalledWith(
-      expect.anything(),
-      PERFIL,
-      expect.any(Object)
-    );
-    expect(falso.actualizarEscenario).toHaveBeenCalledWith(
-      expect.anything(),
-      ESCENARIO_ORQUESTADOR,
-      expect.objectContaining({ name: '-3D- E-01 · Duelo reciente' })
-    );
-    expect(falso.crearPerfil).not.toHaveBeenCalled();
-    const [, , guardado] = vi.mocked(guardarCasoSincronizado).mock.calls[0]!;
-    expect(guardado).toMatchObject({ perfilId: PERFIL, escenarioId: ESCENARIO_ORQUESTADOR });
-    expect(guardado.huella).not.toBe(HUELLA);
-  });
-
-  it.each([
-    ['borraron los datos de prueba (404)', new ErrorOrquestador('no_encontrado', { estado: 404 })],
-    ['los creó otra cuenta (403)', new ErrorOrquestador('permiso', { estado: 403 })],
-  ])('si al actualizar resulta que %s, los crea de nuevo y lo registra', async (_, error) => {
-    db.responder('escenario', { data: { ...fila, titulo: 'Duelo reciente' } });
-    sincronizados({ '': alDia });
-    const { falso, cliente } = clienteFalso();
-    falso.actualizarPerfil.mockRejectedValue(error);
-
-    await asegurarCaso(ESCENARIO, null, { cliente });
-
-    expect(falso.crearPerfil).toHaveBeenCalledOnce();
-    expect(falso.crearEscenario).toHaveBeenCalledOnce();
-    expect(log.warn).toHaveBeenCalledWith('orquestador.caso_recreado', { escenario_id: ESCENARIO });
-    expect(registrarEvento).toHaveBeenCalledWith({ tipo: 'caso', detalle: 'recreado' });
-  });
-
-  it('otros fallos al actualizar se propagan sin crear duplicados', async () => {
-    db.responder('escenario', { data: { ...fila, titulo: 'Duelo reciente' } });
-    sincronizados({ '': alDia });
-    const { falso, cliente } = clienteFalso();
-    falso.actualizarPerfil.mockRejectedValue(new ErrorOrquestador('servidor', { estado: 503 }));
-
-    await expect(asegurarCaso(ESCENARIO, null, { cliente })).rejects.toMatchObject({
-      tipo: 'servidor',
-    });
-    expect(falso.crearPerfil).not.toHaveBeenCalled();
-  });
-
-  it('con `recrear` no intenta actualizar: crea los dos de nuevo', async () => {
+  it('aprovecha lo que guardó una versión anterior (clave vacía) si el contenido es el mismo', async () => {
     db.responder('escenario', { data: fila });
     sincronizados({ '': alDia });
     const { falso, cliente } = clienteFalso();
 
-    await asegurarCaso(ESCENARIO, null, { cliente, recrear: true });
+    expect(await asegurarCaso(ESCENARIO, null, { cliente })).toEqual({
+      perfilId: PERFIL,
+      escenarioId: ESCENARIO_ORQUESTADOR,
+    });
+    for (const llamada of Object.values(falso)) expect(llamada).not.toHaveBeenCalled();
+  });
 
-    expect(falso.actualizarPerfil).not.toHaveBeenCalled();
-    expect(falso.crearPerfil).toHaveBeenCalledOnce();
-    expect(falso.crearEscenario).toHaveBeenCalledOnce();
+  // P2-04: actualizar el escenario cambiaría al paciente de las prácticas que ya lo están usando.
+  it('si el caso cambió, crea un perfil y un escenario nuevos y deja intactos los anteriores', async () => {
+    db.responder('escenario', { data: { ...fila, titulo: 'Duelo reciente' } });
+    sincronizados({ '': alDia, [HUELLA]: alDia });
+    const { falso, cliente } = clienteFalso();
+    falso.crearPerfil.mockResolvedValue(PERFIL_NUEVO);
+    falso.crearEscenario.mockResolvedValue(ESCENARIO_NUEVO);
+
+    const ids = await asegurarCaso(ESCENARIO, null, { cliente });
+
+    expect(ids).toEqual({ perfilId: PERFIL_NUEVO, escenarioId: ESCENARIO_NUEVO });
+    expect(falso.crearEscenario).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: '-3D- E-01 · Duelo reciente' })
+    );
+    // La versión nueva se anota bajo su propia huella: la fila de la anterior no se toca.
+    const [, clave, guardado] = vi.mocked(guardarCasoSincronizado).mock.calls[0]!;
+    expect(clave).not.toBe(HUELLA);
+    expect(clave).toBe(guardado.huella);
+    expect(guardarCasoSincronizado).toHaveBeenCalledOnce();
+    // Es una versión nueva, no una recreación tras un borrado.
+    expect(registrarEvento).not.toHaveBeenCalled();
+  });
+
+  it('si el orquestador falla al crear, se propaga sin anotar nada', async () => {
+    db.responder('escenario', { data: fila });
+    const { falso, cliente } = clienteFalso();
+    falso.crearEscenario.mockRejectedValue(new ErrorOrquestador('servidor', { estado: 503 }));
+
+    await expect(asegurarCaso(ESCENARIO, null, { cliente })).rejects.toMatchObject({
+      tipo: 'servidor',
+    });
+    expect(guardarCasoSincronizado).not.toHaveBeenCalled();
+  });
+
+  it('con `recrear` (lo borraron allá) crea los dos de nuevo, lo anota y lo registra', async () => {
+    db.responder('escenario', { data: fila });
+    sincronizados({ [HUELLA]: alDia });
+    const { falso, cliente } = clienteFalso();
+    falso.crearPerfil.mockResolvedValue(PERFIL_NUEVO);
+    falso.crearEscenario.mockResolvedValue(ESCENARIO_NUEVO);
+
+    const ids = await asegurarCaso(ESCENARIO, null, { cliente, recrear: true });
+
+    expect(ids).toEqual({ perfilId: PERFIL_NUEVO, escenarioId: ESCENARIO_NUEVO });
+    expect(guardarCasoSincronizado).toHaveBeenCalledWith(ESCENARIO, HUELLA, {
+      huella: HUELLA,
+      perfilId: PERFIL_NUEVO,
+      escenarioId: ESCENARIO_NUEVO,
+    });
+    expect(log.warn).toHaveBeenCalledWith('orquestador.caso_recreado', { escenario_id: ESCENARIO });
+    expect(registrarEvento).toHaveBeenCalledWith({ tipo: 'caso', detalle: 'recreado' });
   });
 
   it('falla si el caso no existe o no tiene paciente', async () => {
@@ -221,10 +225,19 @@ describe('asegurarCaso', () => {
 
   describe('práctica con el prompt ajustado por el docente', () => {
     const variante = huellaDelPrompt(PROMPT_AJUSTADO);
+    const HUELLA_VARIANTE = huellaDeSincronizacion(
+      perfilDelCaso(caso),
+      escenarioDelCaso({ ...caso, prompt: PROMPT_AJUSTADO }, variante)
+    );
+    const varianteAlDia: CasoSincronizado = {
+      huella: HUELLA_VARIANTE,
+      perfilId: PERFIL,
+      escenarioId: VARIANTE_ORQUESTADOR,
+    };
 
     it('si el prompt de la práctica es el del caso, usa el escenario del caso', async () => {
       db.responder('escenario', { data: fila });
-      sincronizados({ '': alDia });
+      sincronizados({ [HUELLA]: alDia });
       const { falso, cliente } = clienteFalso();
 
       // Los espacios de más no hacen que sea otro prompt.
@@ -235,7 +248,7 @@ describe('asegurarCaso', () => {
 
     it('si difiere, crea un escenario variante con el mismo perfil y lo recuerda', async () => {
       db.responder('escenario', { data: fila });
-      sincronizados({ '': alDia });
+      sincronizados({ [HUELLA]: alDia });
       const { falso, cliente } = clienteFalso();
       falso.crearEscenario.mockResolvedValue(VARIANTE_ORQUESTADOR);
 
@@ -251,53 +264,41 @@ describe('asegurarCaso', () => {
       expect(falso.crearPerfil).not.toHaveBeenCalled();
       expect(guardarCasoSincronizado).toHaveBeenCalledWith(
         ESCENARIO,
-        variante,
-        expect.objectContaining({ perfilId: PERFIL, escenarioId: VARIANTE_ORQUESTADOR })
+        HUELLA_VARIANTE,
+        varianteAlDia
       );
     });
 
-    it('otra práctica con el mismo ajuste reutiliza el escenario variante', async () => {
+    it.each([
+      ['bajo su huella', HUELLA_VARIANTE],
+      ['por una versión anterior, bajo la huella del prompt', variante],
+    ])('otra práctica con el mismo ajuste reutiliza la variante guardada %s', async (_, clave) => {
       db.responder('escenario', { data: fila });
-      const escenarioVariante = escenarioDelCaso({ ...caso, prompt: PROMPT_AJUSTADO }, variante);
-      sincronizados({
-        '': alDia,
-        [variante]: {
-          huella: huellaDeSincronizacion(perfilDelCaso(caso), escenarioVariante),
-          perfilId: PERFIL,
-          escenarioId: VARIANTE_ORQUESTADOR,
-        },
-      });
+      sincronizados({ [HUELLA]: alDia, [clave]: varianteAlDia });
       const { falso, cliente } = clienteFalso();
 
       const ids = await asegurarCaso(ESCENARIO, PROMPT_AJUSTADO, { cliente });
       expect(ids.escenarioId).toBe(VARIANTE_ORQUESTADOR);
       expect(falso.crearEscenario).not.toHaveBeenCalled();
-      expect(falso.actualizarEscenario).not.toHaveBeenCalled();
     });
 
-    it('si la variante quedó desactualizada la actualiza; si la borraron, la crea otra vez', async () => {
-      const vieja = {
-        huella: '0000000000000000',
-        perfilId: PERFIL,
-        escenarioId: VARIANTE_ORQUESTADOR,
-      };
-      db.responder('escenario', { data: fila }, { data: fila });
-      sincronizados({ '': alDia, [variante]: vieja });
+    it('si la variante guardada es de otro contenido, crea una nueva y no la toca', async () => {
+      db.responder('escenario', { data: fila });
+      sincronizados({
+        [HUELLA]: alDia,
+        [variante]: { ...varianteAlDia, huella: '0000000000000000' },
+      });
       const { falso, cliente } = clienteFalso();
+      falso.crearEscenario.mockResolvedValue(ESCENARIO_NUEVO);
 
-      await asegurarCaso(ESCENARIO, PROMPT_AJUSTADO, { cliente });
-      expect(falso.actualizarEscenario).toHaveBeenCalledWith(
-        expect.anything(),
-        VARIANTE_ORQUESTADOR,
-        expect.any(Object)
-      );
-      expect(falso.crearEscenario).not.toHaveBeenCalled();
+      const ids = await asegurarCaso(ESCENARIO, PROMPT_AJUSTADO, { cliente });
 
-      falso.actualizarEscenario.mockRejectedValue(
-        new ErrorOrquestador('no_encontrado', { estado: 404 })
+      expect(ids).toEqual({ perfilId: PERFIL, escenarioId: ESCENARIO_NUEVO });
+      expect(guardarCasoSincronizado).toHaveBeenCalledWith(
+        ESCENARIO,
+        HUELLA_VARIANTE,
+        expect.objectContaining({ escenarioId: ESCENARIO_NUEVO })
       );
-      await asegurarCaso(ESCENARIO, PROMPT_AJUSTADO, { cliente });
-      expect(falso.crearEscenario).toHaveBeenCalledOnce();
     });
   });
 });
@@ -325,11 +326,9 @@ describe('sincronizarOficiales', () => {
     });
     // E-01 es nuevo, E-02 ya estaba al día y E-03 no se puede leer.
     db.responder('escenario', { data: fila }, { data: fila }, { error: { code: 'XX000' } });
-    const guardados = new Map<string, CasoSincronizado>([['b', alDia]]);
-    vi.mocked(leerCasoSincronizado).mockImplementation(async id => guardados.get(id) ?? null);
-    vi.mocked(guardarCasoSincronizado).mockImplementation(async (id, _, valor) => {
-      guardados.set(id, valor);
-    });
+    vi.mocked(leerCasoSincronizado).mockImplementation(async (id, clave) =>
+      id === 'b' && clave === HUELLA ? alDia : null
+    );
 
     expect(await sincronizarOficiales({ cliente })).toEqual([
       { codigo: 'E-01', estado: 'sincronizado' },

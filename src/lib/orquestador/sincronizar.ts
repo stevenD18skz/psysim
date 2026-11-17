@@ -24,12 +24,21 @@ import {
 
 /*
  * Cada caso de PsySim tiene en el orquestador un perfil (el paciente) y un escenario (su situación,
- * con el prompt completo en `context`). Aquí se crean, se actualizan cuando el caso cambia y se
- * vuelven a crear si desaparecen: Juan José avisó que los datos de prueba se pueden borrar.
+ * con el prompt completo en `context`). Aquí se crean y se vuelven a crear si desaparecen: Juan
+ * José avisó que los datos de prueba se pueden borrar.
+ *
+ * Un perfil y un escenario ya creados NO se actualizan nunca. En PsySim cada práctica lleva su
+ * copia del prompt, pero en el orquestador todas las prácticas de un caso comparten escenario: si
+ * se sobrescribiera al editar el caso, el paciente de una práctica en curso cambiaría de
+ * instrucciones a mitad de la consulta (y su filtro de fuga seguiría comparando con el prompt
+ * viejo). Por eso cada versión del contenido tiene los suyos, identificados por la huella de lo
+ * que se envió: un caso editado, o una versión nueva del mapeo, crea otros y las prácticas que
+ * empiecen después los usan; las que ya estaban abiertas siguen con los de antes. Así tampoco se
+ * pisan staging y producción cuando comparten la base con versiones distintas del mapeo.
  *
  * El prompt de una práctica es una copia hecha al asignarla, que el docente pudo ajustar. Si
  * difiere del prompt del caso, la práctica usa un escenario «variante» (mismo perfil, otro
- * contexto), identificado por la huella de ese prompt.
+ * contexto).
  */
 
 /** Lo que una práctica necesita para abrir su sesión en el orquestador. */
@@ -78,95 +87,102 @@ export async function leerCasoParaOrquestador(escenarioId: string): Promise<Caso
   };
 }
 
-/** 404 (lo borraron) o 403 (lo creó otra cuenta): no se puede actualizar, hay que crearlo. */
-function hayQueRecrear(error: unknown): boolean {
-  return (
-    error instanceof ErrorOrquestador &&
-    (error.tipo === 'no_encontrado' || error.tipo === 'permiso')
-  );
-}
-
 interface Opciones {
-  /** No intenta actualizar: crea de nuevo el perfil y el escenario (tras un 404 al usarlos). */
+  /** Crea de nuevo el perfil y el escenario aunque estén anotados (tras un 404 al usarlos). */
   recrear?: boolean;
   cliente?: ClienteOrquestador;
 }
 
 /**
- * Deja al día el caso (fila principal) y, si hace falta, la variante de una práctica. Devuelve los
- * id del orquestador con los que abrir la sesión. Si nada cambió desde la última vez, no hace
- * ninguna llamada al orquestador.
+ * Lo que PsySim tiene anotado para exactamente este contenido. Cada versión se guarda bajo su
+ * huella; `claveAnterior` es donde lo guardaban las versiones previas de este módulo (`''` para el
+ * caso y la huella del prompt para una variante): si lo de ahí sigue correspondiendo a este
+ * contenido se aprovecha, para no crear todo otra vez al desplegar.
  */
-export async function asegurarCaso(
+async function buscarSincronizado(
+  escenarioId: string,
+  huellaContenido: string,
+  claveAnterior: string
+): Promise<CasoSincronizado | null> {
+  for (const clave of [huellaContenido, claveAnterior]) {
+    const fila = await leerCasoSincronizado(escenarioId, clave);
+    if (fila?.huella === huellaContenido) return fila;
+  }
+  return null;
+}
+
+/**
+ * Deja listo en el orquestador el caso y, si hace falta, la variante de una práctica. `creado`
+ * dice si hubo que crear algo (si no, no se llamó al orquestador).
+ */
+async function sincronizarCaso(
   escenarioId: string,
   promptPractica: string | null,
-  { recrear = false, cliente = clienteOrquestador() }: Opciones = {}
-): Promise<CasoEnOrquestador> {
+  { recrear = false, cliente = clienteOrquestador() }: Opciones
+): Promise<CasoEnOrquestador & { creado: boolean }> {
   const guardado = await leerCasoParaOrquestador(escenarioId);
   if (!guardado) throw new Error('El caso no existe o no tiene paciente.');
   const { caso } = guardado;
   const docente = cuentaDocente(getOrquestadorEnv());
+  let creado = false;
 
   // 1. El caso tal cual: su perfil y su escenario principal.
   const perfil = perfilDelCaso(caso);
   const escenario = escenarioDelCaso(caso);
   const huella = huellaDeSincronizacion(perfil, escenario);
-  let principal = await leerCasoSincronizado(escenarioId, '');
+  let principal = recrear ? null : await buscarSincronizado(escenarioId, huella, '');
 
-  if (!principal || principal.huella !== huella || recrear) {
-    let ids: Pick<CasoSincronizado, 'perfilId' | 'escenarioId'> | null = null;
-    if (principal && !recrear) {
-      try {
-        await cliente.actualizarPerfil(docente, principal.perfilId, perfil);
-        await cliente.actualizarEscenario(docente, principal.escenarioId, escenario);
-        ids = principal;
-      } catch (error) {
-        if (!hayQueRecrear(error)) throw error;
-      }
+  if (!principal) {
+    principal = {
+      huella,
+      perfilId: await cliente.crearPerfil(docente, perfil),
+      escenarioId: await cliente.crearEscenario(docente, escenario),
+    };
+    await guardarCasoSincronizado(escenarioId, huella, principal);
+    creado = true;
+    if (recrear) {
+      log.warn('orquestador.caso_recreado', { escenario_id: escenarioId });
+      await registrarEvento({ tipo: 'caso', detalle: 'recreado' });
     }
-    if (!ids) {
-      ids = {
-        perfilId: await cliente.crearPerfil(docente, perfil),
-        escenarioId: await cliente.crearEscenario(docente, escenario),
-      };
-      if (principal) {
-        log.warn('orquestador.caso_recreado', { escenario_id: escenarioId });
-        await registrarEvento({ tipo: 'caso', detalle: 'recreado' });
-      }
-    }
-    principal = { ...ids, huella };
-    await guardarCasoSincronizado(escenarioId, '', principal);
   }
 
   // 2. La práctica usa otro prompt (ajustes del docente, o el caso cambió después de asignarla).
   const delCaso = { perfilId: principal.perfilId, escenarioId: principal.escenarioId };
-  if (promptPractica === null) return delCaso;
+  if (promptPractica === null) return { ...delCaso, creado };
   const variante = huellaDelPrompt(promptPractica);
-  if (variante === huellaDelPrompt(caso.prompt)) return delCaso;
+  if (variante === huellaDelPrompt(caso.prompt)) return { ...delCaso, creado };
 
   const escenarioVariante = escenarioDelCaso({ ...caso, prompt: promptPractica }, variante);
   const huellaVariante = huellaDeSincronizacion(perfil, escenarioVariante);
-  const previa = await leerCasoSincronizado(escenarioId, variante);
-  if (previa && previa.huella === huellaVariante && !recrear) {
-    return { perfilId: principal.perfilId, escenarioId: previa.escenarioId };
-  }
+  const previa = recrear ? null : await buscarSincronizado(escenarioId, huellaVariante, variante);
+  if (previa) return { perfilId: principal.perfilId, escenarioId: previa.escenarioId, creado };
 
-  let escenarioVarianteId: string | null = null;
-  if (previa && !recrear) {
-    try {
-      await cliente.actualizarEscenario(docente, previa.escenarioId, escenarioVariante);
-      escenarioVarianteId = previa.escenarioId;
-    } catch (error) {
-      if (!hayQueRecrear(error)) throw error;
-    }
-  }
-  escenarioVarianteId ??= await cliente.crearEscenario(docente, escenarioVariante);
-  await guardarCasoSincronizado(escenarioId, variante, {
+  const escenarioVarianteId = await cliente.crearEscenario(docente, escenarioVariante);
+  await guardarCasoSincronizado(escenarioId, huellaVariante, {
     huella: huellaVariante,
     perfilId: principal.perfilId,
     escenarioId: escenarioVarianteId,
   });
-  return { perfilId: principal.perfilId, escenarioId: escenarioVarianteId };
+  return { perfilId: principal.perfilId, escenarioId: escenarioVarianteId, creado: true };
+}
+
+/**
+ * Deja al día el caso y, si hace falta, la variante de una práctica. Devuelve los id del
+ * orquestador con los que abrir la sesión. Si ese contenido ya estaba creado, no hace ninguna
+ * llamada al orquestador; si cambió, crea un perfil y un escenario nuevos (nunca actualiza los que
+ * pueden estar usando otras prácticas).
+ */
+export async function asegurarCaso(
+  escenarioId: string,
+  promptPractica: string | null,
+  opciones: Opciones = {}
+): Promise<CasoEnOrquestador> {
+  const { perfilId, escenarioId: id } = await sincronizarCaso(
+    escenarioId,
+    promptPractica,
+    opciones
+  );
+  return { perfilId, escenarioId: id };
 }
 
 /**
@@ -201,12 +217,9 @@ export async function sincronizarOficiales(
 
   const resultados: ResultadoSincronizacion[] = [];
   for (const { id, codigo } of data) {
-    const antes = await leerCasoSincronizado(id, '');
     try {
-      await asegurarCaso(id, null, opciones);
-      const despues = await leerCasoSincronizado(id, '');
-      const igual = antes !== null && antes.huella === despues?.huella && !opciones.recrear;
-      resultados.push({ codigo, estado: igual ? 'al_dia' : 'sincronizado' });
+      const { creado } = await sincronizarCaso(id, null, opciones);
+      resultados.push({ codigo, estado: creado ? 'sincronizado' : 'al_dia' });
     } catch {
       resultados.push({ codigo, estado: 'error' });
     }
