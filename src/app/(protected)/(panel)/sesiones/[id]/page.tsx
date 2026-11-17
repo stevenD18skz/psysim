@@ -67,60 +67,63 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
   const proxima = restantes[indice === -1 ? 0 : indice] ?? restantes[0] ?? null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <RefrescoAutomatico activo={enCurso} />
       <EncabezadoSesion
         sesion={sesion}
         para="docente"
         volver={{ href: '/sesiones', etiqueta: 'Revisiones' }}
         posicion={posicion}
+        ahora={new Date()}
       />
 
-      {enCurso ? (
-        <section
-          aria-labelledby="en-curso-titulo"
-          className="flex flex-col items-center gap-5 rounded-2xl border bg-card p-8 text-center sm:p-12"
-        >
-          <span className="relative flex size-16 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
-            {sesion.comenzada ? (
-              <Radio className="size-8" aria-hidden />
-            ) : (
-              <BookOpenText className="size-8" aria-hidden />
-            )}
-            <span className="absolute -top-0.5 -right-0.5 flex size-3.5">
-              <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-60 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-3.5 rounded-full bg-salvia" />
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 pt-8 pb-10 sm:px-6 sm:pb-12">
+        {enCurso ? (
+          <section
+            aria-labelledby="en-curso-titulo"
+            className="flex flex-col items-center gap-5 rounded-2xl border bg-card p-8 text-center sm:p-12"
+          >
+            <span className="relative flex size-16 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
+              {sesion.comenzada ? (
+                <Radio className="size-8" aria-hidden />
+              ) : (
+                <BookOpenText className="size-8" aria-hidden />
+              )}
+              <span className="absolute -top-0.5 -right-0.5 flex size-3.5">
+                <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-60 motion-safe:animate-ping" />
+                <span className="relative inline-flex size-3.5 rounded-full bg-salvia" />
+              </span>
             </span>
-          </span>
-          <div className="flex max-w-md flex-col gap-2">
-            <h2 id="en-curso-titulo" className="text-2xl font-bold tracking-[-0.02em]">
-              {sesion.comenzada ? 'Practicando ahora' : 'Abrió la práctica'}
-            </h2>
-            <p className="text-muted-foreground">
-              {sesion.comenzada
-                ? `${sesion.estudiante.nombre} está conversando con el paciente desde las ${formatearHora(sesion.inicio)}. Podrás leer la conversación cuando termine.`
-                : `${sesion.estudiante.nombre} usó el código y aún no empieza.`}{' '}
-              Esta página se actualiza sola.
-            </p>
-          </div>
-          <BotonInterrumpir sesionId={sesion.id} />
-        </section>
-      ) : (
-        <>
-          {reflexion && (
-            <ReflexionLeida
-              contenido={reflexion.contenido}
-              actualizadoEn={reflexion.actualizadoEn}
-              estudiante={sesion.estudiante.nombre}
+            <div className="flex max-w-md flex-col gap-2">
+              <h2 id="en-curso-titulo" className="text-2xl font-bold tracking-[-0.02em]">
+                {sesion.comenzada ? 'Practicando ahora' : 'Abrió la práctica'}
+              </h2>
+              <p className="text-muted-foreground">
+                {sesion.comenzada
+                  ? `${sesion.estudiante.nombre} está conversando con el paciente desde las ${formatearHora(sesion.inicio)}. Podrás leer la conversación cuando termine.`
+                  : `${sesion.estudiante.nombre} usó el código y aún no empieza.`}{' '}
+                Esta página se actualiza sola.
+              </p>
+            </div>
+            <BotonInterrumpir sesionId={sesion.id} />
+          </section>
+        ) : (
+          <>
+            {reflexion && (
+              <ReflexionLeida
+                contenido={reflexion.contenido}
+                actualizadoEn={reflexion.actualizadoEn}
+                estudiante={sesion.estudiante.nombre}
+              />
+            )}
+            <RevisionSesion
+              sesion={sesion}
+              ia={ia}
+              siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
             />
-          )}
-          <RevisionSesion
-            sesion={sesion}
-            ia={ia}
-            siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
-          />
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
