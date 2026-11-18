@@ -8,6 +8,7 @@ import { EntradaCodigo } from '@/components/landing/entrada-codigo';
 import { EscenariosGaleria } from '@/components/landing/escenarios-galeria';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { ESCENARIOS_PUBLICOS } from '@/lib/landing/escenarios';
 import { JsonLd } from '@/lib/seo/json-ld';
@@ -122,6 +123,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background pb-20 md:pb-0">
+      <SaltarContenido />
       <JsonLd datos={DATOS_ESTRUCTURADOS} />
 
       {/* El consultorio visto desde el umbral: la franja de nogal lleva la marca y la acción. */}
@@ -237,7 +239,11 @@ export default function Home() {
         </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 outline-hidden sm:px-8"
+      >
         {/* El ciclo real, como un registro por etapas. */}
         <Seccion id="como-funciona" titulo="Cómo funciona una práctica">
           {/* Un registro sobre una sola regla de latón: el ordinal va dentro del encabezado. */}

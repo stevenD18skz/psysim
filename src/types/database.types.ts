@@ -807,6 +807,7 @@ export type Database = {
           contrasena_temporal: boolean;
           correo: string;
           creado_en: string;
+          entrega_hasta: string | null;
           id: string;
           nombre: string;
           rol: Database['public']['Enums']['rol_usuario'];
@@ -817,6 +818,7 @@ export type Database = {
           contrasena_temporal?: boolean;
           correo: string;
           creado_en?: string;
+          entrega_hasta?: string | null;
           id: string;
           nombre: string;
           rol: Database['public']['Enums']['rol_usuario'];
@@ -827,6 +829,7 @@ export type Database = {
           contrasena_temporal?: boolean;
           correo?: string;
           creado_en?: string;
+          entrega_hasta?: string | null;
           id?: string;
           nombre?: string;
           rol?: Database['public']['Enums']['rol_usuario'];

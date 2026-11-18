@@ -312,7 +312,7 @@ describe('ConfiguradorSesion', () => {
       screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })
     ).toHaveAttribute('href', `/configuracion/casos/${PROPIO.id}`);
     expect(
-      screen.getByRole('link', { name: 'Crear caso a partir de Mi caso de ansiedad' })
+      screen.getByRole('link', { name: 'Usar de base el caso Mi caso de ansiedad' })
     ).toHaveAttribute('href', `/configuracion/casos/nuevo?desde=${PROPIO.id}`);
 
     await usuario.click(

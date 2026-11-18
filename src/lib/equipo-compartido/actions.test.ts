@@ -9,10 +9,13 @@ import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-f
 
 import { cancelarEntrega, cerrarSesionEquipoCompartido, entregarEquipo } from './actions';
 import { COOKIE_ENTREGA, COOKIE_EQUIPO_COMPARTIDO, leerEntrega } from './entrega';
+import { abrirVentanaDeEntrega } from './ventana';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/auth/dal', () => ({ requerirDocente: vi.fn(), requerirEstudiante: vi.fn() }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
+// La entrega anotada en la cuenta del docente (`usuario.entrega_hasta`) se prueba en su archivo.
+vi.mock('./ventana', () => ({ abrirVentanaDeEntrega: vi.fn() }));
 vi.mock('next/headers', () => ({ cookies: vi.fn() }));
 vi.mock('next/navigation', () => ({
   // Como en Next.js, `redirect` corta la ejecución lanzando un error.
@@ -23,6 +26,7 @@ vi.mock('next/navigation', () => ({
 
 const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const MANANA = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+const DOCENTE = 'd0c3e7e4-0000-4000-8000-000000000001';
 
 let db: SupabaseFalso;
 let almacen: { set: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
@@ -32,6 +36,8 @@ beforeEach(() => {
   vi.mocked(createClient).mockResolvedValue(db.cliente as never);
   almacen = { set: vi.fn(), delete: vi.fn() };
   vi.mocked(cookies).mockResolvedValue(almacen as never);
+  vi.mocked(abrirVentanaDeEntrega).mockReset().mockResolvedValue(true);
+  vi.mocked(requerirDocente).mockResolvedValue({ id: DOCENTE, rol: 'docente' } as never);
 });
 
 function asignacion(cambios: Record<string, unknown> = {}) {
@@ -69,6 +75,34 @@ describe('entregarEquipo (modo presencial)', () => {
     expect(cookie(COOKIE_ENTREGA)?.[2]).toMatchObject({ httpOnly: true, sameSite: 'lax' });
     expect(cookie(COOKIE_EQUIPO_COMPARTIDO)?.[2]).toMatchObject({ httpOnly: false });
     expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    // P3-01: la entrega queda anotada en la cuenta del docente, no solo en el navegador.
+    expect(abrirVentanaDeEntrega).toHaveBeenCalledWith(DOCENTE);
+  });
+
+  // P3-01: durante la entrega su cuenta no entra con Google; sin contraseña no podría volver.
+  it('quien solo entra con Google necesita antes una contraseña para recuperar el equipo', async () => {
+    asignacion();
+    db.auth.getUser.mockResolvedValueOnce({
+      data: { user: { app_metadata: { provider: 'google', providers: ['google'] } } },
+      error: null,
+    });
+
+    expect(await entregarEquipo({ id: ID })).toEqual({
+      ok: false,
+      error: expect.stringMatching(/necesitas una contraseña/),
+    });
+    expect(abrirVentanaDeEntrega).not.toHaveBeenCalled();
+    expect(almacen.set).not.toHaveBeenCalled();
+    expect(db.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('mantiene la sesión docente si no pudo guardar la entrega', async () => {
+    asignacion();
+    vi.mocked(abrirVentanaDeEntrega).mockResolvedValueOnce(false);
+
+    expect(await entregarEquipo({ id: ID })).toMatchObject({ ok: false });
+    expect(almacen.set).not.toHaveBeenCalled();
+    expect(db.auth.signOut).not.toHaveBeenCalled();
   });
 
   it('avisa si el docente tiene Google vinculado', async () => {
@@ -92,6 +126,7 @@ describe('entregarEquipo (modo presencial)', () => {
     expect(resultado).toEqual({ ok: false, error: expect.stringMatching(/Genera uno nuevo/) });
     expect(almacen.set).not.toHaveBeenCalled();
     expect(db.auth.signOut).not.toHaveBeenCalled();
+    expect(abrirVentanaDeEntrega).not.toHaveBeenCalled();
   });
 
   it('no entrega un código que no es del docente (RLS no lo devuelve)', async () => {

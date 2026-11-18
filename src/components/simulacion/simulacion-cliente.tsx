@@ -401,11 +401,11 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
             <Tecla>A</Tecla>
             <Tecla>S</Tecla>
             <Tecla>D</Tecla>
-            <span>o flechas para caminar</span>
+            <span>para caminar</span>
           </li>
           <li className="flex items-center gap-1.5">
             <MousePointer2 className="size-4" aria-hidden />
-            <span>ratón para mirar</span>
+            <span>ratón o flechas para mirar</span>
           </li>
           <li className="flex items-center gap-1.5">
             <Tecla>E</Tecla>

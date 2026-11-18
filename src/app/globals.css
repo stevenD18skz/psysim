@@ -319,6 +319,20 @@
     interpolate-size: allow-keywords;
   }
 }
+/*
+ * Indicadores de espera y demás animaciones en bucle de Tailwind: con «reducir movimiento» se
+ * quedan quietos (el texto que los acompaña sigue diciendo qué se espera). Va fuera de las capas
+ * para ganarle a la utilidad, y cubre todos los usos sin depender de escribir `motion-safe:`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-ping {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   details::details-content {
     block-size: 0;

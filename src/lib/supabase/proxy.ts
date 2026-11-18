@@ -35,8 +35,11 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
           // misma petición) y a la respuesta (para el navegador).
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
+          // `httpOnly`: el token de sesión no queda al alcance de los scripts de la página (ver
+          // `server.ts`). La biblioteca lo deja legible por defecto porque espera un cliente en
+          // el navegador, que PsySim no tiene.
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, { ...options, httpOnly: true })
           );
           // Evita que una CDN almacene en caché una respuesta con el token de otro usuario.
           Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));

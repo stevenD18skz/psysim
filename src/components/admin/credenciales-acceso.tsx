@@ -47,7 +47,7 @@ export function CredencialesAcceso({
         </div>
       </dl>
       <p className="flex gap-2 text-sm text-muted-foreground">
-        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-ambar" aria-hidden />
         Cópiala ahora: no se volverá a mostrar. Si se pierde, puedes generar otra.
       </p>
       <BotonCopiar texto={mensaje} etiqueta="Copiar mensaje para enviar" variant="default" />

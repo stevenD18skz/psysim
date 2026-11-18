@@ -154,6 +154,33 @@ describe('actualizarDocente', () => {
     });
   });
 
+  // P3-02: cambiar el correo conserva la identidad de Google ya enlazada, que seguiría entrando.
+  it('no cambia el correo de una cuenta que ya entró con Google', async () => {
+    cuentaDocente();
+    admin.auth.admin.getUserById.mockResolvedValueOnce({
+      data: { user: { identities: [{ provider: 'email' }, { provider: 'google' }] } },
+      error: null,
+    });
+
+    expect(await actualizarDocente({ id: ID, ...DATOS })).toEqual({
+      ok: false,
+      error: expect.stringMatching(/ya entró con Google/),
+    });
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+    // Solo se leyó la cuenta: no se actualizó nada.
+    expect(admin.de('usuario')).toHaveLength(1);
+  });
+
+  it('si no puede leer las identidades, no cambia el correo a ciegas', async () => {
+    cuentaDocente();
+    admin.auth.admin.getUserById.mockResolvedValueOnce({
+      data: { user: null },
+      error: { code: 'unexpected_failure' },
+    });
+    expect(await actualizarDocente({ id: ID, ...DATOS })).toMatchObject({ ok: false });
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+  });
+
   it('no puede quitarse a sí mismo el rol de Administrador', async () => {
     expect(await actualizarDocente({ id: YO, ...DATOS, rol: 'docente' })).toEqual({
       ok: false,

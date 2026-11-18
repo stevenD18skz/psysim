@@ -25,6 +25,8 @@ const SUAVIZADO = 10;
  */
 const SUBPASO = 0.05;
 const DELTA_MAXIMO = 0.25;
+/** Giro con las flechas, en radianes por segundo: media vuelta en unos dos segundos. */
+export const VELOCIDAD_GIRO = 1.6;
 
 const ARRIBA = new Vector3(0, 1, 0);
 
@@ -41,7 +43,9 @@ interface ControlesPrimeraPersonaProps {
  *
  * - Ratón: orienta la vista (Pointer Lock; se captura con el botón "Explorar" y se libera
  *   con Esc). El ángulo vertical se limita para no mirar directamente al techo o al suelo.
- * - WASD o flechas: desplazamiento en el plano del suelo, con aceleración suave.
+ * - W A S D (y las flechas arriba y abajo): desplazamiento en el plano del suelo, con aceleración
+ *   suave. Las flechas izquierda y derecha giran la vista, con o sin el ratón capturado: así el
+ *   consultorio se recorre también solo con el teclado.
  * - La altura de los ojos es fija y el movimiento respeta los límites del JSON y la caja de
  *   colisión de cada mueble (ver lib/escena/colisiones.ts).
  */
@@ -127,6 +131,11 @@ export function ControlesPrimeraPersona({
 
     const avance = eje(teclas.current, 'adelante', 'atras');
     const lateral = eje(teclas.current, 'derecha', 'izquierda');
+
+    // Giro alrededor de la vertical del mundo: no cambia la inclinación de la mirada. El ratón
+    // parte de la orientación que tenga la cámara, así que los dos se combinan sin saltos.
+    const giro = eje(teclas.current, 'girarIzquierda', 'girarDerecha');
+    if (giro !== 0) camera.rotateOnWorldAxis(ARRIBA, giro * VELOCIDAD_GIRO * total);
 
     camera.getWorldDirection(adelante).setY(0).normalize();
     derecha.crossVectors(adelante, ARRIBA).normalize();

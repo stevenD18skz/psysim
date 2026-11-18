@@ -221,9 +221,11 @@ la base de datos en cada petición del proxy.
 
 La simulación monta la escena descrita por `public/scenes/e-XX.json` (validado con Zod): una sala
 procedural cálida, mobiliario (procedural o GLB desde Supabase Storage, comprimido con Draco),
-el paciente virtual y controles en primera persona (WASD + ratón con Pointer Lock) con colisiones
-por cajas delimitadoras. El canvas limita el `devicePixelRatio` a 1,5 y lo baja a 1 si el
-rendimiento cae (`PerformanceMonitor`). Añade `?debug=1` a la URL de la simulación para ver los FPS.
+el paciente y controles en primera persona (W A S D para caminar; ratón con Pointer Lock o flechas
+para girar) con colisiones por cajas delimitadoras. El canvas limita el `devicePixelRatio` a 1,5 y
+lo baja a 1 si el rendimiento cae (`PerformanceMonitor`); tras tres cambios la deja fija en 1, y si
+a 1 sigue lento apaga las sombras (`src/lib/escena/calidad.ts`). Añade `?debug=1` a la URL de la
+simulación para ver los FPS.
 Guía de modelos y escenas: [`docs/modelos-3d.md`](docs/modelos-3d.md).
 
 ### Conversación con el paciente (Sprint 3)

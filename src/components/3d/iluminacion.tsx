@@ -10,6 +10,7 @@ import {
   type PointLight,
 } from 'three';
 
+import { useCalidadEscena } from '@/components/3d/calidad-escena-contexto';
 import { useVistaVentana } from '@/components/3d/vista-ventana-contexto';
 import { useEfectosAmbiente } from '@/hooks/use-efectos-ambiente';
 import { LUZ_DEL_MOMENTO } from '@/lib/ambiente/vista-ventana';
@@ -48,6 +49,7 @@ export function Iluminacion({ iluminacion }: { iluminacion: Escena['iluminacion'
   const { ambiental, hemisferica, direccional, puntuales, fondo } = iluminacion;
   const efectos = useEfectosAmbiente();
   const sala = LUZ_DEL_MOMENTO[useVistaVentana().momento].sala;
+  const { sombras } = useCalidadEscena();
 
   const ambiente = useRef<AmbientLight>(null);
   const hemisfera = useRef<HemisphereLight>(null);
@@ -116,7 +118,8 @@ export function Iluminacion({ iluminacion }: { iluminacion: Escena['iluminacion'
         position={direccional.posicion}
         intensity={direccional.intensidad}
         color={direccional.color}
-        castShadow
+        // En un equipo que no da abasto ni a 1×, el lienzo apaga las sombras (P4-02).
+        castShadow={sombras}
         shadow-mapSize={[RESOLUCION_SOMBRAS, RESOLUCION_SOMBRAS]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.03}

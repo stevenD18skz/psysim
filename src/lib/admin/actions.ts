@@ -26,6 +26,8 @@ const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del docente.';
 const MENSAJE_GENERICO = 'No pudimos completar la operación. Inténtalo de nuevo.';
 const MENSAJE_NO_DISPONIBLE = 'Esa cuenta ya no está disponible. Recarga la página.';
 const MENSAJE_CORREO_EN_USO = 'Ya existe una cuenta con ese correo.';
+const MENSAJE_CORREO_CON_GOOGLE =
+  'Esta cuenta ya entró con Google usando su correo anterior, y esa persona seguiría entrando con él. Si la cuenta es para otra persona, crea una nueva y desactiva esta.';
 const MENSAJE_CODIGO_EN_USO = 'Ese código institucional ya pertenece a otra cuenta.';
 const MENSAJE_SOBRE_SI_MISMO = 'No puedes hacer esto con tu propia cuenta.';
 
@@ -145,7 +147,8 @@ export async function crearDocente(
 
 /**
  * Corrige el nombre, el correo, el código o el rol de una cuenta del equipo docente. Si el correo
- * cambia, también cambia en Supabase Auth (con él entra con Google o con contraseña).
+ * cambia, también cambia en Supabase Auth (con él entra con Google o con contraseña); no se puede
+ * cambiar el de una cuenta que ya entró con Google, porque esa identidad seguiría sirviendo.
  */
 export async function actualizarDocente(
   valores: unknown
@@ -168,6 +171,22 @@ export async function actualizarDocente(
   }
 
   if (actual.correo !== correo) {
+    // Supabase reconoce un acceso con Google por la identidad enlazada, no por el correo actual,
+    // y cambiar el correo la conserva: quien entraba con el Google anterior seguiría entrando a
+    // esta cuenta, ahora con los datos de quien la herede. La API de administración no permite
+    // desvincularla, así que la cuenta no se reutiliza con otro correo.
+    const { data: cuenta, error: errorCuenta } = await admin.auth.admin.getUserById(id);
+    if (errorCuenta) {
+      log.error('admin.identidades_no_leidas', { codigo: errorCuenta.code });
+      return { ok: false, error: MENSAJE_GENERICO };
+    }
+    const entroConGoogle = (cuenta.user?.identities ?? []).some(
+      identidad => identidad.provider === 'google'
+    );
+    if (entroConGoogle) {
+      return { ok: false, error: MENSAJE_CORREO_CON_GOOGLE };
+    }
+
     const { error } = await admin.auth.admin.updateUserById(id, {
       email: correo,
       email_confirm: true,

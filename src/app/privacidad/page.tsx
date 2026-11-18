@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ControlCitado } from '@/components/comun/control-citado';
 import { LogoGoogle } from '@/components/comun/logo-google';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { PiePagina } from '@/components/layout/pie-pagina';
 
 export const metadata: Metadata = {
@@ -50,6 +51,7 @@ const SECCIONES = [
 export default function PrivacidadPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
+      <SaltarContenido />
       <header className="vetas-nogal text-sidebar-foreground">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-5 py-5 sm:px-8">
           <Link
@@ -68,7 +70,11 @@ export default function PrivacidadPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:py-14">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-5 py-10 outline-hidden sm:px-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:py-14"
+      >
         <nav aria-labelledby="indice" className="lg:sticky lg:top-8 lg:self-start">
           <p id="indice" className="mb-2 text-sm font-semibold">
             En esta página

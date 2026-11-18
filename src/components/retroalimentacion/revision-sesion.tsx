@@ -353,7 +353,7 @@ export function RevisionSesion({
                     className={cn(
                       'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
                       esEstudiante
-                        ? 'rounded-br-md bg-salvia-suave selection:bg-amber-300/70'
+                        ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
                         : 'rounded-bl-md border bg-background text-foreground select-none'
                     )}
                   >
@@ -733,9 +733,7 @@ function ComentarioEnLista({
       id={`anotacion-${anotacion.id}`}
       className={cn(
         'group relative rounded-xl border text-sm transition-colors',
-        activa
-          ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10'
-          : 'bg-background hover:border-amber-300'
+        activa ? 'border-ambar bg-ambar-suave' : 'bg-background hover:border-ambar/50'
       )}
     >
       <button

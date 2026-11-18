@@ -30,6 +30,7 @@ const eslintConfig = defineConfig([
     'coverage/**',
     'playwright-report/**',
     'test-results/**',
+    'tmp-capturas/**',
     'next-env.d.ts',
     'src/types/database.types.ts',
     // Decodificadores Draco de terceros (copiados de three/examples).

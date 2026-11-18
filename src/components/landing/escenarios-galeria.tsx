@@ -181,14 +181,14 @@ function DetalleEscenario({
           <Button
             variant="secondary"
             size="icon"
-            className="absolute top-3 right-3 rounded-full bg-white/90 text-neutral-900 hover:bg-white"
+            className="absolute top-3 right-3 rounded-full bg-card/90 text-foreground hover:bg-card"
             aria-label="Cerrar el detalle"
           >
             <X aria-hidden />
           </Button>
         </DialogPrimitive.Close>
         <div className="absolute bottom-4 left-5 flex flex-wrap items-center gap-2 text-white">
-          <span className="rounded-md bg-white/90 px-2 py-0.5 font-mono text-xs font-medium text-neutral-900">
+          <span className="rounded-md bg-card/90 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
             {escenario.codigo}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur">

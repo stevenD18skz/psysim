@@ -1,4 +1,7 @@
-/** Primer elemento enfocable de los paneles: salta la navegación y lleva al contenido (WCAG 2.4.1). */
+/**
+ * Primer elemento enfocable de los paneles y de las páginas públicas: salta la navegación (o la
+ * galería de casos del acceso) y lleva al contenido, que debe tener `id="contenido"` (WCAG 2.4.1).
+ */
 export function SaltarContenido() {
   return (
     <a

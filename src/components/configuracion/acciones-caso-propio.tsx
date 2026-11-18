@@ -97,7 +97,7 @@ export function AccionesCasoPropio({
       <Button asChild variant="ghost" size={tamano}>
         <Link
           href={`/configuracion/casos/nuevo?desde=${casoId}`}
-          aria-label={`Crear caso a partir de ${titulo}`}
+          aria-label={`Usar de base el caso ${titulo}`}
           title="Usar de base para otro caso"
         >
           <CopyPlus aria-hidden />

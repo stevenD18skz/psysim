@@ -95,8 +95,8 @@ function reglaDelTiempo(duracionS: number) {
 }
 
 const CONTROLES = [
-  ['W A S D o flechas', 'caminar'],
-  ['Ratón', 'mirar alrededor'],
+  ['W A S D', 'caminar'],
+  ['Ratón o flechas', 'mirar alrededor'],
   ['E (o clic sobre el paciente)', 'conversar'],
   ['Esc', 'liberar el ratón'],
 ] as const;

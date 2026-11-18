@@ -53,8 +53,8 @@ el consultorio.
 
 | Acción                    | Cómo                                                                     |
 | ------------------------- | ------------------------------------------------------------------------ |
-| Caminar                   | W, A, S, D o las flechas                                                 |
-| Mirar alrededor           | Ratón                                                                    |
+| Caminar                   | W, A, S, D (también las flechas arriba y abajo)                          |
+| Mirar alrededor           | Ratón, o las flechas izquierda y derecha                                 |
 | Empezar a conversar       | Acércate al paciente y pulsa E, haz clic sobre él o usa «Conversar con…» |
 | Llegar sin caminar        | «Ir directo a la conversación»                                           |
 | Enviar tu intervención    | Enter (Shift + Enter inserta una línea)                                  |

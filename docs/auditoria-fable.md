@@ -2,6 +2,18 @@
 
 ## Estado
 
+### Correcciones del 17 de noviembre de 2026
+
+- La base compartida tiene registradas `20261116010000`, `20261116020000` y `20261117010000`.
+  Supabase Auth exige la contraseña actual y la reautenticación de sesiones antiguas al cambiarla.
+  También está habilitado el aviso por correo de contraseña cambiada.
+- El modo presencial guarda la ventana de entrega antes de cerrar la sesión del docente. Si falla
+  ese registro, el equipo sigue con el docente. Si la cuenta ya tiene Google vinculado, el
+  Administrador debe crear otra cuenta para sustituirla por una con otro correo.
+- La auditoría original y su plan quedan abajo como registro de los hallazgos del 16 de noviembre.
+
+### Auditoría del 16 de noviembre
+
 | Dato             | Valor                                                                        |
 | ---------------- | ---------------------------------------------------------------------------- |
 | Pasadas hechas   | 5 de 5                                                                       |

@@ -3,7 +3,7 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
-import { esCuentaDePrueba, metodosDeAcceso } from '@/lib/auth/metodo-acceso';
+import { entradasDeAcceso, esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import {
   esRol,
   ROLES_DOCENTE,
@@ -12,6 +12,7 @@ import {
   RUTA_INICIO,
   RUTA_LOGIN,
 } from '@/lib/auth/routes';
+import { googleDuranteLaEntrega, leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -66,11 +67,25 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
     return { estado: 'sin-permiso' };
   }
 
-  if (perfil.rol === 'estudiante' && !esCuentaDePrueba(perfil.correo)) {
-    // El token es el de la sesión que `getUser()` acaba de validar con el servidor de Auth.
-    const { data } = await supabase.auth.getSession();
-    if (metodosDeAcceso(data.session?.access_token).includes('password')) {
+  // El token es el de la sesión que `getUser()` acaba de validar con el servidor de Auth.
+  const { data: sesion } = await supabase.auth.getSession();
+  const entradas = entradasDeAcceso(sesion.session?.access_token);
+  const entroCon = (metodo: string) => entradas.some(entrada => entrada.metodo === metodo);
+
+  if (perfil.rol === 'estudiante') {
+    if (!esCuentaDePrueba(perfil.correo) && entroCon('password')) {
       log.warn('auth.estudiante_con_contrasena', { usuario_id: perfil.id });
+      return { estado: 'sin-permiso' };
+    }
+  } else if (entroCon('oauth')) {
+    // Modo presencial: tras entregar su equipo, la cuenta del docente no vale con una sesión de
+    // Google abierta después de la entrega (`ventana.ts`). `/auth/callback` ya lo rechaza con su
+    // aviso; esto cubre una sesión conseguida sin pasar por ahí. Solo cuesta una lectura a quien
+    // entró con Google.
+    const entregaHasta = await leerVentanaDeEntrega(perfil.id);
+    if (entregaHasta === undefined) return { estado: 'sin-permiso' };
+    if (googleDuranteLaEntrega(entregaHasta, entradas)) {
+      log.warn('auth.google_tras_entregar_el_equipo', { usuario_id: perfil.id });
       return { estado: 'sin-permiso' };
     }
   }

@@ -3,17 +3,12 @@
 import { PerformanceMonitor } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import Link from 'next/link';
-import { Component, type ReactNode, useState } from 'react';
+import { Component, type ReactNode, useReducer } from 'react';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 
+import { ContextoCalidadEscena } from '@/components/3d/calidad-escena-contexto';
 import { MonitorRendimiento } from '@/components/3d/monitor-rendimiento';
-
-/**
- * Límite del devicePixelRatio (sección 4.4): en pantallas HiDPI renderizar a 2× o 3× multiplica
- * el coste en una iGPU sin una mejora visible. Si el rendimiento cae, se baja a 1.
- */
-const DPR_MAXIMO = 1.5;
-const DPR_REDUCIDO = 1;
+import { ajustarCalidad, CALIDAD_INICIAL, DPR_REDUCIDO } from '@/lib/escena/calidad';
 
 interface SceneCanvasProps {
   children: ReactNode;
@@ -72,12 +67,14 @@ export function SceneCanvas(props: SceneCanvasProps) {
 }
 
 function LienzoEscena({ children, onListo }: SceneCanvasProps) {
-  const [dpr, setDpr] = useState<number>(DPR_MAXIMO);
+  // Resolución y sombras según el rendimiento (sección 4.4 y auditoría P4-02): ver
+  // `lib/escena/calidad.ts`.
+  const [calidad, avisar] = useReducer(ajustarCalidad, CALIDAD_INICIAL);
 
   return (
     <Canvas
       className="absolute! inset-0"
-      dpr={[1, dpr]}
+      dpr={[DPR_REDUCIDO, calidad.dpr]}
       shadows={{ type: PCFShadowMap }}
       gl={{
         antialias: true,
@@ -98,12 +95,9 @@ function LienzoEscena({ children, onListo }: SceneCanvasProps) {
         </div>
       }
     >
-      <PerformanceMonitor
-        onDecline={() => setDpr(DPR_REDUCIDO)}
-        onIncline={() => setDpr(DPR_MAXIMO)}
-      >
+      <PerformanceMonitor onDecline={() => avisar('baja')} onIncline={() => avisar('sube')}>
         <MonitorRendimiento />
-        {children}
+        <ContextoCalidadEscena value={calidad}>{children}</ContextoCalidadEscena>
       </PerformanceMonitor>
     </Canvas>
   );

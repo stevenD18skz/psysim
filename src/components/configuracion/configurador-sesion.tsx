@@ -741,7 +741,7 @@ export function ConfiguradorSesion({
         )}
 
         {/* Acciones */}
-        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:items-center sm:p-4">
+        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:p-4">
           <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
@@ -773,6 +773,7 @@ export function ConfiguradorSesion({
             type="submit"
             variant="accion"
             size="lg"
+            className="sm:ml-auto"
             disabled={generando}
             aria-busy={generando}
           >

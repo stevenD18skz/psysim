@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
+import { cerrarVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -16,6 +17,7 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/auth/dal', () => ({ requerirUsuario: vi.fn() }));
 vi.mock('@/lib/auth/verificar-contrasena', () => ({ verificarContrasenaActual: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ olvidarEntrega: vi.fn() }));
+vi.mock('@/lib/equipo-compartido/ventana', () => ({ cerrarVentanaDeEntrega: vi.fn() }));
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ origin: 'https://psysim.vercel.app' })),
 }));
@@ -58,6 +60,8 @@ describe('iniciarSesion (HU-02)', () => {
     });
     // El docente que vuelve tras entregar su equipo (modo presencial) deja de verlo compartido.
     expect(olvidarEntrega).toHaveBeenCalled();
+    // P3-01: entrar con la contraseña demuestra que es él; su cuenta vuelve a aceptar Google.
+    expect(cerrarVentanaDeEntrega).toHaveBeenCalledWith(USUARIO.id);
   });
 
   it('ignora una ruta de retorno externa (redirección abierta)', async () => {
@@ -82,6 +86,7 @@ describe('iniciarSesion (HU-02)', () => {
     await expect(iniciarSesion(CREDENCIALES)).rejects.toThrow('NEXT_REDIRECT:/practicas');
     // En el equipo que le entregó su docente (modo presencial), el equipo sigue compartido.
     expect(olvidarEntrega).not.toHaveBeenCalled();
+    expect(cerrarVentanaDeEntrega).not.toHaveBeenCalled();
   });
 
   it('a un estudiante no lo devuelve a una ruta del docente', async () => {

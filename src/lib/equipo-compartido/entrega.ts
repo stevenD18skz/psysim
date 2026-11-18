@@ -8,6 +8,9 @@ import { PATRON_CODIGO_ACCESO } from '@/lib/asignaciones/codigo';
  * de la entrega y la práctica queda en la cuenta del estudiante, que después lee ahí la
  * retroalimentación.
  *
+ * La entrega también se guarda en el servidor, en la cuenta del docente (`ventana.ts`): mientras
+ * dure, esa cuenta no entra con Google, exista o no alguna de estas cookies.
+ *
  * Dos cookies acompañan la entrega:
  * - `COOKIE_ENTREGA` (solo servidor): para quién es el equipo y con qué código, para la pantalla
  *   de entrega. No da acceso a nada: el código solo funciona con la cuenta de ese estudiante.
@@ -64,6 +67,16 @@ export function usaGoogle(appMetadata: Record<string, unknown> | undefined): boo
   if (!appMetadata) return false;
   const proveedores = Array.isArray(appMetadata.providers) ? appMetadata.providers : [];
   return appMetadata.provider === 'google' || proveedores.includes('google');
+}
+
+/**
+ * ¿Tiene la cuenta una contraseña en PsySim? Quien entrega su equipo la necesita: durante la
+ * entrega su cuenta no entra con Google, y la contraseña es con lo que recupera el equipo.
+ */
+export function tieneContrasena(appMetadata: Record<string, unknown> | undefined): boolean {
+  if (!appMetadata) return false;
+  const proveedores = Array.isArray(appMetadata.providers) ? appMetadata.providers : [];
+  return appMetadata.provider === 'email' || proveedores.includes('email');
 }
 
 /** Primer nombre, para dirigirse al estudiante en la pantalla de entrega. */

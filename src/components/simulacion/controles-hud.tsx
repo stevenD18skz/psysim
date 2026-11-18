@@ -131,8 +131,8 @@ export function BotonControles() {
         <p className="mb-2 text-sm font-semibold">Controles</p>
         <dl className="flex flex-col gap-1.5 text-sm">
           {[
-            ['W A S D o flechas', 'caminar'],
-            ['Ratón', 'mirar alrededor'],
+            ['W A S D', 'caminar'],
+            ['Ratón o flechas', 'mirar alrededor'],
             ['E (o clic sobre el paciente)', 'conversar'],
             ['Ctrl + H', 'ocultar o mostrar los controles'],
             ['Esc', 'liberar el ratón'],

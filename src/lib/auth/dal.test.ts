@@ -16,6 +16,7 @@ import {
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
+vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('next/navigation', () => ({
   redirect: vi.fn((ruta: string) => {
     throw new Error(`NEXT_REDIRECT:${ruta}`);
@@ -144,7 +145,6 @@ describe('obtenerSesionUsuario (DAL)', () => {
       db.responder('usuario', { data: { ...ESTUDIANTE, correo: 'estudiante1@psysim.test' } });
       conSesion([{ method: 'password', timestamp: 1 }]);
       expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
-      expect(db.auth.getSession).not.toHaveBeenCalled();
     });
 
     it('al docente no le aplica: él sí entra con contraseña', async () => {
@@ -153,6 +153,64 @@ describe('obtenerSesionUsuario (DAL)', () => {
       conSesion([{ method: 'password', timestamp: 1 }]);
       expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
     });
+  });
+});
+
+// P3-01: tras entregar su equipo (modo presencial), la cuenta del docente no vale con una sesión
+// de Google abierta después. La sesión de Google del navegador entregado sigue abierta, y quien
+// lo tiene podría elegirla sin escribir ninguna contraseña.
+describe('docente que entregó su equipo', () => {
+  const AHORA = Date.now();
+  const HASTA = new Date(AHORA + 3 * 60 * 60 * 1000).toISOString();
+  /** La entrega dura 4 horas: esta empezó hace una. */
+  const haceS = (segundos: number) => Math.floor(AHORA / 1000) - segundos;
+  const conSesion = (amr: unknown) =>
+    db.auth.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: `x.${Buffer.from(JSON.stringify({ amr })).toString('base64url')}.y`,
+        },
+      },
+      error: null,
+    });
+
+  it('una sesión de Google abierta después de la entrega no tiene permiso', async () => {
+    conUsuario();
+    db.responder('usuario', { data: PERFIL }, { data: { entrega_hasta: HASTA } });
+    conSesion([{ method: 'oauth', timestamp: haceS(60) }]);
+    expect(await obtenerSesionUsuario()).toEqual({ estado: 'sin-permiso' });
+  });
+
+  it('su sesión de Google anterior a la entrega (otro dispositivo) sigue sirviendo', async () => {
+    conUsuario();
+    db.responder('usuario', { data: PERFIL }, { data: { entrega_hasta: HASTA } });
+    conSesion([{ method: 'oauth', timestamp: haceS(2 * 60 * 60) }]);
+    expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
+  });
+
+  it('con su contraseña entra siempre, y no hace falta leer la entrega', async () => {
+    conUsuario();
+    db.responder('usuario', { data: PERFIL });
+    conSesion([{ method: 'password', timestamp: haceS(60) }]);
+    expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
+    expect(db.de('usuario')).toHaveLength(1);
+  });
+
+  it.each([
+    ['sin entrega', { entrega_hasta: null }],
+    ['con la entrega ya vencida', { entrega_hasta: new Date(AHORA - 60_000).toISOString() }],
+  ])('%s, Google entra como siempre', async (_, ventana) => {
+    conUsuario();
+    db.responder('usuario', { data: PERFIL }, { data: ventana });
+    conSesion([{ method: 'oauth', timestamp: haceS(60) }]);
+    expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
+  });
+
+  it('si la base aún no tiene la columna, nadie se queda fuera', async () => {
+    conUsuario();
+    db.responder('usuario', { data: PERFIL }, { error: { code: '42703' } });
+    conSesion([{ method: 'oauth', timestamp: haceS(60) }]);
+    expect(await obtenerSesionUsuario()).toMatchObject({ estado: 'autorizado' });
   });
 });
 

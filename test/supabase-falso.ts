@@ -125,6 +125,9 @@ export function crearSupabaseFalso() {
     admin: {
       createUser: vi.fn(async () => ({ data: { user: { id: 'nuevo' } }, error: null }) as unknown),
       updateUserById: vi.fn(async () => ({ data: {}, error: null }) as unknown),
+      getUserById: vi.fn(
+        async () => ({ data: { user: { identities: [] } }, error: null }) as unknown
+      ),
       deleteUser: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     },
   };

@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/routes';
 import { publicEnv } from '@/lib/env/public';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
+import { cerrarVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { log } from '@/lib/log';
@@ -92,7 +93,10 @@ export async function iniciarSesion(
 
   // El docente vuelve a su equipo después de entregarlo a un estudiante (modo presencial). Si
   // quien entra es el estudiante (una cuenta de prueba, con contraseña), el equipo sigue entregado.
-  if (perfil.rol !== 'estudiante') await olvidarEntrega();
+  // Entrar con la contraseña es lo que demuestra que es él: su cuenta vuelve a aceptar Google.
+  if (perfil.rol !== 'estudiante') {
+    await Promise.all([olvidarEntrega(), cerrarVentanaDeEntrega(data.user.id)]);
+  }
   redirect(rutaSiguienteSegura(siguiente, perfil.rol));
 }
 

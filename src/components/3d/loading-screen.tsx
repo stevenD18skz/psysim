@@ -17,7 +17,7 @@ export const ESPERA_ATASCADA_MS = 45_000;
 
 const CONSEJOS = [
   'Busca un lugar tranquilo. Si quieres, usa auriculares: el consultorio tiene sonido.',
-  'Caminas con W A S D o las flechas, miras con el ratón y hablas con la tecla E.',
+  'Caminas con W A S D, giras con el ratón o con las flechas y hablas con la tecla E.',
   'El paciente es una IA: escribe como lo harías en consulta.',
 ];
 

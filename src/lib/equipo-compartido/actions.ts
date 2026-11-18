@@ -14,8 +14,10 @@ import {
   RUTA_ENTREGA,
   RUTA_FIN_ENTREGA,
   serializarEntrega,
+  tieneContrasena,
   usaGoogle,
 } from '@/lib/equipo-compartido/entrega';
+import { abrirVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { log } from '@/lib/log';
 import { createClient } from '@/lib/supabase/server';
 import { idAsignacionSchema } from '@/schemas/asignacion.schema';
@@ -38,11 +40,12 @@ export async function olvidarEntrega(): Promise<void> {
  * Modo presencial: el docente entrega su computador al estudiante de un código sin usar.
  *
  * Comprueba que el código sea del docente (RLS) y siga vigente, guarda para quién es el equipo,
- * cierra la sesión del docente en este navegador y lleva a la pantalla de entrega. Si todo va bien
- * redirige y no devuelve nada.
+ * anota la entrega en la cuenta del docente (desde ahí no entra con Google hasta que vuelva con
+ * su contraseña), cierra su sesión en este navegador y lleva a la pantalla de entrega. Si todo va
+ * bien redirige y no devuelve nada.
  */
 export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<null>> {
-  await requerirDocente();
+  const docente = await requerirDocente();
 
   const datos = idAsignacionSchema.safeParse(valores);
   if (!datos.success) {
@@ -77,6 +80,20 @@ export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Durante la entrega la cuenta del docente no entra con Google (su sesión de Google sigue
+  // abierta en este navegador, que queda en manos del estudiante): recupera el equipo con su
+  // contraseña. Quien solo entra con Google no tendría cómo volver, así que antes necesita una.
+  if (usaGoogle(user?.app_metadata) && !tieneContrasena(user?.app_metadata)) {
+    return {
+      ok: false,
+      error:
+        'Para entregar tu equipo necesitas una contraseña de PsySim: con ella lo recuperas después. Pídesela al administrador.',
+    };
+  }
+  if (!(await abrirVentanaDeEntrega(docente.id))) {
+    return { ok: false, error: 'No pudimos preparar el equipo. Inténtalo de nuevo.' };
+  }
 
   const almacen = await cookies();
   almacen.set(
