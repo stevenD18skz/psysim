@@ -13,7 +13,7 @@ colors:
   salvia-suave: '#e2eadf'
   terracota: '#a4472a'
   terracota-suave: '#f3e3db'
-  ambar: '#9a5b06'
+  ambar: '#8d5205'
   ambar-suave: '#f6ead2'
   destructive: '#b42318'
   lino: '#f1f3ee'
@@ -219,7 +219,7 @@ Paleta de materiales: madera oscura, herraje de latón, tela salvia, piel terrac
 
 ### Señales
 
-- **Ámbar** (`ambar`) sobre **ámbar suave** (`ambar-suave`), 4,55:1: lo que espera al docente o vence pronto. Insignia «Pendiente» y «Borrador», «Vence…» con menos de 24 h, aviso de inactividad, marca y línea guía del comentario del docente sobre una frase.
+- **Ámbar** (`ambar`) sobre **ámbar suave** (`ambar-suave`) alcanza 5,27 a 1 de contraste. Se usa para las insignias «Pendiente» y «Borrador», los códigos que vencen en menos de 24 h, el aviso de inactividad y las anotaciones del docente sobre la transcripción.
 - **Rojo** (`destructive`): errores de validación (`aria-invalid`), mensajes de error y acciones destructivas, siempre como texto rojo sobre rojo al 10 % (6,4:1 sobre tarjeta), nunca como relleno sólido.
 
 ### Neutral
