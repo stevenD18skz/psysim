@@ -1,9 +1,8 @@
 import { type MensajeConversacion } from '@/types';
 
 /**
- * Emociones que el paciente virtual expresa con el cuerpo (postura, mirada, respiración). La IA
- * elige una en cada respuesta con una etiqueta al inicio del texto (ver `reglas.ts`); el servidor
- * la separa del texto y la escena 3D la convierte en lenguaje no verbal.
+ * Emociones que el paciente virtual expresa con el cuerpo (postura, mirada, respiración). El
+ * servidor las lee de la etiqueta de Gemini o las deduce de la severidad del orquestador.
  *
  * No se muestran como texto en la interfaz: leer la emoción del paciente es parte de la práctica.
  */

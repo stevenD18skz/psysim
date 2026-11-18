@@ -123,9 +123,7 @@ describe('asegurarCaso', () => {
       { name: string; context: string },
     ];
     expect(escenario.name).toMatch(/^-3D- E-01 · Duelo y pérdida$/);
-    // El contexto lleva el prompt del caso y las reglas fijas de PsySim.
-    expect(escenario.context).toContain(PROMPT);
-    expect(escenario.context).toContain('Reglas de interpretación:');
+    expect(escenario.context).toBe(PROMPT);
     // Se guarda bajo la huella de lo enviado: cada versión del contenido tiene los suyos.
     expect(guardarCasoSincronizado).toHaveBeenCalledWith(ESCENARIO, HUELLA, alDia);
     // Crear por primera vez no es una recreación: no se registra.
@@ -260,7 +258,7 @@ describe('asegurarCaso', () => {
         { name: string; context: string },
       ];
       expect(escenario.name).toBe(`-3D- E-01 · Duelo y pérdida · ajuste ${variante.slice(0, 8)}`);
-      expect(escenario.context).toContain('especialmente callada');
+      expect(escenario.context).toBe(PROMPT_AJUSTADO);
       expect(falso.crearPerfil).not.toHaveBeenCalled();
       expect(guardarCasoSincronizado).toHaveBeenCalledWith(
         ESCENARIO,

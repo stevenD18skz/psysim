@@ -62,8 +62,8 @@ describe('emocionPorSeveridad', () => {
     expect(emocionPorSeveridad({ ...base, severidad: 3, severidadAnterior: 2.5 })).toBe('ansioso');
   });
 
-  it('sin cambios, depende del nivel: tranquilo, neutral o triste', () => {
-    expect(emocionPorSeveridad({ ...base, severidad: 1 })).toBe('tranquilo');
+  it('sin cambios ni emoción anterior, usa neutral a baja severidad y triste a partir de 2,5', () => {
+    expect(emocionPorSeveridad({ ...base, severidad: 1 })).toBe('neutral');
     expect(emocionPorSeveridad({ ...base, severidad: 2 })).toBe('neutral');
     expect(emocionPorSeveridad({ ...base, severidad: 3, severidadAnterior: 3.2 })).toBe('triste');
   });
@@ -73,6 +73,12 @@ describe('emocionPorSeveridad', () => {
     expect(emocionPorSeveridad({ ...estable, emocionAnterior: 'ansioso' })).toBe('ansioso');
     expect(emocionPorSeveridad({ ...estable, emocionAnterior: 'aliviado' })).toBe('triste');
     expect(emocionPorSeveridad({ ...estable, emocionAnterior: 'abrumado' })).toBe('triste');
+  });
+
+  it('conserva la tristeza cuando la severidad baja de 1,5 en un cambio pequeño', () => {
+    expect(
+      emocionPorSeveridad({ severidad: 1.4, severidadAnterior: 1.7, emocionAnterior: 'triste' })
+    ).toBe('triste');
   });
 });
 

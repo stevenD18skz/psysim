@@ -113,8 +113,9 @@ Cada caso de PsySim (E-01 a E-12 y los propios de cada docente) tiene en el orqu
   contesta, el caso se guarda igual y se sincroniza cuando empiece su primera práctica.
 - El nombre lleva el prefijo **`-3D-`** que pidió Juan José: `-3D- Marta Lucía (E-01)` y
   `-3D- E-01 · Duelo y pérdida`.
-- El `context` del escenario lleva el **prompt completo del caso más las reglas fijas** de
-  `src/lib/ia/reglas.ts` (español colombiano, revelación gradual, secretos, etiqueta de emoción).
+- El `context` del escenario describe la situación, el paciente y los ajustes del docente. El
+  orquestador usa ese contexto al componer su propio prompt. Las reglas de Gemini, incluida su
+  etiqueta de emoción, se añaden solo cuando PsySim llama directamente a Gemini.
 - Los campos del constructor guiado van además a `traits` (edad, ocupación, personalidad, estilo,
   síntomas) y a `behavior.triggers` / `regulators` («se cierra si…», «se abre si…»), que el
   orquestador guarda aunque todavía no los usa.
@@ -248,30 +249,33 @@ mismo protocolo con los dos proveedores (con Gemini se usa `streamText`).
 | Evento      | Datos                           | Qué hace el navegador                               |
 | ----------- | ------------------------------- | --------------------------------------------------- |
 | `espera`    | `segundos`                      | Sabe que el servidor espera cupo: no se colgó       |
-| `emocion`   | `emocion`, `intensidad`         | El paciente 3D la muestra desde la primera palabra  |
+| `emocion`   | `emocion`, `intensidad`         | Aplica la emoción cuando llega una etiqueta         |
 | `fragmento` | `texto`                         | Añade texto a la burbuja                            |
 | `reinicio`  | —                               | Borra lo mostrado: otro intento responde desde cero |
 | `fin`       | `respuesta` (la misma del JSON) | Reemplaza el texto por el guardado                  |
 | `error`     | `status`, `error`, `espera_s`   | Quita lo que llegó y deja reintentar                |
 
-Antes de reenviar cada fragmento el servidor quita la etiqueta de emoción (nunca se ve `[tris`) y
-el prefijo con el nombre, y pasa el **filtro de fuga**: si la respuesta empieza a copiar las
-instrucciones, corta con un `error` y no guarda nada. El texto que se guarda es el de `fin`,
-calculado sobre la respuesta completa. Si el navegador se desconecta a mitad, el turno termina y
-se guarda igual.
+Antes de reenviar cada fragmento, el servidor filtra las etiquetas de emoción conocidas y el
+prefijo con el nombre. Si la respuesta copia las instrucciones, corta con un evento `error`.
+El texto que se guarda es el de `fin`, calculado sobre la respuesta completa. Si el navegador se
+desconecta a mitad, el turno termina y se guarda igual.
 
 Sin `por_partes` la ruta responde un solo JSON, como antes. Los rechazos anteriores al turno (401,
 404, 409, 429 del estudiante…) son siempre un JSON con su código.
 
 ## 7. Lenguaje no verbal: emoción y severidad
 
-El paciente 3D sigue usando la etiqueta `[emoción intensidad]` que piden las reglas. La severidad
-del orquestador (0 a 5) la ajusta (`src/lib/orquestador/severidad.ts`):
+Gemini entrega la emoción en la etiqueta `[emoción intensidad]`. En las prácticas nuevas con
+el orquestador, PsySim calcula la emoción y su intensidad al terminar el turno con la severidad
+que devuelve el servicio (0 a 5). `src/lib/orquestador/severidad.ts` también interpreta las
+etiquetas que todavía puedan llegar de sesiones abiertas con escenarios anteriores.
 
 - Con etiqueta: severidad ≥ 4 sube un punto la intensidad; severidad < 1,5 la baja un punto.
-- Sin etiqueta, se deduce: trato inapropiado → molesto; severidad ≥ 4 → abrumado; bajó 0,5 o más →
-  aliviado; subió 0,5 o más → ansioso; menor de 1,5 → tranquilo; si no, sigue como venía (o triste
-  desde 2,5, neutral por debajo). La intensidad sale de la severidad (≥ 4 → 3, ≥ 2 → 2, si no 1).
+- Sin etiqueta, el trato inapropiado se expresa como molestia. Con severidad ≥ 4 el paciente se
+  muestra abrumado. Una bajada de 0,5 o más se expresa como alivio y una subida como ansiedad.
+  Con cambios pequeños conserva la emoción anterior cuando corresponde. Si no hay una emoción que
+  conservar, se usa triste a partir de 2,5 y neutral por debajo. La severidad baja reduce la intensidad
+  sin asumir que el paciente está tranquilo.
 
 Cuántas respuestas llegaron sin etiqueta se ve en la vista del Administrador («Emoción deducida»).
 
@@ -365,16 +369,16 @@ y el cierre de la entrevista son parte de lo que practica el estudiante.
   cerrar. No va en el mensaje del estudiante ni en el historial, y el filtro de fuga la trata como
   instrucción. **Con el orquestador no se hace:** su único canal por turno es el mensaje del
   estudiante, y escribir ahí una instrucción ensuciaría su historial y la transcripción.
-- **El paciente no cierra la consulta:** una regla fija, en los dos proveedores, dice que quien
-  cierra es el estudiante; si resume, acuerda otra cita o se despide, el paciente se despide con
-  naturalidad, y no da por terminada la consulta por sentirse mejor.
+- **Cierre de la consulta.** Gemini recibe la indicación de seguir disponible hasta que el
+  estudiante cierre. Si el orquestador se cierra porque el paciente se calmó, PsySim continúa
+  la conversación con Gemini.
 
 **PsySim no usa `/evaluation/*`.** El orquestador calcula una evaluación automática al cerrar la
 sesión: no se lee, no se guarda y no se muestra. PsySim no evalúa al estudiante.
 
 ## 10. Qué sale de PsySim (privacidad)
 
-- Al orquestador viajan el **prompt del caso con las reglas**, los datos del paciente ficticio y
+- Al orquestador viajan el **contexto del caso**, los datos del paciente ficticio y
   **lo que escribe el estudiante** en la conversación. No viajan su nombre, su correo, su código
   ni ningún identificador suyo: las sesiones pertenecen a cuentas de servicio de PsySim.
 - **El prompt del caso deja de ser secreto dentro del orquestador:** cualquier usuario de ese
@@ -414,14 +418,18 @@ solo responden a su rol `admin`, que PsySim no tiene.
 escribe el servidor con la clave secreta, después de verificar la práctica con RLS.
 `guardar_intercambio` se conserva para el código anterior; el nuevo usa `guardar_intercambio_ia`.
 
-## 14. Pendiente de comprobar contra el servicio real
+## 14. Prueba con el servicio real
 
-Estas piezas están probadas con el orquestador simulado y contra su OpenAPI, pero no con el
-servicio en vivo (hacen falta las credenciales):
+Se probó E-01, «Duelo y pérdida», con tres intervenciones ficticias enviadas desde PsySim. Antes
+del ajuste, el historial del orquestador incluía `[neutral 2]` y `[triste 2]`, aunque PsySim ya
+los filtraba al mostrar y guardar el diálogo. Con el contexto actualizado, el orquestador devolvió
+los tres turnos sin etiquetas. PsySim recibió severidad y métricas de tokens, guardó las respuestas
+y el orquestador confirmó el cierre con estado `completed`. En la última corrida, el primer
+fragmento llegó en 5,2–6,9 s y los turnos completos tardaron 6,9–8,6 s.
 
-- Forma real de `metrics` en el evento `done` (se lee con tolerancia: lo que no venga queda vacío).
-- Si su modelo respeta la etiqueta de emoción; si no, la emoción se deduce de la severidad.
-- Longitud máxima del `context` (los casos oficiales pesan entre 4000 y 4900 caracteres).
+Queda por comprobar en el servicio:
+
+- Longitud máxima del `context`.
 - Que `behavior_max` no cierre prácticas normales (ajustar la tabla de la sección 3 si pasa).
 - Sesión creada por la cuenta `teacher` a nombre de una cuenta del grupo (`user_id`).
 - Esperas reales con 4, 8 y 12 prácticas simultáneas en el modo de una sola cuenta.

@@ -89,9 +89,8 @@ export function emocionPorSeveridad({
   const cambio = severidadAnterior === null ? 0 : severidad - severidadAnterior;
   if (cambio <= -CAMBIO_NOTABLE) return 'aliviado';
   if (cambio >= CAMBIO_NOTABLE) return 'ansioso';
-  if (severidad < SEVERIDAD_BAJA) return 'tranquilo';
-
-  // Sin cambios notables, el paciente sigue como venía; el alivio no dura más de un turno.
+  // Con cambios pequeños se conserva la emoción. La severidad baja reduce la intensidad,
+  // pero por sí sola no indica que el paciente esté tranquilo.
   if (emocionAnterior && emocionAnterior !== 'aliviado' && emocionAnterior !== 'abrumado') {
     return emocionAnterior;
   }
