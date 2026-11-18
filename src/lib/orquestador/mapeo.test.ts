@@ -215,21 +215,18 @@ describe('perfilDelCaso', () => {
 });
 
 describe('escenarioDelCaso', () => {
-  it('el contexto lleva el prompt del caso y las reglas fijas de PsySim', () => {
+  it('envía el contexto del caso tal cual y deja al orquestador componer su propio prompt', () => {
     const escenario = escenarioDelCaso(oficial);
     expect(escenario.name).toBe('-3D- E-09 · Adolescente con autolesiones');
-    expect(escenario.context.startsWith(PROMPT_OFICIAL)).toBe(true);
-    expect(escenario.context.endsWith(TEXTO_REGLAS)).toBe(true);
+    expect(escenario.context).toBe(PROMPT_OFICIAL);
     expect(escenario.severity).toBe(4);
     expect(escenario.risk_flags).toEqual(['autolesión']);
     expect(escenario.constraints).toMatchObject({ origen: 'PsySim', caso: 'E-09' });
-    // La regla de cierre de la entrevista también llega al paciente del orquestador.
-    expect(escenario.context).toContain('Quien cierra la consulta es el estudiante.');
   });
 
-  it('no duplica las reglas si un prompt antiguo ya las traía pegadas', () => {
+  it('retira las reglas de Gemini de un caso antiguo antes de enviarlo', () => {
     const conReglas = { ...oficial, prompt: `${PROMPT_OFICIAL}\n\n${TEXTO_REGLAS}` };
-    expect(escenarioDelCaso(conReglas).context).toBe(escenarioDelCaso(oficial).context);
+    expect(escenarioDelCaso(conReglas).context).toBe(PROMPT_OFICIAL);
   });
 
   it('una variante se distingue en el nombre por la huella de su prompt', () => {

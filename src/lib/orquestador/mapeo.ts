@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { ACTITUDES, type IdRiesgo, SINTOMAS } from '@/lib/casos/opciones';
-import { componerInstrucciones, quitarReglasIncrustadas } from '@/lib/ia/reglas';
+import { quitarReglasIncrustadas } from '@/lib/ia/reglas';
 import { type CamposCaso } from '@/schemas/caso.schema';
 import { type CategoriaEscenario, type DificultadEscenario } from '@/types';
 
@@ -11,10 +11,10 @@ import { type EscenarioOrquestador, type PerfilOrquestador } from './tipos';
 export const PREFIJO_3D = '-3D-';
 
 /**
- * Versión del mapeo. Al cambiar cómo se traduce un caso (esta tabla, los rasgos, las reglas
- * fijas), se sube: la huella de todos los casos cambia y se vuelven a sincronizar solos.
+ * Al cambiar cómo se envía un caso, se actualiza la versión para que las prácticas nuevas
+ * usen los datos nuevos sin modificar los escenarios de las sesiones abiertas.
  */
-export const VERSION_MAPEO = 3;
+export const VERSION_MAPEO = 4;
 
 /** Lo que PsySim sabe de un caso y hace falta para describirlo en el orquestador. */
 export interface CasoParaOrquestador {
@@ -176,9 +176,8 @@ export function perfilDelCaso(caso: CasoParaOrquestador): PerfilOrquestador {
 }
 
 /**
- * Escenario del orquestador (el «qué le pasa»). El `context` lleva el prompt completo del caso más
- * las reglas fijas de PsySim: es lo que el orquestador inyecta en su propio prompt. Con
- * `variante`, el nombre lleva la huella del prompt ajustado para esa práctica.
+ * El contexto describe el caso y los ajustes del docente. El orquestador compone sus propias
+ * instrucciones de conversación y devuelve la severidad como dato del turno.
  */
 export function escenarioDelCaso(
   caso: CasoParaOrquestador,
@@ -191,7 +190,7 @@ export function escenarioDelCaso(
 
   return {
     name: `${PREFIJO_3D} ${caso.codigo} · ${recortar(caso.titulo, 90)}${sufijo}`,
-    context: componerInstrucciones(caso.prompt),
+    context: quitarReglasIncrustadas(caso.prompt),
     severity: inicial,
     risk_flags: bandera ? [bandera] : [],
     constraints: { origen: 'PsySim', caso: caso.codigo, mapeo: VERSION_MAPEO },

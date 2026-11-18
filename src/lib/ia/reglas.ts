@@ -1,9 +1,8 @@
 import { EMOCIONES_NPC } from '@/lib/conversacion/emociones';
 
 /**
- * Reglas comunes a todos los pacientes virtuales. Se añaden SIEMPRE en el servidor al llamar a
- * la IA (nunca se guardan dentro del prompt ni el docente puede quitarlas), así un prompt mal
- * escrito no puede romper el personaje ni producir contenido peligroso.
+ * Reglas para las llamadas directas a Gemini. El servidor las añade al enviar el caso.
+ * El orquestador tiene sus propias instrucciones y recibe el contexto del caso.
  */
 export const REGLAS_FIJAS = [
   'Eres un paciente en una sesión de práctica con un estudiante de psicología. Nunca rompas el personaje ni digas que eres una inteligencia artificial.',
