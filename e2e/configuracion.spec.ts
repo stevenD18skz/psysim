@@ -67,6 +67,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
   test('HU-06 · T02: muestra los doce escenarios y expande el perfil del NPC', async ({ page }) => {
     // Los doce escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
+    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
     await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(12);
     for (const codigo of CODIGOS_OFICIALES) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
@@ -90,6 +91,9 @@ test.describe('configuración del escenario (Sprint 2)', () => {
       page.getByRole('radiogroup', { name: /\bCaso\b/ }).getByRole('radio', { checked: true })
     ).toHaveCount(1);
     if (await ajustar.isVisible()) await ajustar.click();
+    if (!(await comportamiento.isVisible())) {
+      await page.getByText('Ver o editar el texto completo (avanzado)').click();
+    }
     await expect(comportamiento).toHaveValue(/Eres Andrés Felipe/);
   });
 
@@ -105,6 +109,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   }) => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
+    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
     await page.getByTestId('escenario-E-01').click();
     // Ajuste guiado, sin escribir instrucciones: viaja con el código.
     await page.getByRole('button', { name: 'Ajustar para esta práctica' }).click();
@@ -151,6 +156,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
     const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
+    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
     await page.getByTestId('escenario-E-01').click();
     await ajustar.click();
     // El texto completo es la opción avanzada, plegada bajo los ajustes guiados.
@@ -160,7 +166,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await guardar.click();
     await page.getByLabel('Nombre del caso').fill(nombre);
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-    await expect(page.getByText(`«${nombre}» guardado en Mis casos.`)).toBeVisible();
+    await expect(page.getByText(`Caso ${nombre} guardado en Mis casos.`)).toBeVisible();
 
     // Persiste tras recargar: se lee de Supabase.
     await page.reload();
@@ -168,7 +174,9 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(propio).toBeVisible();
 
     // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
+    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
     await page.getByTestId('escenario-E-03').click();
+    await page.getByRole('button', { name: /^Mis casos/ }).click();
     await propio.check({ force: true });
     if (await ajustar.isVisible()) await ajustar.click();
     if (!(await comportamiento.isVisible())) {
@@ -184,7 +192,9 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   test('HU-07: crea un caso con el constructor guiado y lo edita', async ({ page }) => {
     const titulo = `${PREFIJO} Caso del constructor`;
 
-    await page.getByRole('link', { name: /Crear (caso nuevo|mi primer caso)/ }).click();
+    await page.getByRole('button', { name: /^Mis casos/ }).click();
+    const lista = page.getByRole('radiogroup', { name: /\bCaso\b/ });
+    await lista.getByRole('link', { name: /Crear (caso nuevo|mi primer caso)/ }).click();
     await expect(page).toHaveURL(/\/configuracion\/casos\/nuevo$/);
 
     await page.getByLabel('Título del caso').fill(titulo);

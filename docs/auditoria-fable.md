@@ -10,6 +10,9 @@
 - El modo presencial guarda la ventana de entrega antes de cerrar la sesión del docente. Si falla
   ese registro, el equipo sigue con el docente. Si la cuenta ya tiene Google vinculado, el
   Administrador debe crear otra cuenta para sustituirla por una con otro correo.
+- En Chromium pasaron 55 pruebas de acceso, administración, entrega, accesibilidad, configuración
+  y rendimiento 3D. La prueba de la cuenta sin rol se omitió por falta de credenciales. El recorrido
+  con una cuenta real de Google queda pendiente de comprobación manual.
 - La auditoría original y su plan quedan abajo como registro de los hallazgos del 16 de noviembre.
 
 ### Auditoría del 16 de noviembre
