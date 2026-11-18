@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { Lock, MessageSquareQuote } from 'lucide-react';
 
 import { ACTITUDES, NIVELES_RIESGO, SINTOMAS } from '@/lib/casos/opciones';
 import { type CamposCaso } from '@/schemas/caso.schema';
@@ -74,9 +74,12 @@ export function FichaPaciente({ campos }: { campos: CamposCaso }) {
       <Bloque titulo="Riesgo">{riesgo.etiqueta}</Bloque>
       <Bloque titulo="Lo primero que dirá">
         {campos.fraseApertura.trim() ? (
-          <span className="italic">
-            «{campos.fraseApertura.trim().replace(/^["“«]|["”»]$/g, '')}»
-          </span>
+          <figure className="mt-1 flex items-start gap-2.5 rounded-lg bg-terracota-suave/70 px-3 py-2.5 text-foreground">
+            <MessageSquareQuote className="mt-0.5 size-4 shrink-0 text-terracota" aria-hidden />
+            <blockquote className="leading-relaxed">
+              {campos.fraseApertura.trim().replace(/^["“«]|["”»]$/g, '')}
+            </blockquote>
+          </figure>
         ) : (
           <Falta>La frase de apertura</Falta>
         )}

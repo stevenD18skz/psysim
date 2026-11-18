@@ -1,8 +1,14 @@
+import { ArrowRight, ClipboardCheck, MonitorPlay, UserCheck, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import { BotonNuevoDocente } from '@/components/admin/boton-nuevo-docente';
 import { ListaDocentes } from '@/components/admin/lista-docentes';
-import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
+import {
+  ContenedorHero,
+  EncabezadoPagina,
+  SOMBRA_SOBRE_NOGAL,
+} from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
 import { requerirSuperadmin } from '@/lib/auth/dal';
 import { obtenerDocentes } from '@/lib/admin/queries';
@@ -29,24 +35,61 @@ export default async function AdminPage() {
     { activos: 0, estudiantes: 0, sesiones: 0, pendientes: 0 }
   );
 
+  const subbarra = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <nav aria-label="Administración" className="flex flex-wrap items-center gap-1.5">
+        {[
+          { href: '/estudiantes', texto: 'Estudiantes' },
+          { href: '/configuracion/casos', texto: 'Casos' },
+          { href: '/admin/ia', texto: 'Paciente con IA' },
+        ].map(enlace => (
+          <Link
+            key={enlace.href}
+            href={enlace.href as '/estudiantes' | '/configuracion/casos' | '/admin/ia'}
+            className="group inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-sidebar-accent/55 px-3 py-1 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-laton-texto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          >
+            {enlace.texto}
+            <ArrowRight
+              className="size-3.5 text-laton-texto transition-transform duration-200 ease-salida group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        ))}
+      </nav>
+      <span className="text-xs text-sidebar-muted tabular-nums">
+        {totales.activos} de {docentes.length}{' '}
+        {docentes.length === 1 ? 'cuenta activa' : 'cuentas activas'}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col">
       <EncabezadoPagina
         titulo="Docentes"
         descripcion="Crea las cuentas de los docentes, decide cómo entran y sigue su actividad. Como administrador, también trabajas como docente."
         acciones={<BotonNuevoDocente />}
+        subbarra={subbarra}
       />
 
-      <Indicadores
-        indicadores={[
-          { etiqueta: 'Cuentas activas', valor: totales.activos },
-          { etiqueta: 'Estudiantes', valor: totales.estudiantes },
-          { etiqueta: 'Prácticas', valor: totales.sesiones },
-          { etiqueta: 'Por revisar', valor: totales.pendientes },
-        ]}
-      />
+      <ContenedorHero>
+        <Indicadores
+          className={SOMBRA_SOBRE_NOGAL}
+          indicadores={[
+            { icono: UserCheck, etiqueta: 'Cuentas activas', valor: totales.activos },
+            { icono: UsersRound, etiqueta: 'Estudiantes', valor: totales.estudiantes },
+            { icono: MonitorPlay, etiqueta: 'Prácticas', valor: totales.sesiones },
+            {
+              icono: ClipboardCheck,
+              etiqueta: 'Por revisar',
+              valor: totales.pendientes,
+              tono: totales.pendientes > 0 ? 'atencion' : undefined,
+            },
+          ]}
+        />
 
-      <ListaDocentes docentes={docentes} idPropio={perfil.id} />
+        <ListaDocentes docentes={docentes} idPropio={perfil.id} />
+      </ContenedorHero>
     </div>
   );
 }

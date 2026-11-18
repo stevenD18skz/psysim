@@ -1,3 +1,5 @@
+import { type MotivoCierre } from '@/lib/conversacion/cierre';
+import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
 import { type BorradorCaso } from '@/schemas/caso.schema';
 
@@ -72,6 +74,8 @@ export interface EstudianteRegistrado {
   cuentaVinculada: boolean;
   creadoEn: string;
   metricas: MetricasEstudiante;
+  /** Docente al que pertenece el registro (presente cuando el Administrador ve todos). */
+  docente?: { id: string; nombre: string };
 }
 
 /** Sesión de simulación en curso, tal como la consumen la escena 3D y el chat. */
@@ -94,6 +98,13 @@ export interface SesionActiva {
     | 'configuracion3d'
   >;
   npc: Pick<NpcEscenario, 'id' | 'nombre' | 'edad' | 'perfilClinico'>;
+  /**
+   * El paciente ya dio por terminada la consulta (crisis o trato inapropiado) y la práctica quedó
+   * sin cerrar, p. ej. porque se recargó la página justo después: se cierra al abrirla.
+   */
+  cierre?: MotivoCierre | null;
+  /** Duración de la consulta y cuánto lleva, según la base de datos (`null`: no se pudo leer). */
+  consulta?: TiempoConsulta | null;
 }
 
 export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
@@ -101,6 +112,11 @@ export type RemitenteMensaje = Database['public']['Enums']['remitente_mensaje'];
 /** Mensaje de la conversación con el paciente virtual (HU-14 · T01). */
 export interface MensajeConversacion {
   id: string;
+  /**
+   * Identificador inicial en el navegador. Mantiene la burbuja y su escritura progresiva
+   * cuando `id` se reemplaza por el de la base de datos. No se guarda en el servidor.
+   */
+  idLocal?: string;
   remitente: RemitenteMensaje;
   contenido: string;
   /** Momento del mensaje (ISO 8601). */
@@ -119,6 +135,11 @@ export interface MensajeConversacion {
    * reformular desde él.
    */
   sinGuardar?: boolean;
+  /**
+   * Solo en la respuesta del NPC que está llegando por partes: el texto todavía puede crecer (o
+   * reemplazarse) y el intercambio aún no está guardado.
+   */
+  enCurso?: boolean;
   /** Solo en mensajes descartados (revisión): cuándo el estudiante reformuló desde ese punto. */
   descartadoEn?: string;
 }

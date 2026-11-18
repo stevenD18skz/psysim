@@ -21,10 +21,10 @@ vi.mock('@/lib/escenarios/actions', () => ({ comenzarSesion: vi.fn() }));
 const SESION = { ...SESION_ACTIVA, comenzada: false };
 const INICIO = '2026-10-20T15:00:00.000Z';
 
-function montar(segundosParaCierre: number | null = null) {
+function montar(segundosParaCierre: number | null = null, sesion = SESION) {
   const envoltorio = ({ children }: { children: React.ReactNode }) => (
-    <AppStoreProvider estadoInicial={{ sesion: { activa: SESION } }}>
-      <InstruccionesCaso sesion={SESION} segundosParaCierre={segundosParaCierre} />
+    <AppStoreProvider estadoInicial={{ sesion: { activa: sesion } }}>
+      <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
       {children}
     </AppStoreProvider>
   );
@@ -71,7 +71,9 @@ describe('InstruccionesCaso (HU-23)', () => {
     it('muestra el aviso de contenido del caso con la salida «Ahora no»', () => {
       montar();
       expect(screen.getByText('De qué trata este caso')).toBeInTheDocument();
-      expect(screen.getByText(/elegir «Ahora no»/)).toBeInTheDocument();
+      expect(screen.getByText(/puedes elegir/)).toHaveTextContent(
+        'puedes elegir Ahora no y hablarlo con tu docente'
+      );
     });
 
     it('los controles salen desplegados la primera vez', () => {
@@ -95,6 +97,22 @@ describe('InstruccionesCaso (HU-23)', () => {
       montar(42);
       expect(screen.getByText(/42 s/)).toBeInTheDocument();
       expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    });
+  });
+
+  describe('tiempo de consulta (preparación previa, INACSL)', () => {
+    it('dice cuánto dura la consulta y que el estudiante la cierra antes de terminar', () => {
+      montar(null, { ...SESION, consulta: { duracionS: 20 * 60, transcurridoS: null } });
+      const regla = screen.getByText(/La consulta dura 20 minutos desde tu primera intervención/);
+      expect(regla).toHaveTextContent('Te avisamos cuando queden 3 minutos');
+      expect(regla).toHaveTextContent('Ciérrala tú');
+      expect(regla).toHaveTextContent('tienes 5 minutos más para cerrar');
+      expect(within(regla).getByText('Terminar práctica')).toBeInTheDocument();
+    });
+
+    it('si no se pudo leer el tiempo, no promete una duración', () => {
+      montar(null, { ...SESION, consulta: null });
+      expect(screen.queryByText(/La consulta dura/)).not.toBeInTheDocument();
     });
   });
 
@@ -157,12 +175,15 @@ describe('InstruccionesCaso (HU-23)', () => {
     });
 
     it('si no se puede comenzar avisa y la práctica no empieza', async () => {
-      vi.mocked(comenzarSesion).mockResolvedValue({ ok: false, error: 'x' });
+      // El motivo lo da el servidor: sin conexión o, con el tope activo, el consultorio ocupado.
+      const motivo =
+        'El consultorio está ocupado. Hay 4 prácticas en curso; inténtalo en unos minutos.';
+      vi.mocked(comenzarSesion).mockResolvedValue({ ok: false, error: motivo });
       const store = montar();
       await userEvent.click(screen.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }));
       await userEvent.click(screen.getByRole('button', { name: 'Empezar la práctica' }));
 
-      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('No pudimos empezar'));
+      expect(toast.error).toHaveBeenCalledWith(motivo);
       expect(store.current.getState().sesion.activa?.comenzada).toBe(false);
     });
 

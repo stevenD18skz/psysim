@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, Monitor } from 'lucide-react';
+import { ArrowRight, ChevronDown, Monitor, Quote } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -8,6 +8,7 @@ import { EntradaCodigo } from '@/components/landing/entrada-codigo';
 import { EscenariosGaleria } from '@/components/landing/escenarios-galeria';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { ESCENARIOS_PUBLICOS } from '@/lib/landing/escenarios';
 import { JsonLd } from '@/lib/seo/json-ld';
@@ -122,6 +123,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background pb-20 md:pb-0">
+      <SaltarContenido />
       <JsonLd datos={DATOS_ESTRUCTURADOS} />
 
       {/* El consultorio visto desde el umbral: la franja de nogal lleva la marca y la acción. */}
@@ -212,10 +214,13 @@ export default function Home() {
                 </div>
               </div>
               <figcaption className="flex flex-col gap-2">
-                <blockquote className="text-xl leading-snug font-medium text-balance">
-                  «{portada.paciente.apertura}»
-                </blockquote>
-                <span className="text-sm text-sidebar-muted">
+                <div className="flex items-start gap-3">
+                  <Quote className="mt-1 size-5 shrink-0 text-laton-texto" aria-hidden />
+                  <blockquote className="text-xl leading-snug font-medium text-balance">
+                    {portada.paciente.apertura}
+                  </blockquote>
+                </div>
+                <span className="pl-8 text-sm text-sidebar-muted">
                   {portada.paciente.nombre}, {portada.paciente.edad} años · {portada.codigo}{' '}
                   {portada.titulo}
                 </span>
@@ -234,7 +239,11 @@ export default function Home() {
         </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 sm:px-8">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 outline-hidden sm:px-8"
+      >
         {/* El ciclo real, como un registro por etapas. */}
         <Seccion id="como-funciona" titulo="Cómo funciona una práctica">
           {/* Un registro sobre una sola regla de latón: el ordinal va dentro del encabezado. */}
@@ -275,7 +284,7 @@ export default function Home() {
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-base font-bold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                   {p.pregunta}
                   <ChevronDown
-                    className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                    className="size-5 shrink-0 text-muted-foreground transition-transform duration-300 ease-salida group-open:rotate-180"
                     aria-hidden
                   />
                 </summary>
@@ -309,7 +318,7 @@ export default function Home() {
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-5 py-4 text-sm font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
             Ficha técnica del proyecto
             <ChevronDown
-              className="ml-auto size-4 transition-transform group-open:rotate-180"
+              className="ml-auto size-4 transition-transform duration-300 ease-salida group-open:rotate-180"
               aria-hidden
             />
           </summary>
@@ -406,8 +415,10 @@ function RevisionIlustrativa() {
           </span>
           Comentario del docente
         </p>
-        <p className="leading-relaxed">
-          Buena pregunta abierta. Antes, valida lo que dijo: «Lo que sientes sí es importante».
+        <p className="leading-relaxed">Buena pregunta abierta. Antes, valida lo que dijo:</p>
+        <p className="flex items-start gap-2 rounded-lg bg-salvia-suave/65 px-3 py-2 text-sm text-salvia-oscuro">
+          <Quote className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>Lo que sientes sí es importante.</span>
         </p>
         <p className="text-xs text-muted-foreground">Ejemplo ilustrativo</p>
       </div>

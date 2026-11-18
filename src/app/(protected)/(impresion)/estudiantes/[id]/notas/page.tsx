@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { BotonImprimir } from '@/components/estudiantes/boton-imprimir';
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
@@ -82,7 +83,8 @@ export default async function NotasEstudiantePage({
             Volver a la ficha
           </Link>
           <p className="hidden text-sm text-muted-foreground sm:block">
-            Vista previa del informe. En el diálogo de impresión elige «Guardar como PDF».
+            Vista previa del informe. En el diálogo de impresión elige{' '}
+            <ControlCitado>Guardar como PDF</ControlCitado>.
           </p>
           <div className="ml-auto">
             <BotonImprimir />

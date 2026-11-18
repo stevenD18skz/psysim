@@ -8,6 +8,9 @@ export const PARAM_ERROR_LOGIN = 'error';
 export const ERRORES_GOOGLE = {
   cancelado: 'Cancelaste el acceso con Google. Vuelve a intentarlo cuando quieras.',
   fallo: 'No pudimos completar el acceso con Google. Inténtalo de nuevo.',
+  // Modo presencial: la cuenta entregó su equipo a un estudiante hace poco (`ventana.ts`).
+  entregado:
+    'Entregaste tu equipo a un estudiante hace poco. Por seguridad, tu cuenta no entra con Google hasta que vuelvas a entrar con tu correo y tu contraseña.',
 } as const;
 
 export type ErrorGoogle = keyof typeof ERRORES_GOOGLE;

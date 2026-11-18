@@ -130,7 +130,8 @@ test.describe('panel del docente (HU-25)', () => {
   test('T02: el menú lateral se recorre con Tab y se activa con Enter', async ({ page }) => {
     await iniciarSesionComoDocente(page);
     await page.goto('/inicio');
-    const enlace = page.getByRole('link', { name: /^Revisiones/ });
+    const menu = page.getByRole('navigation', { name: 'Navegación principal' });
+    const enlace = menu.getByRole('link', { name: /^Revisiones/ });
     await enlace.focus();
     await expect(enlace).toBeFocused();
     await page.keyboard.press('Enter');

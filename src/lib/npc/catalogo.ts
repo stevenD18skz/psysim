@@ -2,8 +2,9 @@ import { type Voz } from '@/lib/audio/voz';
 
 /**
  * Personajes 3D (NPC) disponibles. Cada uno es un GLB en `public/models/personajes/` con el mismo
- * esqueleto y las 13 animaciones de `acciones.ts` (exportados desde los prototipos de Claude
- * Design). Los usan el laboratorio y, como pacientes, las escenas de la simulación (campo
+ * esqueleto y las 13 animaciones de `acciones.ts`. Los seis originales vienen de los prototipos
+ * de Claude Design; las variantes se generan con `scripts/generar-personajes.mjs`.
+ * Los usan el laboratorio y, como pacientes, las escenas de la simulación (campo
  * `npc.personaje` del JSON de escena).
  *
  * Para añadir uno: copia el GLB a esa carpeta y agrega su entrada aquí. Debe conservar los
@@ -74,6 +75,54 @@ export const CATALOGO_NPC = [
     color: '#b5835a',
     descripcion: 'Mujer mayor de cabello cano, gafas y chal',
     voz: { tono: 200, ritmo: 0.9 },
+  },
+  {
+    id: 'julian',
+    nombre: 'Julián',
+    archivo: 'npc_julian.glb',
+    color: '#416b96',
+    descripcion: 'Hombre joven de cabello ondulado con chaqueta azul y camiseta clara',
+    voz: { tono: 160, ritmo: 1.08 },
+  },
+  {
+    id: 'hernan',
+    nombre: 'Hernán',
+    archivo: 'npc_hernan.glb',
+    color: '#80404d',
+    descripcion: 'Hombre de mediana edad con entradas, canas, bigote y polo vinotinto',
+    voz: { tono: 130, ritmo: 0.95 },
+  },
+  {
+    id: 'yolanda',
+    nombre: 'Yolanda',
+    archivo: 'npc_yolanda.glb',
+    color: '#69744e',
+    descripcion: 'Mujer morena con trenza baja, blusa verde oliva y pantalón oscuro',
+    voz: { tono: 215, ritmo: 0.95 },
+  },
+  {
+    id: 'sara',
+    nombre: 'Sara',
+    archivo: 'npc_sara.glb',
+    color: '#9b84b3',
+    descripcion: 'Adolescente con coleta, buzo lila de manga larga y pantalón azul',
+    voz: { tono: 245, ritmo: 1.03 },
+  },
+  {
+    id: 'daniela',
+    nombre: 'Daniela',
+    archivo: 'npc_daniela.glb',
+    color: '#c47764',
+    descripcion: 'Mujer joven morena de cabello corto rizado con chaqueta coral',
+    voz: { tono: 235, ritmo: 1.07 },
+  },
+  {
+    id: 'paola',
+    nombre: 'Paola',
+    archivo: 'npc_paola.glb',
+    color: '#3d737d',
+    descripcion: 'Mujer de cabello castaño hasta los hombros con blusa azul petróleo',
+    voz: { tono: 220, ritmo: 1 },
   },
 ] as const satisfies readonly ModeloNpc[];
 

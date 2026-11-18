@@ -23,21 +23,74 @@ trabajo en un chat nuevo o con otra persona sin releer toda la conversación.
   ([`docs/observabilidad.md`](observabilidad.md)) y acceso con Google configurado
   ([`docs/simulacion-a-distancia.md`](simulacion-a-distancia.md)).
 
+## Orquestador de NPC (rama `feat/orquestador-npc`, sin commit; 12 de noviembre)
+
+El paciente puede responder con el orquestador de NPC de Juan José Moreno, con Gemini de respaldo.
+Todo el detalle está en [`docs/orquestador.md`](orquestador.md). Está implementado y probado con el
+orquestador simulado (unitarias en verde); **falta probarlo contra el servicio real**:
+
+1. Aplicar la migración `20261111010000_orquestador_npc` (solo añade). Sin ella, el código de esta
+   rama no funciona ni siquiera con Gemini: aplicarla antes de desplegar.
+2. Escribir en `.env.local` `ORQUESTADOR_URL`, `ORQUESTADOR_CORREO` y `ORQUESTADOR_CONTRASENA`
+   (cuenta `teacher`) y correr `pnpm orquestador:sincronizar`.
+3. Prueba real con `IA_PROVEEDOR=orquestador`: un caso oficial y uno propio, mirar el 3D, la
+   transcripción del docente y `/admin/ia`. Lista de lo que hay que confirmar: sección 14 de la
+   guía.
+4. E2E (`pnpm test:e2e --workers=1`): actualizados para la respuesta por partes, sin correr (falta
+   `.env.test.local` en este equipo).
+5. Decidir si se crean cuentas del grupo (10 para un curso de 30) y avisarle a Juan José.
+6. **Antes de usarlo con estudiantes:** actualizar el aviso de privacidad, las instrucciones de la
+   práctica y el consentimiento (hoy nombran solo a Google Gemini), y citar el orquestador en el
+   documento de grado.
+
+## Cierre del orquestador y tiempo de consulta (rama `fix/cierre-orquestador`, 15 de noviembre)
+
+Rama sobre `develop`, sin push. Detalle en [`docs/orquestador.md`](orquestador.md), secciones 3, 5,
+8 y 9.
+
+- **Error corregido:** el orquestador cierra su sesión también cuando el paciente se calma
+  (`closing_kind: success`). PsySim lo tomaba como crisis y terminaba la práctica (51b8aecd, E-08).
+  Ahora solo `crisis` e `inappropriate` terminan la práctica; lo demás pasa a Gemini y se registra.
+  La auditoría de la integración corrigió además el 400 «sesión ya cerrada», un `done` con otra
+  forma, la severidad fuera de 0–5, los cierres en el orquestador y los plazos.
+- **Fin normal de una práctica:** tiempo de consulta (10, 15, 20 o 30 minutos, que elige el
+  docente), aviso a los 3 minutos, invitación a cerrar, 5 minutos de margen y fin automático con
+  motivo neutro. Con Gemini, el paciente puede notar una vez que se acabó el tiempo.
+- **El paciente no cierra la consulta** por sentirse mejor (regla fija en los dos proveedores) y
+  **ningún caso empieza a menos de 2 puntos de su piso** de severidad (`VERSION_MAPEO = 3`).
+
+Para desplegar, en este orden:
+
+1. Aplicar `20261115010000_corrige_cierre_practica_51b8aecd.sql` (corrección de datos; se puede
+   aplicar ya).
+2. Aplicar `20261115020000_tiempo_de_consulta.sql` **antes de desplegar** el código: solo añade, y
+   el código nuevo escribe `asignacion.duracion_minutos`.
+3. Fusionar en `develop`. Los casos se actualizan solos en el orquestador la próxima vez que se
+   practican (o con `pnpm orquestador:sincronizar`). Mientras `main` siga con `VERSION_MAPEO = 1`,
+   producción y staging se pisan el escenario de cada caso (comparten la base): conviene llevar
+   esta rama a `main` pronto.
+4. Correr los E2E de conversación y de flujo completo con `--workers=1` (no se corrieron: falta
+   `.env.test.local` en este equipo).
+
+La sesión del orquestador `c6842e66…` (práctica 51b8aecd) quedó `terminated` allá y no se puede
+corregir desde PsySim.
+
 ## Documentos clave
 
-| Documento                                                                 | Para qué                                                         |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)          |
-| [`docs/taiga-borrador.md`](taiga-borrador.md)                             | Lo subido a Taiga el 8 de noviembre: HU-31 a HU-59 y estados     |
-| [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                  |
-| [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados |
-| [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes |
-| [`docs/auditoria-rendimiento.md`](auditoria-rendimiento.md)               | Core Web Vitals y Lighthouse: mediciones y correcciones          |
-| [`docs/performance.md`](performance.md)                                   | FPS con GPU real y medición del documento de grado               |
-| [`docs/observabilidad.md`](observabilidad.md)                             | Registros, salud y alertas por crear en Vercel                   |
-| [`docs/reglas-de-calidad.md`](reglas-de-calidad.md)                       | Catálogos de reglas por apartado y cuáles están implementadas    |
-| [`docs/rediseno/ux-escala-inmersion.md`](rediseno/ux-escala-inmersion.md) | Decisiones de UX y estándares INACSL de simulación               |
-| [`README.md`](../README.md)                                               | Instalación, scripts, arquitectura y mapa de tests por feature   |
+| Documento                                                                 | Para qué                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`docs/taiga-estado.md`](taiga-estado.md)                                 | Estado real de cada historia de usuario (HU-01 a HU-30)            |
+| [`docs/taiga-borrador.md`](taiga-borrador.md)                             | Lo subido a Taiga el 8 de noviembre: HU-31 a HU-59 y estados       |
+| [`docs/pruebas/sprint-0.md`…`sprint-6.md`](pruebas)                       | Registros de pruebas por sprint                                    |
+| [`docs/auditoria-ux.md`](auditoria-ux.md)                                 | Catálogo de reglas de UX/accesibilidad, hallazgos y recomendados   |
+| [`docs/auditoria-seguridad.md`](auditoria-seguridad.md)                   | OWASP Top 10 para LLM y web: hallazgos, correcciones, pendientes   |
+| [`docs/auditoria-rendimiento.md`](auditoria-rendimiento.md)               | Core Web Vitals y Lighthouse: mediciones y correcciones            |
+| [`docs/performance.md`](performance.md)                                   | FPS con GPU real y medición del documento de grado                 |
+| [`docs/observabilidad.md`](observabilidad.md)                             | Registros, salud y alertas por crear en Vercel                     |
+| [`docs/orquestador.md`](orquestador.md)                                   | Paciente con el orquestador de NPC: puesta en marcha y emergencias |
+| [`docs/reglas-de-calidad.md`](reglas-de-calidad.md)                       | Catálogos de reglas por apartado y cuáles están implementadas      |
+| [`docs/rediseno/ux-escala-inmersion.md`](rediseno/ux-escala-inmersion.md) | Decisiones de UX y estándares INACSL de simulación                 |
+| [`README.md`](../README.md)                                               | Instalación, scripts, arquitectura y mapa de tests por feature     |
 
 ## Qué quedó hecho
 

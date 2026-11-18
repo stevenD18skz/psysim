@@ -1,9 +1,8 @@
 import { EncabezadoPagina } from '@/components/comun/encabezado-pagina';
 
 interface EncabezadoCasoProps {
-  /** Se conserva por compatibilidad; el título habla solo (sin etiqueta encima). */
-  sobretitulo?: string;
-  titulo: string;
+  /** El nombre de un caso va en el color del texto; el verbo que lo acompaña, apagado. */
+  titulo: React.ReactNode;
   descripcion: string;
 }
 

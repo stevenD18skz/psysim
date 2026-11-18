@@ -1,14 +1,17 @@
 'use client';
 
-import { Clock, UserRound } from 'lucide-react';
+import { Clock, Hourglass, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { ETIQUETA_ESTADO_HUD } from '@/lib/conversacion/estados-npc';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
+import { enMinutos, minutosRestantes, TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
+
+import { useTiempoConsulta } from './use-tiempo-consulta';
 
 /**
  * Cronómetro de la sesión. Aislado para que el tic de cada segundo no re-renderice el resto.
@@ -51,6 +54,49 @@ function Cronometro({
     <time className="tabular-nums" aria-label="Tiempo de práctica">
       {formatearDuracion((ahora - new Date(inicio).getTime()) / 1000)}
     </time>
+  );
+}
+
+/**
+ * Tiempo de consulta, discreto: cuántos minutos quedan, el aviso de los 3 minutos finales y, al
+ * cumplirse, la invitación a cerrar. Sin rojo, sin segundos y sin parpadeos: el estudiante encuadra
+ * el tiempo como en una consulta real, no corre contra un reloj. El lector de pantalla solo
+ * anuncia los cambios de fase, no cada minuto.
+ */
+export function IndicadorConsulta({ compacto = false }: { compacto?: boolean }) {
+  const tiempo = useTiempoConsulta();
+  if (!tiempo || tiempo.fase === 'vencida') return null;
+
+  const { fase } = tiempo;
+  const texto =
+    fase === 'sin_iniciar'
+      ? `Consulta de ${enMinutos(Math.round(tiempo.duracionS / 60))}`
+      : fase === 'cumplida'
+        ? TEXTO_TIEMPO.cumplida
+        : fase === 'por_terminar'
+          ? `Quedan ${enMinutos(minutosRestantes(tiempo))} de consulta`
+          : compacto
+            ? `${minutosRestantes(tiempo)} min`
+            : `Quedan ${enMinutos(minutosRestantes(tiempo))} de consulta`;
+  const destacado = fase === 'por_terminar' || fase === 'cumplida';
+  const anuncio =
+    fase === 'por_terminar' ? TEXTO_TIEMPO.porTerminar : fase === 'cumplida' ? texto : '';
+
+  return (
+    <span
+      data-testid="tiempo-consulta"
+      data-fase={fase}
+      className={cn(
+        'flex items-center gap-1.5 tabular-nums',
+        destacado && 'font-medium text-foreground motion-safe:animate-in motion-safe:fade-in-0'
+      )}
+    >
+      <Hourglass className="size-3.5 shrink-0" aria-hidden />
+      <span aria-hidden={anuncio !== ''}>{texto}</span>
+      <span role="status" className="sr-only">
+        {anuncio}
+      </span>
+    </span>
   );
 }
 
@@ -115,6 +161,11 @@ export function HudSesion({
           ·
         </span>
         <span className="text-xs text-muted-foreground">{cronometro}</span>
+        {duracionFinalSegundos === undefined && (
+          <span className="text-xs text-muted-foreground">
+            <IndicadorConsulta compacto />
+          </span>
+        )}
       </aside>
     );
   }
@@ -160,6 +211,14 @@ export function HudSesion({
           </dt>
           <dd>{cronometro}</dd>
         </div>
+        {duracionFinalSegundos === undefined && (
+          <div className="flex items-center gap-2 text-xs">
+            <dt className="sr-only">Tiempo de consulta</dt>
+            <dd>
+              <IndicadorConsulta />
+            </dd>
+          </div>
+        )}
       </dl>
     </aside>
   );

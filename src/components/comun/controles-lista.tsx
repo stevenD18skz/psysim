@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Search, X } from 'lucide-react';
+import { ChevronDown, Loader2, Search, X } from 'lucide-react';
 import { type Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
@@ -141,18 +141,26 @@ export function SelectorLista({
       <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
         {etiqueta}
       </label>
-      <select
-        id={id}
-        value={opciones.some(o => o.valor === valor) ? valor : defecto}
-        onChange={evento => navegar({ [parametro]: evento.target.value }, { [parametro]: defecto })}
-        className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-xs outline-hidden transition-colors hover:border-ring/60 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      >
-        {opciones.map(opcion => (
-          <option key={opcion.valor} value={opcion.valor}>
-            {opcion.etiqueta}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          id={id}
+          value={opciones.some(o => o.valor === valor) ? valor : defecto}
+          onChange={evento =>
+            navegar({ [parametro]: evento.target.value }, { [parametro]: defecto })
+          }
+          className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-input bg-card pr-9 pl-3.5 text-sm font-medium shadow-[0_1px_2px_rgb(58_36_24/0.06)] outline-hidden transition-[border-color,box-shadow,background-color] hover:border-nogal/45 focus-visible:border-ring focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
+        >
+          {opciones.map(opcion => (
+            <option key={opcion.valor} value={opcion.valor}>
+              {opcion.etiqueta}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+      </div>
     </div>
   );
 }

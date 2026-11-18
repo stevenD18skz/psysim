@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { COOKIE_ENTREGA, serializarEntrega } from '@/lib/equipo-compartido/entrega';
+import type * as ModuloVentana from '@/lib/equipo-compartido/ventana';
+import { leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../../test/supabase-falso';
@@ -9,12 +11,21 @@ import { crearSupabaseFalso, type SupabaseFalso } from '../../../../test/supabas
 import { GET } from './route';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+// Lo que la cuenta tiene anotado en el servidor (`usuario.entrega_hasta`); `entregaVigente` es real.
+vi.mock('@/lib/equipo-compartido/ventana', async importOriginal => ({
+  ...(await importOriginal<typeof ModuloVentana>()),
+  leerVentanaDeEntrega: vi.fn(),
+}));
+vi.mock('server-only', () => ({}));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 
 let db: SupabaseFalso;
 
 beforeEach(() => {
   db = crearSupabaseFalso();
   vi.mocked(createClient).mockResolvedValue(db.cliente as never);
+  vi.mocked(leerVentanaDeEntrega).mockReset().mockResolvedValue(null);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -104,6 +115,41 @@ describe('GET /auth/callback (acceso con Google)', () => {
 
       expect(destino(respuesta)).toBe('/entrega?cuenta-rechazada=1');
       expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    });
+
+    // P3-01: la cookie la puede borrar quien tiene el navegador («Volver a entrar como docente»);
+    // la entrega anotada en la cuenta del docente, no.
+    it('sin la cookie, la cuenta que entregó el equipo tampoco entra con Google', async () => {
+      accesoExitoso('docente');
+      vi.mocked(leerVentanaDeEntrega).mockResolvedValue(
+        new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      );
+      const respuesta = await GET(peticion('?code=abc'));
+
+      expect(destino(respuesta)).toBe('/login?error=entregado&docente=1');
+      expect(leerVentanaDeEntrega).toHaveBeenCalledWith('u1');
+      expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    });
+
+    it('pasada la entrega, el docente vuelve a entrar con Google', async () => {
+      accesoExitoso('docente');
+      vi.mocked(leerVentanaDeEntrega).mockResolvedValue(new Date(Date.now() - 1000).toISOString());
+      expect(destino(await GET(peticion('?code=abc')))).toBe('/inicio');
+      expect(db.auth.signOut).not.toHaveBeenCalled();
+    });
+
+    it('cierra la sesión si no puede comprobar la entrega del docente', async () => {
+      accesoExitoso('docente');
+      vi.mocked(leerVentanaDeEntrega).mockResolvedValue(undefined);
+
+      expect(destino(await GET(peticion('?code=abc')))).toBe('/login?error=fallo');
+      expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    });
+
+    it('al estudiante no se le consulta ninguna entrega', async () => {
+      accesoExitoso('estudiante');
+      expect(destino(await GET(peticion('?code=abc')))).toBe('/practicas');
+      expect(leerVentanaDeEntrega).not.toHaveBeenCalled();
     });
 
     it('el estudiante entra y llega a su código', async () => {

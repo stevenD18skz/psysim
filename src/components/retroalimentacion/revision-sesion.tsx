@@ -1,6 +1,6 @@
 'use client';
 
-import { Highlighter, Loader2, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
+import { Highlighter, Loader2, MessageSquarePlus, Pencil, Quote, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -34,6 +34,11 @@ import {
   recortarSeleccion,
   seSolapa,
 } from '@/lib/retroalimentacion/fragmentos';
+import {
+  ETIQUETA_CIERRE,
+  ETIQUETA_FIN_POR_TIEMPO,
+  type IaDeSesion,
+} from '@/lib/conversacion/cierre';
 import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
 import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
@@ -71,6 +76,8 @@ const formatoHora = new Intl.DateTimeFormat('es-CO', {
   minute: '2-digit',
   timeZone: 'America/Bogota',
 });
+
+const formatoSeveridad = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
 
 /**
  * Lee la selección del navegador si cae dentro de una sola intervención del estudiante y la
@@ -134,9 +141,12 @@ function leerSeleccion(
  */
 export function RevisionSesion({
   sesion,
+  ia = null,
   siguiente = null,
 }: {
   sesion: DetalleSesion;
+  /** Severidad del paciente en cada respuesta y cierre automático, si el motor los registró. */
+  ia?: IaDeSesion | null;
   /** Próxima práctica por revisar (para «Publicar y abrir la siguiente»), o `null` si es la última. */
   siguiente?: { id: string; nombre: string } | null;
 }) {
@@ -287,6 +297,13 @@ export function RevisionSesion({
             Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
             verlo o editarlo.
           </p>
+          {ia && Object.keys(ia.severidades).length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Junto a cada respuesta de {sesion.npc.nombre.split(' ')[0]} aparece su severidad: qué
+              tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el
+              motor del paciente, no califica a {nombreEstudiante}.
+            </p>
+          )}
         </div>
 
         {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
@@ -327,13 +344,16 @@ export function RevisionSesion({
                     <time dateTime={mensaje.timestamp}>
                       {formatoHora.format(new Date(mensaje.timestamp))}
                     </time>
+                    {ia?.severidades[mensaje.id] !== undefined && (
+                      <> · severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}</>
+                    )}
                   </span>
                   <p
                     data-texto-mensaje={mensaje.id}
                     className={cn(
                       'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
                       esEstudiante
-                        ? 'rounded-br-md bg-salvia-suave selection:bg-amber-300/70'
+                        ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
                         : 'rounded-bl-md border bg-background text-foreground select-none'
                     )}
                   >
@@ -348,6 +368,29 @@ export function RevisionSesion({
                 </li>
               );
             })}
+            {ia?.cierre && (
+              <li
+                data-testid="cierre-automatico"
+                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
+                <span className="text-muted-foreground">
+                  La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
+                </span>
+              </li>
+            )}
+            {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
+            {!ia?.cierre && ia?.finPorTiempo && (
+              <li
+                data-testid="fin-por-tiempo"
+                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+              >
+                <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
+                <span className="text-muted-foreground">
+                  Pasado el margen para cerrar la entrevista, la práctica terminó sola.
+                </span>
+              </li>
+            )}
           </ol>
         )}
 
@@ -511,8 +554,9 @@ function NuevaAnotacion({
       }}
       className="flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2.5"
     >
-      <p className="line-clamp-2 border-l-2 border-amber-400 pl-2 text-xs text-muted-foreground italic">
-        «{seleccion.fragmento}»
+      <p className="flex items-start gap-2 rounded-lg bg-ambar-suave/60 px-2.5 py-2 text-xs leading-snug text-foreground">
+        <Quote className="mt-0.5 size-3.5 shrink-0 text-ambar" aria-hidden />
+        <span className="line-clamp-2">{seleccion.fragmento}</span>
       </p>
       <label htmlFor={id} className="sr-only">
         Comentario sobre la frase seleccionada
@@ -610,7 +654,9 @@ function DetalleAnotacion({
     >
       <div className="flex items-start gap-2">
         <NumeroAnotacion numero={numero} />
-        <p className="line-clamp-2 text-xs text-muted-foreground italic">«{anotacion.fragmento}»</p>
+        <p className="line-clamp-2 rounded-md bg-ambar-suave/60 px-2 py-0.5 text-xs leading-snug text-foreground">
+          {anotacion.fragmento}
+        </p>
       </div>
       {editando ? (
         <>
@@ -687,9 +733,7 @@ function ComentarioEnLista({
       id={`anotacion-${anotacion.id}`}
       className={cn(
         'group relative rounded-xl border text-sm transition-colors',
-        activa
-          ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10'
-          : 'bg-background hover:border-amber-300'
+        activa ? 'border-ambar bg-ambar-suave' : 'bg-background hover:border-ambar/50'
       )}
     >
       <button
@@ -700,7 +744,14 @@ function ComentarioEnLista({
       >
         <span className="flex items-start gap-2">
           <NumeroAnotacion numero={numero} />
-          <span className="line-clamp-2 text-muted-foreground italic">«{anotacion.fragmento}»</span>
+          <span
+            className={cn(
+              'line-clamp-2 rounded-md px-2 py-0.5 text-xs leading-snug text-foreground',
+              activa ? 'bg-card/85' : 'bg-ambar-suave/60'
+            )}
+          >
+            {anotacion.fragmento}
+          </span>
         </span>
         <span className="line-clamp-3 pl-7 whitespace-pre-wrap">{anotacion.comentario}</span>
       </button>

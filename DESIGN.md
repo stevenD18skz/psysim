@@ -13,7 +13,7 @@ colors:
   salvia-suave: '#e2eadf'
   terracota: '#a4472a'
   terracota-suave: '#f3e3db'
-  ambar: '#9a5b06'
+  ambar: '#8d5205'
   ambar-suave: '#f6ead2'
   destructive: '#b42318'
   lino: '#f1f3ee'
@@ -219,7 +219,7 @@ Paleta de materiales: madera oscura, herraje de latón, tela salvia, piel terrac
 
 ### Señales
 
-- **Ámbar** (`ambar`) sobre **ámbar suave** (`ambar-suave`), 4,55:1: lo que espera al docente o vence pronto. Insignia «Pendiente» y «Borrador», «Vence…» con menos de 24 h, aviso de inactividad, marca y línea guía del comentario del docente sobre una frase.
+- **Ámbar** (`ambar`) sobre **ámbar suave** (`ambar-suave`) alcanza 5,27 a 1 de contraste. Se usa para las insignias «Pendiente» y «Borrador», los códigos que vencen en menos de 24 h, el aviso de inactividad y las anotaciones del docente sobre la transcripción.
 - **Rojo** (`destructive`): errores de validación (`aria-invalid`), mensajes de error y acciones destructivas, siempre como texto rojo sobre rojo al 10 % (6,4:1 sobre tarjeta), nunca como relleno sólido.
 
 ### Neutral
@@ -328,7 +328,7 @@ Herrajes y madera: el latón llama, el nogal confirma, el contorno acompaña.
 
 ### Inputs / Fields
 
-- **Style:** tarjeta con borde de campo de 1 px (3,16:1), 10 px de radio, 40 px de alto; el campo de código mide 48 px, va en mono con espaciado y lleva ícono de llave a la izquierda.
+- **Style:** tarjeta con borde de campo de 1 px (3,16:1), 10 px de radio, 40 px de alto; el campo de código mide 56 px, va en mono de 20 px con espaciado y lleva ícono de llave a la izquierda. En Mis prácticas, sin práctica abierta, el bloque del código es la acción principal: va sobre la madera con su tarjeta de lino, como el bloque «Tengo un código» del inicio.
 - **Focus:** borde y contorno sólido de 2 px en el color del anillo, hacia dentro (−1 px de separación).
 - **Error / Disabled:** borde rojo y halo rojo al 20 % con `aria-invalid`; deshabilitado al 50 %. Las casillas usan `accent-color` nogal.
 
@@ -357,7 +357,31 @@ Lista ordenada sobre una regla de latón de 2 px; cada paso lleva el ordinal con
 
 ### Simulación
 
-La interfaz se retira mientras se conversa: panel de conversación translúcido abajo, avatar terracota suave, indicador de «escribiendo» terracota. La pantalla de carga es un arco con jamba, luz cálida, la cabeza terracota y una barra de latón indeterminada (1,4 s). El velo emocional es una viñeta radial que oscurece hacia nogal (tensión) o gris azulado (pesadumbre), cambia en 3 s y respira cada 6 s solo con movimiento permitido; tiene control para desactivarse.
+La interfaz se retira mientras se conversa: panel de conversación translúcido abajo, avatar terracota suave, indicador de «escribiendo» terracota. La ventana del consultorio sortea en cada práctica un paisaje (ciudad, parque, montañas o lago) y un momento del día (mañana, mediodía, tarde, atardecer o noche), todos serenos; la luz que entra por ella a la sala sigue ese momento (anaranjada al atardecer, luna y lámparas de noche). `?ventana=lago-noche` fija una variante para revisarla. La pantalla de carga es un arco con jamba, luz cálida, la cabeza terracota y una barra de latón indeterminada (1,4 s). El velo emocional es una viñeta radial que oscurece hacia nogal (tensión) o gris azulado (pesadumbre), cambia en 3 s y respira cada 6 s solo con movimiento permitido; tiene control para desactivarse.
+
+### Movimiento de la interfaz
+
+El movimiento explica de dónde viene y adónde va un cambio; nunca decora. Todo respeta «reducir
+movimiento»: el cambio de estado se ve igual, solo sin desplazamiento.
+
+- **Control segmentado** (`PistaSegmentada`): el fondo de la opción activa es una sola pieza que se
+  desliza a la nueva opción (380 ms, curva `ease-deslizar`, `cubic-bezier(0.32, 0.72, 0, 1)`).
+  Sirve para botones con `aria-pressed` y para pestañas que son enlaces con `aria-current`. El
+  contenido que cambia entra con un fundido y un desplazamiento corto desde el lado hacia el que se
+  movió la pista.
+- **Desplegar y plegar**: los `<details>` animan la altura en CSS (abrir 320 ms, cerrar 200 ms, con
+  fundido del contenido); las regiones controladas por estado usan `Desplegable` (rejilla de `0fr`
+  a `1fr`, `inert` mientras está cerrada). Nada se monta o se oculta de golpe.
+- **Lo que aparece en su sitio** (un campo en línea, un aviso, una lista de sugerencias): fundido
+  de 200-300 ms con `ease-salida`, a veces con 4-8 px de desplazamiento desde el control que lo abrió.
+- **Flechas de desplegables** giran en 300 ms con `ease-salida`.
+
+### Control citado
+
+Cuando un texto nombra un botón («pulsa Guardar como mi caso»), el nombre se dibuja como una
+miniatura del control (`ControlCitado`: filete, fondo tarjeta, peso 500), no entre comillas. Si
+basta con redactar mejor («entran con su cuenta de Google»), se redacta. Las comillas angulares
+quedan para citas reales: la frase del paciente o un fragmento comentado de la conversación.
 
 ## Do's and Don'ts
 

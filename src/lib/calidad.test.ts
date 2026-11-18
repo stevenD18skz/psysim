@@ -29,13 +29,43 @@ const sinComentarios = (codigo: string) =>
   codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
 describe('legibilidad (HU-25 · T05)', () => {
-  it('ningún texto baja de 12 px (solo el superíndice de una nota al pie)', () => {
+  it('ningún texto baja de 12 px, tampoco el número de una anotación', () => {
     const pequenos = FUENTES.flatMap(({ ruta, codigo }) =>
-      [...codigo.matchAll(/(?<!after:)text-\[([\d.]+)(px|rem)\]/g)]
+      [...codigo.matchAll(/text-\[([\d.]+)(px|rem)\]/g)]
         .filter(([, valor, unidad]) => Number(valor) * (unidad === 'rem' ? 16 : 1) < 12)
         .map(([clase]) => `${ruta}: ${clase}`)
     ).filter(hallazgo => !hallazgo.startsWith('src/components/dev/'));
     expect(pequenos).toEqual([]);
+  });
+});
+
+describe('sistema de diseño (DESIGN.md)', () => {
+  // La prueba de contraste mide los pares de tokens del tema. Un color de la paleta de Tailwind
+  // escrito a mano (`bg-amber-200`) queda fuera de esa medición: el subrayado de los comentarios
+  // del docente usaba pares que nadie había medido. La hoja de impresión y las herramientas de
+  // desarrollo tienen su propia paleta.
+  it('los colores salen de los tokens del tema, no de la paleta de Tailwind', () => {
+    const PALETA =
+      /\b(?:bg|text|border|ring|decoration|outline|fill|stroke|from|via|to|divide|caret|accent|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g;
+    const fuera = FUENTES.filter(
+      ({ ruta }) => !ruta.includes('/(impresion)/') && !ruta.startsWith('src/components/dev/')
+    ).flatMap(({ ruta, codigo }) =>
+      [...codigo.matchAll(PALETA)].map(([clase]) => `${ruta}: ${clase}`)
+    );
+    expect(fuera).toEqual([]);
+  });
+
+  // DESIGN.md pide condicionar toda animación a «reducir movimiento». Los indicadores de espera
+  // (`animate-spin`) se escriben en decenas de sitios: una regla global los detiene a todos.
+  it('los indicadores de espera se detienen con «reducir movimiento»', () => {
+    const css = leer('src/app/globals.css');
+    const [, regla = ''] =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?animation: none[\s\S]*?)\n\}/.exec(
+        css
+      ) ?? [];
+    for (const clase of ['.animate-spin', '.animate-pulse', '.animate-bounce', '.animate-ping']) {
+      expect(regla, clase).toContain(clase);
+    }
   });
 });
 

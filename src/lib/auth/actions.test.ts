@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { verificarContrasenaActual } from '@/lib/auth/verificar-contrasena';
 import { olvidarEntrega } from '@/lib/equipo-compartido/actions';
+import { cerrarVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -16,6 +17,7 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/auth/dal', () => ({ requerirUsuario: vi.fn() }));
 vi.mock('@/lib/auth/verificar-contrasena', () => ({ verificarContrasenaActual: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ olvidarEntrega: vi.fn() }));
+vi.mock('@/lib/equipo-compartido/ventana', () => ({ cerrarVentanaDeEntrega: vi.fn() }));
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ origin: 'https://psysim.vercel.app' })),
 }));
@@ -37,8 +39,11 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-function loginExitoso() {
-  db.auth.signInWithPassword.mockResolvedValueOnce({ data: { user: USUARIO }, error: null });
+function loginExitoso(correo = CREDENCIALES.correo) {
+  db.auth.signInWithPassword.mockResolvedValueOnce({
+    data: { user: { ...USUARIO, email: correo } },
+    error: null,
+  });
 }
 
 describe('iniciarSesion (HU-02)', () => {
@@ -55,6 +60,8 @@ describe('iniciarSesion (HU-02)', () => {
     });
     // El docente que vuelve tras entregar su equipo (modo presencial) deja de verlo compartido.
     expect(olvidarEntrega).toHaveBeenCalled();
+    // P3-01: entrar con la contraseña demuestra que es él; su cuenta vuelve a aceptar Google.
+    expect(cerrarVentanaDeEntrega).toHaveBeenCalledWith(USUARIO.id);
   });
 
   it('ignora una ruta de retorno externa (redirección abierta)', async () => {
@@ -74,19 +81,29 @@ describe('iniciarSesion (HU-02)', () => {
   });
 
   it('un estudiante (cuenta de prueba con contraseña) va a sus prácticas', async () => {
-    loginExitoso();
+    loginExitoso('estudiante@psysim.test');
     db.responder('usuario', { data: { rol: 'estudiante' } });
     await expect(iniciarSesion(CREDENCIALES)).rejects.toThrow('NEXT_REDIRECT:/practicas');
     // En el equipo que le entregó su docente (modo presencial), el equipo sigue compartido.
     expect(olvidarEntrega).not.toHaveBeenCalled();
+    expect(cerrarVentanaDeEntrega).not.toHaveBeenCalled();
   });
 
   it('a un estudiante no lo devuelve a una ruta del docente', async () => {
-    loginExitoso();
+    loginExitoso('estudiante@psysim.test');
     db.responder('usuario', { data: { rol: 'estudiante' } });
     await expect(iniciarSesion(CREDENCIALES, '/configuracion')).rejects.toThrow(
       'NEXT_REDIRECT:/practicas'
     );
+  });
+
+  it('rechaza un estudiante real que intente entrar con contraseña', async () => {
+    loginExitoso('estudiante@correounivalle.edu.co');
+    db.responder('usuario', { data: { rol: 'estudiante' } });
+    expect(await iniciarSesion(CREDENCIALES)).toEqual({
+      error: 'Tu cuenta entra con Google. Usa «Continuar con Google».',
+    });
+    expect(db.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 
   it.each([
@@ -221,7 +238,10 @@ describe('cambiarContrasena', () => {
   it('cambia la contraseña y deja de pedir el cambio de la temporal', async () => {
     expect(await cambiarContrasena(NUEVA)).toEqual({ ok: true, datos: null });
     expect(verificarContrasenaActual).toHaveBeenCalledWith(CREDENCIALES.correo, NUEVA.actual);
-    expect(db.auth.updateUser).toHaveBeenCalledWith({ password: NUEVA.nueva });
+    expect(db.auth.updateUser).toHaveBeenCalledWith({
+      password: NUEVA.nueva,
+      current_password: NUEVA.actual,
+    });
     expect(admin.de('usuario')[0]).toMatchObject({
       operacion: 'update',
       valores: { contrasena_temporal: false },
@@ -251,6 +271,10 @@ describe('cambiarContrasena', () => {
 
   it.each([
     ['same_password', 'La nueva contraseña debe ser distinta de la actual.'],
+    [
+      'reauthentication_needed',
+      'Por seguridad, cierra la sesión, vuelve a entrar y cambia la contraseña enseguida.',
+    ],
     ['weak_password', 'Esa contraseña es muy débil. Elige una más larga o variada.'],
     ['unexpected_failure', 'No pudimos cambiar la contraseña. Inténtalo de nuevo.'],
   ])('traduce el error %s de Supabase', async (code, error) => {

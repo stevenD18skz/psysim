@@ -6,11 +6,13 @@ import {
   limpiarCodigos,
 } from './flujos';
 import {
+  eventoChat,
   hayCredenciales,
   hayCredencialesEstudiante,
   iniciarSesionComoDocente,
   iniciarSesionComoEstudiante,
   MOTIVO_SIN_ESTUDIANTE,
+  respuestaDelChat,
 } from './helpers';
 
 /**
@@ -124,7 +126,9 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
 
     const respuesta = await respuestaChat;
     expect(respuesta.status()).toBe(200);
-    const cuerpo = await respuesta.json();
+    // El texto llega por partes; la respuesta completa y guardada viene en el último evento.
+    expect(respuesta.headers()['content-type']).toContain('text/event-stream');
+    const cuerpo = await respuestaDelChat(respuesta);
     expect(cuerpo.respuesta_npc.length).toBeGreaterThan(0);
     expect(cuerpo.tokens_entrada).toBeGreaterThan(0);
 
@@ -253,6 +257,108 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     await contexto.close();
   });
 
+  test('la respuesta del paciente aparece por partes y la espera larga se avisa con calma', async ({
+    page,
+  }) => {
+    const sesionId = await crearSesion();
+    const panel = await iniciarConversacion(page, sesionId);
+    const texto = 'Buenas tardes… la verdad no sé muy bien por dónde empezar.';
+    await page.route('**/api/npc/chat', ruta =>
+      ruta.fulfill({
+        status: 200,
+        contentType: 'text/event-stream; charset=utf-8',
+        body: [
+          eventoChat('espera', { segundos: 3 }),
+          eventoChat('emocion', { emocion: 'ansioso', intensidad: 2 }),
+          eventoChat('fragmento', { texto: 'Buenas tardes… la verdad ' }),
+          eventoChat('fragmento', { texto: 'no sé muy bien por dónde empezar.' }),
+          eventoChat('fin', {
+            respuesta: {
+              respuesta_npc: texto,
+              emocion_npc: 'ansioso',
+              intensidad_npc: 2,
+              timestamp_respuesta: new Date().toISOString(),
+              tokens_entrada: 500,
+              tokens_salida: 20,
+              id_mensaje_estudiante: null,
+              id_mensaje_npc: null,
+              cierre: null,
+            },
+          }),
+        ].join(''),
+      })
+    );
+
+    const campo = panel.getByLabel('Tu intervención para Marta Lucía');
+    await campo.fill('Buenas tardes, Marta.');
+    await campo.press('Enter');
+
+    await expect(panel.locator('[data-remitente="npc"]')).toHaveCount(1);
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 15_000 });
+    await expect(panel.locator('[data-remitente="npc"]')).toContainText(texto);
+    // Una espera corta no se anuncia: el paciente simplemente se toma su tiempo.
+    await expect(panel.getByTestId('espera-paciente')).toHaveCount(0);
+    await expect(panel.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  test('si el paciente da por terminada la consulta, el campo se bloquea y la práctica se cierra', async ({
+    page,
+  }) => {
+    const sesionId = await crearSesion();
+    const panel = await iniciarConversacion(page, sesionId);
+    const texto = 'No puedo seguir hablando de esto ahora. Perdón.';
+    await page.route('**/api/npc/chat', ruta =>
+      ruta.fulfill({
+        status: 200,
+        contentType: 'text/event-stream; charset=utf-8',
+        body: [
+          eventoChat('fragmento', { texto }),
+          eventoChat('fin', {
+            respuesta: {
+              respuesta_npc: texto,
+              emocion_npc: 'abrumado',
+              intensidad_npc: 3,
+              timestamp_respuesta: new Date().toISOString(),
+              tokens_entrada: 500,
+              tokens_salida: 20,
+              id_mensaje_estudiante: null,
+              id_mensaje_npc: null,
+              cierre: 'crisis',
+            },
+          }),
+        ].join(''),
+      })
+    );
+
+    const campo = panel.getByLabel('Tu intervención para Marta Lucía');
+    await campo.fill('Cuénteme qué pasó ese día.');
+    await campo.press('Enter');
+
+    // Cuando la respuesta termina de mostrarse aparece el aviso, sobrio, en lugar del campo.
+    const aviso = panel.getByTestId('aviso-cierre');
+    await expect(aviso).toBeVisible({ timeout: 15_000 });
+    await expect(aviso).toContainText('La conversación terminó aquí');
+    await expect(aviso).toContainText('Tu docente revisará la conversación contigo');
+    await expect(aviso).not.toContainText(/error|fallaste|crisis/i);
+    await expect(campo).toBeHidden();
+    await expect(panel.locator('[data-remitente="npc"]')).toContainText(texto);
+
+    // La práctica se termina sola, por el mismo camino de «Terminar práctica» (con métricas).
+    await expect
+      .poll(
+        async () =>
+          (await clienteAdmin().from('sesion').select('estado').eq('id', sesionId).single()).data
+            ?.estado,
+        { timeout: 30_000 }
+      )
+      .toBe('finalizada');
+
+    await aviso.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page).toHaveURL(new RegExp(`/resultados\\?sesion=${sesionId}`), {
+      timeout: 30_000,
+    });
+  });
+
   test('HU-16: un error de la IA muestra el aviso, conserva el historial y permite reintentar', async ({
     page,
   }) => {
@@ -283,8 +389,9 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
 
     await aviso.getByRole('button', { name: 'Reintentar' }).click();
     await expect(aviso).toBeHidden();
-    // El servidor concede hasta 25 s a la IA (con modelo de respaldo) más la escritura progresiva.
-    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 45_000 });
+    // El servidor concede hasta 55 s al paciente (el orquestador y, si falla, Gemini) más la
+    // escritura progresiva.
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando', { timeout: 75_000 });
     // El mensaje no se duplicó y ahora tiene respuesta.
     await expect(panel.locator('[data-remitente="estudiante"]')).toHaveCount(1);
     await expect(panel.locator('[data-remitente="npc"]')).toHaveCount(1);

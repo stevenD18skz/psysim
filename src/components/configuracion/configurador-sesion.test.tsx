@@ -194,6 +194,9 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByTestId('estudiante-elegido')).toHaveTextContent('Ana María Pérez');
 
     await usuario.click(screen.getByRole('radio', { name: '3 días' }));
+    // La consulta dura 15 minutos si el docente no elige otra duración.
+    expect(screen.getByRole('radio', { name: '15 min' })).toBeChecked();
+    await usuario.click(screen.getByRole('radio', { name: '20 min' }));
     await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
 
     expect(mockGenerar).toHaveBeenCalledWith({
@@ -201,10 +204,15 @@ describe('ConfiguradorSesion', () => {
       promptSistema: E01.npc.promptSistema,
       estudianteId: ANA.id,
       vigenciaDias: 3,
+      duracionMinutos: 20,
     });
     const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
     expect(within(dialogo).getByText(/\/unirse\/abc-defg-hij$/)).toBeVisible();
+    const accionesEnvio = within(dialogo)
+      .getAllByRole('button')
+      .map(b => b.textContent?.trim());
+    expect(accionesEnvio.slice(0, 3)).toEqual(['Copiar código', 'Copiar enlace', 'Compartir']);
     expect(within(dialogo).getByRole('link', { name: /Ver ficha de/ })).toHaveAttribute(
       'href',
       `/estudiantes/${ANA.id}`
@@ -265,9 +273,14 @@ describe('ConfiguradorSesion', () => {
     expect(duelo).toBeChecked();
   });
 
-  it('invita a crear un caso cuando "Mis casos" está vacío', () => {
+  it('invita a crear un caso cuando "Mis casos" está vacío', async () => {
+    const usuario = userEvent.setup();
     renderizar();
 
+    // Por defecto muestra «Casos predefinidos» y no mezcla ambas secciones a la vez.
+    expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: /Mis casos/ }));
     expect(screen.getByText(/Aquí vivirán tus casos/)).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toBeVisible();
     expect(screen.getByRole('link', { name: /Crear mi primer caso/ })).toHaveAttribute(
@@ -276,20 +289,31 @@ describe('ConfiguradorSesion', () => {
     );
   });
 
-  it('lista los casos propios aparte, con acciones para editarlos y eliminarlos', async () => {
+  it('lista los casos propios primero cuando hay, y los separa de los predefinidos', async () => {
     const usuario = userEvent.setup();
     renderizar([E01, PROPIO]);
 
+    const pestanas = within(screen.getByRole('group', { name: 'Secciones de casos' }))
+      .getAllByRole('button')
+      .map(b => b.textContent);
+    expect(pestanas[0]).toMatch(/^Mis casos/);
+    expect(pestanas[1]).toMatch(/^Casos predefinidos/);
+
+    // Con casos propios creados, abre directo en «Mis casos» sin mezclar secciones.
+    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Duelo y pérdida/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Aquí vivirán tus casos/)).not.toBeInTheDocument();
     // Con casos, la creación es una tarjeta punteada junto a ellos.
     expect(screen.getByRole('link', { name: /Crear caso nuevo/ })).toHaveAttribute(
       'href',
       '/configuracion/casos/nuevo'
     );
-    expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Editar el caso Mi caso de ansiedad' })
     ).toHaveAttribute('href', `/configuracion/casos/${PROPIO.id}`);
+    expect(
+      screen.getByRole('link', { name: 'Usar de base el caso Mi caso de ansiedad' })
+    ).toHaveAttribute('href', `/configuracion/casos/nuevo?desde=${PROPIO.id}`);
 
     await usuario.click(
       screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
@@ -303,6 +327,10 @@ describe('ConfiguradorSesion', () => {
     expect(
       screen.getByRole('button', { name: 'Eliminar el caso Mi caso de ansiedad' })
     ).toBeVisible();
+
+    await usuario.click(screen.getByRole('button', { name: /Casos predefinidos/ }));
+    expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Mi caso de ansiedad/ })).not.toBeInTheDocument();
   });
 
   it('llega con un caso propio preseleccionado y su prompt cargado', async () => {
@@ -411,6 +439,51 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByRole('radio', { name: /Caso de insomnio/ })).toBeInTheDocument();
   });
 
+  it('al añadir una sugerencia en indicaciones y borrar un carácter, no vuelve a aparecer hasta vaciar el campo', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    const sugerencia = '+ Llega tarde y apurado; al principio quiere irse pronto.';
+    await usuario.click(screen.getByRole('button', { name: sugerencia }));
+    expect(screen.queryByRole('button', { name: sugerencia })).not.toBeInTheDocument();
+
+    const campo = screen.getByLabelText('Una indicación con tus palabras (opcional)');
+    await usuario.type(campo, '{Backspace}');
+    expect(screen.queryByRole('button', { name: sugerencia })).not.toBeInTheDocument();
+
+    await usuario.clear(campo);
+    expect(screen.getByRole('button', { name: sugerencia })).toBeInTheDocument();
+  });
+
+  it('abre las 15 reglas exactas de la IA en un diálogo ordenado por categorías', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver las 15 reglas exactas que recibe la IA' })
+    );
+    expect(
+      screen.getByRole('dialog', { name: /Las 15 reglas exactas que recibe la IA/ })
+    ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Personaje y naturalidad' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ritmo y vínculo clínico' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Límites clínicos y reserva' })).toBeInTheDocument();
+  });
+
+  it('permite añadir un dato que guarda el paciente con su condición', async () => {
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id);
+
+    await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(screen.getByRole('button', { name: 'Añadir algo que guarda' }));
+
+    await usuario.type(screen.getByLabelText('Qué guarda'), 'Discutió con su hermana');
+    await usuario.type(screen.getByLabelText('Lo cuenta solo si…'), 'le preguntan por su familia');
+
+    expect(screen.getByText('Guarda: Discutió con su hermana.')).toBeVisible();
+  });
+
   describe('estudiantes', () => {
     it('sin estudiantes con cuenta invita a registrarlos', () => {
       renderizar([E01, E02], undefined, [SIN_CUENTA]);
@@ -454,5 +527,33 @@ describe('ConfiguradorSesion', () => {
       renderizar([E01, E02], undefined, [ANA, SIN_CUENTA], SIN_CUENTA);
       expect(screen.queryByTestId('estudiante-elegido')).not.toBeInTheDocument();
     });
+  });
+
+  it('pagina los casos propios cuando hay más de 12 y reinicia la página al buscar', async () => {
+    const propios = Array.from({ length: 14 }, (_, i) => {
+      const numero = String(i + 1).padStart(2, '0');
+      return escenario(
+        `C-900000${numero}`,
+        `Caso propio ${numero}`,
+        `44444444-4444-4444-8444-4444444444${numero}`,
+        {
+          propio: true,
+          creadoEn: `2026-10-${String(28 - i).padStart(2, '0')}T10:00:00.000Z`,
+        }
+      );
+    });
+    const usuario = userEvent.setup();
+    renderizar([E01, ...propios]);
+
+    expect(screen.getByText('1–12 de 14 casos')).toBeVisible();
+    expect(screen.getByRole('radio', { name: /Caso propio 01/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Caso propio 13/ })).not.toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Página 2' }));
+    expect(screen.getByText('13–14 de 14 casos')).toBeVisible();
+    expect(screen.getByRole('radio', { name: /Caso propio 13/ })).toBeInTheDocument();
+
+    await usuario.type(screen.getByLabelText('Buscar un caso'), 'Caso propio 01');
+    expect(screen.getByRole('radio', { name: /Caso propio 01/ })).toBeInTheDocument();
   });
 });

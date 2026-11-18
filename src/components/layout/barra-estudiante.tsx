@@ -1,20 +1,14 @@
 'use client';
 
-import { ChevronDown, Globe, Loader2, LogOut, MonitorPlay } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut, MonitorPlay } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
@@ -37,7 +31,7 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
 
   return (
     <header className="sticky top-0 z-30 vetas-nogal text-sidebar-foreground print:hidden">
-      <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-[88rem] items-center gap-3 px-4 sm:gap-6 sm:px-6">
         <Link
           href="/practicas"
           className="flex items-center rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-laton"
@@ -50,11 +44,18 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
             href="/practicas"
             aria-current={enPracticas ? 'page' : undefined}
             className={cn(
-              'hidden rounded-md px-3 py-2 text-sm font-medium outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton sm:block',
+              'relative hidden rounded-md px-3 py-2 text-sm font-medium outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton sm:block',
               enPracticas ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted'
             )}
           >
             Mis prácticas
+            {/* Trazo de latón bajo el destino actual: se ve sin depender solo del color del texto. */}
+            {enPracticas && (
+              <span
+                aria-hidden
+                className="absolute inset-x-3 -bottom-[11px] h-0.5 rounded-full bg-laton"
+              />
+            )}
           </Link>
         </nav>
 
@@ -81,6 +82,10 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
               href={`/simulacion?sesion=${sesionEnCurso}`}
               className="flex h-9 items-center gap-2 rounded-lg bg-laton px-3 text-sm font-semibold text-[#1f1b17] outline-hidden hover:bg-laton-claro focus-visible:ring-2 focus-visible:ring-lino focus-visible:ring-offset-2 focus-visible:ring-offset-nogal"
             >
+              <span className="relative flex size-2" aria-hidden>
+                <span className="absolute inline-flex size-full rounded-full bg-nogal/50 motion-safe:animate-ping" />
+                <span className="relative inline-flex size-2 rounded-full bg-nogal" />
+              </span>
               <MonitorPlay className="size-4" aria-hidden />
               <span>
                 Continuar <span className="hidden sm:inline">práctica</span>
@@ -89,51 +94,37 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
           )}
 
           {perfil && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex h-10 items-center gap-2 rounded-lg px-1.5 outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
-                {/* Nombre por contenido (no aria-label): así coincide con lo visible (WCAG 2.5.3). */}
-                <span className="sr-only">Cuenta de {perfil.nombre}</span>
-                <span
-                  aria-hidden
-                  className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro"
-                >
-                  {iniciales(perfil.nombre)}
-                </span>
-                <ChevronDown className="size-4 text-sidebar-muted" aria-hidden />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={8} className="w-64">
-                <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
-                  <span className="truncate font-medium text-foreground">{perfil.nombre}</span>
-                  <span className="truncate text-xs text-muted-foreground">{perfil.correo}</span>
-                  <span className="text-xs text-muted-foreground">
-                    Estudiante · Código {perfil.codigoInstitucional}
+            <div className="flex items-center gap-2.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger className="group/cuenta flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
+                  {/* Nombre por contenido (no aria-label): así coincide con lo visible (WCAG 2.5.3). */}
+                  <span className="sr-only">Cuenta de {perfil.nombre}</span>
+                  <span
+                    aria-hidden
+                    className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro ring-1 ring-lino/20"
+                  >
+                    {iniciales(perfil.nombre)}
                   </span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/">
-                    <Globe aria-hidden />
-                    Ir a la página pública
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={cerrando}
-                  onSelect={evento => {
-                    evento.preventDefault();
-                    salir();
-                  }}
-                >
-                  {cerrando ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <LogOut aria-hidden />
-                  )}
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <span
+                    className="hidden max-w-40 truncate text-sm font-medium md:inline"
+                    aria-hidden
+                  >
+                    {perfil.nombre.split(' ')[0]}
+                  </span>
+                  <ChevronDown
+                    className="size-4 text-sidebar-muted transition-transform duration-200 ease-salida group-data-[state=open]/cuenta:rotate-180"
+                    aria-hidden
+                  />
+                </DropdownMenuTrigger>
+                <MenuCuenta
+                  perfil={perfil}
+                  align="end"
+                  sideOffset={8}
+                  cerrando={cerrando}
+                  onSalir={salir}
+                />
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </div>

@@ -3,13 +3,17 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { entradasDeAcceso, esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import {
   esRol,
   ROLES_DOCENTE,
   RUTA_ACCESO_DENEGADO,
+  RUTA_CAMBIAR_CONTRASENA,
   RUTA_INICIO,
   RUTA_LOGIN,
 } from '@/lib/auth/routes';
+import { googleDuranteLaEntrega, leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
+import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { type PerfilUsuario, type RolUsuario } from '@/types';
@@ -30,6 +34,11 @@ export type SesionUsuario =
  * El perfil se lee con la clave secreta, filtrado por el id que confirmó el servidor de Auth: el
  * cliente solo puede leer `id`, `nombre` y `rol` de `usuario` (así el estudiante no ve el correo
  * ni el estado de la cuenta de sus docentes).
+ *
+ * El estudiante entra con Google. La acción de cambiar contraseña no le deja crearse una, pero la
+ * API de Supabase Auth sí acepta una contraseña nueva de cualquiera que tenga un token de sesión:
+ * quien encontrara su sesión abierta podría crearle esa segunda puerta. Por eso una sesión de
+ * estudiante abierta con contraseña no tiene permiso (salvo las cuentas de prueba).
  */
 export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
   const supabase = await createClient();
@@ -56,6 +65,29 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
 
   if (!perfil || !perfil.activo || !esRol(perfil.rol)) {
     return { estado: 'sin-permiso' };
+  }
+
+  // El token es el de la sesión que `getUser()` acaba de validar con el servidor de Auth.
+  const { data: sesion } = await supabase.auth.getSession();
+  const entradas = entradasDeAcceso(sesion.session?.access_token);
+  const entroCon = (metodo: string) => entradas.some(entrada => entrada.metodo === metodo);
+
+  if (perfil.rol === 'estudiante') {
+    if (!esCuentaDePrueba(perfil.correo) && entroCon('password')) {
+      log.warn('auth.estudiante_con_contrasena', { usuario_id: perfil.id });
+      return { estado: 'sin-permiso' };
+    }
+  } else if (entroCon('oauth')) {
+    // Modo presencial: tras entregar su equipo, la cuenta del docente no vale con una sesión de
+    // Google abierta después de la entrega (`ventana.ts`). `/auth/callback` ya lo rechaza con su
+    // aviso; esto cubre una sesión conseguida sin pasar por ahí. Solo cuesta una lectura a quien
+    // entró con Google.
+    const entregaHasta = await leerVentanaDeEntrega(perfil.id);
+    if (entregaHasta === undefined) return { estado: 'sin-permiso' };
+    if (googleDuranteLaEntrega(entregaHasta, entradas)) {
+      log.warn('auth.google_tras_entregar_el_equipo', { usuario_id: perfil.id });
+      return { estado: 'sin-permiso' };
+    }
   }
 
   return {
@@ -87,11 +119,27 @@ export async function requerirUsuario(): Promise<PerfilUsuario> {
   return sesion.perfil;
 }
 
-/** Exige uno de los roles indicados. Con otro rol válido, lleva a la ruta de inicio de ese rol. */
+/**
+ * ¿La cuenta sigue con la contraseña temporal que generó el Administrador? Mientras sea así, el
+ * panel del docente no abre nada más que el cambio de contraseña: una temporal suele viajar por
+ * un chat o un correo, y quien la haya visto entraría a la cuenta mientras siga sirviendo.
+ * El estudiante no entra con contraseña, así que no aplica.
+ */
+export function debeCambiarContrasena(perfil: Pick<PerfilUsuario, 'rol' | 'contrasenaTemporal'>) {
+  return perfil.contrasenaTemporal && ROLES_DOCENTE.includes(perfil.rol);
+}
+
+/**
+ * Exige uno de los roles indicados. Con otro rol válido, lleva a la ruta de inicio de ese rol; con
+ * la contraseña temporal sin cambiar, a cambiarla (también desde una Server Action).
+ */
 async function requerirRol(roles: readonly RolUsuario[]): Promise<PerfilUsuario> {
   const perfil = await requerirUsuario();
   if (!roles.includes(perfil.rol)) {
     redirect(RUTA_INICIO[perfil.rol]);
+  }
+  if (debeCambiarContrasena(perfil)) {
+    redirect(RUTA_CAMBIAR_CONTRASENA);
   }
   return perfil;
 }

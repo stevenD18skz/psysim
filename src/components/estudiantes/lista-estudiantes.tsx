@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, ChevronRight, KeyRound, MailPlus } from 'lucide-react';
+import { ClipboardPlus, KeyRound, MailPlus } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
 import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { iniciales } from '@/lib/nombres';
 import { type EstudianteRegistrado } from '@/types';
 
 /**
@@ -24,7 +25,7 @@ export function ListaEstudiantes({
 }: {
   estudiantes: EstudianteRegistrado[];
   /** Mensaje cuando ningún estudiante coincide con los filtros. */
-  vacio: string;
+  vacio: React.ReactNode;
   /** Búsqueda, filtros y orden, junto al título. */
   controles?: React.ReactNode;
 }) {
@@ -64,22 +65,22 @@ export function ListaEstudiantes({
           </caption>
           <thead className="border-b bg-muted/50 text-left text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase ancho-condensado">
             <tr>
-              <th scope="col" className="px-4 py-3 font-semibold">
+              <th scope="col" className="px-5 py-4 font-semibold">
                 Estudiante
               </th>
-              <th scope="col" className="px-4 py-3 font-semibold">
+              <th scope="col" className="px-5 py-4 font-semibold">
                 Prácticas
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-semibold md:table-cell">
+              <th scope="col" className="hidden px-5 py-4 font-semibold md:table-cell">
                 Retroalimentación
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-semibold lg:table-cell">
+              <th scope="col" className="hidden px-5 py-4 font-semibold lg:table-cell">
                 Nota promedio
               </th>
-              <th scope="col" className="hidden px-4 py-3 font-semibold sm:table-cell">
+              <th scope="col" className="hidden px-5 py-4 font-semibold sm:table-cell">
                 Última práctica
               </th>
-              <th scope="col" className="px-4 py-3">
+              <th scope="col" className="px-5 py-4">
                 <span className="sr-only">Acciones</span>
               </th>
             </tr>
@@ -93,6 +94,7 @@ export function ListaEstudiantes({
                 correo,
                 cuentaVinculada,
                 metricas,
+                docente,
               } = estudiante;
               const ficha = `/estudiantes/${estudianteId}` as const;
               return (
@@ -102,20 +104,39 @@ export function ListaEstudiantes({
                   onClick={evento => abrirFicha(evento, ficha)}
                   className="group/fila cursor-pointer align-middle transition-colors hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50"
                 >
-                  <th scope="row" className="px-4 py-3 text-left font-normal">
-                    {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
-                    <Link
-                      href={ficha}
-                      className="block min-h-6 rounded-sm font-medium outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {nombre}
-                    </Link>
-                    <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {correo ?? 'Sin correo: no puede recibir códigos'}
-                    </span>
+                  <th scope="row" className="px-5 py-4 text-left font-normal">
+                    <div className="flex items-center gap-3.5">
+                      {/* Iniciales, no foto: la cuenta de Google solo existe tras el primer ingreso. */}
+                      <span
+                        aria-hidden
+                        className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro sm:flex"
+                      >
+                        {iniciales(nombre)}
+                      </span>
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
+                        <Link
+                          href={ficha}
+                          className="block min-h-6 rounded-sm font-semibold outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {nombre}
+                        </Link>
+                        <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                          <span className="font-mono">{codigo}</span>
+                          <span className="max-w-[16rem] truncate">
+                            {correo ?? 'Sin correo: no puede recibir códigos'}
+                          </span>
+                        </span>
+                        {docente && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            Docente:{' '}
+                            <span className="font-medium text-foreground">{docente.nombre}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </th>
-                  <td className="px-4 py-3 tabular-nums">
+                  <td className="px-5 py-4 tabular-nums">
                     {metricas.sesiones === 1 ? '1 práctica' : `${metricas.sesiones} prácticas`}
                     {metricas.enCurso > 0 && (
                       <InsigniaEstado
@@ -142,7 +163,7 @@ export function ListaEstudiantes({
                       </span>
                     )}
                   </td>
-                  <td className="hidden px-4 py-3 md:table-cell">
+                  <td className="hidden px-5 py-4 md:table-cell">
                     {metricas.pendientesRetroalimentacion > 0 ? (
                       <InsigniaEstado
                         estado={{
@@ -156,19 +177,19 @@ export function ListaEstudiantes({
                       </span>
                     )}
                   </td>
-                  <td className="hidden px-4 py-3 font-medium tabular-nums lg:table-cell">
+                  <td className="hidden px-5 py-4 font-medium tabular-nums lg:table-cell">
                     {formatearNota(metricas.notaPromedio)}
                   </td>
-                  <td className="hidden px-4 py-3 sm:table-cell">
+                  <td className="hidden px-5 py-4 sm:table-cell">
                     {metricas.ultimaSesion ? formatearDia(metricas.ultimaSesion) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       {cuentaVinculada ? (
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/configuracion?estudiante=${codigo}`}>
                             Asignar
-                            <ArrowRight aria-hidden />
+                            <ClipboardPlus aria-hidden />
                           </Link>
                         </Button>
                       ) : (
@@ -184,10 +205,6 @@ export function ListaEstudiantes({
                         />
                       )}
                       <AccionesEstudiante estudiante={estudiante} />
-                      <ChevronRight
-                        className="size-4 text-muted-foreground transition-transform group-hover/fila:translate-x-0.5 group-hover/fila:text-foreground"
-                        aria-hidden
-                      />
                     </div>
                   </td>
                 </tr>

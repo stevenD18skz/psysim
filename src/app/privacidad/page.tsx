@@ -1,8 +1,11 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckSquare } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { ControlCitado } from '@/components/comun/control-citado';
+import { LogoGoogle } from '@/components/comun/logo-google';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { PiePagina } from '@/components/layout/pie-pagina';
 
 export const metadata: Metadata = {
@@ -48,6 +51,7 @@ const SECCIONES = [
 export default function PrivacidadPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
+      <SaltarContenido />
       <header className="vetas-nogal text-sidebar-foreground">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-5 py-5 sm:px-8">
           <Link
@@ -66,7 +70,11 @@ export default function PrivacidadPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:py-14">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-5 py-10 outline-hidden sm:px-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:py-14"
+      >
         <nav aria-labelledby="indice" className="lg:sticky lg:top-8 lg:self-start">
           <p id="indice" className="mb-2 text-sm font-semibold">
             En esta página
@@ -94,8 +102,11 @@ export default function PrivacidadPage() {
               Versión 1 · Última actualización: <PorConfirmar>fecha</PorConfirmar>
             </p>
             <p className="rounded-xl bg-ambar-suave px-4 py-3 text-sm text-ambar">
-              Este aviso es un borrador del trabajo de grado. Lo marcado «Por confirmar» se validará
-              con el director del proyecto y la Universidad del Valle.
+              Este aviso es un borrador del trabajo de grado. Los puntos marcados como{' '}
+              <span className="mx-0.5 inline-block rounded border border-ambar/35 bg-card px-1.5 py-0.5 text-[0.9em] font-medium text-ambar">
+                Por confirmar
+              </span>{' '}
+              se validarán con el director del proyecto y la Universidad del Valle.
             </p>
           </div>
 
@@ -225,8 +236,8 @@ export default function PrivacidadPage() {
                 </PorConfirmar>
               </li>
               <li>
-                <strong>Google (inicio de sesión):</strong> confirma tu identidad cuando eliges
-                «Continuar con Google».
+                <strong>Google (inicio de sesión):</strong> confirma tu identidad cuando eliges{' '}
+                <ControlCitado icono={<LogoGoogle />}>Continuar con Google</ControlCitado>.
               </li>
               <li>
                 <strong>Supabase:</strong> aloja la base de datos y gestiona las cuentas.
@@ -292,11 +303,17 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 id="autorizacion">9. Tu autorización</h2>
+            <p>Antes de tu primera práctica te pedimos aceptar este consentimiento en pantalla:</p>
+            <p className="flex items-start gap-2.5 rounded-xl border bg-card px-4 py-3 text-sm text-foreground">
+              <CheckSquare className="mt-0.5 size-4 shrink-0 text-salvia-oscuro" aria-hidden />
+              <span>
+                Leí el aviso de privacidad y acepto que mi conversación se procese con Google Gemini
+                y que la lea mi docente.
+              </span>
+            </p>
             <p>
-              Antes de tu primera práctica te pedimos marcar «Leí el aviso de privacidad y acepto
-              que mi conversación se procese con Google Gemini y que la lea mi docente». Esa
-              aceptación se guarda en tu navegador. Si no quieres aceptarla, no empieces la práctica
-              y habla con tu docente.{' '}
+              Esa aceptación se guarda en tu navegador. Si no quieres aceptarla, no empieces la
+              práctica y habla con tu docente.{' '}
               <PorConfirmar>
                 si la universidad exige una autorización registrada o firmada
               </PorConfirmar>

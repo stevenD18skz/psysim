@@ -130,6 +130,6 @@ export function resumenAjustes(ajustes: AjustesPractica): string[] {
     resumen.push(`Se muestra ${actitud.texto}.`);
   }
   for (const { dato } of secretosCompletos(ajustes)) resumen.push(`Guarda: ${limpio(dato)}.`);
-  if (limpio(ajustes.indicacion)) resumen.push(`Tu indicación: «${limpio(ajustes.indicacion)}».`);
+  if (limpio(ajustes.indicacion)) resumen.push(`Tu indicación: ${limpio(ajustes.indicacion)}.`);
   return resumen;
 }

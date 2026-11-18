@@ -46,7 +46,7 @@ interface Registro {
  */
 export async function registrarEstudiantePrueba(cuenta = estudiante): Promise<Registro> {
   const cliente = admin();
-  const [{ data: profesor }, { data: alumno }] = await Promise.all([
+  const [{ data: filaDocente }, { data: filaEstudiante }] = await Promise.all([
     cliente.from('usuario').select('id').eq('correo', docente.correo.toLowerCase()).single(),
     cliente
       .from('usuario')
@@ -54,15 +54,16 @@ export async function registrarEstudiantePrueba(cuenta = estudiante): Promise<Re
       .eq('correo', cuenta.correo.toLowerCase())
       .single(),
   ]);
-  if (!profesor || !alumno) throw new Error('Faltan las cuentas de prueba: ejecuta pnpm db:seed.');
+  if (!filaDocente || !filaEstudiante)
+    throw new Error('Faltan las cuentas de prueba: ejecuta pnpm db:seed.');
 
   const { data, error } = await cliente
     .from('estudiante')
     .upsert(
       {
-        docente_id: profesor.id,
-        codigo: alumno.codigo_institucional,
-        nombre: alumno.nombre,
+        docente_id: filaDocente.id,
+        codigo: filaEstudiante.codigo_institucional,
+        nombre: filaEstudiante.nombre,
         correo: cuenta.correo.toLowerCase(),
       },
       { onConflict: 'docente_id,codigo' }
@@ -70,7 +71,7 @@ export async function registrarEstudiantePrueba(cuenta = estudiante): Promise<Re
     .select('id')
     .single();
   if (error) throw error;
-  return { docenteId: profesor.id, estudianteId: data.id };
+  return { docenteId: filaDocente.id, estudianteId: data.id };
 }
 
 interface OpcionesCodigo {
@@ -124,7 +125,7 @@ export async function crearSesionEstudiante(
     .select('id, docente_id, escenario_id, prompt_sistema, estudiante ( id, codigo, nombre )')
     .eq('codigo', codigo)
     .single();
-  const alumno = asignacion!.estudiante as unknown as {
+  const fichaEstudiante = asignacion!.estudiante as unknown as {
     id: string;
     codigo: string;
     nombre: string;
@@ -135,9 +136,9 @@ export async function crearSesionEstudiante(
     .insert({
       usuario_id: asignacion!.docente_id,
       escenario_id: asignacion!.escenario_id,
-      estudiante_id: alumno.id,
-      codigo_estudiante: alumno.codigo,
-      nombre_estudiante: alumno.nombre,
+      estudiante_id: fichaEstudiante.id,
+      codigo_estudiante: fichaEstudiante.codigo,
+      nombre_estudiante: fichaEstudiante.nombre,
       prompt_sistema: asignacion!.prompt_sistema,
       comenzada,
     })

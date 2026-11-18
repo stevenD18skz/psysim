@@ -3,6 +3,7 @@
 import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { requerirDocente } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
+import { cerrarDespues } from '@/lib/orquestador/diferido';
 import { createClient } from '@/lib/supabase/server';
 import { type Anotacion } from '@/types';
 import { type TablesUpdate } from '@/types/database.types';
@@ -238,5 +239,6 @@ export async function interrumpirSesion(
     if (error) log.error('sesion.no_interrumpida', { codigo: error.code });
     return { ok: false, error: 'La práctica ya no está en curso. Recarga la página.' };
   }
+  cerrarDespues(data.id);
   return { ok: true, datos: { id: data.id } };
 }

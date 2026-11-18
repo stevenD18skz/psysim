@@ -1,70 +1,143 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
-import { esEmocionNpc } from '@/lib/conversacion/emociones';
+import { type EmocionNpc, esEmocionNpc } from '@/lib/conversacion/emociones';
 import {
   contarIntervenciones,
   historialDesdeFilas,
   MAX_INTERVENCIONES_POR_SESION,
   respuestaYaGuardada,
 } from '@/lib/ia/historial';
-import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
+import {
+  MENSAJE_PRACTICA_TERMINADA,
+  mensajeTope,
+  responderIntercambio,
+} from '@/lib/ia/intercambio';
 import { log } from '@/lib/log';
 import { idPeticion } from '@/lib/observabilidad/peticion';
+import {
+  leerSesionIa,
+  leerTurno,
+  type SesionIa,
+  tomarTurno,
+  type TurnoIa,
+} from '@/lib/orquestador/datos';
+import { barrerDespues, cerrarDespues } from '@/lib/orquestador/diferido';
+import { crearPlazo } from '@/lib/orquestador/turno';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { leerTiempoDeConsulta, terminarPorTiempo } from '@/lib/sesiones/consulta';
+import { debeNotarElTiempo, faseDeConsulta, TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
+import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
+import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
+import { codificarEventoSse } from '@/lib/sse';
 import { createClient } from '@/lib/supabase/server';
 import {
+  type EventoChat,
   type NpcChatError,
   npcChatRequestSchema,
   type NpcChatResponse,
 } from '@/schemas/npc-chat.schema';
 
 /**
- * Límite de ejecución de la función en Vercel. La llamada a la IA tiene su propio tiempo
- * máximo (25 s), menor que este, para responder siempre con un 504 controlado.
+ * Límite de ejecución de la función en Vercel. La petición tiene su propio plazo (55 s, ver
+ * `lib/orquestador/turno.ts`), menor que este, para responder siempre con un error controlado:
+ * el primer turno del orquestador puede tardar 20 s y, si falla, todavía debe responder Gemini.
  */
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const SIN_CACHE = { 'Cache-Control': 'no-store' } as const;
 
-function responderError(status: number, error: string, campos?: NpcChatError['campos']) {
-  const cuerpo: NpcChatError = campos ? { error, campos } : { error };
-  return Response.json(cuerpo, { status, headers: SIN_CACHE });
+/** Lo que se sugiere esperar cuando otra petición todavía responde un turno de la práctica. */
+const ESPERA_TURNO_OCUPADO_S = 5;
+
+/** Cada cuánto se envía un comentario para que ningún intermediario corte un flujo en silencio. */
+const LATIDO_MS = 15_000;
+
+function responderError(
+  status: number,
+  error: string,
+  extra: { campos?: NpcChatError['campos']; esperaS?: number; fin?: NpcChatError['fin'] } = {}
+) {
+  const cuerpo: NpcChatError = {
+    error,
+    ...(extra.campos && { campos: extra.campos }),
+    ...(extra.fin && { fin: extra.fin }),
+  };
+  return Response.json(cuerpo, {
+    status,
+    headers: extra.esperaS ? { ...SIN_CACHE, 'Retry-After': String(extra.esperaS) } : SIN_CACHE,
+  });
 }
 
-const mensajeTope = () =>
-  `Llegaste al máximo de ${MAX_INTERVENCIONES_POR_SESION} intervenciones en esta práctica. Termínala para que tu docente la revise.`;
+/**
+ * Respuesta por partes (Server-Sent Events): el nombre de cada evento es su `tipo` y `data` lleva
+ * el resto en JSON. El turno no depende de quien lee: si el navegador se desconecta a mitad, la
+ * respuesta se termina de recibir y se guarda igual (el proveedor ya la tiene en su historial).
+ */
+function responderPorPartes(eventos: AsyncGenerator<EventoChat, void, void>): Response {
+  const codificador = new TextEncoder();
+  const flujo = new ReadableStream<Uint8Array>({
+    start(controlador) {
+      let abierto = true;
+      const enviar = (texto: string) => {
+        if (!abierto) return;
+        try {
+          controlador.enqueue(codificador.encode(texto));
+        } catch {
+          abierto = false;
+        }
+      };
+      const latido = setInterval(() => enviar(': latido\n\n'), LATIDO_MS);
 
-/** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
-const ERRORES_IA: Record<TipoErrorIA, { status: number; mensaje: string }> = {
-  tiempo_agotado: { status: 504, mensaje: 'El paciente tardó demasiado en responder.' },
-  autenticacion: { status: 502, mensaje: 'El servicio de IA no está disponible.' },
-  limite: { status: 503, mensaje: 'El servicio de IA está saturado. Inténtalo en unos segundos.' },
-  respuesta_invalida: {
-    status: 502,
-    mensaje: 'El servicio de IA devolvió una respuesta inválida.',
-  },
-  // Al estudiante no le explicamos por qué: se le pide reintentar como ante cualquier respuesta rara.
-  fuga_de_instrucciones: {
-    status: 502,
-    mensaje: 'El servicio de IA devolvió una respuesta inválida.',
-  },
-  proveedor: { status: 502, mensaje: 'El servicio de IA no está disponible.' },
-};
+      void (async () => {
+        try {
+          for await (const { tipo, ...datos } of eventos) {
+            enviar(codificarEventoSse(tipo, datos));
+          }
+        } finally {
+          clearInterval(latido);
+          if (abierto) {
+            try {
+              controlador.close();
+            } catch {
+              // El navegador ya había cerrado la conexión.
+            }
+          }
+        }
+      })();
+    },
+  });
+  return new Response(flujo, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+      // Sin esto, algunos proxies acumulan la respuesta y la entregan de una sola vez.
+      'X-Accel-Buffering': 'no',
+    },
+  });
+}
 
 /**
- * HU-12 — Route Handler del paciente virtual.
+ * HU-12 — Route Handler del paciente.
  *
  * 1. Verifica la sesión del estudiante (401/403): solo él conversa con el paciente.
  * 2. Valida el cuerpo con Zod (400 con el detalle por campo).
- * 3. Carga la sesión de simulación con RLS: debe ser del estudiante (404), seguir en curso (409)
- *    y corresponder al NPC indicado (404). El prompt del sistema es el que configuró el docente
- *    al generar el código; se lee con la clave secreta porque el estudiante no puede verlo.
- * 4. Reserva un turno del límite de mensajes por minuto (429 si se agotó, RNF-03.7) y llama a la
- *    IA con el prompt, el historial y el mensaje (504/502/503 si falla).
- * 5. Guarda el intercambio con `guardar_intercambio` (solo el servidor escribe en `mensaje`) y devuelve la respuesta con su emoción (para el
- *    lenguaje no verbal del paciente 3D) y el consumo de tokens.
+ * 3. Carga la práctica con RLS: debe ser del estudiante (404), seguir en curso y haber comenzado
+ *    (409) y corresponder al paciente indicado (404). El prompt, el caso y el proveedor de IA de
+ *    la práctica se leen con la clave secreta porque el estudiante no puede verlos.
+ * 4. Si es un reintento de un intercambio que ya se guardó, devuelve lo guardado (también cuando
+ *    ese intercambio cerró la práctica). Si no, comprueba el tope de intervenciones y reserva un
+ *    turno del límite de mensajes por minuto del estudiante (429 si se agotó, RNF-03.7).
+ * 5. Toma el turno de la práctica (`turno_ia`): si otra petición todavía lo está respondiendo,
+ *    409; si el anterior terminó sin guardarse, el proveedor concilia su historial antes de enviar.
+ * 6. Pide la respuesta al proveedor de la práctica: el orquestador de NPC o Gemini, que además es
+ *    su respaldo (`lib/ia/turno.ts`). Limpia la respuesta, pasa el filtro de fuga y guarda el
+ *    intercambio (solo el servidor escribe en `mensaje`).
+ *
+ * Responde un JSON con la respuesta completa o, con `por_partes`, un flujo de eventos para que el
+ * texto aparezca mientras llega. Los errores anteriores al turno son siempre un JSON con su código.
  */
 export async function POST(request: Request): Promise<Response> {
+  const plazo = crearPlazo();
   const peticion = idPeticion(request);
   const usuario = await obtenerSesionUsuario();
   if (usuario.estado === 'sin-sesion') {
@@ -84,14 +157,14 @@ export async function POST(request: Request): Promise<Response> {
   const datos = npcChatRequestSchema.safeParse(cuerpo);
   if (!datos.success) {
     const campos = datos.error.flatten().fieldErrors as Record<string, string[]>;
-    return responderError(400, 'Los datos de la petición no son válidos.', campos);
+    return responderError(400, 'Los datos de la petición no son válidos.', { campos });
   }
-  const { sesion_id, npc_id, mensaje_usuario, reintento } = datos.data;
+  const { sesion_id, npc_id, mensaje_usuario, reintento, por_partes, turno_id } = datos.data;
 
   const supabase = await createClient();
   const { data: sesion, error: errorSesion } = await supabase
     .from('sesion')
-    .select('estado, comenzada, escenario_id')
+    .select('estado, comenzada, escenario_id, fin_motivo')
     .eq('id', sesion_id)
     .maybeSingle();
 
@@ -102,8 +175,18 @@ export async function POST(request: Request): Promise<Response> {
   if (!sesion) {
     return responderError(404, 'La práctica no existe.');
   }
-  if (sesion.estado !== 'en_curso') {
-    return responderError(409, 'La práctica ya terminó.');
+  // La práctica ya terminó. Si fue al cumplirse el tiempo, el navegador muestra el aviso neutro.
+  const terminada = sesion.estado !== 'en_curso';
+  const responderTerminada = () =>
+    responderError(
+      409,
+      sesion.fin_motivo === FIN_POR_TIEMPO ? TEXTO_TIEMPO.vencida : MENSAJE_PRACTICA_TERMINADA,
+      sesion.fin_motivo === FIN_POR_TIEMPO ? { fin: FIN_POR_TIEMPO } : {}
+    );
+  // Un reintento sigue adelante aunque haya terminado: si lo que se perdió fue la respuesta del
+  // intercambio que la cerró (el servidor la termina al guardarlo), se devuelve lo guardado.
+  if (terminada && !reintento) {
+    return responderTerminada();
   }
   // HU-23: no se conversa hasta que el estudiante confirma las instrucciones del caso.
   if (!sesion.comenzada) {
@@ -112,14 +195,23 @@ export async function POST(request: Request): Promise<Response> {
 
   let npc: { id: string; nombre: string } | undefined;
   let promptSistema: string | null;
+  let sesionIa: SesionIa | null;
+  let turnoAnterior: TurnoIa | null;
+  // El tiempo de consulta lo mide la base de datos (`null` si no se pudo leer: la práctica sigue).
+  const tiempoLeido = leerTiempoDeConsulta(supabase, sesion_id);
   try {
-    // RLS ya verificó que la sesión es del estudiante: el caso y el prompt se leen con la clave secreta.
-    const [escenario, prompt] = await Promise.all([
+    // RLS ya verificó que la práctica es del estudiante: el caso, el prompt, el proveedor de IA
+    // y el último turno se leen con la clave secreta.
+    const [escenario, prompt, proveedor, turno] = await Promise.all([
       leerEscenarioDeSesion(sesion.escenario_id),
       leerPromptDeSesion(sesion_id),
+      leerSesionIa(sesion_id),
+      leerTurno(sesion_id),
     ]);
     npc = escenario?.npc;
     promptSistema = prompt;
+    sesionIa = proveedor;
+    turnoAnterior = turno;
   } catch {
     log.error('npc_chat.caso_no_leido', { peticion, sesion_id });
     return responderError(500, 'No pudimos cargar la sesión.');
@@ -143,10 +235,22 @@ export async function POST(request: Request): Promise<Response> {
     return responderError(500, 'No pudimos cargar la sesión.');
   }
   const mensajesGuardados = filas;
+  const tiempo = await tiempoLeido;
+  const tiempoLeidoEn = performance.now();
 
   // Reintento de un intercambio que sí se guardó (la respuesta se perdió en la red): se devuelve
   // lo guardado, sin otra llamada a la IA ni un intercambio duplicado en la transcripción.
-  const repetido = reintento ? respuestaYaGuardada(mensajesGuardados, mensaje_usuario) : null;
+  // Se reconoce por el identificador de la intervención: con el mismo texto no basta, porque el
+  // estudiante puede repetir a propósito lo que acaba de decir («sí»). Sin identificador (un
+  // cliente anterior, o la base aún sin `turno_ia`) se compara el texto de un envío marcado
+  // como reintento, como antes.
+  const esElTurnoGuardado =
+    turno_id && turnoAnterior?.turnoId
+      ? turnoAnterior.turnoId === turno_id && turnoAnterior.estado === 'guardado'
+      : reintento === true;
+  const repetido = esElTurnoGuardado
+    ? respuestaYaGuardada(mensajesGuardados, mensaje_usuario)
+    : null;
   if (repetido) {
     log.info('npc_chat.reintento_ya_guardado', { peticion, sesion_id });
     const { estudiante, npc: respuestaGuardada } = repetido;
@@ -162,8 +266,29 @@ export async function POST(request: Request): Promise<Response> {
       tokens_salida: respuestaGuardada.tokens_salida,
       id_mensaje_estudiante: estudiante.id,
       id_mensaje_npc: respuestaGuardada.id,
+      // Tras un cierre automático no se guardan más intercambios: el último es el del cierre.
+      cierre: sesionIa?.cierreMotivo ?? null,
+      consulta: tiempo && {
+        duracion_s: tiempo.duracionS,
+        transcurrido_s: tiempo.transcurridoS ?? 0,
+      },
     };
     return Response.json(cuerpoRepetido, { status: 200, headers: SIN_CACHE });
+  }
+  if (terminada) {
+    return responderTerminada();
+  }
+  // El paciente dio por terminada la consulta (crisis o trato inapropiado): no hay más turnos.
+  if (sesionIa?.cierreMotivo) {
+    return responderError(409, MENSAJE_PRACTICA_TERMINADA);
+  }
+  // Pasado el tiempo de la consulta y su margen de cierre no se conversa más. La práctica termina
+  // aquí, con el motivo neutro (no es una falta del estudiante): si dependiera del navegador y el
+  // estudiante cerrara la pestaña, quedaría interrumpida y sin ese motivo.
+  if (tiempo && faseDeConsulta(tiempo) === 'vencida') {
+    log.info('npc_chat.tiempo_cumplido', { peticion, sesion_id });
+    if (await terminarPorTiempo(sesion_id)) cerrarDespues(sesion_id);
+    return responderError(409, TEXTO_TIEMPO.vencida, { fin: FIN_POR_TIEMPO });
   }
   if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
     log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
@@ -171,86 +296,82 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
-  // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log).
+  // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log). El cupo
+  // por cuenta del orquestador es otro límite y se reserva aparte, al pedir el turno.
   const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
   if (errorLimite) {
     log.error('npc_chat.limite_no_verificado', { peticion, codigo: errorLimite.code, sesion_id });
   } else if (esperaS > 0) {
     log.info('npc_chat.limite_alcanzado', { peticion, sesion_id, espera_s: esperaS });
-    const cuerpoLimite: NpcChatError = {
-      error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
-    };
-    return Response.json(cuerpoLimite, {
-      status: 429,
-      headers: { ...SIN_CACHE, 'Retry-After': String(esperaS) },
-    });
+    return responderError(
+      429,
+      `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
+      { esperaS }
+    );
   }
 
-  const inicio = performance.now();
-  let respuesta: Awaited<ReturnType<typeof generarRespuestaPaciente>>;
-  try {
-    respuesta = await generarRespuestaPaciente({
-      promptSistema,
-      historial: historialDesdeFilas(mensajesGuardados),
-      mensaje: mensaje_usuario,
-      nombrePaciente: npc.nombre,
-    });
-  } catch (error) {
-    const tipo = error instanceof ErrorIA ? error.tipo : 'proveedor';
-    log.error('npc_chat.ia_fallo', { peticion, tipo, sesion_id });
-    const { status, mensaje } = ERRORES_IA[tipo];
-    return responderError(status, mensaje);
+  // Un turno a la vez por práctica. Dos pestañas enviando a la vez dejaban los intercambios en un
+  // orden en PsySim y en otro en el orquestador; y si el turno anterior no llegó a guardarse, el
+  // orquestador puede tener un intercambio que la transcripción no tiene.
+  const turnoTomado = await tomarTurno(sesion_id, turno_id ?? null);
+  if (turnoTomado.resultado === 'ocupado') {
+    log.info('npc_chat.turno_ocupado', { peticion, sesion_id });
+    return responderError(
+      409,
+      'El paciente todavía está respondiendo tu mensaje anterior. Espera unos segundos.',
+      { esperaS: ESPERA_TURNO_OCUPADO_S }
+    );
   }
-  const latenciaMs = Math.round(performance.now() - inicio);
-  const timestampRespuesta = new Date().toISOString();
-
-  // El estudiante no puede escribir en `mensaje` (podría fabricar turnos del paciente): el
-  // intercambio lo guarda el servidor con la clave secreta, ya verificada la sesión con RLS. La
-  // función vuelve a comprobar, con la sesión bloqueada, que sigue en curso y el tope de
-  // intervenciones. Si falla por otra causa, la conversación continúa y el error queda registrado.
-  const { data: guardado, error: errorGuardado } = await createAdminClient()
-    .rpc('guardar_intercambio', {
-      p_sesion_id: sesion_id,
-      p_mensaje: mensaje_usuario,
-      p_respuesta: respuesta.texto,
-      p_emocion: respuesta.emocion,
-      p_latencia_ms: latenciaMs,
-      p_tokens_entrada: respuesta.tokensEntrada,
-      p_tokens_salida: respuesta.tokensSalida,
-    })
-    .maybeSingle();
-  if (errorGuardado) {
-    log.error('npc_chat.mensajes_no_guardados', {
-      peticion,
-      codigo: errorGuardado.code,
-      sesion_id,
-    });
-    if (errorGuardado.code === '55000') return responderError(409, 'La práctica ya terminó.');
-    if (errorGuardado.code === '54000') return responderError(429, mensajeTope());
-    // Sin guardar, el docente no vería el intercambio en la transcripción y el paciente lo
-    // olvidaría en el siguiente turno: mejor que el estudiante lo reintente.
-    return responderError(503, 'No pudimos guardar tu mensaje. Inténtalo de nuevo.');
+  if (turnoTomado.resultado === 'pendiente') {
+    log.info('npc_chat.turno_pendiente', { peticion, sesion_id });
   }
 
-  // HU-12 · T05: el consumo se registra para monitoreo (sin el contenido de la conversación).
-  log.info('npc_chat.respuesta', {
+  const vigentes = mensajesGuardados.filter(fila => fila.descartado_en === null);
+  const intercambios = vigentes.filter(fila => fila.remitente === 'estudiante').length;
+  const ultimaEmocion = vigentes.findLast(fila => fila.remitente === 'npc')?.emocion;
+  const emocionAnterior: EmocionNpc | null =
+    ultimaEmocion && esEmocionNpc(ultimaEmocion) ? ultimaEmocion : null;
+  // Opción B: el primer turno con el tiempo ya cumplido, el paciente puede notarlo (solo Gemini).
+  const ultimaRespuesta = vigentes.findLast(fila => fila.remitente === 'npc');
+  const desdeLaUltimaRespuestaS = ultimaRespuesta
+    ? Math.max(0, (Date.now() - Date.parse(ultimaRespuesta.creado_en)) / 1000)
+    : null;
+  const notaDeEscena =
+    tiempo && debeNotarElTiempo(tiempo, desdeLaUltimaRespuestaS) ? NOTA_TIEMPO_CUMPLIDO : null;
+
+  // Al empezar una práctica se aprovecha para cerrar en el orquestador las que quedaron abiertas.
+  if (intercambios === 0) barrerDespues();
+
+  const eventos = responderIntercambio({
     peticion,
-    sesion_id,
-    modelo: respuesta.modelo,
-    latencia_ms: latenciaMs,
-    tokens_entrada: respuesta.tokensEntrada,
-    tokens_salida: respuesta.tokensSalida,
+    sesionId: sesion_id,
+    escenarioId: sesion.escenario_id,
+    promptSistema,
+    nombrePaciente: npc.nombre,
+    historial: historialDesdeFilas(mensajesGuardados),
+    mensaje: mensaje_usuario,
+    // Con el turno anterior sin guardar, el orquestador revisa su historial igual que en un
+    // reintento: si lo tiene con este mismo texto lo aprovecha; si tiene otro, pasa a Gemini.
+    reintento: reintento === true || turnoTomado.resultado === 'pendiente',
+    marcaDeTurno: turnoTomado.marca,
+    intercambios,
+    hayDescartados: vigentes.length !== mensajesGuardados.length,
+    emocionAnterior,
+    sesionIa,
+    plazo,
+    notaDeEscena,
+    consulta: tiempo && { tiempo, leidoEn: tiempoLeidoEn },
   });
 
-  const cuerpoRespuesta: NpcChatResponse = {
-    respuesta_npc: respuesta.texto,
-    emocion_npc: respuesta.emocion,
-    intensidad_npc: respuesta.intensidad,
-    timestamp_respuesta: timestampRespuesta,
-    tokens_entrada: respuesta.tokensEntrada,
-    tokens_salida: respuesta.tokensSalida,
-    id_mensaje_estudiante: guardado?.id_estudiante ?? null,
-    id_mensaje_npc: guardado?.id_npc ?? null,
-  };
-  return Response.json(cuerpoRespuesta, { status: 200, headers: SIN_CACHE });
+  if (por_partes) return responderPorPartes(eventos);
+
+  for await (const evento of eventos) {
+    if (evento.tipo === 'fin') {
+      return Response.json(evento.respuesta, { status: 200, headers: SIN_CACHE });
+    }
+    if (evento.tipo === 'error') {
+      return responderError(evento.status, evento.error, { esperaS: evento.espera_s });
+    }
+  }
+  return responderError(502, 'El servicio de IA no está disponible.');
 }

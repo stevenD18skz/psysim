@@ -14,6 +14,7 @@ import {
   PARAM_CUENTA_RECHAZADA,
   RUTA_ENTREGA,
 } from '@/lib/equipo-compartido/entrega';
+import { entregaVigente, leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { createClient } from '@/lib/supabase/server';
 import { log } from '@/lib/log';
 
@@ -26,6 +27,8 @@ import { log } from '@/lib/log';
  *    `signup_disabled`).
  * 3. En un equipo entregado a un estudiante (modo presencial) solo entra una cuenta de
  *    estudiante: si alguien elige en Google la cuenta del docente, se cierra y vuelve a la entrega.
+ *    Y la cuenta que entregó un equipo no entra con Google mientras dure la entrega, esté o no la
+ *    cookie: el docente vuelve con su correo y su contraseña.
  * 4. Redirige a la ruta pedida antes del login, si el rol puede abrirla, o a la de inicio del rol.
  */
 export async function GET(request: NextRequest) {
@@ -71,11 +74,30 @@ export async function GET(request: NextRequest) {
     return aAccesoDenegado();
   }
 
-  if (perfil.rol !== 'estudiante' && leerEntrega(request.cookies.get(COOKIE_ENTREGA)?.value)) {
-    await supabase.auth.signOut({ scope: 'local' });
-    const url = new URL(RUTA_ENTREGA, request.url);
-    url.searchParams.set(PARAM_CUENTA_RECHAZADA, '1');
-    return NextResponse.redirect(url);
+  if (perfil.rol !== 'estudiante') {
+    if (leerEntrega(request.cookies.get(COOKIE_ENTREGA)?.value)) {
+      await supabase.auth.signOut({ scope: 'local' });
+      const url = new URL(RUTA_ENTREGA, request.url);
+      url.searchParams.set(PARAM_CUENTA_RECHAZADA, '1');
+      return NextResponse.redirect(url);
+    }
+    // La cookie de la entrega la puede borrar quien tiene el navegador (la propia pantalla ofrece
+    // «Volver a entrar como docente»). Lo que no puede borrar es la entrega anotada en la cuenta:
+    // mientras dure, esa cuenta no entra con Google.
+    const entregaHasta = await leerVentanaDeEntrega(data.user.id);
+    if (entregaHasta === undefined) {
+      await supabase.auth.signOut({ scope: 'local' });
+      return aLogin('fallo');
+    }
+    if (entregaVigente(entregaHasta)) {
+      await supabase.auth.signOut({ scope: 'local' });
+      log.warn('auth.google_tras_entregar_el_equipo', { usuario_id: data.user.id });
+      const url = new URL(RUTA_LOGIN, request.url);
+      url.searchParams.set(PARAM_ERROR_LOGIN, 'entregado' satisfies ErrorGoogle);
+      // Abre el formulario de correo y contraseña, que es por donde vuelve el docente.
+      url.searchParams.set('docente', '1');
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.redirect(new URL(rutaSiguienteSegura(siguiente, perfil.rol), request.url));

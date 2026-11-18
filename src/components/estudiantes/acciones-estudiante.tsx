@@ -1,6 +1,14 @@
 'use client';
 
-import { ArrowRight, Eye, MailPlus, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
+import {
+  ClipboardPlus,
+  Eye,
+  MailPlus,
+  MoreHorizontal,
+  Pencil,
+  Printer,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -96,7 +104,7 @@ export function AccionesEstudiante({
           {estudiante.cuentaVinculada && (
             <DropdownMenuItem asChild>
               <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
-                <ArrowRight aria-hidden />
+                <ClipboardPlus aria-hidden />
                 Asignar práctica
               </Link>
             </DropdownMenuItem>

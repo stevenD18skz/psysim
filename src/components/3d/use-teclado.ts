@@ -2,12 +2,18 @@
 
 import { type RefObject, useEffect, useRef } from 'react';
 
-/** Acciones de movimiento y las teclas (KeyboardEvent.code) que las activan. */
+/**
+ * Acciones de movimiento y las teclas (KeyboardEvent.code) que las activan. Las flechas laterales
+ * giran la vista en lugar de desplazar: sin ellas, quien no usa ratón podía avanzar pero no
+ * orientarse, y si el paciente no quedaba en su camino no llegaba a conversar (WCAG 2.1.1).
+ */
 export const MAPA_TECLAS = {
   adelante: ['KeyW', 'ArrowUp'],
   atras: ['KeyS', 'ArrowDown'],
-  izquierda: ['KeyA', 'ArrowLeft'],
-  derecha: ['KeyD', 'ArrowRight'],
+  izquierda: ['KeyA'],
+  derecha: ['KeyD'],
+  girarIzquierda: ['ArrowLeft'],
+  girarDerecha: ['ArrowRight'],
 } as const;
 
 export type AccionMovimiento = keyof typeof MAPA_TECLAS;

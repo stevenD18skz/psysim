@@ -141,8 +141,8 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
             >
               <div className="flex items-start gap-2">
                 <NumeroAnotacion numero={numeros.get(seleccionada.id)} />
-                <p className="line-clamp-2 text-xs text-muted-foreground italic">
-                  «{seleccionada.fragmento}»
+                <p className="line-clamp-2 rounded-md bg-ambar-suave/60 px-2 py-0.5 text-xs leading-snug text-foreground">
+                  {seleccionada.fragmento}
                 </p>
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -179,8 +179,13 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
               >
                 <span className="flex items-start gap-2">
                   <NumeroAnotacion numero={numeros.get(anotacion.id)} />
-                  <span className="line-clamp-2 text-muted-foreground italic">
-                    «{anotacion.fragmento}»
+                  <span
+                    className={cn(
+                      'line-clamp-2 rounded-md px-2 py-0.5 text-xs leading-snug text-foreground',
+                      abierta?.id === anotacion.id ? 'bg-card/80' : 'bg-ambar-suave/60'
+                    )}
+                  >
+                    {anotacion.fragmento}
                   </span>
                 </span>
                 <span className="pl-7 whitespace-pre-wrap">{anotacion.comentario}</span>

@@ -25,7 +25,26 @@ function erroresDe(valores: unknown) {
 
 describe('generarAsignacionSchema', () => {
   it('acepta una configuración completa', () => {
-    expect(generarAsignacionSchema.parse(valido)).toEqual(valido);
+    expect(generarAsignacionSchema.parse({ ...valido, duracionMinutos: 20 })).toEqual({
+      ...valido,
+      duracionMinutos: 20,
+    });
+  });
+
+  it('sin duración elegida, la consulta dura 15 minutos', () => {
+    expect(generarAsignacionSchema.parse(valido).duracionMinutos).toBe(15);
+  });
+
+  it.each([10, 15, 20, 30])('acepta una consulta de %i minutos', minutos => {
+    expect(generarAsignacionSchema.safeParse({ ...valido, duracionMinutos: minutos }).success).toBe(
+      true
+    );
+  });
+
+  it.each([0, 5, 25, 60, 15.5, '15', null])('rechaza una duración de consulta de %s', minutos => {
+    expect(erroresDe({ ...valido, duracionMinutos: minutos }).duracionMinutos?.[0]).toBe(
+      'Elige cuánto dura la consulta.'
+    );
   });
 
   it('exige seleccionar un escenario y un estudiante', () => {

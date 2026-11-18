@@ -1,4 +1,4 @@
-import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { debeCambiarContrasena, obtenerSesionUsuario } from '@/lib/auth/dal';
 import { ROLES_DOCENTE } from '@/lib/auth/routes';
 import { IDS_PERIODO, leerOpcion, leerTexto } from '@/lib/listas';
 import { obtenerSesionesDelDocente } from '@/lib/sesiones/queries';
@@ -18,7 +18,12 @@ import {
  */
 export async function GET(request: Request): Promise<Response> {
   const usuario = await obtenerSesionUsuario();
-  if (usuario.estado !== 'autorizado' || !ROLES_DOCENTE.includes(usuario.perfil.rol)) {
+  if (
+    usuario.estado !== 'autorizado' ||
+    !ROLES_DOCENTE.includes(usuario.perfil.rol) ||
+    // Con la contraseña temporal sin cambiar, el panel no entrega nada (igual que sus páginas).
+    debeCambiarContrasena(usuario.perfil)
+  ) {
     return new Response('No tienes permiso para exportar estas prácticas.', { status: 403 });
   }
 

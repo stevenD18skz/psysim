@@ -24,8 +24,8 @@ export function AccionAbierta({
 
   if (esComputador === false) {
     return (
-      <p className="flex max-w-xs items-start gap-2 rounded-lg bg-lino/10 px-3 py-2 text-sm">
-        <Monitor className="mt-0.5 size-4 shrink-0 text-sidebar-muted" aria-hidden />
+      <p className="flex max-w-xs items-start gap-2 rounded-lg border bg-muted/60 px-3 py-2 text-sm text-foreground">
+        <Monitor className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
         Para continuar, ábrela en tu computador antes de las {plazo}.
       </p>
     );

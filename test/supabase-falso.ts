@@ -111,6 +111,8 @@ export function crearSupabaseFalso() {
 
   const auth = {
     getUser: vi.fn(async () => ({ data: { user: null }, error: null }) as unknown),
+    /** Sesión de las cookies; de su token sale el método de acceso (`amr`). */
+    getSession: vi.fn(async () => ({ data: { session: null }, error: null }) as unknown),
     signInWithPassword: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     signInWithOAuth: vi.fn(
       async () =>
@@ -123,13 +125,29 @@ export function crearSupabaseFalso() {
     admin: {
       createUser: vi.fn(async () => ({ data: { user: { id: 'nuevo' } }, error: null }) as unknown),
       updateUserById: vi.fn(async () => ({ data: {}, error: null }) as unknown),
+      getUserById: vi.fn(
+        async () => ({ data: { user: { identities: [] } }, error: null }) as unknown
+      ),
       deleteUser: vi.fn(async () => ({ data: {}, error: null }) as unknown),
     },
   };
 
-  const rpc = vi.fn(async (funcion: string) => {
-    const { data = null, error = null } = siguiente(`rpc:${funcion}`);
-    return { data, error };
+  // Una función se puede esperar directamente o terminar con `.single()` / `.maybeSingle()` (las
+  // que devuelven una tabla de una fila). La respuesta se toma de la cola una sola vez.
+  const rpc = vi.fn((funcion: string, _argumentos?: unknown) => {
+    let resultado: Promise<{ data: unknown; error: Respuesta['error'] }> | undefined;
+    const resolver = () =>
+      (resultado ??= Promise.resolve().then(() => {
+        const { data = null, error = null } = siguiente(`rpc:${funcion}`);
+        return { data, error };
+      }));
+    return {
+      single: resolver,
+      maybeSingle: resolver,
+      then(alResolver: (valor: unknown) => unknown, alRechazar?: (motivo: unknown) => unknown) {
+        return resolver().then(alResolver, alRechazar);
+      },
+    };
   });
 
   return {

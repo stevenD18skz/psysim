@@ -2,10 +2,17 @@
 
 import { type ResultadoAccion } from '@/lib/acciones';
 import { requerirEstudiante } from '@/lib/auth/dal';
+import { getProveedorIa } from '@/lib/env/orquestador';
+import { mensajeConsultorioOcupado } from '@/lib/orquestador/cuentas';
+import { cerrarDespues } from '@/lib/orquestador/diferido';
+import { reservarCuentaAlComenzar } from '@/lib/orquestador/practica';
+import { anotarFinPorTiempo, leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
+import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { createClient } from '@/lib/supabase/server';
 import {
   actividadSesionSchema,
   comenzarSesionSchema,
+  consultarTiempoSchema,
   finalizarSesionSchema,
   reformularSchema,
 } from '@/schemas/configuracion.schema';
@@ -50,6 +57,8 @@ export async function finalizarSesion(
     return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
   }
 
+  await anotarFinPorTiempo(supabase, datos.data.sesionId);
+  cerrarDespues(datos.data.sesionId);
   return { ok: true, datos: { inicio: data.inicio, fin: data.fin } };
 }
 
@@ -57,6 +66,9 @@ export async function finalizarSesion(
  * HU-23 · T03 — El estudiante confirmó las instrucciones del caso: la sesión comienza. La base
  * de datos fija `inicio` con su propia hora (trigger `sesion_marcar_comienzo`), así el tiempo de
  * lectura no cuenta como duración. Es idempotente: si ya había comenzado, conserva su inicio.
+ *
+ * Con el orquestador como proveedor, aquí se le fija a la práctica su cuenta: si el Administrador
+ * activó el tope de prácticas simultáneas y está lleno, el estudiante lo sabe antes de entrar.
  */
 export async function comenzarSesion(
   valores: unknown
@@ -69,6 +81,24 @@ export async function comenzarSesion(
   }
 
   const supabase = await createClient();
+  if (getProveedorIa() === 'orquestador') {
+    // RLS demuestra que la práctica es del estudiante antes de tocar nada con la clave secreta.
+    const { data: pendiente } = await supabase
+      .from('sesion')
+      .select('id')
+      .eq('id', datos.data.sesionId)
+      .eq('estado', 'en_curso')
+      .eq('comenzada', false)
+      .maybeSingle();
+    if (pendiente) {
+      const cupo = await reservarCuentaAlComenzar(pendiente.id);
+      if (cupo.lleno) {
+        log.info('practica.consultorio_ocupado', { en_curso: cupo.enCurso });
+        return { ok: false, error: mensajeConsultorioOcupado(cupo.enCurso) };
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('sesion')
     .update({ comenzada: true })
@@ -79,7 +109,10 @@ export async function comenzarSesion(
 
   if (error || !data) {
     if (error) log.error('practica.no_comenzada', { codigo: error.code });
-    return { ok: false, error: 'No pudimos comenzar la simulación. Inténtalo de nuevo.' };
+    return {
+      ok: false,
+      error: 'No pudimos empezar la práctica. Revisa tu conexión e inténtalo de nuevo.',
+    };
   }
 
   return { ok: true, datos: { inicio: data.inicio } };
@@ -183,5 +216,24 @@ export async function cerrarSesionPorInactividad(
     return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
   }
 
+  cerrarDespues(datos.data.sesionId);
+
   return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };
+}
+
+/**
+ * Cuánto lleva la consulta según la base de datos. El navegador la pide cuando su reloj indica que
+ * se acabó el margen de cierre: solo termina la práctica por tiempo si el servidor lo confirma.
+ */
+export async function consultarTiempo(valores: unknown): Promise<ResultadoAccion<TiempoConsulta>> {
+  await requerirEstudiante();
+
+  const datos = consultarTiempoSchema.safeParse(valores);
+  if (!datos.success) {
+    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  }
+
+  const tiempo = await leerTiempoDeConsulta(await createClient(), datos.data.sesionId);
+  if (!tiempo) return { ok: false, error: 'No pudimos leer el tiempo de la consulta.' };
+  return { ok: true, datos: tiempo };
 }

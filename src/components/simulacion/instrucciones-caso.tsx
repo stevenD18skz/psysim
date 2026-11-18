@@ -14,7 +14,10 @@ import { unstable_rethrow, useRouter } from 'next/navigation';
 import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { ControlCitado } from '@/components/comun/control-citado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { IndicadorNivel } from '@/components/casos/insignias-caso';
+import { Desplegable } from '@/components/comun/desplegable';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,13 +36,10 @@ import {
   HERRAMIENTAS_PRACTICA,
   objetivosDePractica,
 } from '@/lib/escenarios/preparacion';
-import {
-  ETIQUETA_CATEGORIA,
-  ETIQUETA_DIFICULTAD,
-  NIVEL_DIFICULTAD,
-} from '@/lib/escenarios/etiquetas';
+import { ETIQUETA_CATEGORIA } from '@/lib/escenarios/etiquetas';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { MINUTOS_CIERRE_INACTIVIDAD, plazoAlSalir } from '@/lib/fechas';
+import { AVISO_FINAL_S, enMinutos, GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
@@ -72,12 +72,31 @@ const REGLAS = [
   'Tu docente leerá la conversación completa cuando termines, incluidas las respuestas que reformules. No la ve en vivo.',
   `Si pasan ${MINUTOS_CIERRE_INACTIVIDAD} minutos sin actividad, la práctica se cierra sola. Cuenta también ahora, mientras lees, y si sales. Te avisamos un minuto antes.`,
   'Tu código ya se usó. Si la práctica se cierra, necesitas un código nuevo para repetirla.',
-  'Cuando acabes, pulsa «Terminar práctica». Después no se puede reanudar.',
+  <>
+    Cuando acabes, pulsa <ControlCitado>Terminar práctica</ControlCitado>. Después no se puede
+    reanudar.
+  </>,
 ];
 
+/**
+ * Preparación previa (INACSL): el estudiante conoce desde el principio el marco de tiempo y el
+ * punto final de la práctica, y sabe que cerrar la entrevista le corresponde a él.
+ */
+function reglaDelTiempo(duracionS: number) {
+  return (
+    <>
+      La consulta dura {enMinutos(Math.round(duracionS / 60))} desde tu primera intervención. Te
+      avisamos cuando queden {enMinutos(AVISO_FINAL_S / 60)}. Ciérrala tú, como en una consulta real
+      (resume, acuerda lo que sigue y despídete), y luego pulsa{' '}
+      <ControlCitado>Terminar práctica</ControlCitado>. Cumplido el tiempo tienes{' '}
+      {enMinutos(GRACIA_CONSULTA_S / 60)} más para cerrar; después, la práctica termina sola.
+    </>
+  );
+}
+
 const CONTROLES = [
-  ['W A S D o flechas', 'caminar'],
-  ['Ratón', 'mirar alrededor'],
+  ['W A S D', 'caminar'],
+  ['Ratón o flechas', 'mirar alrededor'],
   ['E (o clic sobre el paciente)', 'conversar'],
   ['Esc', 'liberar el ratón'],
 ] as const;
@@ -111,9 +130,12 @@ export function InstruccionesCaso({
   const [ahoraNo, setAhoraNo] = useState<string | null>(null);
 
   const { escenario, npc, estudiante } = sesion;
-  const nivel = NIVEL_DIFICULTAD[escenario.dificultad];
   const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
   const aviso = avisoDeContenido(escenario.codigo);
+  // La regla del tiempo va justo antes de la de «Terminar práctica», que la completa.
+  const reglas = sesion.consulta
+    ? [...REGLAS.slice(0, -1), reglaDelTiempo(sesion.consulta.duracionS), ...REGLAS.slice(-1)]
+    : REGLAS;
 
   const comenzar = () =>
     startTransition(async () => {
@@ -126,7 +148,8 @@ export function InstruccionesCaso({
         return;
       }
       if (!resultado.ok) {
-        toast.error('No pudimos empezar la práctica. Revisa tu conexión e inténtalo de nuevo.');
+        // El servidor dice por qué: sin conexión o, con el tope activo, el consultorio ocupado.
+        toast.error(resultado.error);
         return;
       }
       if (aceptadaAntes === null) recordarPrivacidadAceptada();
@@ -167,20 +190,7 @@ export function InstruccionesCaso({
               <span aria-hidden>·</span>
               <span>Caso {ETIQUETA_CATEGORIA[escenario.categoria].toLowerCase()}</span>
               <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1.5">
-                Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}
-                <span aria-hidden className="flex gap-0.5">
-                  {[1, 2, 3].map(n => (
-                    <span
-                      key={n}
-                      className={cn(
-                        'h-2.5 w-1.5 rounded-[1px]',
-                        n <= nivel ? 'bg-sidebar-foreground' : 'bg-sidebar-foreground/25'
-                      )}
-                    />
-                  ))}
-                </span>
-              </span>
+              <IndicadorNivel dificultad={escenario.dificultad} sobreMadera />
             </DialogDescription>
           </DialogHeader>
 
@@ -221,8 +231,8 @@ export function InstruccionesCaso({
               </h3>
               <p className="text-sm leading-relaxed text-foreground">{aviso.texto}</p>
               <p className="text-sm leading-relaxed">
-                Si algo de esto te toca de cerca, puedes elegir «Ahora no» y hablarlo con tu
-                docente.
+                Si algo de esto te toca de cerca, puedes elegir{' '}
+                <ControlCitado>Ahora no</ControlCitado> y hablarlo con tu docente.
               </p>
               {aviso.conApoyo && (
                 <div className="flex flex-col gap-1 border-t border-salvia/25 pt-3">
@@ -323,8 +333,9 @@ export function InstruccionesCaso({
                 saber:
               </p>
               <ol className="flex flex-col gap-3">
-                {REGLAS.map((regla, i) => (
-                  <li key={regla} className="flex gap-3 text-sm leading-relaxed">
+                {reglas.map((regla, i) => (
+                  // Lista fija: el orden nunca cambia, así que la posición es una clave estable.
+                  <li key={i} className="flex gap-3 text-sm leading-relaxed">
                     <span
                       aria-hidden
                       className="flex size-6 shrink-0 items-center justify-center rounded-full bg-nogal text-xs font-bold text-lino ancho-condensado"
@@ -337,7 +348,7 @@ export function InstruccionesCaso({
               </ol>
             </section>
 
-            <section className="flex flex-col gap-2">
+            <section className="flex flex-col">
               <button
                 type="button"
                 aria-expanded={controlesAbiertos}
@@ -349,32 +360,38 @@ export function InstruccionesCaso({
                 <span className="ml-auto flex items-center gap-1 font-normal text-muted-foreground">
                   {controlesAbiertos ? 'Ocultar' : 'Ver controles'}
                   <ChevronDown
-                    className={cn('size-4 transition-transform', controlesAbiertos && 'rotate-180')}
+                    className={cn(
+                      'size-4 transition-transform duration-300 ease-salida',
+                      controlesAbiertos && 'rotate-180'
+                    )}
                     aria-hidden
                   />
                 </span>
               </button>
-              <div id={idControles} hidden={!controlesAbiertos} className="flex flex-col gap-3">
-                <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                  {CONTROLES.map(([tecla, accion]) => (
-                    <div key={tecla} className="flex items-baseline gap-2">
-                      <dt className="font-mono text-xs font-medium">{tecla}</dt>
-                      <dd className="text-muted-foreground">{accion}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="text-sm text-muted-foreground">
-                  ¿Prefieres no recorrer el consultorio? Usa «Ir directo a la conversación».
-                </p>
-                <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
-                  {HERRAMIENTAS_PRACTICA.map(herramienta => (
-                    <div key={herramienta.nombre} className="flex flex-col gap-0.5">
-                      <dt className="font-medium">{herramienta.nombre}</dt>
-                      <dd className="text-muted-foreground">{herramienta.detalle}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+              <Desplegable id={idControles} abierto={controlesAbiertos}>
+                <div className="flex flex-col gap-3 pt-2">
+                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    {CONTROLES.map(([tecla, accion]) => (
+                      <div key={tecla} className="flex items-baseline gap-2">
+                        <dt className="font-mono text-xs font-medium">{tecla}</dt>
+                        <dd className="text-muted-foreground">{accion}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="text-sm text-muted-foreground">
+                    ¿Prefieres no recorrer el consultorio? Usa{' '}
+                    <ControlCitado>Ir directo a la conversación</ControlCitado>.
+                  </p>
+                  <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
+                    {HERRAMIENTAS_PRACTICA.map(herramienta => (
+                      <div key={herramienta.nombre} className="flex flex-col gap-0.5">
+                        <dt className="font-medium">{herramienta.nombre}</dt>
+                        <dd className="text-muted-foreground">{herramienta.detalle}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </Desplegable>
             </section>
 
             <p className="text-sm text-muted-foreground">

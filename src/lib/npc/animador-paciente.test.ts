@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { leerGlb } from '../../../test/leer-glb';
 
 import { AnimadorPaciente, type OpcionesAnimador } from './animador-paciente';
-import { buscarModeloNpc, urlModeloNpc } from './catalogo';
+import { buscarModeloNpc, IDS_MODELO_NPC, urlModeloNpc } from './catalogo';
 import { adaptarClipSentado, HUESOS_TREN_INFERIOR } from './postura';
 import { RigNpc } from './rig';
 
@@ -57,7 +57,7 @@ describe('postura sentada', () => {
     );
   });
 
-  it.each(['rosa', 'tomas', 'lucia', 'marina', 'leo', 'ernesto'])(
+  it.each(IDS_MODELO_NPC)(
     '%s se sienta sobre el asiento con los ojos a la altura de una persona sentada',
     async id => {
       const animador = montar(new AnimadorPaciente(await glb(id), SENTADO));

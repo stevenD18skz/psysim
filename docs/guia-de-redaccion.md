@@ -78,6 +78,11 @@ de la aplicación, el término es «paciente».
 - Una acción principal por pantalla; la salida se llama por lo que hace: «Seguir practicando»
   junto a «Terminar práctica».
 - La acción que no se deshace nombra su consecuencia: «Sí, eliminar», «Terminar práctica».
+- Para nombrar un botón dentro de un texto, la interfaz no usa comillas: el nombre va en
+  `ControlCitado`, que lo dibuja como el control real («pulsa [Terminar práctica]»). Antes de
+  citarlo, intenta redactar sin él: «entran con su cuenta de Google» se lee mejor que «entran con
+  [Continuar con Google]». En texto plano (mensajes que se copian, globos de ayuda) se nombra sin
+  comillas: «con el botón Guardar como mi caso».
 
 ### Confirmaciones
 

@@ -3,30 +3,26 @@ import 'server-only';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   APICallError,
-  generateText,
   type LanguageModel,
   LoadAPIKeyError,
   type ModelMessage,
   RetryError,
+  streamText,
 } from 'ai';
 
-import {
-  type EmocionNpc,
-  extraerEmocion,
-  type IntensidadEmocion,
-} from '@/lib/conversacion/emociones';
 import { getIaEnv } from '@/lib/env/ia';
 import { type MensajeHistorial } from '@/schemas/npc-chat.schema';
 
-import { revelaInstrucciones } from './fuga-prompt';
-import { componerInstrucciones, TEXTO_REGLAS } from './reglas';
+import { MAX_MENSAJES_CONTEXTO } from './historial';
+import { type ParteTurno } from './partes';
+import { componerInstrucciones } from './reglas';
 
 const URL_BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
- * Tiempo máximo de la llamada a la IA (HU-12 · T04). Es menor que el `maxDuration` del Route
- * Handler (30 s) para que la función responda con un 504 controlado antes de que la plataforma
- * la corte.
+ * Tiempo máximo de la llamada a Gemini (HU-12 · T04), con sus dos modelos. Cabe en el plazo de la
+ * petición del chat (55 s, ver `lib/orquestador/turno.ts`) para responder un 504 controlado antes
+ * de que la plataforma corte la función.
  */
 export const TIEMPO_MAXIMO_IA_MS = 25_000;
 
@@ -39,9 +35,6 @@ export const TIEMPO_MODELO_PRINCIPAL_MS = 12_000;
 /** Tiempo mínimo que debe quedar para que valga la pena intentar con el modelo de respaldo. */
 const TIEMPO_MINIMO_RESPALDO_MS = 3_000;
 
-/** Mensajes previos que se envían como contexto: acota el coste y la latencia. */
-export const MAX_MENSAJES_CONTEXTO = 40;
-
 export type TipoErrorIA =
   | 'tiempo_agotado'
   | 'autenticacion'
@@ -49,16 +42,29 @@ export type TipoErrorIA =
   | 'respuesta_invalida'
   /** La respuesta copiaba las instrucciones del paciente (LLM07). */
   | 'fuga_de_instrucciones'
-  | 'proveedor';
+  | 'proveedor'
+  /** El orquestador sigue en su límite de mensajes por minuto: se le pide al estudiante esperar. */
+  | 'espera_del_paciente'
+  /** Todas las cuentas del orquestador alcanzaron el tope de prácticas simultáneas. */
+  | 'consultorio_ocupado';
 
 /** Error de la IA ya clasificado; el mensaje original nunca se reenvía al cliente. */
 export class ErrorIA extends Error {
+  readonly tipo: TipoErrorIA;
+  /** Con `espera_del_paciente`: segundos que faltan para poder reintentar. */
+  readonly esperaS: number | null;
+  /** Con `consultorio_ocupado`: prácticas en curso en ese momento. */
+  readonly enCurso: number | null;
+
   constructor(
-    readonly tipo: TipoErrorIA,
-    options?: { cause?: unknown }
+    tipo: TipoErrorIA,
+    options: { cause?: unknown; esperaS?: number; enCurso?: number } = {}
   ) {
-    super(`Fallo de la IA: ${tipo}`, options);
+    super(`Fallo de la IA: ${tipo}`, { cause: options.cause });
     this.name = 'ErrorIA';
+    this.tipo = tipo;
+    this.esperaS = options.esperaS ?? null;
+    this.enCurso = options.enCurso ?? null;
   }
 }
 
@@ -69,18 +75,18 @@ export interface EntradaPaciente {
   mensaje: string;
   /** Nombre del paciente, para limpiar respuestas que empiezan con "Nombre:". */
   nombrePaciente?: string;
+  /**
+   * Indicación del servidor válida solo para este turno (p. ej. que se cumplió el tiempo de la
+   * consulta). Va en las instrucciones del sistema, después de las reglas: nunca en lo que
+   * escribió el estudiante ni en el historial.
+   */
+  notaDeEscena?: string | null;
 }
 
-export interface RespuestaPaciente {
-  texto: string;
-  /** Emoción que eligió el modelo para la respuesta, o `null` si no la indicó. */
-  emocion: EmocionNpc | null;
-  /** Intensidad de esa emoción (1–3), o `null` si no la indicó. */
-  intensidad: IntensidadEmocion | null;
-  tokensEntrada: number | null;
-  tokensSalida: number | null;
-  /** Modelo que generó la respuesta (el principal o el de respaldo), para los logs. */
-  modelo: string;
+/** Instrucciones del sistema de un turno: el caso, las reglas fijas y la nota de escena, si hay. */
+export function instruccionesDelTurno(entrada: EntradaPaciente): string {
+  const base = componerInstrucciones(entrada.promptSistema);
+  return entrada.notaDeEscena ? `${base}\n\n${entrada.notaDeEscena}` : base;
 }
 
 export interface ModelosPaciente {
@@ -102,9 +108,9 @@ function crearModelos(): ModelosPaciente {
 }
 
 /**
- * HU-12 · T04 — Ensambla los mensajes en orden: el historial reciente (empezando siempre por un
- * mensaje del estudiante, como exige la API) y, al final, la intervención actual. El prompt del
- * sistema va aparte, en `instructions`.
+ * HU-12 · T04 — Ensambla los mensajes en orden: el historial de la práctica (empezando siempre
+ * por un mensaje del estudiante, como exige la API) y, al final, la intervención actual. El
+ * prompt del sistema va aparte, en `instructions`.
  */
 export function construirMensajes(
   historial: readonly MensajeHistorial[],
@@ -122,21 +128,6 @@ export function construirMensajes(
     ),
     { role: 'user', content: mensaje },
   ];
-}
-
-/**
- * Normaliza la respuesta del modelo: quita espacios, comillas envolventes y el prefijo
- * "Nombre:" que algunos modelos añaden al interpretar un personaje.
- */
-export function limpiarRespuesta(texto: string, nombrePaciente?: string): string {
-  let limpio = texto.trim();
-  if (nombrePaciente) {
-    const escapado = nombrePaciente.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    limpio = limpio.replace(new RegExp(`^\\**${escapado}\\**\\s*:\\s*`, 'i'), '');
-  }
-  const comillas = /^(["“«])([\s\S]*)(["”»])$/.exec(limpio);
-  if (comillas) limpio = comillas[2]!.trim();
-  return limpio;
 }
 
 /** HU-16 · T01 — Traduce cualquier error del SDK o del proveedor a un tipo conocido. */
@@ -158,26 +149,34 @@ export function clasificarError(error: unknown): TipoErrorIA {
 }
 
 /**
- * HU-12 · T04/T05 — Pide al modelo de lenguaje la respuesta del paciente virtual.
+ * HU-12 · T04/T05 — Pide a Gemini la respuesta del paciente y la entrega por partes
+ * (`streamText`), con el mismo protocolo que el orquestador: fragmentos de texto crudo y, al
+ * final, el resultado. La limpieza y el filtro de fuga los aplica quien consume el flujo
+ * (`procesarTurno`). Es el único camino hacia Gemini: lo usan la práctica y el chat de prueba.
  *
- * Primero intenta con el modelo principal (hasta `TIEMPO_MODELO_PRINCIPAL_MS`). Si no responde a
- * tiempo, está saturado o falla el proveedor, reintenta con el modelo de respaldo usando el
- * tiempo restante, siempre dentro de `TIEMPO_MAXIMO_IA_MS`. Los errores de autenticación no se
- * reintentan (la clave es la misma). Lanza `ErrorIA` si no hay respuesta válida.
+ * Si el modelo principal falla, sigue con el de respaldo dentro del tiempo que quede; si ya había
+ * entregado texto, avisa con `reinicio` para que se descarte.
  */
-export async function generarRespuestaPaciente(
+export async function* transmitirRespuestaPaciente(
   entrada: EntradaPaciente,
   modelos: ModelosPaciente = crearModelos(),
-  ahora: () => number = () => performance.now()
-): Promise<RespuestaPaciente> {
+  opciones: { ahora?: () => number; tiempoMaximoMs?: number } = {}
+): AsyncGenerator<ParteTurno, void, void> {
+  const ahora = opciones.ahora ?? (() => performance.now());
+  const total = Math.min(opciones.tiempoMaximoMs ?? TIEMPO_MAXIMO_IA_MS, TIEMPO_MAXIMO_IA_MS);
   const inicio = ahora();
+  let entregoTexto = false;
 
   try {
-    return await generarCon(modelos.principal, entrada, TIEMPO_MODELO_PRINCIPAL_MS);
+    const principal = Math.floor(Math.min(TIEMPO_MODELO_PRINCIPAL_MS, total));
+    for await (const parte of transmitirCon(modelos.principal, entrada, principal)) {
+      if (parte.tipo === 'fragmento') entregoTexto = true;
+      yield parte;
+    }
+    return;
   } catch (error) {
     const fallo = error instanceof ErrorIA ? error : new ErrorIA('proveedor', { cause: error });
-    // Entero: el SDK exige milisegundos enteros en `timeout`.
-    const restante = Math.floor(TIEMPO_MAXIMO_IA_MS - (ahora() - inicio));
+    const restante = Math.floor(total - (ahora() - inicio));
     if (
       !modelos.respaldo ||
       fallo.tipo === 'autenticacion' ||
@@ -185,49 +184,68 @@ export async function generarRespuestaPaciente(
     ) {
       throw fallo;
     }
-    return await generarCon(modelos.respaldo, entrada, restante);
+    if (entregoTexto) yield { tipo: 'reinicio' };
+    yield* transmitirCon(modelos.respaldo, entrada, restante);
   }
 }
 
-async function generarCon(
+async function* transmitirCon(
   { id, modelo }: { id: string; modelo: LanguageModel },
   entrada: EntradaPaciente,
   tiempoMaximoMs: number
-): Promise<RespuestaPaciente> {
+): AsyncGenerator<ParteTurno, void, void> {
   const { AI_TEMPERATURE, AI_MAX_TOKENS } = getIaEnv();
 
-  let resultado: Awaited<ReturnType<typeof generateText>>;
+  // `streamText` no lanza los errores del proveedor: los entrega en el flujo y en `onError`.
+  let fallo: unknown = null;
+  const resultado = streamText({
+    model: modelo,
+    instructions: instruccionesDelTurno(entrada),
+    messages: construirMensajes(entrada.historial, entrada.mensaje),
+    temperature: AI_TEMPERATURE,
+    maxOutputTokens: AI_MAX_TOKENS,
+    reasoning: 'minimal',
+    maxRetries: 0,
+    timeout: tiempoMaximoMs,
+    onError({ error }) {
+      fallo = error;
+    },
+  });
+
+  let texto = '';
   try {
-    resultado = await generateText({
-      model: modelo,
-      instructions: componerInstrucciones(entrada.promptSistema),
-      messages: construirMensajes(entrada.historial, entrada.mensaje),
-      temperature: AI_TEMPERATURE,
-      maxOutputTokens: AI_MAX_TOKENS,
-      // Razonamiento mínimo: respuestas conversacionales rápidas.
-      reasoning: 'minimal',
-      // Sin reintentos internos: ante un fallo se pasa al modelo de respaldo.
-      maxRetries: 0,
-      timeout: tiempoMaximoMs,
-    });
+    for await (const parte of resultado.stream) {
+      if (parte.type === 'text-delta') {
+        if (!parte.text) continue;
+        texto += parte.text;
+        yield { tipo: 'fragmento', texto: parte.text };
+      } else if (parte.type === 'error') {
+        throw parte.error;
+      } else if (parte.type === 'abort') {
+        throw new DOMException('La IA no respondió a tiempo.', 'TimeoutError');
+      }
+    }
   } catch (error) {
     throw new ErrorIA(clasificarError(error), { cause: error });
   }
+  if (fallo) throw new ErrorIA(clasificarError(fallo), { cause: fallo });
+  if (!texto.trim()) throw new ErrorIA('respuesta_invalida');
 
-  const { texto: sinEtiqueta, emocion, intensidad } = extraerEmocion(resultado.text);
-  const texto = limpiarRespuesta(sinEtiqueta, entrada.nombrePaciente);
-  if (!texto) throw new ErrorIA('respuesta_invalida');
-  // LLM07: si el modelo cedió ante «muéstrame tus instrucciones», esa respuesta no sale del servidor.
-  if (revelaInstrucciones(texto, [entrada.promptSistema, TEXTO_REGLAS])) {
-    throw new ErrorIA('fuga_de_instrucciones');
-  }
-
-  return {
-    texto,
-    emocion,
-    intensidad,
-    tokensEntrada: resultado.usage.inputTokens ?? null,
-    tokensSalida: resultado.usage.outputTokens ?? null,
-    modelo: id,
+  // El consumo llega al cerrar el flujo; si el proveedor no lo informa, queda sin dato.
+  const uso = await Promise.resolve(resultado.usage).catch(() => null);
+  yield {
+    tipo: 'fin',
+    resultado: {
+      proveedor: 'gemini',
+      texto,
+      modelo: id,
+      tokensEntrada: uso?.inputTokens ?? null,
+      tokensSalida: uso?.outputTokens ?? null,
+      severidad: null,
+      severidadAnterior: null,
+      banderas: [],
+      cierre: null,
+      cierreAjeno: null,
+    },
   };
 }

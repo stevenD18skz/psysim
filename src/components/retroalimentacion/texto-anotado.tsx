@@ -39,11 +39,13 @@ export function TextoAnotado({
             aria-describedby={`anotacion-${segmento.anotacion.id}`}
             {...(onAbrir && interaccion(segmento.anotacion.id, onAbrir))}
             className={cn(
-              'rounded-sm bg-amber-200/90 text-amber-950 underline decoration-amber-600 decoration-2 underline-offset-2 dark:bg-amber-400/30 dark:text-amber-50',
-              'after:ml-0.5 after:align-super after:text-[10px] after:font-semibold after:text-ambar after:no-underline after:content-[attr(data-numero)]',
+              // Colores del tema (`ambar`, `ambar-suave`): sus pares están en `contraste.test.ts`.
+              // El estado (al pasar el ratón, activa) se marca con un anillo, sin cambiar el fondo.
+              'rounded-sm bg-ambar-suave text-foreground underline decoration-ambar decoration-2 underline-offset-2',
+              'after:ml-0.5 after:align-super after:text-xs after:font-semibold after:text-ambar after:no-underline after:content-[attr(data-numero)]',
               onAbrir &&
-                'cursor-pointer outline-hidden transition-colors hover:bg-amber-300 focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-amber-400/45',
-              activa === segmento.anotacion.id && 'bg-amber-300 ring-2 ring-amber-500'
+                'cursor-pointer outline-hidden transition-colors hover:ring-1 hover:ring-ambar focus-visible:ring-2 focus-visible:ring-ring',
+              activa === segmento.anotacion.id && 'ring-2 ring-ambar'
             )}
           >
             {segmento.texto}

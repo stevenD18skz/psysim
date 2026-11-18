@@ -1,8 +1,9 @@
 'use client';
 
 import { Check } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
+import { Desplegable } from '@/components/comun/desplegable';
 import { cn } from '@/lib/utils';
 
 interface OpcionChip {
@@ -64,23 +65,40 @@ interface SugerenciasProps {
   onAgregar: (sugerencia: string) => void;
 }
 
-/** Atajos que añaden una frase a un campo de texto libre. */
+/** Atajos que añaden una frase a un campo de texto libre sin reaparecer si se edita tras añadirla. */
 export function Sugerencias({ etiqueta, sugerencias, texto, onAgregar }: SugerenciasProps) {
-  const disponibles = sugerencias.filter(s => !texto.toLowerCase().includes(s.toLowerCase()));
-  if (disponibles.length === 0) return null;
+  const vacio = texto.trim() === '';
+  const [estabaVacio, setEstabaVacio] = useState(vacio);
+  const [usadas, setUsadas] = useState<string[]>([]);
+
+  if (vacio !== estabaVacio) {
+    setEstabaVacio(vacio);
+    if (vacio) setUsadas([]);
+  }
+
+  const textoNormalizado = texto.toLowerCase();
+  const disponibles = sugerencias.filter(
+    s => usadas.includes(s) === false && textoNormalizado.includes(s.toLowerCase()) === false
+  );
+
   return (
-    <div role="group" aria-label={etiqueta} className="flex flex-wrap gap-1.5">
-      {disponibles.map(sugerencia => (
-        <button
-          key={sugerencia}
-          type="button"
-          onClick={() => onAgregar(sugerencia)}
-          className="min-h-7 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
-        >
-          + {sugerencia}
-        </button>
-      ))}
-    </div>
+    <Desplegable abierto={disponibles.length > 0}>
+      <div role="group" aria-label={etiqueta} className="flex flex-wrap gap-1.5 pt-0.5">
+        {disponibles.map(sugerencia => (
+          <button
+            key={sugerencia}
+            type="button"
+            onClick={() => {
+              setUsadas(prev => (prev.includes(sugerencia) ? prev : [...prev, sugerencia]));
+              onAgregar(sugerencia);
+            }}
+            className="min-h-7 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
+          >
+            + {sugerencia}
+          </button>
+        ))}
+      </div>
+    </Desplegable>
   );
 }
 

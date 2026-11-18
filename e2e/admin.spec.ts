@@ -37,8 +37,8 @@ test.describe('Administrador', () => {
 
   test('entra a su panel y también trabaja como docente', async ({ page }) => {
     await iniciarSesionComoAdmin(page);
-    // Aterriza en su bandeja, con la franja de administración.
-    await expect(page.getByRole('region', { name: 'Administración' })).toBeVisible();
+    // Aterriza en su bandeja, con la navegación de administración.
+    await expect(page.getByRole('navigation', { name: 'Administración' })).toBeVisible();
     const menu = page.getByRole('navigation', { name: 'Navegación principal' });
     await menu.getByRole('link', { name: /Docentes/ }).click();
     await expect(page).toHaveURL(/\/admin$/);
@@ -75,12 +75,24 @@ test.describe('Administrador', () => {
     await creada.getByRole('button', { name: 'Listo' }).click();
     await expect(page.getByRole('link', { name: nombre })).toBeVisible();
 
-    // El docente entra con la contraseña temporal y ve el aviso para cambiarla.
+    // El docente entra con la contraseña temporal y el panel no le abre nada hasta que la cambie.
     const contexto = await browser.newContext();
     const docente = await contexto.newPage();
     await iniciarSesion(docente, correo, contrasena);
+    await expect(docente).toHaveURL(/\/contrasena$/);
+    await expect(
+      docente.getByRole('heading', { name: 'Cambia tu contraseña temporal' })
+    ).toBeVisible();
+    await docente.goto('/estudiantes');
+    await expect(docente).toHaveURL(/\/contrasena$/);
+
+    // Al cambiarla entra a su panel.
+    const nueva = `frase-e2e-${sufijo}-segura`;
+    await docente.getByLabel('Contraseña actual').fill(contrasena);
+    await docente.getByLabel('Nueva contraseña', { exact: true }).fill(nueva);
+    await docente.getByLabel('Repite la nueva contraseña').fill(nueva);
+    await docente.getByRole('button', { name: 'Guardar contraseña' }).click();
     await expect(docente).toHaveURL(/\/inicio$/);
-    await expect(docente.getByText(/contraseña temporal/)).toBeVisible();
     await contexto.close();
 
     // Sin historial se puede eliminar (confirmando con su correo).

@@ -67,7 +67,7 @@ export function SesionFinalizada({
   const copiarMensaje = async () => {
     try {
       await navigator.clipboard.writeText(
-        `Hola. Mi práctica en PsySim («${sesion.escenario.titulo}») se cerró por inactividad antes de empezar. ¿Sería posible recibir un código nuevo? Gracias.`
+        `Hola. Mi práctica en PsySim (${sesion.escenario.titulo}) se cerró por inactividad antes de empezar. ¿Sería posible recibir un código nuevo? Gracias.`
       );
       setCopiado(true);
     } catch {

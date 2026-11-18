@@ -32,6 +32,22 @@ describe('reglas fijas del paciente', () => {
     expect(instrucciones).toContain('Nunca rompas el personaje');
   });
 
+  it('el cierre de la consulta le corresponde al estudiante, no al paciente que se calma', () => {
+    const regla = REGLAS_FIJAS.find(texto => texto.startsWith('Quien cierra la consulta'));
+    expect(regla).toBeDefined();
+    // Si el estudiante cierra (resume, acuerda otra cita o se despide), el paciente se despide.
+    expect(regla).toMatch(/resume lo conversado, acuerda otra cita o se despide, despídete/);
+    // Sentirse mejor no es motivo para terminar: expresa alivio y sigue disponible.
+    expect(regla).toMatch(/no das por terminada la consulta porque te sientas mejor/);
+    expect(regla).toMatch(/puedes expresar alivio, pero sigues disponible/);
+  });
+
+  it('ninguna regla le pide al paciente terminar la consulta por su cuenta', () => {
+    const texto = REGLAS_FIJAS.join(' ').toLowerCase();
+    expect(texto).not.toMatch(/(termina|cierra|da por terminada) la consulta cuando/);
+    expect(texto).not.toMatch(/despídete cuando te sientas/);
+  });
+
   it('incluye salvaguardas sobre autolesión y daño a terceros', () => {
     const texto = REGLAS_FIJAS.join(' ');
     expect(texto).toMatch(/nunca describas métodos/i);

@@ -4,8 +4,10 @@ import { FileText, NotebookPen, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import { CONSULTORIOS } from '@/lib/casos/opciones';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { cn } from '@/lib/utils';
 import { type SesionActiva } from '@/types';
 
@@ -122,6 +124,14 @@ export function HojaRemision({
       onCerrar={onCerrar}
     >
       <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4 text-sm">
+        {/* El vano de la puerta del consultorio enmarca al paciente, como en las instrucciones. */}
+        <span className="mx-auto flex h-24 w-20 shrink-0 items-end justify-center overflow-hidden rounded-t-full border-[3px] border-laton bg-terracota-suave">
+          <AvatarPaciente
+            src={avatarDeEscena(escenario.configuracion3d)}
+            nombre={npc.nombre}
+            className="size-20 translate-y-2 text-xl"
+          />
+        </span>
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5">
           <dt className="text-muted-foreground">Paciente</dt>
           <dd className="font-semibold text-terracota">{npc.nombre}</dd>

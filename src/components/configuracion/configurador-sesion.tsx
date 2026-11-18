@@ -3,22 +3,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertCircle,
-  Bookmark,
+  BookOpen,
   Check,
   CheckCircle2,
-  FilePlus2,
+  FileText,
   KeyRound,
   Loader2,
   LockKeyhole,
-  type LucideIcon,
   Mail,
   Plus,
-  Repeat2,
   Search,
-  SlidersHorizontal,
   Target,
   UserPlus,
-  Wand2,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -26,13 +22,20 @@ import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
+import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
+import { IndicadorNivel, InsigniaCategoria } from '@/components/casos/insignias-caso';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ReglasFijas } from '@/components/casos/reglas-fijas';
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { BotonSeccion } from '@/components/comun/boton-seccion';
+import { PaginacionLocal } from '@/components/comun/paginacion';
+import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { AccionesCasoPropio } from '@/components/configuracion/acciones-caso-propio';
 import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
+import { ResumenPacientePaso } from '@/components/configuracion/resumen-paciente-paso';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -43,10 +46,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { textoDias } from '@/lib/asignaciones/codigo';
 import { AJUSTES_VACIOS, type AjustesPractica, promptConAjustes } from '@/lib/casos/ajustes';
-import { coincideBusqueda } from '@/lib/listas';
-import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
+import { coincideBusqueda, paginar } from '@/lib/listas';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
+import { iniciales } from '@/lib/nombres';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
+import {
+  DURACION_CONSULTA_POR_DEFECTO,
+  DURACIONES_CONSULTA_MIN,
+} from '@/lib/sesiones/tiempo-consulta';
 import { cn } from '@/lib/utils';
 import {
   type GenerarAsignacionData,
@@ -59,6 +66,8 @@ import {
 } from '@/schemas/configuracion.schema';
 import { type EscenarioCatalogo, type EstudianteRegistrado } from '@/types';
 import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
+
+const CASOS_PASO_POR_PAGINA = 12;
 
 interface ConfiguradorSesionProps {
   /** Catálogo oficial y casos propios del docente. */
@@ -99,9 +108,29 @@ export function ConfiguradorSesion({
   const propios = escenarios
     .filter(e => e.propio && coincide(e))
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
+  const totalOficiales = escenarios.filter(e => !e.propio).length;
   const totalPropios = escenarios.filter(e => e.propio).length;
   const casoInicial = escenarios.find(e => e.id === casoInicialId) ?? null;
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada);
+  const pendientesDeIngreso = estudiantes.length - conCuenta.length;
+  const [seccionCasos, setSeccionCasos] = useState<'propios' | 'predefinidos'>(() =>
+    casoInicial
+      ? casoInicial.propio
+        ? 'propios'
+        : 'predefinidos'
+      : totalPropios > 0
+        ? 'propios'
+        : 'predefinidos'
+  );
+  const [paginaCasos, setPaginaCasos] = useState(() => {
+    if (!casoInicial) return 1;
+    const lista = casoInicial.propio ? propios : oficiales;
+    const indice = lista.findIndex(e => e.id === casoInicial.id);
+    return indice >= 0 ? Math.floor(indice / CASOS_PASO_POR_PAGINA) + 1 : 1;
+  });
+
+  const paginaOficiales = paginar(oficiales, paginaCasos, CASOS_PASO_POR_PAGINA);
+  const paginaPropios = paginar(propios, paginaCasos, CASOS_PASO_POR_PAGINA);
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
@@ -129,12 +158,13 @@ export function ConfiguradorSesion({
       promptSistema: casoInicial?.npc.promptSistema ?? '',
       estudianteId: estudianteInicial?.cuentaVinculada ? estudianteInicial.id : '',
       vigenciaDias: VIGENCIA_POR_DEFECTO,
+      duracionMinutos: DURACION_CONSULTA_POR_DEFECTO,
     },
   });
 
-  const [escenarioId, promptSistema, estudianteId, vigenciaDias] = useWatch({
+  const [escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos] = useWatch({
     control,
-    name: ['escenarioId', 'promptSistema', 'estudianteId', 'vigenciaDias'],
+    name: ['escenarioId', 'promptSistema', 'estudianteId', 'vigenciaDias', 'duracionMinutos'],
   });
   const escenario = escenarios.find(e => e.id === escenarioId) ?? null;
   const promptPersonalizado = escenario !== null && promptSistema !== escenario.npc.promptSistema;
@@ -270,69 +300,132 @@ export function ConfiguradorSesion({
           id="paso-escenario-titulo"
           titulo="Caso"
           estado={estadoPaso1}
-          descripcion="Un caso predefinido o uno de tus casos. Pulsa de nuevo el caso elegido para quitar la selección."
+          ayuda="Alterna entre los casos que diseñaste y los predefinidos de PsySim. Solo se elige un caso por código; púlsalo de nuevo si quieres deseleccionarlo."
+          descripcion="Elige entre tus casos propios o los casos predefinidos. Pulsa de nuevo el caso elegido para quitar la selección."
         >
           {errors.escenarioId && (
             <p id="escenario-error" role="alert" className="text-sm text-destructive">
               {errors.escenarioId.message}
             </p>
           )}
-          {/* Con muchos casos propios, encontrar uno de un vistazo deja de ser posible. */}
-          {escenarios.length > 6 && (
-            <div className="relative max-w-md">
-              <label htmlFor={idBusquedaCaso} className="sr-only">
-                Buscar un caso
-              </label>
-              <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                id={idBusquedaCaso}
-                type="search"
-                autoComplete="off"
-                placeholder="Buscar por título, paciente o competencia"
-                className="pl-9"
-                value={busquedaCaso}
-                onChange={evento => setBusquedaCaso(evento.target.value)}
-              />
+
+          {/* Barra de sección: «Mis casos» primero y «Casos predefinidos» después */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <PistaSegmentada
+              role="group"
+              aria-label="Secciones de casos"
+              className="inline-flex w-fit items-center gap-1 rounded-xl border bg-muted/55 p-1"
+              claseIndicador="rounded-lg bg-card shadow-xs"
+            >
+              <BotonSeccion
+                activa={seccionCasos === 'propios'}
+                onClick={() => {
+                  setSeccionCasos('propios');
+                  setPaginaCasos(1);
+                }}
+                cantidad={busquedaCaso.trim() ? propios.length : totalPropios}
+              >
+                Mis casos
+              </BotonSeccion>
+              <BotonSeccion
+                activa={seccionCasos === 'predefinidos'}
+                onClick={() => {
+                  setSeccionCasos('predefinidos');
+                  setPaginaCasos(1);
+                }}
+                cantidad={busquedaCaso.trim() ? oficiales.length : totalOficiales}
+              >
+                Casos predefinidos
+              </BotonSeccion>
+            </PistaSegmentada>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {escenario && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-salvia/40 bg-salvia-suave/55 px-3 py-1 text-xs font-medium text-salvia-oscuro">
+                  <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+                  <span className="max-w-52 truncate">Elegido: {escenario.titulo}</span>
+                </span>
+              )}
+              {escenarios.length > 6 && (
+                <div className="relative w-full sm:w-72">
+                  <label htmlFor={idBusquedaCaso} className="sr-only">
+                    Buscar un caso
+                  </label>
+                  <Search
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <Input
+                    id={idBusquedaCaso}
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Buscar por título, paciente o competencia"
+                    className="pl-9"
+                    value={busquedaCaso}
+                    onChange={evento => {
+                      setBusquedaCaso(evento.target.value);
+                      setPaginaCasos(1);
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
           <div
             role="radiogroup"
             aria-labelledby="paso-escenario-titulo"
             aria-required
             aria-invalid={errors.escenarioId ? true : undefined}
-            className="flex flex-col gap-8"
+            // Al cambiar de sección, la lista entra desde el lado hacia el que se movió la pista.
+            key={seccionCasos}
+            className={cn(
+              'flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0',
+              seccionCasos === 'propios'
+                ? 'motion-safe:slide-in-from-left-4'
+                : 'motion-safe:slide-in-from-right-4'
+            )}
           >
-            <div className={cn('flex flex-col gap-3', oficiales.length === 0 && 'hidden')}>
-              <h3 className="text-sm font-semibold text-muted-foreground">Casos predefinidos</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {oficiales.map(e => (
-                  <TarjetaEscenario
-                    key={e.id}
-                    escenario={e}
-                    nombreGrupo={idGrupo}
-                    seleccionado={e.id === escenarioId}
-                    onSeleccionar={onSeleccionar}
-                    onDeseleccionar={onDeseleccionar}
-                    describedBy={errors.escenarioId ? 'escenario-error' : undefined}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-muted-foreground">Mis casos</h3>
-              {totalPropios === 0 ? (
-                <EstadoVacioMisCasos />
-              ) : propios.length === 0 ? (
+            {seccionCasos === 'predefinidos' ? (
+              oficiales.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                  Ninguno de tus casos coincide con «{busquedaCaso.trim()}».
+                  Ningún caso predefinido coincide con{' '}
+                  <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
                 </p>
               ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {paginaOficiales.visibles.map(e => (
+                      <TarjetaEscenario
+                        key={e.id}
+                        escenario={e}
+                        nombreGrupo={idGrupo}
+                        seleccionado={e.id === escenarioId}
+                        onSeleccionar={onSeleccionar}
+                        onDeseleccionar={onDeseleccionar}
+                        describedBy={errors.escenarioId ? 'escenario-error' : undefined}
+                      />
+                    ))}
+                  </div>
+                  <PaginacionLocal
+                    pagina={paginaOficiales}
+                    onCambiar={setPaginaCasos}
+                    sustantivo={['caso', 'casos']}
+                    soloSiHayVarias
+                  />
+                </>
+              )
+            ) : totalPropios === 0 ? (
+              <EstadoVacioMisCasos />
+            ) : propios.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+                Ninguno de tus casos coincide con{' '}
+                <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
+              </p>
+            ) : (
+              <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {propios.map(e => (
+                  {paginaPropios.visibles.map(e => (
                     <TarjetaEscenario
                       key={e.id}
                       escenario={e}
@@ -352,8 +445,14 @@ export function ConfiguradorSesion({
                   ))}
                   <TarjetaNuevoCaso />
                 </div>
-              )}
-            </div>
+                <PaginacionLocal
+                  pagina={paginaPropios}
+                  onCambiar={setPaginaCasos}
+                  sustantivo={['caso', 'casos']}
+                  soloSiHayVarias
+                />
+              </>
+            )}
           </div>
         </Paso>
 
@@ -364,6 +463,7 @@ export function ConfiguradorSesion({
           seccionId="paso-paciente"
           titulo="Comportamiento del paciente (opcional)"
           estado={estadoPaso2}
+          ayuda="El caso ya viene listo para usar. Si quieres adaptarlo para este estudiante o crear un caso propio con otra dificultad a partir de él, usa el bloque de la derecha."
           descripcion="Revisa su perfil. Si lo necesitas, ajusta cómo actuará en esta práctica."
         >
           {!escenario && (
@@ -373,7 +473,7 @@ export function ConfiguradorSesion({
             </div>
           )}
           {escenario && (
-            <div className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-500 motion-safe:fade-in-0 motion-safe:slide-in-from-top-2">
+            <div className="flex flex-col gap-4 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-2">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-stretch">
                 {/* Izquierda: el perfil del paciente y, debajo, las reglas que siempre se aplican. */}
                 <div className="flex flex-col gap-4">
@@ -395,67 +495,59 @@ export function ConfiguradorSesion({
                       </div>
                     </div>
                     <div className="flex flex-col gap-4 p-5">
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
-                          {ETIQUETA_CATEGORIA[escenario.categoria]}
-                        </span>
-                        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
-                          Nivel {ETIQUETA_DIFICULTAD[escenario.dificultad].toLowerCase()}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <InsigniaCategoria categoria={escenario.categoria} />
+                        <IndicadorNivel dificultad={escenario.dificultad} conFondo />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h4 className="text-sm font-semibold text-muted-foreground">Caso</h4>
-                        <p className="text-sm font-medium">{escenario.titulo}</p>
+                        <h4 className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase ancho-condensado">
+                          <BookOpen className="size-3.5 text-salvia" aria-hidden />
+                          Caso seleccionado
+                        </h4>
+                        <p className="text-base leading-snug font-bold tracking-[-0.01em]">
+                          {escenario.titulo}
+                        </p>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h4 className="text-sm font-semibold text-muted-foreground">
+                        <h4 className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase ancho-condensado">
+                          <FileText className="size-3.5 text-salvia" aria-hidden />
                           Perfil clínico
                         </h4>
-                        <p className="text-sm leading-relaxed">{escenario.npc.perfilClinico}</p>
-                      </div>
-                      <div className="flex items-start gap-2 border-t pt-4 text-sm">
-                        <Target className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
-                        <p>
-                          <span className="text-muted-foreground">
-                            Competencia que practicará:{' '}
-                          </span>
-                          <span className="font-medium">{escenario.competenciaCentral}</span>
+                        <p className="text-sm leading-relaxed text-foreground/90">
+                          {escenario.npc.perfilClinico}
                         </p>
+                      </div>
+                      <div className="flex flex-col gap-1 border-t pt-4">
+                        <h4 className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase ancho-condensado">
+                          <Target className="size-3.5 text-salvia" aria-hidden />
+                          Competencia que practicará
+                        </h4>
+                        <p className="text-sm font-semibold">{escenario.competenciaCentral}</p>
                       </div>
                     </div>
                   </article>
-                  <ReglasFijas />
+                  <ReglasFijas className="lg:flex-1" expandido={ajustando || promptPersonalizado} />
                 </div>
 
                 {!ajustando && !promptPersonalizado ? (
-                  // Plegado por defecto: casi siempre basta el comportamiento original del caso.
-                  <div className="flex flex-col items-start justify-center gap-3 rounded-xl border border-dashed border-input/50 bg-card p-6 lg:min-h-80">
-                    <p className="flex items-center gap-2 text-base font-semibold">
-                      <SlidersHorizontal className="size-4 text-salvia" aria-hidden />
-                      {escenario.npc.nombre.split(' ')[0]} se comportará como describe el caso
-                    </p>
-                    <p className="max-w-md text-sm text-muted-foreground">
-                      Si quieres, ajústalo solo para esta práctica sin escribir instrucciones: que
-                      se abra más o menos, una actitud distinta, algo que guarde o una indicación
-                      con tus palabras.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setAjustando(true)}
-                      disabled={generando}
-                    >
-                      <SlidersHorizontal aria-hidden />
-                      Ajustar para esta práctica
-                    </Button>
-                  </div>
+                  <ResumenPacientePaso
+                    escenario={escenario}
+                    deshabilitado={generando}
+                    onAbrirAjustes={() => setAjustando(true)}
+                    onAplicarAtajo={nuevos => {
+                      setAjustando(true);
+                      cambiarAjustes(nuevos);
+                    }}
+                  />
                 ) : (
                   <AjustesPaciente
+                    escenarioId={escenario.id}
                     nombre={escenario.npc.nombre}
                     ajustes={ajustes}
                     onCambio={cambiarAjustes}
                     textoManual={textoManual}
                     onRestablecer={restablecerPrompt}
+                    onCerrar={() => setAjustando(false)}
                     deshabilitado={generando}
                     editorTexto={
                       <>
@@ -508,6 +600,7 @@ export function ConfiguradorSesion({
           titulo="Estudiante y plazo"
           estado={estadoPaso3}
           ultimo
+          ayuda="El código es personal y sirve para una sola práctica. Solo pueden recibirlo estudiantes que ya hayan iniciado sesión con su correo institucional."
           descripcion="Elige a quién se la asignas y cuánto tiempo sirve el código. Entra con su correo institucional y practica desde su computador."
         >
           <div className="flex flex-col gap-5 rounded-xl border bg-card p-5">
@@ -518,18 +611,18 @@ export function ConfiguradorSesion({
             )}
 
             {estudiante ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-salvia-suave/50 p-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-salvia/40 bg-salvia-suave/45 px-4 py-3 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
                 <span
                   aria-hidden
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-oscuro text-sm font-semibold text-lino"
                 >
                   {iniciales(estudiante.nombre)}
                 </span>
                 <div className="min-w-0 flex-1 leading-tight">
-                  <p className="truncate font-medium" data-testid="estudiante-elegido">
+                  <p className="truncate font-semibold" data-testid="estudiante-elegido">
                     {estudiante.nombre}
                   </p>
-                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                     <span className="font-mono">{estudiante.codigo}</span>
                     <span className="flex items-center gap-1">
                       <Mail className="size-3" aria-hidden />
@@ -555,24 +648,34 @@ export function ConfiguradorSesion({
                 </Button>
               </div>
             ) : conCuenta.length > 0 ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <BuscadorEstudiante
-                    estudiantes={conCuenta}
-                    onSeleccionar={elegirEstudiante}
-                    deshabilitado={generando}
-                    mensajeVacio="Ningún estudiante con cuenta coincide. Regístralo con su correo institucional."
+              <div className="flex flex-col gap-2 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <BuscadorEstudiante
+                      estudiantes={conCuenta}
+                      onSeleccionar={elegirEstudiante}
+                      deshabilitado={generando}
+                      mensajeVacio="Ningún estudiante con cuenta coincide. Regístralo con su correo institucional."
+                    />
+                  </div>
+                  <DialogoEstudiante
+                    onGuardado={onEstudianteRegistrado}
+                    disparador={
+                      <Button type="button" variant="outline" size="lg" disabled={generando}>
+                        <UserPlus aria-hidden />
+                        Registrar estudiante
+                      </Button>
+                    }
                   />
                 </div>
-                <DialogoEstudiante
-                  onGuardado={onEstudianteRegistrado}
-                  disparador={
-                    <Button type="button" variant="outline" size="lg" disabled={generando}>
-                      <UserPlus aria-hidden />
-                      Registrar estudiante
-                    </Button>
-                  }
-                />
+                {pendientesDeIngreso > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {pendientesDeIngreso}{' '}
+                    {pendientesDeIngreso === 1
+                      ? 'estudiante registrado aún no entra con Google y no aparece en la lista.'
+                      : 'estudiantes registrados aún no entran con Google y no aparecen en la lista.'}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-input/50 bg-muted/40 p-4 text-sm sm:flex-row sm:items-center">
@@ -580,6 +683,13 @@ export function ConfiguradorSesion({
                 <p className="flex-1 text-muted-foreground">
                   Aún no tienes estudiantes. Regístralos con su correo institucional para asignarles
                   prácticas.
+                  {estudiantes.length > 0 && (
+                    <span className="mt-1 block text-xs">
+                      Tienes {estudiantes.length}{' '}
+                      {estudiantes.length === 1 ? 'registrado' : 'registrados'} esperando su primer
+                      ingreso con Google.
+                    </span>
+                  )}
                 </p>
                 <DialogoEstudiante
                   onGuardado={onEstudianteRegistrado}
@@ -593,53 +703,45 @@ export function ConfiguradorSesion({
               </div>
             )}
 
-            <div
-              role="radiogroup"
-              aria-labelledby="vigencia-titulo"
-              className="flex flex-col gap-2 border-t pt-4"
-            >
-              <p id="vigencia-titulo" className="text-sm font-semibold">
-                El código sirve durante
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {VIGENCIAS_DIAS.map(dias => (
-                  <label
-                    key={dias}
-                    className={cn(
-                      'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
-                      vigenciaDias === dias
-                        ? 'border-nogal bg-nogal font-semibold text-lino'
-                        : 'bg-background hover:bg-muted'
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      name="vigenciaDias"
-                      checked={vigenciaDias === dias}
-                      onChange={() => setValue('vigenciaDias', dias, { shouldDirty: true })}
-                      disabled={generando}
-                    />
-                    {textoDias(dias)}
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha.
-              </p>
-            </div>
+            <OpcionesEnPildora
+              id="duracion-titulo"
+              titulo="La consulta dura"
+              nombre="duracionMinutos"
+              opciones={DURACIONES_CONSULTA_MIN}
+              valor={duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO}
+              etiqueta={minutos => `${minutos} min`}
+              onCambiar={minutos => setValue('duracionMinutos', minutos, { shouldDirty: true })}
+              deshabilitado={generando}
+              ayuda="Corre desde la primera intervención. El estudiante lo sabe desde las instrucciones, recibe un aviso 3 minutos antes y tiene 5 minutos más para cerrar la entrevista."
+            />
+
+            <OpcionesEnPildora
+              id="vigencia-titulo"
+              titulo="El código sirve durante"
+              nombre="vigenciaDias"
+              opciones={VIGENCIAS_DIAS}
+              valor={vigenciaDias}
+              etiqueta={textoDias}
+              onCambiar={dias => setValue('vigenciaDias', dias, { shouldDirty: true })}
+              deshabilitado={generando}
+              ayuda="Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha."
+            />
           </div>
         </Paso>
 
         {errorServidor && (
-          <Alert variant="destructive" role="alert" className="mt-6">
+          <Alert
+            variant="destructive"
+            role="alert"
+            className="mt-6 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1"
+          >
             <AlertCircle aria-hidden />
             <AlertDescription>{errorServidor}</AlertDescription>
           </Alert>
         )}
 
         {/* Acciones */}
-        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:items-center sm:p-4">
+        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:p-4">
           <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
@@ -660,9 +762,9 @@ export function ConfiguradorSesion({
                 <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
                 <span>
                   <span className="font-medium text-foreground">{escenario.titulo}</span> para{' '}
-                  <span className="font-medium text-foreground">{estudiante.nombre}</span> · el
-                  código vence el{' '}
-                  {formatearDia(new Date(ahora + vigenciaDias * 86_400_000).toISOString())}
+                  <span className="font-medium text-foreground">{estudiante.nombre}</span> ·
+                  consulta de {duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO} min · el código
+                  vence el {formatearDia(new Date(ahora + vigenciaDias * 86_400_000).toISOString())}
                 </span>
               </>
             )}
@@ -671,6 +773,7 @@ export function ConfiguradorSesion({
             type="submit"
             variant="accion"
             size="lg"
+            className="sm:ml-auto"
             disabled={generando}
             aria-busy={generando}
           >
@@ -687,24 +790,6 @@ export function ConfiguradorSesion({
     </div>
   );
 }
-
-const CONSEJOS_MIS_CASOS: { icono: LucideIcon; titulo: string; texto: string }[] = [
-  {
-    icono: Wand2,
-    titulo: 'Desde cero',
-    texto: 'Un constructor guiado con vista previa del comportamiento y prueba del paciente.',
-  },
-  {
-    icono: Bookmark,
-    titulo: 'Desde un caso predefinido',
-    texto: 'Elige uno arriba, ajusta su comportamiento y pulsa «Guardar como mi caso».',
-  },
-  {
-    icono: Repeat2,
-    titulo: 'Reutilízalos',
-    texto: 'Quedan en esta lista, listos para asignarlos de nuevo.',
-  },
-];
 
 /** Tarjeta punteada, al lado de los casos propios, para crear uno nuevo. */
 function TarjetaNuevoCaso() {
@@ -726,43 +811,6 @@ function TarjetaNuevoCaso() {
   );
 }
 
-/** "Mis casos" sin casos todavía: explica qué son y las dos formas de empezar. */
-function EstadoVacioMisCasos() {
-  return (
-    <div className="overflow-hidden rounded-xl border border-dashed border-input/50 bg-card">
-      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
-          <FilePlus2 className="size-7" aria-hidden />
-        </span>
-        <div className="flex flex-1 flex-col gap-1.5">
-          <h4 className="text-xl font-bold">Aquí vivirán tus casos</h4>
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Crea un paciente a tu medida, o ajusta un caso predefinido al asignarlo y pulsa «Guardar
-            como mi caso».
-          </p>
-        </div>
-        <Button asChild size="lg" variant="outline">
-          <Link href="/configuracion/casos/nuevo">
-            <Plus aria-hidden />
-            Crear mi primer caso
-          </Link>
-        </Button>
-      </div>
-      <ul className="grid gap-4 border-t border-dashed border-input/50 bg-muted/40 p-6 text-sm sm:grid-cols-3 sm:px-8">
-        {CONSEJOS_MIS_CASOS.map(({ icono: Icono, titulo, texto }) => (
-          <li key={titulo} className="flex items-start gap-3">
-            <Icono className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
-            <p className="leading-snug">
-              <span className="font-medium">{titulo}. </span>
-              <span className="text-muted-foreground">{texto}</span>
-            </p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 type EstadoPaso = 'completado' | 'actual' | 'pendiente';
 
 interface PasoProps {
@@ -771,6 +819,7 @@ interface PasoProps {
   titulo: string;
   descripcion: string;
   estado: EstadoPaso;
+  ayuda?: string;
   /** El último paso no dibuja la línea hacia el siguiente. */
   ultimo?: boolean;
   /** `id` de la sección, para poder desplazarse hasta ella. */
@@ -789,6 +838,7 @@ function Paso({
   titulo,
   descripcion,
   estado,
+  ayuda,
   ultimo = false,
   seccionId,
   children,
@@ -825,17 +875,20 @@ function Paso({
 
       <div className={cn('flex min-w-0 flex-col gap-4', !ultimo && 'pb-12')}>
         <div className="flex flex-col gap-0.5 pt-0.5">
-          <h2
-            id={id}
-            className={cn(
-              'text-xl font-bold tracking-[-0.015em] transition-colors',
-              estado === 'pendiente' && 'text-muted-foreground'
-            )}
-          >
-            <span className="sr-only">Paso {numero}: </span>
-            {titulo}
-            {estado === 'completado' && <span className="sr-only"> (completado)</span>}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2
+              id={id}
+              className={cn(
+                'text-xl font-bold tracking-[-0.015em] transition-colors',
+                estado === 'pendiente' && 'text-muted-foreground'
+              )}
+            >
+              <span className="sr-only">Paso {numero}: </span>
+              {titulo}
+              {estado === 'completado' && <span className="sr-only"> (completado)</span>}
+            </h2>
+            {ayuda && <AyudaContextual etiqueta={`Ayuda sobre ${titulo}`} texto={ayuda} />}
+          </div>
           <p className="text-sm text-muted-foreground">{descripcion}</p>
         </div>
         {children}
@@ -844,12 +897,60 @@ function Paso({
   );
 }
 
-/** Iniciales para el avatar del estudiante ("Ana María Pérez" → "AM"). */
-function iniciales(nombre: string) {
-  return nombre
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(parte => parte[0] ?? '')
-    .join('')
-    .toUpperCase();
+/**
+ * Elección de una opción entre pocas (duración de la consulta, vigencia del código) como píldoras:
+ * todas a la vista y con un clic, sin desplegar nada.
+ */
+function OpcionesEnPildora<T extends number>({
+  id,
+  titulo,
+  nombre,
+  opciones,
+  valor,
+  etiqueta,
+  onCambiar,
+  deshabilitado,
+  ayuda,
+}: {
+  id: string;
+  titulo: string;
+  nombre: string;
+  opciones: readonly T[];
+  valor: T;
+  etiqueta: (opcion: T) => string;
+  onCambiar: (opcion: T) => void;
+  deshabilitado: boolean;
+  ayuda: string;
+}) {
+  return (
+    <div role="radiogroup" aria-labelledby={id} className="flex flex-col gap-2 border-t pt-4">
+      <p id={id} className="text-sm font-semibold">
+        {titulo}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {opciones.map(opcion => (
+          <label
+            key={opcion}
+            className={cn(
+              'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
+              valor === opcion
+                ? 'border-nogal bg-nogal font-semibold text-lino'
+                : 'bg-background hover:bg-muted'
+            )}
+          >
+            <input
+              type="radio"
+              className="sr-only"
+              name={nombre}
+              checked={valor === opcion}
+              onChange={() => onCambiar(opcion)}
+              disabled={deshabilitado}
+            />
+            {etiqueta(opcion)}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{ayuda}</p>
+    </div>
+  );
 }

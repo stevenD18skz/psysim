@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { Button } from '@/components/ui/button';
 import { RUTA_LOGIN } from '@/lib/auth/routes';
 import { URL_CERRAR_GOOGLE } from '@/lib/equipo-compartido/entrega';
@@ -21,10 +22,16 @@ export const metadata: Metadata = {
 export default function FinEntregaPage() {
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-background">
+      <SaltarContenido />
       <main className="grid flex-1 lg:grid-cols-[1fr_1fr]">
         <PanelMarca />
 
-        <section className="flex flex-col px-6 py-8 sm:px-10">
+        {/* Destino de «Saltar al contenido»: antes van los doce casos del panel de marca. */}
+        <section
+          id="contenido"
+          tabIndex={-1}
+          className="flex flex-col px-6 py-8 outline-hidden sm:px-10"
+        >
           <Link
             href="/"
             className="w-fit rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-ring lg:hidden"

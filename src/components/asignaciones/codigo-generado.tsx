@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useEsComputador } from '@/hooks/use-es-computador';
 import { rutaUnirse } from '@/lib/asignaciones/codigo';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 
@@ -52,12 +53,12 @@ export function mensajeParaEstudiante(
 ): string {
   const nombre = datos.estudiante.nombre.split(' ')[0];
   return [
-    `Hola, ${nombre}. Te asigné una práctica en PsySim: «${datos.caso}».`,
+    `Hola, ${nombre}. Te asigné una práctica en PsySim: ${datos.caso}.`,
     '',
     'Ábrela en un computador con teclado y ratón (la simulación no funciona en el celular):',
     enlace,
     '',
-    'Entra con tu correo @correounivalle.edu.co («Continuar con Google»).',
+    'Entra con el botón Continuar con Google y tu correo @correounivalle.edu.co.',
     '',
     `El código ${datos.codigo} es de un solo uso y vence el ${formatearFechaHora(datos.expiraEn)}.`,
     'Cuando lo uses, empieza enseguida: si pasan 10 minutos sin actividad, la práctica se cierra y el código deja de servir.',
@@ -76,18 +77,21 @@ export function CodigoGenerado({
   onCerrar: () => void;
 }) {
   const origen = useOrigen();
+  const esComputador = useEsComputador();
   if (!datos) return null;
 
+  const primerNombre = datos.estudiante.nombre.split(' ')[0];
   const enlace = `${origen}${rutaUnirse(datos.codigo)}`;
+  const mensaje = mensajeParaEstudiante(datos, enlace);
 
   return (
     <Dialog open onOpenChange={abierto => !abierto && onCerrar()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Código listo para {datos.estudiante.nombre.split(' ')[0]}</DialogTitle>
+          <DialogTitle>Código listo para {primerNombre}</DialogTitle>
           <DialogDescription>
-            Sirve una sola vez, solo con la cuenta de {datos.estudiante.nombre.split(' ')[0]}, hasta
-            el {formatearFechaHora(datos.expiraEn)}.
+            Sirve una sola vez, solo con la cuenta de {primerNombre}, hasta el{' '}
+            {formatearFechaHora(datos.expiraEn)}.
           </DialogDescription>
         </DialogHeader>
 
@@ -112,29 +116,51 @@ export function CodigoGenerado({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <BotonCopiar
+            texto={datos.codigo}
+            etiqueta="Copiar código"
+            variant="outline"
+            className="w-full"
+          />
+          <BotonCopiar
+            texto={enlace}
+            etiqueta="Copiar enlace"
+            variant="outline"
+            className="w-full"
+          />
           <BotonCompartir
             etiqueta="Compartir"
             asunto={`Tu práctica en PsySim: ${datos.caso}`}
-            mensaje={mensajeParaEstudiante(datos, enlace)}
+            mensaje={mensaje}
             correo={datos.estudiante.correo}
-          />
-          <BotonCopiar
-            texto={() => mensajeParaEstudiante(datos, enlace)}
-            etiqueta="Copiar mensaje"
-          />
-          <BotonCopiar texto={enlace} etiqueta="Copiar enlace" variant="ghost" />
-          <BotonEntregarEquipo
-            asignacionId={datos.id}
-            estudiante={datos.estudiante.nombre}
-            size="default"
+            textoCopiable={mensaje}
+            className="w-full"
           />
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" asChild>
+        {esComputador === true && (
+          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-input/70 bg-muted/35 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">¿Practica aquí ahora?</p>
+              <p className="text-xs leading-snug text-muted-foreground">
+                Cierra tu sesión y entrega este computador a {primerNombre}.
+              </p>
+            </div>
+            <BotonEntregarEquipo
+              asignacionId={datos.id}
+              estudiante={datos.estudiante.nombre}
+              size="default"
+              variant="outline"
+              className="shrink-0 bg-card"
+            />
+          </div>
+        )}
+
+        <DialogFooter className="sm:justify-between">
+          <Button variant="ghost" asChild>
             <Link href={`/estudiantes/${datos.estudiante.id}`}>
-              Ver ficha de {datos.estudiante.nombre.split(' ')[0]}
+              Ver ficha de {primerNombre}
               <ArrowRight aria-hidden />
             </Link>
           </Button>

@@ -95,6 +95,18 @@ describe('confirmarGuardado', () => {
     store.getState().conversacion.confirmarGuardado({ local: 'db-1', otro: null });
     const ultimo = store.getState().conversacion.mensajes.at(-1)!;
     expect(ultimo.id).toBe('db-1');
+    expect(ultimo.idLocal).toBe('local');
     expect(ultimo.sinGuardar).toBeUndefined();
+  });
+
+  it('conserva la identidad visual inicial en confirmaciones posteriores', () => {
+    const store = preparar();
+    store.getState().conversacion.agregarMensaje(m('local', 'npc', { sinGuardar: true }));
+    store.getState().conversacion.confirmarGuardado({ local: 'db-1' });
+    store.getState().conversacion.confirmarGuardado({ 'db-1': 'db-2' });
+    expect(store.getState().conversacion.mensajes.at(-1)).toMatchObject({
+      id: 'db-2',
+      idLocal: 'local',
+    });
   });
 });

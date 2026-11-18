@@ -28,7 +28,7 @@
     { "id": "taza-mesa", "tipo": "decoracion", "modelo": "muebles/mug.glb", "ajuste": { "alto": 0.1 }, "posicion": [-0.3, 0.425, -1.1], "rotacion": 60, "colision": false }
   ],
   "npc": {
-    "personaje": "marina",
+    "personaje": "yolanda",
     "alturaAsiento": 0.56,
     "posicion": [0.35, 0, -2.4],
     "rotacion": 0,

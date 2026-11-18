@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
 import { ERRORES_GOOGLE, esErrorGoogle, PARAM_ERROR_LOGIN } from '@/lib/auth/google';
@@ -62,10 +63,16 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-background">
+      <SaltarContenido />
       <main className="grid flex-1 lg:grid-cols-[1fr_1fr]">
         <PanelMarca />
 
-        <section className="flex flex-col px-6 py-8 sm:px-10">
+        {/* Destino de «Saltar al contenido»: antes van los doce casos del panel de marca. */}
+        <section
+          id="contenido"
+          tabIndex={-1}
+          className="flex flex-col px-6 py-8 outline-hidden sm:px-10"
+        >
           {/* En móvil no hay panel de marca: la marca va arriba. */}
           <Link
             href="/"
@@ -109,7 +116,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                 Soy docente: entrar con correo y contraseña
                 <ChevronDown
-                  className="ml-auto size-4 transition-transform group-open:rotate-180"
+                  className="ml-auto size-4 transition-transform duration-300 ease-salida group-open:rotate-180"
                   aria-hidden
                 />
               </summary>

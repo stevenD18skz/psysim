@@ -26,8 +26,10 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
+            // `httpOnly`: la sesión solo se usa desde el servidor (no hay cliente de Supabase en
+            // el navegador), así que ningún script de la página necesita leer el token.
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, { ...options, httpOnly: true })
             );
           } catch {
             // Los Server Components no pueden escribir cookies. Es seguro ignorarlo porque

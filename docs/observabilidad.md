@@ -23,19 +23,25 @@ códigos de acceso de los mensajes, y no registra la dirección IP.
 Una línea JSON por evento: `{"nivel":"error","evento":"npc_chat.ia_fallo","peticion":"…","tipo":"limite"}`.
 Vercel agrega la hora. El nombre del evento es `area.evento`, en minúsculas.
 
-| Evento                              | Nivel | Qué significa                                                                         |
-| ----------------------------------- | ----- | ------------------------------------------------------------------------------------- |
-| `npc_chat.respuesta`                | info  | Respuesta del paciente entregada (con su latencia)                                    |
-| `npc_chat.limite_alcanzado`         | info  | Un estudiante superó los mensajes por minuto (429)                                    |
-| `npc_chat.tope_de_sesion`           | info  | La práctica llegó al máximo de 150 intervenciones                                     |
-| `npc_chat.ia_fallo`                 | error | La IA falló; el campo `tipo` dice cómo (`fuga_de_instrucciones`, `limite`, `tiempo`…) |
-| `npc_chat.*_no_leido/_no_guardados` | error | La base de datos falló al leer o guardar                                              |
-| `metrics_save.no_guardadas`         | error | No se guardaron las métricas al terminar una práctica                                 |
-| `auth.login_fallo`, `auth.google_*` | error | Falló el acceso con correo o con Google                                               |
-| `auth.perfil_no_leido`              | error | Entró alguien sin perfil legible: cuenta sin configurar                               |
-| `auth.cierre_no_revocado`           | warn  | Se cerró la sesión local, pero Supabase no confirmó                                   |
-| `cliente.error`                     | error | Error de JavaScript en un navegador (con ruta y `digest`)                             |
-| `cliente.vital`                     | info  | Una métrica web real (`nombre`, `valor`, `valoracion`)                                |
+| Evento                                | Nivel | Qué significa                                                                         |
+| ------------------------------------- | ----- | ------------------------------------------------------------------------------------- |
+| `npc_chat.respuesta`                  | info  | Respuesta del paciente entregada (con su latencia)                                    |
+| `npc_chat.limite_alcanzado`           | info  | Un estudiante superó los mensajes por minuto (429)                                    |
+| `npc_chat.tope_de_sesion`             | info  | La práctica llegó al máximo de 150 intervenciones                                     |
+| `npc_chat.ia_fallo`                   | error | La IA falló; el campo `tipo` dice cómo (`fuga_de_instrucciones`, `limite`, `tiempo`…) |
+| `npc_chat.*_no_leido/_no_guardados`   | error | La base de datos falló al leer o guardar                                              |
+| `npc_chat.orquestador_fallo`          | error | El orquestador de NPC falló (`tipo`, `etapa`); ese turno lo responde Gemini           |
+| `npc_chat.orquestador_rechazo`        | error | El orquestador rechazó algo que envió PsySim (400, 403, 422): no se pasa a Gemini     |
+| `npc_chat.pasa_a_gemini`              | warn  | Una práctica deja el orquestador y sigue con Gemini hasta terminar (`motivo`)         |
+| `orquestador.credenciales_rechazadas` | error | El 401 siguió después de volver a iniciar sesión: revisar la cuenta del orquestador   |
+| `orquestador.caso_recreado`           | warn  | El perfil o el escenario de un caso ya no existían allá y se crearon de nuevo         |
+| `orquestador.sesion_no_cerrada`       | warn  | No se pudo cerrar allá la sesión de una práctica terminada (se reintenta después)     |
+| `metrics_save.no_guardadas`           | error | No se guardaron las métricas al terminar una práctica                                 |
+| `auth.login_fallo`, `auth.google_*`   | error | Falló el acceso con correo o con Google                                               |
+| `auth.perfil_no_leido`                | error | Entró alguien sin perfil legible: cuenta sin configurar                               |
+| `auth.cierre_no_revocado`             | warn  | Se cerró la sesión local, pero Supabase no confirmó                                   |
+| `cliente.error`                       | error | Error de JavaScript en un navegador (con ruta y `digest`)                             |
+| `cliente.vital`                       | info  | Una métrica web real (`nombre`, `valor`, `valoracion`)                                |
 
 Para seguir un caso: copia el `x-request-id` de la respuesta (pestaña Red del navegador) o el
 `digest` que muestra la pantalla de error, y búscalo en los registros de Vercel.
@@ -60,15 +66,18 @@ el navegador. No escribe en la base de datos.
 Se crean en **Vercel → Observability → Alerts** (o con consultas guardadas sobre los registros).
 Umbrales iniciales para una beta con pocos usuarios; se ajustan con datos reales.
 
-| Alerta                     | Condición                                                         | Qué hacer                                                  |
-| -------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------- |
-| Errores del servidor (5xx) | Más de 5 respuestas 5xx en 10 minutos                             | Mirar `npc_chat.*` y `metrics_save.*`; ¿Gemini o Supabase? |
-| Picos de 429               | Más de 20 `npc_chat.limite_alcanzado` en 10 minutos               | ¿Una clase entera practicando a la vez o un abuso?         |
-| Fuga del prompt            | Cualquier `npc_chat.ia_fallo` con `tipo = fuga_de_instrucciones`  | Revisar la conversación de esa sesión y las reglas de IA   |
-| Base de datos caída        | `/api/salud?profunda=1` responde 503 dos veces seguidas           | Estado de Supabase; las prácticas abiertas siguen vivas    |
-| Aplicación caída           | `/api/salud` no responde 200 en 2 minutos                         | Última implementación; revertir si hace falta              |
-| Errores del navegador      | Más de 10 `cliente.error` con el mismo mensaje en 15 minutos      | Un despliegue nuevo rompió una pantalla                    |
-| Rendimiento real           | LCP del percentil 75 mayor de 2,5 s en 24 horas (`cliente.vital`) | Comparar con `docs/auditoria-rendimiento.md`               |
+| Alerta                       | Condición                                                         | Qué hacer                                                  |
+| ---------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------- |
+| Errores del servidor (5xx)   | Más de 5 respuestas 5xx en 10 minutos                             | Mirar `npc_chat.*` y `metrics_save.*`; ¿Gemini o Supabase? |
+| Picos de 429                 | Más de 20 `npc_chat.limite_alcanzado` en 10 minutos               | ¿Una clase entera practicando a la vez o un abuso?         |
+| Fuga del prompt              | Cualquier `npc_chat.ia_fallo` con `tipo = fuga_de_instrucciones`  | Revisar la conversación de esa sesión y las reglas de IA   |
+| Credenciales del orquestador | Cualquier `orquestador.credenciales_rechazadas`                   | Revisar `ORQUESTADOR_CORREO` y la contraseña en Vercel     |
+| Orquestador caído            | Más de 5 `npc_chat.orquestador_fallo` en 10 minutos               | ¿Railway caído? Si dura, `IA_PROVEEDOR=gemini`             |
+| Prácticas que pasan a Gemini | Más de 5 `npc_chat.pasa_a_gemini` en 10 minutos                   | Mirar el motivo en `/admin/ia`                             |
+| Base de datos caída          | `/api/salud?profunda=1` responde 503 dos veces seguidas           | Estado de Supabase; las prácticas abiertas siguen vivas    |
+| Aplicación caída             | `/api/salud` no responde 200 en 2 minutos                         | Última implementación; revertir si hace falta              |
+| Errores del navegador        | Más de 10 `cliente.error` con el mismo mensaje en 15 minutos      | Un despliegue nuevo rompió una pantalla                    |
+| Rendimiento real             | LCP del percentil 75 mayor de 2,5 s en 24 horas (`cliente.vital`) | Comparar con `docs/auditoria-rendimiento.md`               |
 
 Un monitor externo gratuito (UptimeRobot, Better Stack) sobre `/api/salud` cubre «aplicación
 caída» sin depender de Vercel.

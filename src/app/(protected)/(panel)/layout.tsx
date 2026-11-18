@@ -1,14 +1,15 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 import { AppSidebar } from '@/components/layout/app-sidebar';
-import { AvisoContrasenaTemporal } from '@/components/layout/aviso-contrasena-temporal';
 import { BarraEstudiante } from '@/components/layout/barra-estudiante';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { PiePagina } from '@/components/layout/pie-pagina';
 import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { debeCambiarContrasena, obtenerSesionUsuario } from '@/lib/auth/dal';
+import { RUTA_CAMBIAR_CONTRASENA } from '@/lib/auth/routes';
 import { obtenerIdUltimaSesionEnCurso } from '@/lib/escenarios/queries';
 import { estaPorRevisar } from '@/lib/sesiones/estados';
 import { obtenerSesionesDelDocente } from '@/lib/sesiones/queries';
@@ -33,13 +34,18 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
       <div className="flex min-h-svh flex-col">
         <SaltarContenido />
         <BarraEstudiante sesionEnCurso={sesionEnCurso} />
-        {perfil.contrasenaTemporal && <AvisoContrasenaTemporal />}
         <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col outline-hidden">
           {children}
         </main>
         <PiePagina />
       </div>
     );
+  }
+
+  // Con la contraseña temporal sin cambiar, el panel no abre nada: primero se cambia. Cada
+  // página y cada acción lo exigen también por su cuenta (`requerirDocente`).
+  if (perfil && debeCambiarContrasena(perfil)) {
+    redirect(RUTA_CAMBIAR_CONTRASENA);
   }
 
   const [almacen, porRevisar] = await Promise.all([
@@ -70,7 +76,6 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
             <SidebarTrigger className="size-10 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
             <MarcaPsySim className="h-7" />
           </header>
-          {perfil?.contrasenaTemporal && <AvisoContrasenaTemporal />}
           <div id="contenido" tabIndex={-1} className="flex flex-1 flex-col outline-hidden">
             {children}
           </div>

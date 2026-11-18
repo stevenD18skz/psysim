@@ -29,11 +29,13 @@ export function BotonEntregarEquipo({
   estudiante,
   size = 'sm',
   variant = 'ghost',
+  className,
 }: {
   asignacionId: string;
   estudiante: string;
   size?: 'default' | 'sm';
   variant?: 'ghost' | 'outline';
+  className?: string;
 }) {
   const esComputador = useEsComputador();
   const [abierto, setAbierto] = useState(false);
@@ -58,7 +60,7 @@ export function BotonEntregarEquipo({
 
   return (
     <>
-      <Button size={size} variant={variant} onClick={() => setAbierto(true)}>
+      <Button size={size} variant={variant} onClick={() => setAbierto(true)} className={className}>
         <MonitorSmartphone aria-hidden />
         Practicar en este equipo
       </Button>

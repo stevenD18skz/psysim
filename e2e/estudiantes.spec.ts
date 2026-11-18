@@ -126,12 +126,12 @@ test.describe('gestión de estudiantes', () => {
 
     // El estudiante ya no puede usarlo.
     const contexto = await page.context().browser()!.newContext();
-    const alumno = await contexto.newPage();
-    await iniciarSesionComoEstudiante(alumno);
-    await alumno.getByLabel('Código de acceso').fill(codigo);
-    await alumno.getByRole('button', { name: 'Usar el código y entrar' }).click();
+    const pestanaEstudiante = await contexto.newPage();
+    await iniciarSesionComoEstudiante(pestanaEstudiante);
+    await pestanaEstudiante.getByLabel('Código de acceso').fill(codigo);
+    await pestanaEstudiante.getByRole('button', { name: 'Usar el código y entrar' }).click();
     await expect(
-      alumno.getByRole('form', { name: 'Usar un código' }).getByRole('alert')
+      pestanaEstudiante.getByRole('form', { name: 'Usar un código' }).getByRole('alert')
     ).toContainText('anuló ese código');
     await contexto.close();
   });

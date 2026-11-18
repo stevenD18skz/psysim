@@ -49,7 +49,9 @@ test.describe('con credenciales de prueba', () => {
   test('HU-02: el docente inicia sesión y la sesión persiste', async ({ page, context }) => {
     await iniciarSesionComoDocente(page);
     await expect(page.getByRole('heading', { name: 'Por revisar' })).toBeVisible();
-    expect(await cookiesDeSesion(context)).not.toHaveLength(0);
+    const cookies = await cookiesDeSesion(context);
+    expect(cookies).not.toHaveLength(0);
+    expect(cookies.every(cookie => cookie.httpOnly)).toBe(true);
 
     // HU-27 · T02: el saludo usa el nombre del docente (el de la base de datos, si hay acceso).
     const { data: perfil } = (await clienteAdmin()

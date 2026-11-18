@@ -6,6 +6,7 @@ import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
 import { calcularVencimiento, generarCodigoAcceso } from '@/lib/asignaciones/codigo';
 import { requerirDocente, requerirEstudiante } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { canjearCodigoSchema, idAsignacionSchema } from '@/schemas/asignacion.schema';
 import { generarAsignacionSchema } from '@/schemas/configuracion.schema';
@@ -23,18 +24,19 @@ const MAX_INTENTOS_CODIGO = 5;
 export async function generarAsignacion(
   valores: unknown
 ): Promise<ResultadoAccion<{ id: string; codigo: string; expiraEn: string }>> {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
 
   const datos = generarAsignacionSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
-  const { escenarioId, promptSistema, estudianteId, vigenciaDias } = datos.data;
+  const { escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos } = datos.data;
 
-  const supabase = await createClient();
+  const supabase = esAdmin ? createAdminClient() : await createClient();
   const { data: estudiante, error: errorEstudiante } = await supabase
     .from('estudiante')
-    .select('usuario_id')
+    .select('usuario_id, docente_id')
     .eq('id', estudianteId)
     .maybeSingle();
   if (errorEstudiante || !estudiante) {
@@ -54,11 +56,13 @@ export async function generarAsignacion(
     const { data, error } = await supabase
       .from('asignacion')
       .insert({
+        ...(esAdmin && { docente_id: estudiante.docente_id }),
         estudiante_id: estudianteId,
         escenario_id: escenarioId,
         prompt_sistema: promptSistema,
         codigo: generarCodigoAcceso(),
         expira_en: expiraEn,
+        duracion_minutos: duracionMinutos,
       })
       .select('id, codigo, expira_en')
       .single();
@@ -80,7 +84,8 @@ export async function generarAsignacion(
 
 /** El docente anula un código que aún no se ha usado (p. ej. lo envió a quien no era). */
 export async function anularAsignacion(valores: unknown): Promise<ResultadoAccion<{ id: string }>> {
-  await requerirDocente();
+  const perfil = await requerirDocente();
+  const esAdmin = perfil.rol === 'superadmin';
 
   const datos = idAsignacionSchema.safeParse(valores);
   if (!datos.success) {
@@ -88,7 +93,7 @@ export async function anularAsignacion(valores: unknown): Promise<ResultadoAccio
   }
 
   // La hora real de anulación la fija la base de datos (trigger `asignacion_marcar_anulada`).
-  const supabase = await createClient();
+  const supabase = esAdmin ? createAdminClient() : await createClient();
   const { data, error } = await supabase
     .from('asignacion')
     .update({ anulada_en: new Date().toISOString() })

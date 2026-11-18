@@ -2,8 +2,10 @@
 
 import { requerirDocente } from '@/lib/auth/dal';
 import { type ResultadoAccion } from '@/lib/acciones';
-import { ErrorIA, generarRespuestaPaciente, type TipoErrorIA } from '@/lib/ia/paciente';
+import { ErrorIA, type TipoErrorIA } from '@/lib/ia/paciente';
+import { responderDeUnaVez } from '@/lib/ia/prueba';
 import { log } from '@/lib/log';
+import { sincronizarCasoDespues } from '@/lib/orquestador/diferido';
 import { createClient } from '@/lib/supabase/server';
 import {
   actualizarCasoSchema,
@@ -76,6 +78,8 @@ async function insertarCaso(
     await supabase.from('escenario').update({ activo: false }).eq('id', id);
     return { ok: false, error: 'No pudimos guardar el caso. Inténtalo de nuevo.' };
   }
+  // Con la respuesta ya enviada: el paciente del caso queda listo en el orquestador de NPC.
+  sincronizarCasoDespues(id);
   return { ok: true, datos: { id } };
 }
 
@@ -120,6 +124,8 @@ export async function actualizarCaso(valores: unknown): Promise<ResultadoAccion<
     return { ok: false, error: 'No pudimos guardar los cambios del caso. Inténtalo de nuevo.' };
   }
 
+  // Las prácticas ya asignadas conservan su copia del prompt; las nuevas usan el caso actualizado.
+  sincronizarCasoDespues(datos.data.id);
   return { ok: true, datos: { id: datos.data.id } };
 }
 
@@ -211,12 +217,16 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
   fuga_de_instrucciones:
     'La respuesta repetía las instrucciones del paciente y se descartó. Prueba con otro mensaje.',
   proveedor: 'El servicio de IA no está disponible.',
+  // El chat de prueba usa Gemini directo: estos dos solo ocurren con el orquestador.
+  espera_del_paciente: 'El servicio de IA está saturado. Inténtalo en unos segundos.',
+  consultorio_ocupado: 'El servicio de IA está saturado. Inténtalo en unos segundos.',
 };
 
 /**
  * Chat de prueba del constructor: responde con el prompt que se está redactando (más las reglas
- * fijas). No guarda nada ni necesita una sesión, pero cuenta en el límite de llamadas a la IA por
- * minuto (si el conteo falla, la prueba sigue, igual que en la práctica).
+ * fijas), por el mismo camino que la práctica real. No guarda nada ni necesita una sesión, pero
+ * cuenta en el límite de llamadas a la IA por minuto (si el conteo falla, la prueba sigue, igual
+ * que en la práctica).
  */
 export async function probarPaciente(
   valores: unknown
@@ -240,7 +250,7 @@ export async function probarPaciente(
   }
 
   try {
-    const respuesta = await generarRespuestaPaciente({
+    const respuesta = await responderDeUnaVez({
       promptSistema: datos.data.prompt,
       historial: datos.data.historial,
       mensaje: datos.data.mensaje,

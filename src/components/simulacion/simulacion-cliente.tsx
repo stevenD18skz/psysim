@@ -31,7 +31,13 @@ import { esCampoEditable } from '@/components/3d/use-teclado';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
-import { BotonAjustes, BotonControles, BotonSalir } from '@/components/simulacion/controles-hud';
+import {
+  BotonAjustes,
+  BotonControles,
+  BotonOcultarHud,
+  BotonSalir,
+  TECLA_OCULTAR_HUD,
+} from '@/components/simulacion/controles-hud';
 import { ConversationPanel } from '@/components/simulacion/conversation-panel';
 import {
   BotonHerramienta,
@@ -45,6 +51,7 @@ import { SesionFinalizada } from '@/components/simulacion/sesion-finalizada';
 import { BotonSonido, useSonidoSimulacion } from '@/components/simulacion/sonido-simulacion';
 import { useFinalizarSesion } from '@/components/simulacion/use-finalizar-sesion';
 import { useInactividad } from '@/components/simulacion/use-inactividad';
+import { useFinPorTiempo } from '@/components/simulacion/use-tiempo-consulta';
 import { useMuestreoProximidad } from '@/components/simulacion/use-proximidad';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
 import { Button } from '@/components/ui/button';
@@ -62,6 +69,7 @@ import { estaConversando } from '@/lib/conversacion/estados-npc';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
 import { cn } from '@/lib/utils';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
+import { respuestaEnCamino } from '@/store/conversacion-slice';
 import { type MensajeConversacion, type SesionActiva } from '@/types';
 
 // HU-08 · T01: Three.js necesita el DOM, así que la escena no se renderiza en el servidor.
@@ -145,7 +153,19 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const estadoNpc = useAppStore(state => state.npc.estado);
   const cerca = useInteraccion(interaccion => interaccion.cerca);
   const apuntando = useInteraccion(interaccion => interaccion.apuntando);
-  const { finalizar, finalizando, resumen, motivo, cerrarPorInactividad } = useFinalizarSesion();
+  // La práctica termina sola: el paciente cerró la consulta (crisis o trato inapropiado) o se
+  // cumplieron el tiempo de la consulta y su margen de cierre.
+  const cierre = useAppStore(state => state.conversacion.cierre);
+  const enCamino = useAppStore(respuestaEnCamino);
+  const {
+    finalizar,
+    finalizando,
+    resumen,
+    motivo,
+    cerrarPorInactividad,
+    terminarPorCierre,
+    verResultados,
+  } = useFinalizarSesion();
 
   useAtajosConversacion();
 
@@ -153,9 +173,16 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
   const segundosParaCierre = useInactividad({
     sesionId: sesion.id,
-    activo: lista && !resumen && !finalizando,
+    activo: lista && !resumen && !finalizando && !cierre,
     alVencer: cerrarPorInactividad,
   });
+  // Cuando la última respuesta del paciente terminó de mostrarse, la práctica se cierra sola (con
+  // sus métricas); el estudiante lee el aviso del panel y sigue a los resultados.
+  useEffect(() => {
+    if (cierre && lista && (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')) {
+      terminarPorCierre();
+    }
+  }, [cierre, lista, estadoNpc, terminarPorCierre]);
   // HU-23: hasta que el estudiante confirme las instrucciones, la escena se ve pero no se usa.
   const comenzada = sesion.comenzada;
   const conversando = estaConversando(estadoNpc);
@@ -170,9 +197,33 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     remision: false,
     notas: false,
   });
+  // Esconde los controles (no la conversación) para ver el consultorio despejado.
+  const [hudOculto, setHudOculto] = useState(false);
+  // Atajo Ctrl + H: mismo efecto que el botón. Con el modificador no estorba al escribir (chat,
+  // notas), pero no actúa con un diálogo abierto.
+  const puedeOcultarHud = lista && !resumen;
+  useEffect(() => {
+    if (!puedeOcultarHud) return;
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (evento.code !== TECLA_OCULTAR_HUD || evento.repeat) return;
+      if (!(evento.ctrlKey || evento.metaKey) || evento.altKey || evento.shiftKey) return;
+      if (
+        evento.target instanceof Element &&
+        evento.target.closest('[role="dialog"], [role="alertdialog"]')
+      ) {
+        return;
+      }
+      // Evita que el navegador abra su historial (Ctrl + H).
+      evento.preventDefault();
+      setHudOculto(valor => !valor);
+    };
+    window.addEventListener('keydown', alPulsar);
+    return () => window.removeEventListener('keydown', alPulsar);
+  }, [puedeOcultarHud]);
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
-  const enConsulta = lista && comenzada && !resumen;
+  const enConsulta = lista && comenzada && !resumen && !cierre;
+  useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
   useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
 
@@ -198,14 +249,16 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
-          <HudSesion
-            sesion={sesion}
-            duracionFinalSegundos={resumen?.duracionSegundos}
-            compacto={conversando}
-          />
-          <div className="flex flex-wrap items-start justify-end gap-2">
+          {!hudOculto && (
+            <HudSesion
+              sesion={sesion}
+              duracionFinalSegundos={resumen?.duracionSegundos}
+              compacto={conversando}
+            />
+          )}
+          <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
             {depuracion && <IndicadorFps />}
-            {enConsulta && (
+            {!hudOculto && enConsulta && (
               <>
                 <BotonHerramienta
                   herramienta="remision"
@@ -219,27 +272,33 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
                 />
               </>
             )}
-            <BotonSonido motor={motorAudio} />
-            <BotonAjustes />
-            {!conversando && <BotonControles />}
-            {lista && comenzada && !resumen && (
+            {!hudOculto && <BotonSonido motor={motorAudio} />}
+            {!hudOculto && <BotonAjustes />}
+            {!hudOculto && !conversando && <BotonControles />}
+            {!hudOculto && enConsulta && (
               <BotonFinalizar
                 onFinalizar={finalizar}
                 finalizando={finalizando}
                 // Nunca con una respuesta de la IA en camino (evita cierres a medias).
-                deshabilitado={estadoNpc === 'procesando'}
+                deshabilitado={enCamino}
               />
             )}
             {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
                 confirmación dice la hora. */}
-            {!resumen && <BotonSalir compacto={conversando} />}
+            {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
+            {puedeOcultarHud && (
+              <BotonOcultarHud
+                oculto={hudOculto}
+                onAlternar={() => setHudOculto(valor => !valor)}
+              />
+            )}
           </div>
         </div>
 
-        {lista && comenzada && explorando && !bloqueado && (
+        {enConsulta && explorando && !bloqueado && (
           <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
         )}
-        {lista && comenzada && explorando && bloqueado && (
+        {enConsulta && explorando && bloqueado && (
           <>
             <Mira resaltada={cerca && apuntando} />
             {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
@@ -247,14 +306,14 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         )}
       </div>
 
-      {enConsulta && herramientas.remision && (
+      {enConsulta && !hudOculto && herramientas.remision && (
         <HojaRemision
           sesion={sesion}
           conversando={conversando}
           onCerrar={() => alternarHerramienta('remision')}
         />
       )}
-      {enConsulta && herramientas.notas && (
+      {enConsulta && !hudOculto && herramientas.notas && (
         <LibretaNotas
           sesionId={sesion.id}
           conversando={conversando}
@@ -262,10 +321,15 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
         />
       )}
 
-      {lista && conversando && (
-        <ConversationPanel onFinalizar={finalizar} finalizando={finalizando} />
+      {/* Tras un cierre automático el panel sigue a la vista: ahí está el aviso y la conversación. */}
+      {lista && (conversando || cierre) && !resumen && (
+        <ConversationPanel
+          onFinalizar={finalizar}
+          finalizando={finalizando}
+          onContinuar={verResultados}
+        />
       )}
-      {lista && comenzada && !resumen && <AvisoPantallaCompleta />}
+      {enConsulta && <AvisoPantallaCompleta />}
       {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
       {lista && !comenzada && !resumen && (
         <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
@@ -337,11 +401,11 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
             <Tecla>A</Tecla>
             <Tecla>S</Tecla>
             <Tecla>D</Tecla>
-            <span>o flechas para caminar</span>
+            <span>para caminar</span>
           </li>
           <li className="flex items-center gap-1.5">
             <MousePointer2 className="size-4" aria-hidden />
-            <span>ratón para mirar</span>
+            <span>ratón o flechas para mirar</span>
           </li>
           <li className="flex items-center gap-1.5">
             <Tecla>E</Tecla>
@@ -406,8 +470,9 @@ function AvisoSimulacionMovil({ sesion }: { sesion: SesionActiva }) {
             La simulación se abre en tu computador
           </h1>
           <p className="text-muted-foreground">
-            Necesitas teclado y ratón. Tu práctica de «{sesion.escenario.titulo}» sigue abierta:
-            ábrela desde un computador antes de que pasen 10 minutos sin actividad.
+            Necesitas teclado y ratón. Tu práctica de{' '}
+            <strong className="font-medium text-foreground">{sesion.escenario.titulo}</strong> sigue
+            abierta: ábrela desde un computador antes de que pasen 10 minutos sin actividad.
           </p>
         </div>
         <div className="flex flex-col gap-2">

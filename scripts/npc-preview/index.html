@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" />
+  <title>Revisión de personajes NPC</title>
+  <link rel="icon" href="data:," />
+  <style>
+    body {
+      margin: 0;
+      background: #eeeae4;
+      font: 14px system-ui;
+      color: #343330;
+    }
+    canvas {
+      display: block;
+    }
+    #tools {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      display: flex;
+      gap: 6px;
+    }
+    select {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: white;
+    }
+    #label {
+      position: absolute;
+      bottom: 14px;
+      left: 20px;
+      font-size: 18px;
+    }
+  </style>
+  <div id="tools">
+    <select id="npc"></select
+    ><select id="mode">
+      <option value="clips">De pie / clips</option>
+      <option value="paciente">Paciente sentado</option></select
+    ><select id="action"></select
+    ><select id="angle">
+      <option value="frente">Frente</option>
+      <option value="perfil">Perfil</option>
+      <option value="espalda">Espalda</option>
+    </select>
+  </div>
+  <div id="label"></div>
+  <script type="module" src="./preview.ts"></script>
+</html>

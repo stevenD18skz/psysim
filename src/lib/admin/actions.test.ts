@@ -10,6 +10,7 @@ import {
   cambiarEstadoDocente,
   crearDocente,
   eliminarDocente,
+  fijarTopePracticas,
   restablecerContrasenaDocente,
 } from './actions';
 
@@ -153,6 +154,33 @@ describe('actualizarDocente', () => {
     });
   });
 
+  // P3-02: cambiar el correo conserva la identidad de Google ya enlazada, que seguiría entrando.
+  it('no cambia el correo de una cuenta que ya entró con Google', async () => {
+    cuentaDocente();
+    admin.auth.admin.getUserById.mockResolvedValueOnce({
+      data: { user: { identities: [{ provider: 'email' }, { provider: 'google' }] } },
+      error: null,
+    });
+
+    expect(await actualizarDocente({ id: ID, ...DATOS })).toEqual({
+      ok: false,
+      error: expect.stringMatching(/ya entró con Google/),
+    });
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+    // Solo se leyó la cuenta: no se actualizó nada.
+    expect(admin.de('usuario')).toHaveLength(1);
+  });
+
+  it('si no puede leer las identidades, no cambia el correo a ciegas', async () => {
+    cuentaDocente();
+    admin.auth.admin.getUserById.mockResolvedValueOnce({
+      data: { user: null },
+      error: { code: 'unexpected_failure' },
+    });
+    expect(await actualizarDocente({ id: ID, ...DATOS })).toMatchObject({ ok: false });
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+  });
+
   it('no puede quitarse a sí mismo el rol de Administrador', async () => {
     expect(await actualizarDocente({ id: YO, ...DATOS, rol: 'docente' })).toEqual({
       ok: false,
@@ -242,5 +270,42 @@ describe('eliminarDocente', () => {
   it('no puede eliminarse a sí mismo', async () => {
     expect(await eliminarDocente({ id: YO })).toMatchObject({ ok: false });
     expect(admin.consultas).toHaveLength(0);
+  });
+});
+
+describe('fijarTopePracticas', () => {
+  it('guarda el tope con la clave secreta, ya verificado el Administrador', async () => {
+    admin.responder('ajuste_plataforma', { data: [{ tope_practicas_por_cuenta: 4 }] });
+
+    expect(await fijarTopePracticas({ tope: 4 })).toEqual({ ok: true, datos: { tope: 4 } });
+    expect(requerirSuperadmin).toHaveBeenCalled();
+    expect(admin.de('ajuste_plataforma')[0]).toMatchObject({
+      operacion: 'update',
+      valores: { tope_practicas_por_cuenta: 4, actualizado_por: YO },
+    });
+  });
+
+  it('con null lo desactiva', async () => {
+    admin.responder('ajuste_plataforma', { data: [{ tope_practicas_por_cuenta: null }] });
+    expect(await fijarTopePracticas({ tope: null })).toEqual({ ok: true, datos: { tope: null } });
+    expect(admin.de('ajuste_plataforma')[0]).toMatchObject({
+      valores: { tope_practicas_por_cuenta: null },
+    });
+  });
+
+  it.each([0, 101, 2.5, '4', undefined])('rechaza un tope no válido (%s)', async tope => {
+    expect(await fijarTopePracticas({ tope })).toMatchObject({ ok: false });
+    expect(admin.de('ajuste_plataforma')).toEqual([]);
+  });
+
+  it('si la base falla o no hay fila de ajustes, avisa sin detalles', async () => {
+    admin.responder('ajuste_plataforma', { error: { code: 'XX000' } });
+    expect(await fijarTopePracticas({ tope: 3 })).toEqual({
+      ok: false,
+      error: 'No pudimos guardar el tope. Inténtalo de nuevo.',
+    });
+
+    admin.responder('ajuste_plataforma', { data: [] });
+    expect(await fijarTopePracticas({ tope: 3 })).toMatchObject({ ok: false });
   });
 });
