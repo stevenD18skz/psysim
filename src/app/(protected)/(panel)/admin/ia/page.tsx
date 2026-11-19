@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, MonitorPlay, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, MonitorPlay, RefreshCw } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -8,6 +8,7 @@ import {
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { Indicadores } from '@/components/comun/indicadores';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import {
@@ -351,9 +352,15 @@ function Seccion({
         {titulo}
       </h2>
       {vacio ? (
-        <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-          {vacio}
-        </p>
+        <div className="overflow-hidden rounded-2xl border border-dashed border-border bg-card/80">
+          <EstadoVacio
+            variante="compacto"
+            sinBordeSuperior
+            icono={vacio.includes('Sin ') || vacio.includes('No hubo') ? Bot : CheckCircle2}
+            tono={vacio.includes('Sin ') || vacio.includes('No hubo') ? 'neutro' : 'salvia'}
+            titulo={vacio}
+          />
+        </div>
       ) : (
         children
       )}
@@ -385,7 +392,7 @@ function Tabla({
         </thead>
         <tbody className="divide-y">
           {filas.map(([primera, ...resto]) => (
-            <tr key={primera}>
+            <tr key={primera} className="transition-colors even:bg-muted/30 hover:bg-muted/60">
               <th scope="row" className="px-4 py-3 text-left font-medium">
                 {primera}
               </th>

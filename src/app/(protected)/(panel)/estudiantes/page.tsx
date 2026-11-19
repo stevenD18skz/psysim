@@ -1,9 +1,12 @@
 import {
-  Activity,
   ArrowRight,
+  ClipboardList,
   KeyRound,
+  Mail,
   MessageSquareText,
   MonitorPlay,
+  SearchX,
+  UserCheck,
   UsersRound,
 } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -15,10 +18,14 @@ import {
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { Indicadores } from '@/components/comun/indicadores';
 import { Paginacion } from '@/components/comun/paginacion';
 import { BotonRegistrarEstudiante } from '@/components/estudiantes/boton-registrar';
 import { ListaEstudiantes } from '@/components/estudiantes/lista-estudiantes';
+import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
+import { Button } from '@/components/ui/button';
 import { obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirDocente } from '@/lib/auth/dal';
 import {
@@ -84,6 +91,8 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
   );
 
   const conCuenta = estudiantes.filter(e => e.cuentaVinculada).length;
+  const ahora = new Date();
+  const hayFiltros = Boolean(consulta || filtro !== 'todos' || docente);
 
   const subbarra =
     estudiantes.length > 0 ? (
@@ -114,6 +123,7 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
 
   return (
     <div className="flex flex-1 flex-col">
+      <RefrescoAutomatico activo={totales.enCurso > 0} segundos={30} />
       <EncabezadoPagina
         titulo="Estudiantes"
         descripcion="Regístralos con su correo institucional para asignarles prácticas. Entran con su cuenta de Google de la universidad, sin contraseña."
@@ -123,21 +133,31 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
 
       <ContenedorHero>
         {estudiantes.length === 0 ? (
-          <div
-            className={`flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card p-10 text-center ${SOMBRA_SOBRE_NOGAL}`}
-          >
-            <span className="flex size-12 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
-              <UsersRound className="size-6" aria-hidden />
-            </span>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-xl font-bold">Aún no tienes estudiantes</h2>
-              <p className="max-w-md text-sm text-muted-foreground">
-                Regístralos con su código, nombre y correo @correounivalle.edu.co. Después podrás
-                asignarles prácticas.
-              </p>
-            </div>
-            <BotonRegistrarEstudiante />
-          </div>
+          <EstadoVacio
+            icono={UsersRound}
+            tono="salvia"
+            elevado
+            titulo="Aquí vivirán tus estudiantes"
+            descripcion="Registra a tu grupo con su código y correo @correounivalle.edu.co para empezar a asignarles prácticas clínicas y seguir su avance."
+            accion={<BotonRegistrarEstudiante />}
+            pasos={[
+              {
+                icono: Mail,
+                titulo: 'Correo institucional',
+                texto: 'Solo necesitas su código, nombre completo y correo @correounivalle.edu.co.',
+              },
+              {
+                icono: UserCheck,
+                titulo: 'Ingreso con Google',
+                texto: 'Entran directamente con su cuenta de la universidad, sin crear contraseña.',
+              },
+              {
+                icono: ClipboardList,
+                titulo: 'Seguimiento en un lugar',
+                texto: 'Asigna casos con código único, lee transcripciones e imprime sus notas.',
+              },
+            ]}
+          />
         ) : (
           <>
             <Indicadores
@@ -149,14 +169,16 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                   valor: estudiantes.length,
                   detalle: `${conCuenta} con cuenta de Google`,
                   ayuda:
-                    'Estudiantes registrados. Los que figuran con cuenta ya entraron al menos una vez con su correo institucional.',
+                    'Estudiantes registrados. Los que figuran con cuenta ya pueden recibir códigos con su correo institucional.',
                 },
                 {
-                  icono: Activity,
+                  icono: IndicadorEnVivo,
                   etiqueta: 'Practicando ahora',
                   valor: totales.enCurso,
                   detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
                   tono: totales.enCurso > 0 ? 'activo' : undefined,
+                  ayuda:
+                    'Estudiantes conversando con el paciente en este momento. La vista se actualiza sola cada 30 segundos.',
                 },
                 {
                   icono: MessageSquareText,
@@ -164,6 +186,8 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                   valor: totales.pendientes,
                   detalle: totales.pendientes === 0 ? 'Al día' : 'Esperan retroalimentación',
                   tono: totales.pendientes > 0 ? 'atencion' : undefined,
+                  ayuda:
+                    'Prácticas terminadas (o con al menos 3 intervenciones) pendientes de retroalimentación.',
                 },
                 {
                   icono: KeyRound,
@@ -176,27 +200,49 @@ export default async function EstudiantesPage({ searchParams }: PageProps<'/estu
                   icono: MonitorPlay,
                   etiqueta: 'Prácticas',
                   valor: totales.sesiones,
-                  detalle: 'Entre todos tus estudiantes',
+                  detalle: esAdmin ? 'En toda la plataforma' : 'Entre todos tus estudiantes',
                 },
               ]}
             />
             <div className="flex flex-col gap-4">
               <ListaEstudiantes
                 estudiantes={resultado.visibles}
+                totalFiltrados={resultado.total}
+                totalEstudiantes={estudiantes.length}
+                ahora={ahora}
                 vacio={
-                  consulta ? (
-                    <>
-                      Ningún estudiante coincide con{' '}
-                      <span className="font-medium text-foreground">{consulta}</span>.
-                    </>
-                  ) : (
-                    'Ningún estudiante cumple este filtro.'
-                  )
+                  <EstadoVacio
+                    variante="inline"
+                    icono={SearchX}
+                    titulo={
+                      consulta
+                        ? 'Ningún estudiante coincide con tu búsqueda'
+                        : 'Ningún estudiante cumple este filtro'
+                    }
+                    descripcion={
+                      consulta ? (
+                        <>
+                          No encontramos resultados para{' '}
+                          <span className="font-medium text-foreground">{consulta}</span>. Prueba
+                          con otro nombre, código o correo, o quita los filtros activos.
+                        </>
+                      ) : (
+                        'Cambia el criterio seleccionado o vuelve a mostrar todos los estudiantes.'
+                      )
+                    }
+                    accion={
+                      hayFiltros ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href="/estudiantes">Quitar filtros</Link>
+                        </Button>
+                      ) : undefined
+                    }
+                  />
                 }
                 controles={
                   <div
                     className={cn(
-                      'grid gap-3 sm:grid-cols-2 lg:items-end',
+                      'grid gap-3 rounded-2xl border bg-card p-3.5 sm:grid-cols-2 lg:items-end',
                       docentesOpciones.length > 0
                         ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
                         : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'

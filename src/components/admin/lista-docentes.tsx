@@ -1,13 +1,16 @@
 'use client';
 
-import { Search, ShieldCheck } from 'lucide-react';
+import { Search, SearchX, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
 import { AccionesDocente } from '@/components/admin/acciones-docente';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { PaginacionLocal } from '@/components/comun/paginacion';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Selector } from '@/components/ui/selector';
 import { describirAcceso, filtrarDocentes, type FiltroEstadoDocente } from '@/lib/admin/docentes';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
 import { paginar } from '@/lib/listas';
@@ -100,23 +103,20 @@ export function ListaDocentes({
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="whitespace-nowrap">Ordenar por</span>
-            <select
-              value={orden}
-              onChange={evento => {
-                setOrden(evento.target.value as OrdenDocentes);
+            <Selector
+              valor={orden}
+              tamano="sm"
+              ariaLabel="Ordenar docentes por"
+              opciones={ORDENES}
+              className="w-44"
+              onChange={nuevo => {
+                setOrden(nuevo as OrdenDocentes);
                 setPagina(1);
               }}
-              className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground shadow-xs outline-hidden focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              {ORDENES.map(o => (
-                <option key={o.valor} value={o.valor}>
-                  {o.etiqueta}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
           <div className="relative sm:w-72">
             <label htmlFor={id} className="sr-only">
               Buscar cuenta
@@ -175,7 +175,10 @@ export function ListaDocentes({
               return (
                 <tr
                   key={docente.id}
-                  className={cn('align-middle', !docente.activo && 'bg-muted/30')}
+                  className={cn(
+                    'align-middle transition-colors even:bg-muted/30 hover:bg-muted/60',
+                    !docente.activo && 'bg-muted/45 text-muted-foreground'
+                  )}
                 >
                   <th scope="row" className="px-4 py-3 text-left font-normal">
                     <div className="flex items-center gap-3">
@@ -250,8 +253,27 @@ export function ListaDocentes({
             })}
             {visibles.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  Ninguna cuenta coincide con la búsqueda.
+                <td colSpan={6} className="px-4 py-4">
+                  <EstadoVacio
+                    variante="inline"
+                    icono={SearchX}
+                    titulo="Ninguna cuenta coincide con los filtros"
+                    descripcion="Prueba con otro nombre, correo o código, o vuelve a mostrar todas las cuentas."
+                    accion={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEstado('todos');
+                          setTermino('');
+                          setPagina(1);
+                        }}
+                      >
+                        Mostrar todas las cuentas
+                      </Button>
+                    }
+                  />
                 </td>
               </tr>
             )}

@@ -1,4 +1,4 @@
-import { ArrowRight, Plus } from 'lucide-react';
+import { ArrowRight, Plus, SearchX } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -11,6 +11,7 @@ import {
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { Button } from '@/components/ui/button';
 import { requerirDocente } from '@/lib/auth/dal';
 import { ETIQUETA_CATEGORIA, ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
@@ -142,9 +143,16 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
         </div>
 
         {hayFiltros && visibles.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-input/50 px-5 py-8 text-center text-muted-foreground">
-            Ningún caso coincide con la búsqueda. Prueba con otras palabras o quita los filtros.
-          </p>
+          <EstadoVacio
+            icono={SearchX}
+            titulo="Ningún caso coincide con los filtros"
+            descripcion="Prueba con otras palabras, cambia la categoría o el nivel, o quita los filtros para volver a ver todo el catálogo."
+            accion={
+              <Button asChild size="sm" variant="outline">
+                <Link href="/configuracion/casos">Quitar filtros</Link>
+              </Button>
+            }
+          />
         ) : (
           <SeccionesCasos
             propios={propios}
@@ -154,9 +162,16 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
             inicial={totalPropios > 0 || hayFiltros ? 'propios' : 'predefinidos'}
             vacioPropios={
               totalPropios > 0 ? (
-                <p className="rounded-xl border border-dashed border-input/50 px-5 py-6 text-sm text-muted-foreground">
-                  Ninguno de tus casos coincide con los filtros.
-                </p>
+                <EstadoVacio
+                  icono={SearchX}
+                  titulo="Ninguno de tus casos coincide con estos filtros"
+                  descripcion="Cambia el término de búsqueda o quita los filtros para ver todos tus casos propios."
+                  accion={
+                    <Button asChild size="sm" variant="outline">
+                      <Link href="/configuracion/casos">Quitar filtros</Link>
+                    </Button>
+                  }
+                />
               ) : (
                 <EstadoVacioMisCasos contexto="biblioteca" />
               )

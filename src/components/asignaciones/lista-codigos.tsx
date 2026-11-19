@@ -1,16 +1,28 @@
 'use client';
 
-import { Ban, ChevronDown, Search } from 'lucide-react';
+import {
+  ArrowRight,
+  Ban,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  KeyRound,
+  Search,
+  SearchX,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useId, useState } from 'react';
 
 import { ConfirmacionAnularCodigo, useAnularCodigo } from '@/components/asignaciones/anular-codigo';
 import { BotonEntregarEquipo } from '@/components/asignaciones/boton-entregar-equipo';
 import { ReenviarCodigo } from '@/components/asignaciones/reenviar-codigo';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { PaginacionLocal } from '@/components/comun/paginacion';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
+import { formatearVencimientoCodigo } from '@/lib/fechas';
 import { coincideBusqueda, paginar } from '@/lib/listas';
 import { type EstadoVisible } from '@/lib/sesiones/estados';
 import { cn } from '@/lib/utils';
@@ -43,9 +55,16 @@ const FILTROS_HISTORIAL: {
 export function ListaCodigos({
   asignaciones,
   estudiante,
+  ahora,
 }: {
   asignaciones: Asignacion[];
-  estudiante: { nombre: string; correo: string | null };
+  estudiante: {
+    nombre: string;
+    correo: string | null;
+    codigo?: string;
+    cuentaVinculada?: boolean;
+  };
+  ahora?: Date;
 }) {
   const idBusquedaHistorial = useId();
   const [paginaVigentes, setPaginaVigentes] = useState(1);
@@ -54,12 +73,30 @@ export function ListaCodigos({
   const [estadoHistorial, setEstadoHistorial] = useState<
     'todos' | Exclude<EstadoAsignacion, 'pendiente'>
   >('todos');
+  const primerNombre = estudiante.nombre.split(' ')[0] ?? estudiante.nombre;
+  const enlaceAsignar =
+    estudiante.cuentaVinculada !== false && estudiante.codigo
+      ? `/configuracion?estudiante=${estudiante.codigo}`
+      : null;
 
   if (asignaciones.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-        Aún no le has asignado prácticas.
-      </p>
+      <EstadoVacio
+        icono={KeyRound}
+        tono="salvia"
+        titulo={`Aún no le has asignado prácticas a ${primerNombre}`}
+        descripcion="Cuando le asignes un caso clínico, aquí verás el código de un solo uso para compartirlo, reenviarlo o anularlo."
+        accion={
+          enlaceAsignar ? (
+            <Button asChild variant="outline">
+              <Link href={enlaceAsignar}>
+                Asignar práctica
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 
@@ -80,9 +117,14 @@ export function ListaCodigos({
     <div className="flex flex-col gap-3">
       {vigentes.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+          <ul className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
             {resultadoVigentes.visibles.map(asignacion => (
-              <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
+              <FilaCodigo
+                key={asignacion.id}
+                asignacion={asignacion}
+                estudiante={estudiante}
+                ahora={ahora}
+              />
             ))}
           </ul>
           <PaginacionLocal
@@ -93,9 +135,26 @@ export function ListaCodigos({
           />
         </div>
       ) : (
-        <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-          No tiene códigos sin usar.
-        </p>
+        <div className="overflow-hidden rounded-2xl border border-dashed border-border bg-card/80">
+          <EstadoVacio
+            variante="compacto"
+            sinBordeSuperior
+            icono={CheckCircle2}
+            tono="salvia"
+            titulo="Sin códigos pendientes por usar"
+            descripcion={`Todos los códigos generados para ${primerNombre} ya fueron usados, anulados o vencieron.`}
+            accion={
+              enlaceAsignar ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={enlaceAsignar}>
+                    Asignar nueva práctica
+                    <ArrowRight aria-hidden />
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
       )}
       {historial.length > 0 && (
         <details className="group/historial rounded-xl border bg-card">
@@ -161,11 +220,35 @@ export function ListaCodigos({
           )}
           <ul className="flex flex-col divide-y border-t">
             {resultadoHistorial.visibles.map(asignacion => (
-              <FilaCodigo key={asignacion.id} asignacion={asignacion} estudiante={estudiante} />
+              <FilaCodigo
+                key={asignacion.id}
+                asignacion={asignacion}
+                estudiante={estudiante}
+                ahora={ahora}
+              />
             ))}
             {resultadoHistorial.visibles.length === 0 && (
-              <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Ningún código coincide con este filtro.
+              <li>
+                <EstadoVacio
+                  variante="inline"
+                  icono={SearchX}
+                  titulo="Ningún código coincide con este filtro"
+                  descripcion="Prueba con otro término o vuelve a ver todo el historial de códigos."
+                  accion={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEstadoHistorial('todos');
+                        setBusquedaHistorial('');
+                        setPaginaHistorial(1);
+                      }}
+                    >
+                      Mostrar todo el historial
+                    </Button>
+                  }
+                />
               </li>
             )}
           </ul>
@@ -189,28 +272,51 @@ export function ListaCodigos({
 function FilaCodigo({
   asignacion,
   estudiante,
+  ahora,
 }: {
   asignacion: Asignacion;
   estudiante: { nombre: string; correo: string | null };
+  ahora?: Date;
 }) {
   const pendiente = asignacion.estado === 'pendiente';
+  const horasRestantes =
+    pendiente && ahora
+      ? (new Date(asignacion.expiraEn).getTime() - ahora.getTime()) / 3_600_000
+      : null;
+  const urgente = horasRestantes !== null && horasRestantes < 24;
+  const vencimiento =
+    pendiente && ahora ? formatearVencimientoCodigo(asignacion.expiraEn, ahora) : null;
   const { confirmando, anulando, botonAnular, abrir, cancelar, confirmar } = useAnularCodigo({
     id: asignacion.id,
     codigo: asignacion.codigo,
   });
 
   return (
-    <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-3 px-4 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-base font-semibold tracking-wider">
             {asignacion.codigo}
           </span>
           <InsigniaEstado estado={ESTADOS[asignacion.estado]} />
+          {vencimiento && (
+            <span
+              title={`Vence el ${formatearFechaHora(asignacion.expiraEn)}`}
+              className={cn(
+                'inline-flex items-center gap-1 text-xs tabular-nums',
+                urgente
+                  ? 'rounded-full bg-ambar-suave px-2 py-0.5 font-semibold text-ambar'
+                  : 'text-muted-foreground'
+              )}
+            >
+              <Clock3 className="size-3.5 shrink-0" aria-hidden />
+              {vencimiento}
+            </span>
+          )}
         </div>
         <p className="text-sm text-muted-foreground">
           {asignacion.escenario.titulo} · generado el {formatearFechaHora(asignacion.creadoEn)}
-          {pendiente && <> · vence el {formatearFechaHora(asignacion.expiraEn)}</>}
+          {pendiente && !vencimiento && <> · vence el {formatearFechaHora(asignacion.expiraEn)}</>}
         </p>
       </div>
       {pendiente && (

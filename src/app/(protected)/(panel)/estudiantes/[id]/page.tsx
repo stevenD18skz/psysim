@@ -1,12 +1,15 @@
 import {
   ArrowRight,
   ClipboardCheck,
+  ClipboardList,
   Clock,
   Mail,
+  MailPlus,
   MessageSquareText,
   MonitorPlay,
   Pencil,
   Printer,
+  SearchX,
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { type Route } from 'next';
@@ -20,10 +23,14 @@ import {
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { Indicadores } from '@/components/comun/indicadores';
 import { Paginacion } from '@/components/comun/paginacion';
+import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { EditarEstudiante } from '@/components/estudiantes/editar-estudiante';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
+import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { ListaSesiones } from '@/components/sesiones/lista-sesiones';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { Button } from '@/components/ui/button';
@@ -86,6 +93,13 @@ export default async function EstudiantePage({
   );
   const url = (cambios: Record<string, string | number | null>) =>
     conParametros(ruta, actuales, cambios, { estado: 'todas' });
+  const ahora = new Date();
+  const primerNombre = estudiante.nombre.split(' ')[0] ?? estudiante.nombre;
+  const codigosVigentes = asignaciones.filter(a => a.estado === 'pendiente').length;
+  const promedioSegundos =
+    metricas.sesiones > 0 ? Math.round(metricas.segundosPractica / metricas.sesiones) : 0;
+  const promedioIntervenciones =
+    metricas.sesiones > 0 ? Math.round(metricas.intervenciones / metricas.sesiones) : 0;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -93,7 +107,16 @@ export default async function EstudiantePage({
 
       <EncabezadoPagina
         volver={{ href: '/estudiantes', etiqueta: 'Estudiantes' }}
-        titulo={estudiante.nombre}
+        titulo={
+          <span className="flex items-center gap-3 sm:gap-4">
+            <AvatarCuenta
+              avatarId={estudiante.avatarId}
+              nombre={estudiante.nombre}
+              className="size-10 text-sm sm:size-12 sm:text-base"
+            />
+            {estudiante.nombre}
+          </span>
+        }
         acciones={
           <>
             <Button asChild size="lg" variant="outline">
@@ -119,7 +142,19 @@ export default async function EstudiantePage({
           </>
         }
       >
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sidebar-muted">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-sidebar-muted">
+          {metricas.enCurso > 0 ? (
+            <InsigniaEstado estado={{ texto: 'Practicando ahora', tono: 'en-curso' }} />
+          ) : metricas.pendientesRetroalimentacion > 0 ? (
+            <InsigniaEstado
+              estado={{
+                texto: `${metricas.pendientesRetroalimentacion} por revisar`,
+                tono: 'pendiente',
+              }}
+            />
+          ) : metricas.sesiones > 0 ? (
+            <InsigniaEstado estado={{ texto: 'Al día', tono: 'listo' }} />
+          ) : null}
           <span className="font-mono text-sidebar-foreground">{estudiante.codigo}</span>
           <span className="flex items-center gap-1.5">
             <Mail className="size-4 text-laton-texto" aria-hidden />
@@ -130,7 +165,7 @@ export default async function EstudiantePage({
               · Docente:{' '}
               <Link
                 href={`/admin/docentes/${estudiante.docente.id}`}
-                className="font-medium text-laton-texto underline-offset-4 hover:text-sidebar-foreground hover:underline"
+                className="font-medium text-laton-texto underline-offset-4 hover:text-sidebar-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-laton-claro focus-visible:outline-solid"
               >
                 {estudiante.docente.nombre}
               </Link>
@@ -140,42 +175,113 @@ export default async function EstudiantePage({
             ·{' '}
             {estudiante.cuentaVinculada
               ? 'Entra con Google'
-              : 'Sin cuenta: agrega su correo para asignarle prácticas'}
+              : estudiante.correo
+                ? 'Aún no ha entrado con Google'
+                : 'Sin cuenta vinculada'}
           </span>
-        </p>
+        </div>
       </EncabezadoPagina>
 
       <ContenedorHero>
         <Indicadores
           className={SOMBRA_SOBRE_NOGAL}
           indicadores={[
-            { icono: MonitorPlay, etiqueta: 'Prácticas', valor: metricas.sesiones },
+            {
+              icono: MonitorPlay,
+              etiqueta: 'Prácticas',
+              valor: metricas.sesiones,
+              detalle:
+                metricas.enCurso > 0
+                  ? `${metricas.enCurso} en curso ahora`
+                  : metricas.pendientesRetroalimentacion > 0
+                    ? `${metricas.pendientesRetroalimentacion} por revisar`
+                    : metricas.sesiones === 0
+                      ? 'Sin prácticas aún'
+                      : `${metricas.finalizadas} terminadas`,
+              tono:
+                metricas.enCurso > 0
+                  ? 'activo'
+                  : metricas.pendientesRetroalimentacion > 0
+                    ? 'atencion'
+                    : undefined,
+            },
             {
               icono: Clock,
               etiqueta: 'Tiempo de práctica',
               valor: formatearTiempoPractica(metricas.segundosPractica),
+              detalle:
+                promedioSegundos > 0
+                  ? `${formatearTiempoPractica(promedioSegundos)} por práctica`
+                  : 'Sin tiempo registrado',
             },
             {
               icono: MessageSquareText,
               etiqueta: 'Intervenciones',
               valor: metricas.intervenciones,
+              detalle:
+                promedioIntervenciones > 0
+                  ? `~${promedioIntervenciones} por práctica`
+                  : 'Mensajes al paciente',
             },
             {
               icono: ClipboardCheck,
               etiqueta: 'Nota promedio',
               valor: formatearNota(metricas.notaPromedio),
+              detalle:
+                conteos.publicadas > 0
+                  ? `${conteos.publicadas} ${conteos.publicadas === 1 ? 'revisión publicada' : 'revisiones publicadas'}`
+                  : 'Sin notas publicadas',
             },
           ]}
         />
 
+        {!estudiante.cuentaVinculada && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-ambar/35 bg-ambar-suave/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-ambar-suave text-ambar"
+              >
+                <MailPlus className="size-4.5" />
+              </span>
+              <div className="flex flex-col gap-0.5">
+                <p className="text-sm font-semibold text-foreground">
+                  {estudiante.correo
+                    ? `${primerNombre} aún no ha vinculado su cuenta`
+                    : `Falta el correo institucional de ${primerNombre}`}
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  {estudiante.correo
+                    ? 'Asegúrate de que su correo @correounivalle.edu.co sea correcto; una vez vinculado podrás asignarle códigos.'
+                    : 'Agrega su correo @correounivalle.edu.co para crear su acceso con Google y poder asignarle prácticas.'}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0">
+              <EditarEstudiante
+                estudiante={estudiante}
+                etiqueta={estudiante.correo ? 'Revisar correo' : 'Agregar correo'}
+                icono={<MailPlus aria-hidden />}
+              />
+            </div>
+          </div>
+        )}
+
         <section aria-labelledby="sesiones-titulo" className="flex flex-col gap-4">
-          <h2 id="sesiones-titulo" className="text-xl font-bold tracking-[-0.015em]">
-            Prácticas
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id="sesiones-titulo" className="text-xl font-bold tracking-[-0.015em]">
+              Prácticas
+            </h2>
+            <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+              {sesiones.length}
+            </span>
+          </div>
           {sesiones.length > 0 && (
-            <nav
+            <PistaSegmentada
+              elemento="nav"
               aria-label="Filtrar prácticas por estado"
               className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
+              claseIndicador="rounded-lg bg-nogal"
             >
               {FILTROS_PRACTICAS.map(f => {
                 const activo = f.valor === filtro;
@@ -186,7 +292,7 @@ export default async function EstudiantePage({
                     scroll={false}
                     aria-current={activo ? 'page' : undefined}
                     className={cn(
-                      'flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                      'flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors duration-300 ease-salida focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
                       activo
                         ? 'bg-nogal text-lino'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -196,7 +302,7 @@ export default async function EstudiantePage({
                     <span
                       className={cn(
                         'rounded-full px-1.5 text-xs tabular-nums',
-                        activo ? 'bg-lino/15' : 'bg-muted'
+                        activo ? 'bg-lino/15 text-lino' : 'bg-muted text-muted-foreground'
                       )}
                     >
                       {conteos[f.valor]}
@@ -204,16 +310,43 @@ export default async function EstudiantePage({
                   </Link>
                 );
               })}
-            </nav>
+            </PistaSegmentada>
           )}
           <ListaSesiones
             sesiones={pagina.visibles}
             para="docente"
+            ahora={ahora}
             enlace={sesion => `/sesiones/${sesion.id}`}
             vacio={
-              sesiones.length === 0
-                ? 'Aún no ha hecho ninguna práctica. Aparecerá aquí en cuanto use un código.'
-                : 'Ninguna práctica en este estado.'
+              sesiones.length === 0 ? (
+                <EstadoVacio
+                  icono={ClipboardList}
+                  tono="salvia"
+                  titulo={`${primerNombre} aún no ha hecho prácticas`}
+                  descripcion="Cuando use un código de acceso y converse con el paciente, cada entrevista aparecerá aquí con su duración, estado y acceso directo a la revisión."
+                  accion={
+                    estudiante.cuentaVinculada ? (
+                      <Button asChild variant="outline">
+                        <Link href={`/configuracion?estudiante=${estudiante.codigo}`}>
+                          Asignar primera práctica
+                          <ArrowRight aria-hidden />
+                        </Link>
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <EstadoVacio
+                  icono={SearchX}
+                  titulo="Ninguna práctica en este estado"
+                  descripcion={`No hay entrevistas de ${primerNombre} bajo el filtro seleccionado.`}
+                  accion={
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={url({ estado: 'todas' }) as Route}>Ver todas las prácticas</Link>
+                    </Button>
+                  }
+                />
+              )
             }
           />
           {pagina.totalPaginas > 1 && (
@@ -227,17 +360,29 @@ export default async function EstudiantePage({
 
         <section aria-labelledby="codigos-titulo" className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <h2 id="codigos-titulo" className="text-xl font-bold tracking-[-0.015em]">
-              Códigos de acceso
-            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 id="codigos-titulo" className="text-xl font-bold tracking-[-0.015em]">
+                Códigos de acceso
+              </h2>
+              {asignaciones.length > 0 && (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                  {codigosVigentes > 0 ? `${codigosVigentes} vigentes` : asignaciones.length}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
-              Cada código sirve una sola vez y solo con la cuenta de{' '}
-              {estudiante.nombre.split(' ')[0]}.
+              Cada código sirve una sola vez y solo con la cuenta de {primerNombre}.
             </p>
           </div>
           <ListaCodigos
             asignaciones={asignaciones}
-            estudiante={{ nombre: estudiante.nombre, correo: estudiante.correo }}
+            estudiante={{
+              nombre: estudiante.nombre,
+              correo: estudiante.correo,
+              codigo: estudiante.codigo,
+              cuentaVinculada: estudiante.cuentaVinculada,
+            }}
+            ahora={ahora}
           />
         </section>
       </ContenedorHero>

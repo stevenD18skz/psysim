@@ -1,10 +1,13 @@
 'use client';
 
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, SearchX, UsersRound } from 'lucide-react';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { PaginacionLocal } from '@/components/comun/paginacion';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { contarPracticas, formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { coincideBusqueda, paginar } from '@/lib/listas';
@@ -90,9 +93,11 @@ export function SeccionesFichaDocente({
         </div>
 
         {estudiantes.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Aún no ha registrado estudiantes.
-          </p>
+          <EstadoVacio
+            icono={UsersRound}
+            titulo="Aún no ha registrado estudiantes"
+            descripcion={`Cuando ${nombreDocente.split(' ')[0]} registre estudiantes con su correo institucional, su actividad aparecerá aquí.`}
+          />
         ) : (
           <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-2xl border bg-card shadow-xs">
@@ -116,22 +121,34 @@ export function SeccionesFichaDocente({
                 </thead>
                 <tbody className="divide-y">
                   {paginaEst.visibles.map(estudiante => (
-                    <tr key={estudiante.id}>
+                    <tr
+                      key={estudiante.id}
+                      className="transition-colors even:bg-muted/30 hover:bg-muted/60"
+                    >
                       <th scope="row" className="px-4 py-3 text-left font-normal">
-                        <Link
-                          href={`/estudiantes/${estudiante.id}`}
-                          className="block font-medium underline-offset-4 hover:underline"
-                        >
-                          {estudiante.nombre}
-                        </Link>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {estudiante.codigo}
-                        </span>
-                        {estudiante.correo && (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {estudiante.correo}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-3">
+                          <AvatarCuenta
+                            avatarId={estudiante.avatarId}
+                            nombre={estudiante.nombre}
+                            className="size-8 text-xs"
+                          />
+                          <div className="min-w-0">
+                            <Link
+                              href={`/estudiantes/${estudiante.id}`}
+                              className="block font-medium underline-offset-4 hover:underline"
+                            >
+                              {estudiante.nombre}
+                            </Link>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {estudiante.codigo}
+                            </span>
+                            {estudiante.correo && (
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {estudiante.correo}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </th>
                       <td className="px-4 py-3 tabular-nums">
                         {contarPracticas(estudiante.metricas.sesiones)}
@@ -153,8 +170,26 @@ export function SeccionesFichaDocente({
                   ))}
                   {paginaEst.visibles.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-                        Ningún estudiante coincide con la búsqueda.
+                      <td colSpan={4} className="px-4 py-4">
+                        <EstadoVacio
+                          variante="inline"
+                          icono={SearchX}
+                          titulo="Ningún estudiante coincide con la búsqueda"
+                          descripcion="Prueba con otro nombre, código o correo."
+                          accion={
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setBusquedaEstudiantes('');
+                                setPaginaEstudiantes(1);
+                              }}
+                            >
+                              Limpiar búsqueda
+                            </Button>
+                          }
+                        />
                       </td>
                     </tr>
                   )}
@@ -211,13 +246,30 @@ export function SeccionesFichaDocente({
         </div>
 
         {casos.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Aún no ha creado casos propios.
-          </p>
+          <EstadoVacio
+            icono={FileText}
+            titulo="Aún no ha creado casos propios"
+            descripcion="Los casos que diseñe a medida para sus clases aparecerán listados en esta sección."
+          />
         ) : paginaCas.visibles.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Ningún caso coincide con la búsqueda.
-          </p>
+          <EstadoVacio
+            icono={SearchX}
+            titulo="Ningún caso coincide con la búsqueda"
+            descripcion="Prueba con otro título o código."
+            accion={
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setBusquedaCasos('');
+                  setPaginaCasos(1);
+                }}
+              >
+                Limpiar búsqueda
+              </Button>
+            }
+          />
         ) : (
           <div className="flex flex-col gap-4">
             <ul className="grid gap-3 sm:grid-cols-2">
