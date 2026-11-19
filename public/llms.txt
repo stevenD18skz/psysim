@@ -7,13 +7,14 @@ Un docente de psicología elige un caso (o crea el suyo), asigna una práctica a
 ## Páginas públicas
 
 - [Inicio](https://psysim.vercel.app/): cómo funciona, casos disponibles, tecnología y preguntas frecuentes.
+- [Manual de uso](https://psysim.vercel.app/manual): guía por rol, controles de la simulación 3D y solución de problemas frecuentes.
 - [Aviso de privacidad](https://psysim.vercel.app/privacidad): qué datos trata PsySim, para qué y cómo ejercer los derechos (Ley 1581 de 2012).
 
 ## Datos clave
 
-- Casos de ejemplo en la portada: duelo y pérdida, ansiedad generalizada, episodio depresivo leve, crisis de pánico aguda, conflicto de pareja y estrés académico.
+- Casos de ejemplo en la portada: doce casos clínicos y cotidianos (duelo y pérdida, ansiedad generalizada, episodio depresivo leve, crisis de pánico aguda, conflicto de pareja, estrés académico y más).
 - Funciona en el navegador de un computador con teclado y ratón, sin gafas de realidad virtual ni instalaciones.
-- IA conversacional: Google Gemini mediante Vercel AI SDK. El paciente es una IA, no una persona.
+- IA conversacional: Orquestador de NPC y Google Gemini mediante Vercel AI SDK. El paciente es una IA, no una persona.
 - Es una práctica formativa: no reemplaza la práctica con personas ni da un diagnóstico.
 - Las páginas de las prácticas, los resultados y el panel del docente son privadas y no se indexan.
 - Autor: Brayan Steven Narváez Valdés.

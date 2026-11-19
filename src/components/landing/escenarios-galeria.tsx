@@ -16,38 +16,113 @@ import { useState } from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
 import { IndicadorNivel, InsigniaCategoria } from '@/components/casos/insignias-caso';
+import { PistaSegmentada } from '@/components/comun/pista-segmentada';
 import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { Button } from '@/components/ui/button';
 import {
+  type CategoriaPublica,
   ESCENARIOS_PUBLICOS,
   type EscenarioPublico,
   NIVELES_PUBLICOS,
 } from '@/lib/landing/escenarios';
+import { cn } from '@/lib/utils';
 import { type CategoriaEscenario, type DificultadEscenario } from '@/types';
 
+type FiltroCategoria = 'todos' | CategoriaPublica;
+
 /**
- * Galería de escenarios: tarjetas con la captura de cada consultorio. Al elegir una se abre un
- * detalle con el paciente, la competencia que se entrena y su primera frase.
+ * Galería de los doce casos públicos: tarjetas con silueta en arco continua (sin esquinas blancas
+ * detrás del vano) y filtro segmentado por enfoque. Al elegir un caso se abre su ficha completa.
  */
 export function EscenariosGaleria() {
-  const [abierto, setAbierto] = useState<number | null>(null);
-  const total = ESCENARIOS_PUBLICOS.length;
-  const actual = abierto === null ? null : (ESCENARIOS_PUBLICOS[abierto] ?? null);
+  const [filtro, setFiltro] = useState<FiltroCategoria>('todos');
+  const [abiertoCodigo, setAbiertoCodigo] = useState<string | null>(null);
 
-  const mover = (paso: number) =>
-    setAbierto(indice => (indice === null ? null : (indice + paso + total) % total));
+  const totalTodos = ESCENARIOS_PUBLICOS.length;
+  const totalClinico = ESCENARIOS_PUBLICOS.filter(e => e.categoria === 'Clínico').length;
+  const totalCotidiano = ESCENARIOS_PUBLICOS.filter(e => e.categoria === 'Cotidiano').length;
+
+  const visibles =
+    filtro === 'todos'
+      ? ESCENARIOS_PUBLICOS
+      : ESCENARIOS_PUBLICOS.filter(e => e.categoria === filtro);
+
+  const indiceActual =
+    abiertoCodigo === null ? -1 : visibles.findIndex(e => e.codigo === abiertoCodigo);
+  const actual = indiceActual >= 0 ? (visibles[indiceActual] ?? null) : null;
+
+  const mover = (paso: number) => {
+    if (indiceActual < 0 || visibles.length === 0) return;
+    const siguiente = (indiceActual + paso + visibles.length) % visibles.length;
+    setAbiertoCodigo(visibles[siguiente]?.codigo ?? null);
+  };
+
+  const opciones: readonly { valor: FiltroCategoria; etiqueta: string; total: number }[] = [
+    { valor: 'todos', etiqueta: 'Todos', total: totalTodos },
+    { valor: 'Clínico', etiqueta: 'Clínico', total: totalClinico },
+    { valor: 'Cotidiano', etiqueta: 'Cotidiano', total: totalCotidiano },
+  ];
 
   return (
     <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PistaSegmentada
+          role="group"
+          aria-label="Filtrar casos por tipo"
+          claseIndicador="rounded-lg bg-nogal shadow-xs"
+          className="inline-flex flex-wrap items-center gap-1 rounded-xl border bg-card p-1"
+        >
+          {opciones.map(op => {
+            const seleccionado = filtro === op.valor;
+            return (
+              <button
+                key={op.valor}
+                type="button"
+                aria-pressed={seleccionado}
+                onClick={() => setFiltro(op.valor)}
+                className={cn(
+                  'inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+                  seleccionado
+                    ? 'bg-nogal text-lino'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span>{op.etiqueta}</span>
+                <span
+                  className={cn(
+                    'font-mono text-xs tabular-nums',
+                    seleccionado ? 'text-lino/80' : 'text-muted-foreground'
+                  )}
+                >
+                  {op.total}
+                </span>
+              </button>
+            );
+          })}
+        </PistaSegmentada>
+
+        <p aria-live="polite" className="text-sm text-muted-foreground">
+          {visibles.length === totalTodos
+            ? `${totalTodos} casos disponibles para asignar`
+            : `Mostrando ${visibles.length} casos de tipo ${filtro.toLowerCase()}`}
+        </p>
+      </div>
+
       <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {ESCENARIOS_PUBLICOS.map((escenario, indice) => (
+        {visibles.map(escenario => (
           <li key={escenario.codigo} className="flex">
-            <TarjetaEscenarioPublico escenario={escenario} onAbrir={() => setAbierto(indice)} />
+            <TarjetaEscenarioPublico
+              escenario={escenario}
+              onAbrir={() => setAbiertoCodigo(escenario.codigo)}
+            />
           </li>
         ))}
       </ul>
 
-      <DialogPrimitive.Root open={actual !== null} onOpenChange={abre => !abre && setAbierto(null)}>
+      <DialogPrimitive.Root
+        open={actual !== null}
+        onOpenChange={abre => !abre && setAbiertoCodigo(null)}
+      >
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
           {actual && (
@@ -60,6 +135,8 @@ export function EscenariosGaleria() {
             >
               <DetalleEscenario
                 escenario={actual}
+                indice={indiceActual}
+                total={visibles.length}
                 onAnterior={() => mover(-1)}
                 onSiguiente={() => mover(1)}
               />
@@ -105,28 +182,30 @@ function TarjetaEscenarioPublico({
       type="button"
       onClick={onAbrir}
       aria-haspopup="dialog"
-      className="group flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-[border-color,box-shadow] hover:border-nogal/40 hover:shadow-[0_10px_28px_-14px_rgb(58_36_24/0.4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+      className="group flex w-full flex-col overflow-hidden rounded-t-[999px] rounded-b-2xl border border-nogal/25 bg-card text-left transition-[border-color,box-shadow,transform] duration-300 ease-salida hover:-translate-y-0.5 hover:border-nogal/60 hover:shadow-[0_14px_32px_-16px_rgb(58_36_24/0.4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden motion-reduce:hover:translate-y-0"
     >
-      {/* El vano de la puerta de cada consultorio: el mismo arco del inicio y de las instrucciones. */}
-      <span className="relative mx-4 mt-4 block aspect-[4/3] overflow-hidden rounded-t-[999px] border-2 border-nogal/80 bg-muted">
+      {/* El arco forma el techo de la tarjeta misma: sin esquinas blancas detrás de la curva. */}
+      <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-border/70 bg-muted">
         <Image
           src={escenario.imagen.src}
           alt=""
           fill
-          sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"
-          className="object-cover"
+          unoptimized
+          className="object-cover transition-transform duration-500 ease-salida group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
         />
         <span
           aria-hidden
-          className="absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent"
+          className="absolute inset-0 bg-linear-to-t from-black/80 via-black/15 to-transparent"
         />
-        <span className="absolute bottom-3 left-4 flex items-center gap-1.5 text-sm font-medium text-white">
+        <span className="absolute inset-x-4 bottom-3 flex items-center gap-2 text-sm font-medium text-white">
           <AvatarPaciente
             src={escenario.paciente.foto}
             nombre={escenario.paciente.nombre}
-            className="size-7 text-[0.75rem] ring-2 ring-white/80"
+            className="size-8 text-xs ring-2 ring-white/85"
           />
-          {escenario.paciente.nombre}, {escenario.paciente.edad} años
+          <span className="truncate">
+            {escenario.paciente.nombre}, {escenario.paciente.edad} años
+          </span>
         </span>
       </span>
 
@@ -134,8 +213,16 @@ function TarjetaEscenarioPublico({
         <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
           <span className="font-mono font-medium text-foreground">{escenario.codigo}</span>
           <InsigniaCategoria categoria={CATEGORIA_PUBLICA[escenario.categoria]} />
+          <span className="ml-auto inline-flex items-center gap-1.5">
+            <IndicadorNivel dificultad={DIFICULTAD_PUBLICA[escenario.nivel]} soloBarras />
+            <span className="text-xs text-muted-foreground">
+              {NIVELES_PUBLICOS[escenario.nivel]}
+            </span>
+          </span>
         </span>
-        <span className="-mt-1 text-xl font-bold tracking-[-0.01em]">{escenario.titulo}</span>
+        <span className="-mt-0.5 text-xl font-bold tracking-[-0.01em] text-foreground">
+          {escenario.titulo}
+        </span>
         <span className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {escenario.resumen}
         </span>
@@ -144,9 +231,8 @@ function TarjetaEscenarioPublico({
             <Target className="size-4 shrink-0 text-salvia" aria-hidden />
             {escenario.competencia}
           </span>
-          <span className="inline-flex items-center gap-1 font-semibold">
-            Ver detalle
-            <ArrowRight className="size-4" aria-hidden />
+          <span className="font-semibold text-nogal underline-offset-4 group-hover:underline">
+            Explorar caso
           </span>
         </span>
       </span>
@@ -156,10 +242,14 @@ function TarjetaEscenarioPublico({
 
 function DetalleEscenario({
   escenario,
+  indice,
+  total,
   onAnterior,
   onSiguiente,
 }: {
   escenario: EscenarioPublico;
+  indice: number;
+  total: number;
   onAnterior: () => void;
   onSiguiente: () => void;
 }) {
@@ -170,7 +260,7 @@ function DetalleEscenario({
           src={escenario.imagen.src}
           alt={escenario.imagen.alt}
           fill
-          sizes="(min-width: 896px) 896px, 100vw"
+          unoptimized
           className="object-cover"
         />
         <div
@@ -181,7 +271,7 @@ function DetalleEscenario({
           <Button
             variant="secondary"
             size="icon"
-            className="absolute top-3 right-3 rounded-full bg-card/90 text-foreground hover:bg-card"
+            className="absolute top-3 right-3 size-11 rounded-full bg-card/90 text-foreground hover:bg-card"
             aria-label="Cerrar el detalle"
           >
             <X aria-hidden />
@@ -255,17 +345,20 @@ function DetalleEscenario({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-6 py-4 sm:px-8">
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onAnterior}>
+          <Button type="button" variant="outline" size="lg" onClick={onAnterior}>
             <ArrowLeft aria-hidden />
             Anterior
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onSiguiente}>
+          <Button type="button" variant="outline" size="lg" onClick={onSiguiente}>
             Siguiente
             <ArrowRight aria-hidden />
           </Button>
+          <span className="ml-1 font-mono text-xs text-muted-foreground tabular-nums">
+            {indice + 1} / {total}
+          </span>
         </div>
-        <Button asChild>
-          <Link href="/login">
+        <Button asChild size="lg">
+          <Link href="/login?docente=1">
             Ingresar como docente
             <ArrowRight aria-hidden />
           </Link>

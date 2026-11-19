@@ -24,13 +24,24 @@ export function PiePagina({ className }: { className?: string }) {
             </p>
           </div>
         </div>
-        <div className="flex flex-col gap-1 text-xs sm:items-end">
-          <Link
-            href="/privacidad"
-            className="-my-1.5 inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
+        <div className="flex flex-col gap-1.5 text-xs sm:items-end">
+          <nav
+            aria-label="Información de PsySim"
+            className="flex flex-wrap items-center gap-x-5 gap-y-1"
           >
-            Privacidad y tratamiento de datos
-          </Link>
+            <Link
+              href="/manual"
+              className="inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+            >
+              Manual de uso
+            </Link>
+            <Link
+              href="/privacidad"
+              className="inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+            >
+              Privacidad y tratamiento de datos
+            </Link>
+          </nav>
           <p>Escuela de Ingeniería de Sistemas y Computación · Cali, 2026</p>
         </div>
       </div>
