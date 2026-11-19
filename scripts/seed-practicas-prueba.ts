@@ -46,7 +46,20 @@ function enDias(dias: number): string {
 const { data: escenarios, error: errEsc } = await supabase
   .from('escenario')
   .select('id, codigo, titulo, npc ( prompt_sistema )')
-  .in('codigo', ['E-01', 'E-02', 'E-03', 'E-04', 'E-05']);
+  .in('codigo', [
+    'E-01',
+    'E-02',
+    'E-03',
+    'E-04',
+    'E-05',
+    'E-06',
+    'E-07',
+    'E-08',
+    'E-09',
+    'E-10',
+    'E-11',
+    'E-12',
+  ]);
 
 if (errEsc || !escenarios) {
   console.error('✖ No pudimos leer los escenarios oficiales:', errEsc?.message);
@@ -87,6 +100,7 @@ interface SesionSeed {
   retroalimentacion?: {
     nota: number;
     comentarioGeneral: string;
+    publicada?: boolean;
   };
 }
 
@@ -260,6 +274,166 @@ const SESIONES: SesionSeed[] = [
   },
 ];
 
+// Lote adicional (20 prácticas) para revisar paginación, filtros, «Espera más larga», agrupaciones
+// y matriz en /sesiones con volumen realista en admin@psysim.test y docente1@psysim.test.
+const INTERCAMBIOS_BASE: IntercambioSeed[] = [
+  {
+    estudiante:
+      'Hola, gracias por asistir hoy. Antes de comenzar, me gustaría escuchar con tus palabras qué te trae a consulta.',
+    npc: 'La verdad me costó decidirme a venir, pero siento que últimamente todo se me está saliendo de las manos.',
+    latenciaMs: 1380,
+    anotacion: {
+      fragmento: 'me gustaría escuchar con tus palabras qué te trae a consulta.',
+      comentario: 'Buena apertura abierta y respetuosa del ritmo del paciente.',
+    },
+  },
+  {
+    estudiante:
+      'Entiendo que dar el paso no siempre es sencillo. Cuando dices que todo se te sale de las manos, ¿qué situaciones recientes te lo hacen notar más?',
+    npc: 'Sobre todo cuando intento descansar y no logro apagar la cabeza; al día siguiente estoy agotado y más irritable.',
+    latenciaMs: 1520,
+  },
+  {
+    estudiante:
+      'Suena desgastante llevar ese ritmo varios días seguidos. ¿Has podido comentárselo a alguien cercano o buscar algún espacio de pausa?',
+    npc: 'No mucho, prefiero no preocupar a mi familia y termino guardándomelo todo.',
+    latenciaMs: 1490,
+  },
+];
+
+const LOTE_VOLUMEN: readonly {
+  indice: number;
+  correo: string;
+  caso: string;
+  diasAtras: number;
+  duracion: number;
+  estado?: 'finalizada' | 'interrumpida';
+  nota?: number;
+  borrador?: boolean;
+}[] = [
+  // 14 prácticas para el grupo del Administrador (estudiante7@psysim.test)
+  { indice: 1, correo: 'estudiante7@psysim.test', caso: 'E-01', diasAtras: 14, duracion: 520 },
+  {
+    indice: 2,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-02',
+    diasAtras: 11,
+    duracion: 480,
+    borrador: true,
+    nota: 4.1,
+  },
+  { indice: 3, correo: 'estudiante7@psysim.test', caso: 'E-03', diasAtras: 9, duracion: 610 },
+  {
+    indice: 4,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-04',
+    diasAtras: 7,
+    duracion: 430,
+    nota: 4.6,
+  },
+  {
+    indice: 5,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-05',
+    diasAtras: 6,
+    duracion: 190,
+    estado: 'interrumpida',
+  },
+  { indice: 6, correo: 'estudiante7@psysim.test', caso: 'E-06', diasAtras: 5, duracion: 540 },
+  {
+    indice: 7,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-07',
+    diasAtras: 4,
+    duracion: 495,
+    nota: 4.3,
+  },
+  {
+    indice: 8,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-08',
+    diasAtras: 3,
+    duracion: 410,
+    borrador: true,
+    nota: 3.9,
+  },
+  { indice: 9, correo: 'estudiante7@psysim.test', caso: 'E-09', diasAtras: 2.5, duracion: 575 },
+  {
+    indice: 10,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-10',
+    diasAtras: 2,
+    duracion: 460,
+    nota: 4.8,
+  },
+  { indice: 11, correo: 'estudiante7@psysim.test', caso: 'E-11', diasAtras: 1.4, duracion: 390 },
+  {
+    indice: 12,
+    correo: 'estudiante7@psysim.test',
+    caso: 'E-12',
+    diasAtras: 0.8,
+    duracion: 505,
+    nota: 4.2,
+  },
+  { indice: 13, correo: 'estudiante7@psysim.test', caso: 'E-01', diasAtras: 0.4, duracion: 445 },
+  { indice: 14, correo: 'estudiante7@psysim.test', caso: 'E-03', diasAtras: 0.15, duracion: 365 },
+  // 8 prácticas adicionales para docente1@psysim.test (estudiante1 y estudiante2)
+  { indice: 15, correo: 'estudiante1@psysim.test', caso: 'E-06', diasAtras: 12, duracion: 510 },
+  {
+    indice: 16,
+    correo: 'estudiante1@psysim.test',
+    caso: 'E-07',
+    diasAtras: 8,
+    duracion: 470,
+    nota: 4.5,
+  },
+  {
+    indice: 17,
+    correo: 'estudiante1@psysim.test',
+    caso: 'E-08',
+    diasAtras: 4,
+    duracion: 420,
+    borrador: true,
+    nota: 4.0,
+  },
+  { indice: 18, correo: 'estudiante1@psysim.test', caso: 'E-09', diasAtras: 1.5, duracion: 395 },
+  { indice: 19, correo: 'estudiante2@psysim.test', caso: 'E-04', diasAtras: 10, duracion: 530 },
+  {
+    indice: 20,
+    correo: 'estudiante2@psysim.test',
+    caso: 'E-05',
+    diasAtras: 6,
+    duracion: 455,
+    nota: 3.8,
+  },
+  { indice: 21, correo: 'estudiante2@psysim.test', caso: 'E-10', diasAtras: 3, duracion: 485 },
+  { indice: 22, correo: 'estudiante2@psysim.test', caso: 'E-11', diasAtras: 0.5, duracion: 360 },
+];
+
+for (const cfg of LOTE_VOLUMEN) {
+  const sufijo = String(cfg.indice).padStart(4, '0');
+  SESIONES.push({
+    id: `22222222-2222-4222-8222-22222222${sufijo}`,
+    correoEstudiante: cfg.correo,
+    codigoCaso: cfg.caso,
+    diasAtras: cfg.diasAtras,
+    duracionSegundos: cfg.duracion,
+    estado: cfg.estado ?? 'finalizada',
+    comenzada: true,
+    intercambios: INTERCAMBIOS_BASE,
+    retroalimentacion:
+      cfg.nota !== undefined
+        ? {
+            nota: cfg.nota,
+            comentarioGeneral: cfg.borrador
+              ? 'Borrador en revisión: buena escucha inicial, revisar cierre y validación emocional.'
+              : 'Buen manejo del encuadre y preguntas abiertas. Sigue profundizando en el cierre de la entrevista.',
+            publicada: !cfg.borrador,
+          }
+        : undefined,
+  });
+}
+
 let errores = 0;
 
 for (const item of SESIONES) {
@@ -396,14 +570,19 @@ for (const item of SESIONES) {
   }
 
   if (item.retroalimentacion) {
-    const publicadaEn = new Date(new Date(fin).getTime() + 3_600_000).toISOString();
+    const publicadaEn =
+      item.retroalimentacion.publicada === false
+        ? null
+        : new Date(new Date(fin).getTime() + 3_600_000).toISOString();
+    const actualizadoEn =
+      publicadaEn ?? new Date(new Date(fin).getTime() + 1_800_000).toISOString();
     const { error: errRetro } = await supabase.from('retroalimentacion').insert({
       sesion_id: item.id,
       docente_id: est.docente_id,
       nota: item.retroalimentacion.nota,
       comentario_general: item.retroalimentacion.comentarioGeneral,
       publicada_en: publicadaEn,
-      actualizado_en: publicadaEn,
+      actualizado_en: actualizadoEn,
     });
     if (errRetro) {
       console.error(`✖ Error creando retroalimentación en ${item.id}:`, errRetro.message);
