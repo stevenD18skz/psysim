@@ -1,18 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import { crearSupabaseFalso, type SupabaseFalso } from '../../../test/supabase-falso';
 
 import { obtenerEstudiante, obtenerEstudiantes } from './queries';
 
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 
 let db: SupabaseFalso;
+let dbPrivilegiada: SupabaseFalso;
 
 beforeEach(() => {
   db = crearSupabaseFalso();
+  dbPrivilegiada = crearSupabaseFalso();
   vi.mocked(createClient).mockResolvedValue(db.cliente as never);
+  vi.mocked(createAdminClient).mockReturnValue(dbPrivilegiada.cliente as never);
 });
 
 const FILA = {
@@ -35,8 +40,11 @@ const FILA = {
 };
 
 describe('obtenerEstudiantes', () => {
-  it('lee la vista de métricas, del más reciente al más antiguo', async () => {
+  it('lee la vista de métricas y el avatar de la cuenta vinculada', async () => {
     db.responder('estudiante_resumen', { data: [FILA] });
+    dbPrivilegiada.responder('estudiante', {
+      data: [{ id: 'e1', cuenta: { avatar_id: 'brujula' } }],
+    });
 
     expect(await obtenerEstudiantes()).toEqual([
       {
@@ -45,6 +53,7 @@ describe('obtenerEstudiantes', () => {
         nombre: 'Ana María',
         correo: 'ana.maria@correounivalle.edu.co',
         cuentaVinculada: true,
+        avatarId: 'brujula',
         creadoEn: '2026-10-01T15:00:00.000Z',
         metricas: {
           sesiones: 3,
@@ -63,6 +72,12 @@ describe('obtenerEstudiantes', () => {
     expect(db.de('estudiante_resumen')[0]!.filtros).toEqual([
       ['order', 'ultima_sesion', { ascending: false, nullsFirst: false }],
       ['order', 'nombre'],
+    ]);
+    expect(dbPrivilegiada.de('estudiante')).toMatchObject([
+      {
+        columnas: 'id, cuenta:usuario!estudiante_usuario_id_fkey ( avatar_id )',
+        filtros: [['in', 'id', ['e1']]],
+      },
     ]);
   });
 
@@ -93,7 +108,8 @@ describe('obtenerEstudiantes', () => {
 
     const [estudiante, ...resto] = await obtenerEstudiantes();
     expect(resto).toHaveLength(0);
-    expect(estudiante).toMatchObject({ correo: null, cuentaVinculada: false });
+    expect(estudiante).toMatchObject({ correo: null, cuentaVinculada: false, avatarId: null });
+    expect(dbPrivilegiada.de('estudiante')).toHaveLength(0);
     expect(estudiante!.metricas).toEqual({
       sesiones: 0,
       finalizadas: 0,
@@ -108,6 +124,18 @@ describe('obtenerEstudiantes', () => {
     });
   });
 
+  it('conserva el registro con iniciales si no tiene avatar o falta la columna', async () => {
+    db.responder('estudiante_resumen', { data: [FILA] }, { data: [FILA] });
+    dbPrivilegiada.responder(
+      'estudiante',
+      { data: [{ id: 'e1', cuenta: { avatar_id: null } }] },
+      { error: { code: '42703' } }
+    );
+
+    expect(await obtenerEstudiantes()).toMatchObject([{ id: 'e1', avatarId: null }]);
+    expect(await obtenerEstudiantes()).toMatchObject([{ id: 'e1', avatarId: null }]);
+  });
+
   it('propaga los errores de la base de datos', async () => {
     db.responder('estudiante_resumen', { error: { code: '500' } });
     await expect(obtenerEstudiantes()).rejects.toThrow('No pudimos cargar los estudiantes');
@@ -117,9 +145,11 @@ describe('obtenerEstudiantes', () => {
 describe('obtenerEstudiante', () => {
   it('busca por id en la vista (RLS: solo los del docente)', async () => {
     db.responder('estudiante_resumen', { data: FILA }, { data: null });
+    dbPrivilegiada.responder('estudiante', { data: [] });
     expect(await obtenerEstudiante('e1')).toMatchObject({ id: 'e1', nombre: 'Ana María' });
     expect(db.de('estudiante_resumen')[0]!.filtros).toEqual([['eq', 'id', 'e1']]);
     expect(await obtenerEstudiante('otro')).toBeNull();
+    expect(dbPrivilegiada.de('estudiante')).toHaveLength(1);
   });
 
   it('propaga los errores de la base de datos', async () => {

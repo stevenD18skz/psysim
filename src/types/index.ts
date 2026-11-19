@@ -1,3 +1,4 @@
+import { type AvatarId } from '@/lib/avatares/catalogo';
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
@@ -72,6 +73,7 @@ export interface EstudianteRegistrado {
   correo: string | null;
   /** `true` si tiene cuenta: puede recibir códigos de acceso. */
   cuentaVinculada: boolean;
+  avatarId: AvatarId | null;
   creadoEn: string;
   metricas: MetricasEstudiante;
   /** Docente al que pertenece el registro (presente cuando el Administrador ve todos). */
@@ -161,6 +163,7 @@ export interface PerfilUsuario {
   correo: string;
   codigoInstitucional: string;
   rol: RolUsuario;
+  avatarId: AvatarId | null;
   /** Usa la contraseña temporal que generó el Administrador: se le pide cambiarla. */
   contrasenaTemporal: boolean;
 }

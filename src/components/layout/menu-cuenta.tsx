@@ -9,11 +9,15 @@ import {
   Loader2,
   LogOut,
   type LucideIcon,
+  Palette,
   ShieldCheck,
 } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
+import { type RefObject, useRef, useState } from 'react';
 
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
+import { DialogoAvatarCuenta } from '@/components/layout/dialogo-avatar-cuenta';
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,12 +25,12 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { ETIQUETA_ROL } from '@/lib/auth/routes';
-import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { type PerfilUsuario } from '@/types';
 
 interface MenuCuentaProps {
   perfil: PerfilUsuario;
+  botonCuenta: RefObject<HTMLButtonElement | null>;
   side?: 'top' | 'right' | 'bottom' | 'left';
   align?: 'start' | 'center' | 'end';
   sideOffset?: number;
@@ -58,6 +62,7 @@ function IconoOpcion({ icono: Icono }: { icono: LucideIcon }) {
  */
 export function MenuCuenta({
   perfil,
+  botonCuenta,
   side = 'bottom',
   align = 'end',
   sideOffset = 8,
@@ -69,14 +74,23 @@ export function MenuCuenta({
   const esAdmin = perfil.rol === 'superadmin';
   const esEstudiante = perfil.rol === 'estudiante';
   const etiquetaRol = ETIQUETA_ROL[perfil.rol];
+  const abrirAvatarAlCerrar = useRef(false);
+  const [editandoAvatar, setEditandoAvatar] = useState(false);
 
-  return (
+  const menu = (
     <DropdownMenuContent
       side={side}
       align={align}
       sideOffset={sideOffset}
       collisionPadding={8}
-      className="w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-[0_24px_48px_-18px_rgb(58_36_24/0.35)] ring-0"
+      onCloseAutoFocus={evento => {
+        if (abrirAvatarAlCerrar.current) {
+          evento.preventDefault();
+          abrirAvatarAlCerrar.current = false;
+          setEditandoAvatar(true);
+        }
+      }}
+      className="w-80 max-w-[calc(100vw-1rem)] rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-[0_24px_48px_-18px_rgb(58_36_24/0.35)] ring-0"
     >
       <DropdownMenuLabel className="p-0 font-normal">
         <div className="flex h-13 items-start justify-end border-b border-laton/25 vetas-nogal px-3.5 pt-2.5">
@@ -95,12 +109,11 @@ export function MenuCuenta({
 
         <div className="px-4 pb-3.5">
           <div className="-mt-7 mb-2.5 flex items-end justify-between gap-2">
-            <span
-              aria-hidden
-              className="flex size-13 shrink-0 items-center justify-center rounded-full border border-salvia/25 bg-salvia-suave text-base font-bold tracking-tight text-salvia-oscuro shadow-[0_6px_16px_-6px_rgb(58_36_24/0.25)] ring-[3px] ring-popover"
-            >
-              {iniciales(perfil.nombre)}
-            </span>
+            <AvatarCuenta
+              avatarId={perfil.avatarId}
+              nombre={perfil.nombre}
+              className="size-13 border border-salvia/25 text-base font-bold shadow-[0_6px_16px_-6px_rgb(58_36_24/0.25)] ring-[3px] ring-popover"
+            />
             {perfil.contrasenaTemporal && (
               <span className="inline-flex items-center gap-1 rounded-full bg-ambar-suave px-2.5 py-0.5 text-[0.75rem] font-semibold text-ambar">
                 <KeyRound className="size-3 shrink-0" aria-hidden />
@@ -132,6 +145,17 @@ export function MenuCuenta({
       <DropdownMenuSeparator className="my-0 bg-border/80" />
 
       <div className="flex flex-col gap-0.5 p-1.5">
+        <DropdownMenuItem
+          className={CLASE_ELEMENTO}
+          aria-haspopup="dialog"
+          onSelect={() => {
+            abrirAvatarAlCerrar.current = true;
+          }}
+        >
+          <IconoOpcion icono={Palette} />
+          <span className="min-w-0 flex-1 truncate">Cambiar avatar</span>
+        </DropdownMenuItem>
+
         {esEstudiante && (
           <EnlaceMenuCuenta
             href="/practicas"
@@ -196,6 +220,18 @@ export function MenuCuenta({
         </DropdownMenuItem>
       </div>
     </DropdownMenuContent>
+  );
+
+  return (
+    <>
+      {menu}
+      <DialogoAvatarCuenta
+        perfil={perfil}
+        abierto={editandoAvatar}
+        onAbiertoCambia={setEditandoAvatar}
+        botonCuenta={botonCuenta}
+      />
+    </>
   );
 }
 

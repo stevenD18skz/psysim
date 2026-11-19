@@ -47,6 +47,7 @@ function perfil(rol: PerfilUsuario['rol']): PerfilUsuario {
     correo: 'prueba@correounivalle.edu.co',
     codigoInstitucional: '100000001',
     rol,
+    avatarId: null,
     contrasenaTemporal: false,
   };
 }

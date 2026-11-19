@@ -3,6 +3,7 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { CODIGO_PG } from '@/lib/acciones';
 import { entradasDeAcceso, esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import {
   esRol,
@@ -12,6 +13,7 @@ import {
   RUTA_INICIO,
   RUTA_LOGIN,
 } from '@/lib/auth/routes';
+import { esAvatarId } from '@/lib/avatares/catalogo';
 import { googleDuranteLaEntrega, leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -22,6 +24,9 @@ export type SesionUsuario =
   | { estado: 'sin-sesion' }
   | { estado: 'sin-permiso' }
   | { estado: 'autorizado'; perfil: PerfilUsuario };
+
+const COLUMNAS_PERFIL =
+  'id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal';
 
 /**
  * Data Access Layer: verificación autoritativa de la sesión y del rol.
@@ -52,11 +57,17 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
     return { estado: 'sin-sesion' };
   }
 
-  const { data: perfil, error: errorPerfil } = await createAdminClient()
+  const admin = createAdminClient();
+  const consultaPerfil = await admin
     .from('usuario')
-    .select('id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal')
+    .select(`${COLUMNAS_PERFIL}, avatar_id`)
     .eq('id', user.id)
     .maybeSingle();
+  // Un entorno con la migración del avatar pendiente todavía puede iniciar sesión.
+  const { data: perfil, error: errorPerfil } =
+    consultaPerfil.error?.code === CODIGO_PG.UNDEFINED_COLUMN
+      ? await admin.from('usuario').select(COLUMNAS_PERFIL).eq('id', user.id).maybeSingle()
+      : consultaPerfil;
 
   if (errorPerfil) {
     // Un fallo de la base de datos no debe interpretarse como "sin permiso".
@@ -98,6 +109,7 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
       correo: perfil.correo,
       codigoInstitucional: perfil.codigo_institucional,
       rol: perfil.rol,
+      avatarId: 'avatar_id' in perfil && esAvatarId(perfil.avatar_id) ? perfil.avatar_id : null,
       contrasenaTemporal: perfil.contrasena_temporal,
     },
   };

@@ -803,6 +803,7 @@ export type Database = {
       usuario: {
         Row: {
           activo: boolean;
+          avatar_id: string | null;
           codigo_institucional: string;
           contrasena_temporal: boolean;
           correo: string;
@@ -814,6 +815,7 @@ export type Database = {
         };
         Insert: {
           activo?: boolean;
+          avatar_id?: string | null;
           codigo_institucional: string;
           contrasena_temporal?: boolean;
           correo: string;
@@ -825,6 +827,7 @@ export type Database = {
         };
         Update: {
           activo?: boolean;
+          avatar_id?: string | null;
           codigo_institucional?: string;
           contrasena_temporal?: boolean;
           correo?: string;

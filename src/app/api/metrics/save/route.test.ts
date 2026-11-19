@@ -56,6 +56,7 @@ describe('POST /api/metrics/save (HU-19)', () => {
         correo: 'ana.perez@correounivalle.edu.co',
         codigoInstitucional: '202012345',
         rol: 'estudiante',
+        avatarId: null,
         contrasenaTemporal: false,
       },
     });
@@ -170,6 +171,7 @@ describe('POST /api/metrics/save (HU-19)', () => {
         correo: 'docente@correounivalle.edu.co',
         codigoInstitucional: '100000001',
         rol: 'docente',
+        avatarId: null,
         contrasenaTemporal: false,
       },
     });

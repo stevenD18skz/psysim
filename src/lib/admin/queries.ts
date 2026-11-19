@@ -4,7 +4,7 @@ import { cache } from 'react';
 
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
 import { requerirSuperadmin } from '@/lib/auth/dal';
-import { aEstudiante, COLUMNAS_RESUMEN } from '@/lib/estudiantes/queries';
+import { aEstudiante, COLUMNAS_RESUMEN, conAvataresDeCuenta } from '@/lib/estudiantes/queries';
 import { CASO_NO_DISPONIBLE, leerTitulosDeEscenarios } from '@/lib/sesiones/datos-privados';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -102,7 +102,7 @@ export async function obtenerFichaDocente(id: string): Promise<{
     if (error) {
       throw new Error('No pudimos cargar los estudiantes del docente.', { cause: error });
     }
-    estudiantes = data.flatMap(fila => aEstudiante(fila) ?? []);
+    estudiantes = await conAvataresDeCuenta(data.flatMap(fila => aEstudiante(fila) ?? []));
   }
 
   return {
@@ -149,12 +149,13 @@ export const obtenerTodosLosEstudiantes = cache(async (): Promise<EstudianteRegi
     ])
   );
 
-  return resumen.data.flatMap(fila => {
+  const estudiantes = resumen.data.flatMap(fila => {
     const base = aEstudiante(fila);
     if (!base) return [];
     const docente = docentesPorRegistro.get(base.id);
     return [{ ...base, ...(docente && { docente }) }];
   });
+  return conAvataresDeCuenta(estudiantes);
 });
 
 /**
@@ -211,7 +212,10 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
     ...sesionesRes.data.map(f => f.escenario_id),
     ...asignacionesRes.data.map(f => f.escenario_id),
   ];
-  const titulos = await leerTitulosDeEscenarios(idsEscenarios);
+  const [titulos, [estudiante]] = await Promise.all([
+    leerTitulosDeEscenarios(idsEscenarios),
+    conAvataresDeCuenta([base]),
+  ]);
   const ahora = new Date();
 
   const sesiones: SesionHistorial[] = sesionesRes.data.map(fila => ({
@@ -245,7 +249,7 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
   }));
 
   return {
-    estudiante: { ...base, ...(docente && { docente }) },
+    estudiante: { ...(estudiante ?? base), ...(docente && { docente }) },
     sesiones,
     asignaciones,
   };

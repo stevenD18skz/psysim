@@ -232,6 +232,7 @@ describe('POST /api/npc/chat', () => {
         correo: 'ana.perez@correounivalle.edu.co',
         codigoInstitucional: '202012345',
         rol: 'estudiante',
+        avatarId: null,
         contrasenaTemporal: false,
       },
     });
@@ -335,6 +336,7 @@ describe('POST /api/npc/chat', () => {
         correo: 'docente@psysim.test',
         codigoInstitucional: 'DOC-1',
         rol: 'docente',
+        avatarId: null,
         contrasenaTemporal: false,
       },
     });
