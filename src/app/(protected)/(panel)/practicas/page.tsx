@@ -8,7 +8,6 @@ import {
   Laptop,
   MessageSquareQuote,
   MessageSquareText,
-  MonitorPlay,
   NotebookPen,
   Quote,
   UserCheck,
@@ -18,6 +17,7 @@ import Link from 'next/link';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { Indicadores } from '@/components/comun/indicadores';
 import { MarcoHeroInicio } from '@/components/inicio/marco-hero';
 import { AccionAbierta } from '@/components/practicas/accion-abierta';
@@ -435,13 +435,9 @@ function BloqueAbierta({ sesion, ahora }: { sesion: PracticaEstudiante; ahora: D
         <div className="flex flex-col gap-2">
           <h2
             id="abierta-titulo"
-            className="inline-flex w-fit items-center gap-2 rounded-full bg-salvia-suave px-2.5 py-0.5 text-xs font-semibold text-salvia-oscuro"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-salvia-suave px-2.5 py-0.5 text-xs font-semibold text-salvia-oscuro"
           >
-            <span aria-hidden className="relative flex size-2">
-              <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-65 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-salvia" />
-            </span>
-            <MonitorPlay className="size-3.5" aria-hidden />
+            <IndicadorEnVivo animado={sesion.comenzada} className="size-3.5 text-salvia-oscuro" />
             Abierta ahora
           </h2>
           <p className="text-2xl leading-tight font-bold tracking-[-0.015em] text-foreground">

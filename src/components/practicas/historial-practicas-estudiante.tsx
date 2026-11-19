@@ -87,7 +87,7 @@ function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
     // la práctica; la reflexión pasó de etiqueta a enlace secundario.
     <li
       className={cn(
-        'grid gap-4 px-4 py-4 transition-colors hover:bg-muted/40 sm:px-6 sm:py-5',
+        'grid gap-4 px-4 py-4 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:px-6 sm:py-5',
         sinConversacion === false && 'md:grid-cols-[minmax(0,1fr)_12.5rem] md:items-center md:gap-6'
       )}
     >

@@ -233,7 +233,7 @@ function EnlaceCola({
 }) {
   const Icono = icono === 'anterior' ? ChevronLeft : ChevronRight;
   const clases =
-    'flex size-9 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-laton-texto focus-visible:outline-hidden';
+    'flex size-10 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-laton-claro focus-visible:outline-solid sm:size-9';
   if (!href) {
     return (
       <span

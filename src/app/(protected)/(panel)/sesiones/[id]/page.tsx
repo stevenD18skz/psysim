@@ -1,7 +1,9 @@
-import { BookOpenText, Radio } from 'lucide-react';
+import { BookOpenText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
+
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 
 import { ReflexionLeida } from '@/components/resultados/reflexion';
 import { RevisionSesion } from '@/components/retroalimentacion/revision-sesion';
@@ -85,14 +87,10 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
           >
             <span className="relative flex size-16 items-center justify-center rounded-full bg-salvia-suave text-salvia-oscuro">
               {sesion.comenzada ? (
-                <Radio className="size-8" aria-hidden />
+                <IndicadorEnVivo className="size-9" />
               ) : (
                 <BookOpenText className="size-8" aria-hidden />
               )}
-              <span className="absolute -top-0.5 -right-0.5 flex size-3.5">
-                <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-60 motion-safe:animate-ping" />
-                <span className="relative inline-flex size-3.5 rounded-full bg-salvia" />
-              </span>
             </span>
             <div className="flex max-w-md flex-col gap-2">
               <h2 id="en-curso-titulo" className="text-2xl font-bold tracking-[-0.02em]">

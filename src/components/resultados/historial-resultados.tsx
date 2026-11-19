@@ -1,3 +1,6 @@
+import { MessageSquareOff } from 'lucide-react';
+
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { cn } from '@/lib/utils';
 import { type DetalleSesion } from '@/types';
 
@@ -20,9 +23,11 @@ export function HistorialResultados({
 }) {
   if (sesion.mensajes.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-        No hubo conversación con el paciente en esta práctica.
-      </p>
+      <EstadoVacio
+        icono={MessageSquareOff}
+        titulo="Sin conversación registrada"
+        descripcion="No hubo conversación con el paciente en esta práctica."
+      />
     );
   }
 

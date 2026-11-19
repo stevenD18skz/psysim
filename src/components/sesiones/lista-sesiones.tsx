@@ -1,11 +1,13 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ClipboardList } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { tiempoRelativo } from '@/lib/fechas';
 import { duracionSesion, estadoVisibleSesion } from '@/lib/sesiones/estados';
 import { type SesionHistorial } from '@/types';
 
@@ -15,26 +17,27 @@ interface ListaSesionesProps {
   /** Ruta del detalle de cada sesión. */
   enlace: (sesion: SesionHistorial) => Route;
   vacio: React.ReactNode;
+  ahora?: Date;
 }
 
 /** Historial de prácticas como registro: caso, estado, fecha, duración y nota publicada. */
-export function ListaSesiones({ sesiones, para, enlace, vacio }: ListaSesionesProps) {
+export function ListaSesiones({ sesiones, para, enlace, vacio, ahora }: ListaSesionesProps) {
   if (sesiones.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-        {vacio}
-      </p>
-    );
+    if (typeof vacio === 'string') {
+      return <EstadoVacio icono={ClipboardList} titulo={vacio} />;
+    }
+    return <>{vacio}</>;
   }
 
   return (
-    <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+    <ul className="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
       {sesiones.map(sesion => {
         const estado = estadoVisibleSesion(sesion, para, {
           ultimaActividad: sesion.ultimaActividad,
         });
         const duracion = duracionSesion(sesion);
         const enCurso = sesion.estado === 'en_curso';
+        const haceCuanto = ahora ? tiempoRelativo(sesion.fin ?? sesion.inicio, ahora) : null;
         const accion =
           para === 'docente'
             ? enCurso
@@ -50,7 +53,7 @@ export function ListaSesiones({ sesiones, para, enlace, vacio }: ListaSesionesPr
           <li
             key={sesion.id}
             data-testid={`sesion-${sesion.id}`}
-            className="group relative flex flex-col gap-2 px-4 py-3.5 hover:bg-muted/60 sm:flex-row sm:items-center sm:gap-4"
+            className="group relative flex flex-col gap-2 px-4 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:flex-row sm:items-center sm:gap-4"
           >
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -62,7 +65,15 @@ export function ListaSesiones({ sesiones, para, enlace, vacio }: ListaSesionesPr
                 <InsigniaEstado estado={estado} />
               </p>
               <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-                <span>{formatearFechaHora(sesion.inicio)}</span>
+                {haceCuanto && (
+                  <>
+                    <span className="font-medium text-foreground/85 tabular-nums first-letter:uppercase">
+                      {haceCuanto}
+                    </span>
+                    <span aria-hidden>·</span>
+                  </>
+                )}
+                <span className="tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
                 {duracion !== null && (
                   <>
                     <span aria-hidden>·</span>

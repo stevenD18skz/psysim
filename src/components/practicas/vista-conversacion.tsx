@@ -1,7 +1,9 @@
 'use client';
 
-import { Highlighter } from 'lucide-react';
+import { Highlighter, MessageSquareOff } from 'lucide-react';
 import { useRef, useState } from 'react';
+
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 
 import {
   ABRE_ANOTACION,
@@ -52,9 +54,11 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
 
   if (sesion.mensajes.length === 0 && sesion.intentos.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-        No alcanzaste a conversar con el paciente en esta práctica.
-      </p>
+      <EstadoVacio
+        icono={MessageSquareOff}
+        titulo="No alcanzaste a conversar con el paciente"
+        descripcion="Esta práctica se cerró antes de intercambiar mensajes, así que no hay transcripción para releer."
+      />
     );
   }
 

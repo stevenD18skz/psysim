@@ -30,6 +30,7 @@ import { requerirDocente } from '@/lib/auth/dal';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { codigoVisibleCaso } from '@/lib/escenarios/etiquetas';
 import { formatearDia, formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { tiempoRelativo } from '@/lib/fechas';
 import {
   conParametros,
   IDS_PERIODO,
@@ -116,6 +117,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
   const casos = [...new Map(sesiones.map(s => [s.escenario.codigo, s.escenario])).values()].sort(
     (a, b) => a.codigo.localeCompare(b.codigo)
   );
+  const ahora = new Date();
   const hayFiltros = Boolean(consulta || caso || periodo !== 'todo');
   const exportar = conParametros('/sesiones/exportar', actuales, {}, defectos);
 
@@ -228,7 +230,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             url={url}
           />
         ) : agrupar === 'lista' ? (
-          <VistaLista sesiones={filtradas} pagina={pagina} url={url} />
+          <VistaLista sesiones={filtradas} pagina={pagina} url={url} ahora={ahora} />
         ) : agrupar === 'matriz' ? (
           <VistaMatriz sesiones={filtradas} pagina={pagina} url={url} />
         ) : (
@@ -239,6 +241,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             porEstudiante={agrupar === 'estudiante'}
             pagina={pagina}
             url={url}
+            ahora={ahora}
           />
         )}
       </ContenedorHero>
@@ -252,17 +255,19 @@ function VistaLista({
   sesiones,
   pagina,
   url,
+  ahora,
 }: {
   sesiones: SesionDocente[];
   pagina: number;
   url: Url;
+  ahora: Date;
 }) {
   const resultado = paginar(sesiones, pagina, PRACTICAS_POR_PAGINA);
   return (
     <section aria-label="Prácticas" className="flex flex-col gap-4">
       <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
         {resultado.visibles.map(sesion => (
-          <FilaRevision key={sesion.id} sesion={sesion} />
+          <FilaRevision key={sesion.id} sesion={sesion} ahora={ahora} />
         ))}
       </ul>
       <Paginacion
@@ -281,13 +286,15 @@ function accionDe(sesion: SesionDocente): string {
   return sesion.retroalimentacion ? 'Continuar revisión' : 'Revisar';
 }
 
-function FilaRevision({ sesion }: { sesion: SesionDocente }) {
+function FilaRevision({ sesion, ahora }: { sesion: SesionDocente; ahora: Date }) {
   const estado = estadoVisibleSesion(sesion, 'docente', {
     ultimaActividad: sesion.ultimaActividad,
   });
   const duracion = duracionSesion(sesion);
   const publicada = sesion.retroalimentacion?.publicada ?? false;
-  const { esperaDias, corta } = senalesRevision(sesion);
+  const { esperaDias, corta } = senalesRevision(sesion, ahora);
+  const referenciaTiempo = sesion.fin ?? sesion.inicio;
+  const haceCuanto = tiempoRelativo(referenciaTiempo, ahora);
 
   const intervenciones =
     sesion.comenzada && sesion.intervenciones > 0
@@ -299,7 +306,7 @@ function FilaRevision({ sesion }: { sesion: SesionDocente }) {
   return (
     // En pantallas anchas, una tabla de verdad: quién, qué caso, cómo va y qué hacer. Cada columna
     // lleva a lo sumo dos líneas; las señales raras (espera, muy corta) bajan a una tercera.
-    <li className="group relative grid gap-3 px-5 py-4 hover:bg-muted/50 sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-x-8 md:py-5">
+    <li className="group relative grid gap-3 px-5 py-4 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-x-8 md:py-5">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-semibold">{sesion.estudiante.nombre}</span>
         <span className="font-mono text-xs text-muted-foreground">{sesion.estudiante.codigo}</span>
@@ -307,12 +314,19 @@ function FilaRevision({ sesion }: { sesion: SesionDocente }) {
 
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium text-pretty">{sesion.escenario.titulo}</span>
-        <span className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-sm text-muted-foreground">
           <CodigoCaso
             codigo={sesion.escenario.codigo}
             className="font-mono text-xs text-foreground"
           />
-          <span className="tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
+          <span
+            title={formatearFechaHora(sesion.inicio)}
+            className="font-medium text-foreground/85 tabular-nums first-letter:uppercase"
+          >
+            {haceCuanto}
+          </span>
+          <span aria-hidden>·</span>
+          <span className="text-xs tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
         </span>
       </div>
 
@@ -380,11 +394,13 @@ function VistaGrupos({
   porEstudiante,
   pagina,
   url,
+  ahora,
 }: {
   grupos: ResumenGrupo[];
   porEstudiante: boolean;
   pagina: number;
   url: Url;
+  ahora: Date;
 }) {
   const resultado = paginar(grupos, pagina, GRUPOS_POR_PAGINA);
   return (
@@ -398,6 +414,7 @@ function VistaGrupos({
             key={grupo.clave}
             grupo={grupo}
             porEstudiante={porEstudiante}
+            ahora={ahora}
             verTodas={url(
               porEstudiante
                 ? { agrupar: null, q: grupo.subtitulo }
@@ -418,10 +435,12 @@ function VistaGrupos({
 function GrupoRevision({
   grupo,
   porEstudiante,
+  ahora,
   verTodas,
 }: {
   grupo: ResumenGrupo;
   porEstudiante: boolean;
+  ahora: Date;
   /** Lista filtrada con todas las prácticas del grupo. */
   verTodas: string;
 }) {
@@ -467,7 +486,12 @@ function GrupoRevision({
         </summary>
         <ul className="divide-y border-t">
           {grupo.sesiones.slice(0, PRACTICAS_POR_GRUPO).map(sesion => (
-            <FilaCompacta key={sesion.id} sesion={sesion} porEstudiante={porEstudiante} />
+            <FilaCompacta
+              key={sesion.id}
+              sesion={sesion}
+              porEstudiante={porEstudiante}
+              ahora={ahora}
+            />
           ))}
         </ul>
         {(restantes > 0 || (porEstudiante && grupo.enlace)) && (
@@ -498,16 +522,19 @@ function GrupoRevision({
 function FilaCompacta({
   sesion,
   porEstudiante,
+  ahora,
 }: {
   sesion: SesionDocente;
   porEstudiante: boolean;
+  ahora: Date;
 }) {
   const estado = estadoVisibleSesion(sesion, 'docente', {
     ultimaActividad: sesion.ultimaActividad,
   });
   const publicada = sesion.retroalimentacion?.publicada ?? false;
+  const haceCuanto = tiempoRelativo(sesion.fin ?? sesion.inicio, ahora);
   return (
-    <li className="group relative flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-muted/50">
+    <li className="group relative flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm transition-colors even:bg-muted/30 hover:bg-muted/60">
       <span className="min-w-0 flex-1">
         {porEstudiante ? (
           <>
@@ -523,7 +550,12 @@ function FilaCompacta({
           </>
         )}
       </span>
-      <span className="text-muted-foreground">{formatearDia(sesion.inicio)}</span>
+      <span
+        title={formatearFechaHora(sesion.inicio)}
+        className="text-xs text-muted-foreground tabular-nums first-letter:uppercase"
+      >
+        {haceCuanto} · {formatearDia(sesion.inicio)}
+      </span>
       <InsigniaEstado estado={estado} />
       {publicada && (
         <span className="w-10 text-right font-semibold tabular-nums">
@@ -653,10 +685,13 @@ function VistaMatriz({
           </thead>
           <tbody className="divide-y">
             {resultado.visibles.map(e => (
-              <tr key={e.id} className="hover:bg-muted/40">
+              <tr
+                key={e.id}
+                className="group/fila transition-colors even:bg-muted/30 hover:bg-muted/60"
+              >
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium shadow-[1px_0_0_var(--border)]"
+                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium shadow-[1px_0_0_var(--border)] transition-colors group-even/fila:bg-[color-mix(in_oklch,var(--card),var(--muted)_30%)] group-hover/fila:bg-[color-mix(in_oklch,var(--card),var(--muted)_60%)]"
                 >
                   <span className="block max-w-[14rem] truncate">{e.nombre}</span>
                   <span className="font-mono text-xs font-normal text-muted-foreground">

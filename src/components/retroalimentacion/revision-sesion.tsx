@@ -1,9 +1,23 @@
 'use client';
 
-import { Highlighter, Loader2, MessageSquarePlus, Pencil, Quote, Trash2 } from 'lucide-react';
+import {
+  Check,
+  HelpCircle,
+  Highlighter,
+  Loader2,
+  MessageSquareOff,
+  MessageSquarePlus,
+  Pencil,
+  Quote,
+  Trash2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useRef, useState, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 import { toast } from 'sonner';
+
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { Desplegable } from '@/components/comun/desplegable';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 
 import {
   ABRE_ANOTACION,
@@ -61,6 +75,18 @@ interface Seleccion {
 type Burbuja =
   | { tipo: 'nueva'; seleccion: Seleccion; ancla: Ancla }
   | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
+
+/** Clave local para recordar que el docente ya entendió cómo subrayar y comentar frases. */
+const CLAVE_GUIA_ANOTACION = 'psysim:guia-anotacion-oculta';
+const sinSuscripcion = () => () => {};
+
+function leerGuiaOculta(): boolean {
+  try {
+    return window.localStorage.getItem(CLAVE_GUIA_ANOTACION) === '1';
+  } catch {
+    return true;
+  }
+}
 
 /** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
 const RESALTADO_BORRADOR = 'comentario-borrador';
@@ -161,6 +187,19 @@ export function RevisionSesion({
   const [arrastrando, setArrastrando] = useState(false);
   const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
   const [quitando, setQuitando] = useState<string | null>(null);
+  // La guía se muestra automáticamente solo la primera vez; después se abre bajo demanda.
+  const guiaOcultaInicial = useSyncExternalStore(sinSuscripcion, leerGuiaOculta, () => true);
+  const [guiaManual, setGuiaManual] = useState<boolean | null>(null);
+  const guiaAbierta = guiaManual ?? !guiaOcultaInicial;
+
+  const cerrarGuia = () => {
+    setGuiaManual(false);
+    try {
+      window.localStorage.setItem(CLAVE_GUIA_ANOTACION, '1');
+    } catch {
+      // Ignorar si el navegador bloquea localStorage.
+    }
+  };
 
   const numeros = numerarAnotaciones(sesion.mensajes, anotaciones);
   const ordenadas = [...anotaciones].sort(
@@ -288,28 +327,84 @@ export function RevisionSesion({
         {ESTILO_RESALTADO}
       </style>
       <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
-            Conversación
-          </h2>
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Highlighter className="size-4 shrink-0 text-ambar" aria-hidden />
-            Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
-            verlo o editarlo.
-          </p>
-          {ia && Object.keys(ia.severidades).length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Junto a cada respuesta de {sesion.npc.nombre.split(' ')[0]} aparece su severidad: qué
-              tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el
-              motor del paciente, no califica a {nombreEstudiante}.
-            </p>
+        <div className="flex flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
+                Conversación
+              </h2>
+              {sesion.mensajes.length > 0 && (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                  {sesion.mensajes.length}
+                </span>
+              )}
+              {ia && Object.keys(ia.severidades).length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Severidad 0–5
+                  <AyudaContextual
+                    etiqueta="Qué indica la severidad del paciente"
+                    texto={`Junto a cada respuesta de ${sesion.npc.nombre.split(' ')[0]} aparece qué tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el motor del paciente y no califica a ${nombreEstudiante}.`}
+                  />
+                </span>
+              )}
+            </div>
+
+            {sesion.mensajes.length > 0 && (
+              <button
+                type="button"
+                aria-expanded={guiaAbierta}
+                onClick={() => setGuiaManual(!guiaAbierta)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+              >
+                <HelpCircle className="size-3.5 shrink-0" aria-hidden />
+                {guiaAbierta ? 'Ocultar guía' : '¿Cómo anotar frases?'}
+              </button>
+            )}
+          </div>
+
+          {sesion.mensajes.length > 0 && (
+            <Desplegable abierto={guiaAbierta}>
+              <div className="pt-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-ambar/35 bg-ambar-suave/45 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2.5">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-ambar-suave text-ambar"
+                    >
+                      <Highlighter className="size-4" />
+                    </span>
+                    <div className="flex flex-col gap-0.5 text-foreground">
+                      <p className="font-semibold">Comenta frases directas en la conversación</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        1. Selecciona cualquier fragmento de {nombreEstudiante} (con ratón o Mayús +
+                        flechas) y pulsa{' '}
+                        <strong className="font-medium text-foreground">Comentar selección</strong>.{' '}
+                        2. Pulsa un subrayado ámbar para leerlo, editarlo o quitarlo.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={cerrarGuia}
+                    className="shrink-0 self-start bg-card sm:self-center"
+                  >
+                    <Check className="size-3.5" aria-hidden />
+                    Entendido
+                  </Button>
+                </div>
+              </div>
+            </Desplegable>
           )}
         </div>
 
         {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-            {nombreEstudiante} no alcanzó a conversar con el paciente.
-          </p>
+          <EstadoVacio
+            icono={MessageSquareOff}
+            titulo={`${nombreEstudiante} no alcanzó a conversar con el paciente`}
+            descripcion="La práctica se cerró antes de enviar mensajes, por eso no hay transcripción disponible para anotar."
+          />
         ) : (
           <ol
             ref={raiz}
@@ -339,13 +434,34 @@ export function RevisionSesion({
                     esEstudiante ? 'items-end self-end' : 'self-start'
                   )}
                 >
-                  <span className="px-1 text-xs font-medium text-muted-foreground">
-                    {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre} ·{' '}
-                    <time dateTime={mensaje.timestamp}>
+                  <span className="flex flex-wrap items-center gap-x-1.5 px-1 text-xs text-muted-foreground">
+                    <span
+                      className={cn(
+                        'font-semibold',
+                        esEstudiante ? 'text-salvia-oscuro' : 'text-terracota'
+                      )}
+                    >
+                      {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <time dateTime={mensaje.timestamp} className="tabular-nums">
                       {formatoHora.format(new Date(mensaje.timestamp))}
                     </time>
+                    {esEstudiante && propias.length > 0 && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="font-medium text-ambar tabular-nums">
+                          {propias.length === 1 ? '1 comentario' : `${propias.length} comentarios`}
+                        </span>
+                      </>
+                    )}
                     {ia?.severidades[mensaje.id] !== undefined && (
-                      <> · severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}</>
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="tabular-nums">
+                          severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}
+                        </span>
+                      </>
                     )}
                   </span>
                   <p
@@ -477,12 +593,30 @@ export function RevisionSesion({
             </span>
           </h2>
           {ordenadas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aún no has comentado ninguna frase. Selecciona texto en las intervenciones de{' '}
-              {nombreEstudiante}.
-            </p>
+            <div className="overflow-hidden rounded-xl border border-dashed border-border/80">
+              <EstadoVacio
+                variante="compacto"
+                sinBordeSuperior
+                icono={Highlighter}
+                tono="ambar"
+                titulo="Sin frases comentadas aún"
+                descripcion={`Selecciona texto en las intervenciones de ${nombreEstudiante} para subrayar y dejar un comentario puntual.`}
+                accion={
+                  !guiaAbierta && sesion.mensajes.length > 0 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setGuiaManual(true)}
+                    >
+                      Ver cómo anotar frases
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
           ) : (
-            <ol className="flex flex-col gap-2">
+            <ol className="flex flex-col gap-2 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
               {ordenadas.map(anotacion => (
                 <ComentarioEnLista
                   key={anotacion.id}
