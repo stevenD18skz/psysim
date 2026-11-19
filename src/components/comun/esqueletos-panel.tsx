@@ -319,38 +319,148 @@ export function EsqueletoPanel() {
   );
 }
 
+function FranjaRejillaInicio() {
+  return (
+    <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
+      {Array.from({ length: 3 }, (_, i) => (
+        <div
+          key={i}
+          className={cn(
+            'flex min-w-0 flex-col gap-2 bg-card px-4 py-4 sm:px-5 sm:py-5',
+            i === 2 && 'col-span-2 sm:col-span-1'
+          )}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <Skeleton className="mt-0.5 h-4 w-full max-w-28" />
+            <Skeleton className="size-7 shrink-0 rounded-lg sm:size-8" />
+          </div>
+          <Skeleton className="h-8 w-14 sm:h-9" />
+          <Skeleton className="h-3.5 w-full max-w-36" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TarjetaListaInicio({
+  filas = 4,
+  conBarraCodigo = false,
+  elevada = false,
+}: {
+  filas?: number;
+  conBarraCodigo?: boolean;
+  elevada?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'overflow-hidden rounded-2xl border bg-card',
+        elevada && '@5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]'
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-36 max-w-full" />
+          <Skeleton className="h-5 w-7 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <div className="divide-y border-t">
+        {Array.from({ length: filas }, (_, i) => (
+          <div key={i} className="flex flex-col gap-2 px-5 py-3.5 even:bg-muted/30">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-2/3 max-w-48" />
+                <Skeleton className="h-3.5 w-1/2 max-w-36" />
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <Skeleton className="h-5 w-20 rounded-full" />
+                {conBarraCodigo && <Skeleton className="h-3.5 w-28" />}
+              </div>
+            </div>
+            {conBarraCodigo && <Skeleton className="h-9 w-full rounded-lg" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function EsqueletoInicio() {
   return (
-    <Pagina
-      nombre="inicio"
-      claseContenedor="sm:-mt-16"
-      hero={
-        <HeroPagina
-          derecha={
-            <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-              <Skeleton className="h-10 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
-              <Skeleton className="h-10 w-40 rounded-[10px] bg-laton/35" />
+    <div className="@container/inicio flex flex-1 flex-col">
+      <Pagina
+        nombre="inicio"
+        claseContenedor="sm:-mt-16"
+        hero={
+          <HeroPagina
+            derecha={
+              <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+                <Skeleton className="h-10 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+                <Skeleton className="h-10 w-40 rounded-[10px] bg-laton/35" />
+              </div>
+            }
+            subbarra={<SubbarraAccesos enlaces={4} />}
+          />
+        }
+      >
+        <div className="grid items-start gap-6 @5xl/inicio:grid-cols-[minmax(0,1.55fr)_minmax(21.5rem,25.5rem)] @5xl/inicio:gap-8">
+          <div className="flex min-w-0 flex-col gap-6">
+            <div className={`overflow-hidden rounded-2xl border bg-card ${SOMBRA_SOBRE_NOGAL}`}>
+              <div className="flex items-center justify-between gap-2 border-b bg-muted/25 px-5 py-2.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3.5 w-36" />
+              </div>
+              <FranjaRejillaInicio />
+              <div className="flex items-center justify-between gap-2 border-y bg-muted/25 px-5 py-2.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+              <FranjaRejillaInicio />
             </div>
-          }
-          subbarra={<SubbarraAccesos />}
-        />
-      }
-    >
-      <Indicadores cantidad={5} elevada />
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-        <Bloque>
-          <Filas />
-        </Bloque>
-        <div className="flex min-w-0 flex-col gap-6">
-          <Bloque>
-            <Filas cantidad={2} />
-          </Bloque>
-          <Bloque>
-            <Filas cantidad={2} />
-          </Bloque>
+
+            <TarjetaListaInicio filas={4} />
+            <TarjetaListaInicio filas={4} />
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-4">
+              <TarjetaListaInicio filas={2} elevada />
+              <div className="grid min-w-0 items-start gap-4 @2xl/inicio:grid-cols-2 @5xl/inicio:grid-cols-1">
+                <TarjetaListaInicio filas={2} />
+                <TarjetaListaInicio filas={2} conBarraCodigo />
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border bg-card">
+              <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3.5">
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-5 w-28 rounded-full" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex flex-col gap-2 border-t px-5 py-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-3.5 w-40" />
+                  <Skeleton className="h-3.5 w-20" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-px border-t bg-border">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex flex-col gap-1.5 bg-card px-4 py-3">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </Pagina>
+      </Pagina>
+    </div>
   );
 }
 
@@ -462,6 +572,10 @@ export function EsqueletoEstudiantes() {
     >
       <Indicadores cantidad={5} elevada />
       <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-5 w-8 rounded-full" />
+        </div>
         <Filtros />
         <Filas cantidad={5} />
       </div>
@@ -482,6 +596,7 @@ export function EsqueletoFichaEstudiante() {
               <Skeleton className="h-10 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
               <Skeleton className="h-10 w-28 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
               <Skeleton className="h-10 w-40 rounded-[10px] bg-laton/35" />
+              <Skeleton className="size-10 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
             </div>
           }
         />
@@ -489,7 +604,7 @@ export function EsqueletoFichaEstudiante() {
     >
       <Indicadores elevada />
       <Bloque>
-        <Pestanas />
+        <Pestanas cantidad={4} />
         <Filas cantidad={3} />
       </Bloque>
       <Bloque>

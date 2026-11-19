@@ -1,15 +1,9 @@
-import {
-  Activity,
-  GraduationCap,
-  KeyRound,
-  MessageSquareText,
-  MonitorPlay,
-  UsersRound,
-} from 'lucide-react';
+import { GraduationCap, KeyRound, MessageSquareText, MonitorPlay, UsersRound } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { type Indicador, Indicadores } from '@/components/comun/indicadores';
 import { BandejaDocente } from '@/components/inicio/bandeja-docente';
 import {
@@ -19,7 +13,9 @@ import {
   MarcoHeroInicio,
 } from '@/components/inicio/marco-hero';
 import { HeroPlataforma, PanelPlataforma } from '@/components/inicio/panel-plataforma';
+import { ResumenOrquestador } from '@/components/inicio/resumen-orquestador';
 import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
+import { leerConfiguracionIa, obtenerMetricasIa } from '@/lib/admin/ia';
 import { obtenerDocentes, obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirUsuario } from '@/lib/auth/dal';
 import { RUTA_INICIO } from '@/lib/auth/routes';
@@ -63,12 +59,13 @@ export default async function InicioPage() {
   if (perfil.rol === 'estudiante') redirect(RUTA_INICIO.estudiante);
 
   const esAdmin = perfil.rol === 'superadmin';
-  const [sesiones, codigos, docentes, estudiantesPlataforma, estudiantesDocente] =
+  const [sesiones, codigos, docentes, estudiantesPlataforma, metricasIa, estudiantesDocente] =
     await Promise.all([
       obtenerSesionesDelDocente(),
       obtenerCodigosPendientes(),
       esAdmin ? obtenerDocentes() : null,
       esAdmin ? obtenerTodosLosEstudiantes() : null,
+      esAdmin ? obtenerMetricasIa(7).catch(() => null) : null,
       esAdmin ? null : obtenerEstudiantes(),
     ]);
 
@@ -127,7 +124,7 @@ export default async function InicioPage() {
         'Prácticas terminadas, o con al menos 3 intervenciones del estudiante, que aún no tienen tu retroalimentación publicada.',
     },
     {
-      icono: Activity,
+      icono: IndicadorEnVivo,
       etiqueta: 'Practicando ahora',
       valor: practicando.length,
       detalle: practicando.length === 0 ? 'Nadie en el consultorio' : 'En el consultorio',
@@ -182,9 +179,16 @@ export default async function InicioPage() {
   );
 
   if (docentes && estudiantesPlataforma) {
+    const estudiantesPropios = estudiantesPlataforma.filter(e => e.docente?.id === perfil.id);
+    const totalEnCursoPlataforma = docentes.reduce((s, d) => s + d.metricas.enCurso, 0);
+    const configuracionIa = leerConfiguracionIa();
+
     return (
       <div className="@container/inicio flex flex-1 flex-col">
-        <RefrescoAutomatico activo={practicando.length > 0} segundos={30} />
+        <RefrescoAutomatico
+          activo={practicando.length > 0 || totalEnCursoPlataforma > 0}
+          segundos={30}
+        />
         <HeroPlataforma textoSaludo={saludo(ahora)} primerNombre={primerNombre} resumen={resumen} />
         {/* Las tarjetas clave invaden la franja superior de nogal para anclar los dos niveles. */}
         <div className="relative z-10 mx-auto -mt-10 w-full max-w-[1400px] px-4 pb-10 sm:-mt-16 sm:px-6 sm:pb-12">
@@ -192,9 +196,27 @@ export default async function InicioPage() {
             <PanelPlataforma
               docentes={docentes}
               estudiantes={estudiantesPlataforma}
+              adminId={perfil.id}
+              tuGrupo={{
+                estudiantesCount: estudiantesPropios.length,
+                conCuenta: estudiantesPropios.filter(e => e.cuentaVinculada).length,
+                porRevisar: porRevisar.length,
+                conBorrador,
+                practicandoAhora: practicando.length,
+                totalPracticas: sesiones.length,
+                finalizadas: finalizadasDocente,
+                codigosSinUsar: codigos.length,
+                notaMedia: notaMediaDocente,
+              }}
               ahora={ahora}
             />
-            {bandeja}
+            <aside
+              aria-label="Tu bandeja y comportamiento de la IA"
+              className="flex min-w-0 flex-col gap-6"
+            >
+              {bandeja}
+              <ResumenOrquestador configuracion={configuracionIa} metricas={metricasIa} />
+            </aside>
           </div>
         </div>
       </div>
@@ -217,10 +239,7 @@ export default async function InicioPage() {
         href="#practicando"
         className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-salvia/60 bg-sidebar-accent px-3 py-1 text-xs font-medium whitespace-nowrap text-sidebar-foreground transition-colors hover:border-laton/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
       >
-        <span aria-hidden className="relative flex size-2">
-          <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-65 motion-safe:animate-ping" />
-          <span className="relative inline-flex size-2 rounded-full bg-salvia" />
-        </span>
+        <IndicadorEnVivo className="size-3.5 shrink-0 text-salvia" />
         {plural(practicando.length, 'practicando ahora', 'practicando ahora')}
       </a>
     ) : porRevisar.length > 0 ? (
