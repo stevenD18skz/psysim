@@ -334,6 +334,24 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  @keyframes onda-en-vivo {
+    0%,
+    100% {
+      opacity: 0.95;
+    }
+    50% {
+      opacity: 0.28;
+    }
+  }
+
+  .onda-en-vivo-interior {
+    animation: onda-en-vivo 2.2s ease-in-out infinite;
+  }
+
+  .onda-en-vivo-exterior {
+    animation: onda-en-vivo 2.2s ease-in-out 0.35s infinite;
+  }
+
   details::details-content {
     block-size: 0;
     opacity: 0;

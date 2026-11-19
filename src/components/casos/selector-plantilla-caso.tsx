@@ -1,9 +1,10 @@
 'use client';
 
-import { ChevronDown, CopyPlus, Lightbulb, Sparkles } from 'lucide-react';
+import { CopyPlus, Lightbulb, Sparkles } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { Selector } from '@/components/ui/selector';
 import { Button } from '@/components/ui/button';
 import { EJEMPLOS_CASO, type EjemploCaso } from '@/lib/casos/ejemplos';
 import { ETIQUETA_DIFICULTAD } from '@/lib/escenarios/etiquetas';
@@ -106,40 +107,41 @@ export function SelectorPlantillaCaso({
             <label htmlFor={idSelectCaso} className="text-xs font-medium text-muted-foreground">
               Crear caso a partir de
             </label>
-            <div className="relative">
-              <select
-                id={idSelectCaso}
-                value={idElegido}
-                disabled={deshabilitado}
-                onChange={e => seleccionarCasoDelCatalogo(e.target.value)}
-                className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-input bg-card pr-9 pl-3.5 text-sm font-medium shadow-[0_1px_2px_rgb(58_36_24/0.06)] outline-hidden transition-[border-color,box-shadow] hover:border-nogal/45 focus-visible:border-ring focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid disabled:opacity-50"
-              >
-                <option value="">Elige un caso predefinido o uno de tus casos…</option>
-                {propios.length > 0 && (
-                  <optgroup label="Mis casos">
-                    {propios.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.titulo} — {c.npc.nombre} ({ETIQUETA_DIFICULTAD[c.dificultad]})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {oficiales.length > 0 && (
-                  <optgroup label="Casos predefinidos de PsySim">
-                    {oficiales.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.codigo} · {c.titulo} — {c.npc.nombre} (
-                        {ETIQUETA_DIFICULTAD[c.dificultad]})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-            </div>
+            <Selector
+              id={idSelectCaso}
+              valor={idElegido}
+              disabled={deshabilitado}
+              ariaLabel="Crear caso a partir de"
+              placeholder="Elige un caso predefinido o uno de tus casos…"
+              opciones={[{ valor: '', etiqueta: 'Elige un caso predefinido o uno de tus casos…' }]}
+              grupos={[
+                ...(propios.length > 0
+                  ? [
+                      {
+                        etiqueta: 'Mis casos',
+                        opciones: propios.map(c => ({
+                          valor: c.id,
+                          etiqueta: c.titulo,
+                          descripcion: `${c.npc.nombre} · ${ETIQUETA_DIFICULTAD[c.dificultad]}`,
+                        })),
+                      },
+                    ]
+                  : []),
+                ...(oficiales.length > 0
+                  ? [
+                      {
+                        etiqueta: 'Casos predefinidos de PsySim',
+                        opciones: oficiales.map(c => ({
+                          valor: c.id,
+                          etiqueta: `${c.codigo} · ${c.titulo}`,
+                          descripcion: `${c.npc.nombre} · ${ETIQUETA_DIFICULTAD[c.dificultad]}`,
+                        })),
+                      },
+                    ]
+                  : []),
+              ]}
+              onChange={seleccionarCasoDelCatalogo}
+            />
           </div>
 
           <div className="flex flex-col gap-1">

@@ -38,3 +38,28 @@ export function tiempoRelativo(iso: string, ahora: Date = new Date()): string {
   if (abs < 30 * 86_400) return relativo.format(Math.round(segundos / 86_400), 'day');
   return relativo.format(Math.round(segundos / (30 * 86_400)), 'month');
 }
+
+const formatoFechaBogota = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: 'America/Bogota',
+});
+
+function diaUtcDeBogota(fecha: Date): number {
+  const [anio, mes, dia] = formatoFechaBogota.format(fecha).split('-').map(Number);
+  return Date.UTC(anio ?? 0, (mes ?? 1) - 1, dia ?? 1);
+}
+
+/**
+ * Texto natural para el vencimiento de un código: «Vence hoy», «Vence mañana» o «Vence en X días»,
+ * calculado por día calendario en Colombia (`America/Bogota`).
+ */
+export function formatearVencimientoCodigo(iso: string, ahora: Date = new Date()): string {
+  const expiracion = new Date(iso);
+  if (expiracion.getTime() <= ahora.getTime()) return 'Vencido';
+  const dias = Math.round((diaUtcDeBogota(expiracion) - diaUtcDeBogota(ahora)) / 86_400_000);
+  if (dias <= 0) return 'Vence hoy';
+  if (dias === 1) return 'Vence mañana';
+  return `Vence en ${dias} días`;
+}

@@ -1,16 +1,18 @@
 'use client';
 
-import { ChevronDown, Loader2, LogOut, MonitorPlay } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRef } from 'react';
 
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
-import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 
@@ -23,6 +25,7 @@ import { useAppStore } from '@/store/app-store-provider';
 export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | null }) {
   const pathname = usePathname();
   const perfil = useAppStore(state => state.auth.perfil);
+  const botonCuenta = useRef<HTMLButtonElement>(null);
   const compartido = useEquipoCompartido();
   const sesionPropia = useCerrarSesion();
   const sesionCompartida = useCerrarSesionCompartida();
@@ -82,11 +85,7 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
               href={`/simulacion?sesion=${sesionEnCurso}`}
               className="flex h-9 items-center gap-2 rounded-lg bg-laton px-3 text-sm font-semibold text-[#1f1b17] outline-hidden hover:bg-laton-claro focus-visible:ring-2 focus-visible:ring-lino focus-visible:ring-offset-2 focus-visible:ring-offset-nogal"
             >
-              <span className="relative flex size-2" aria-hidden>
-                <span className="absolute inline-flex size-full rounded-full bg-nogal/50 motion-safe:animate-ping" />
-                <span className="relative inline-flex size-2 rounded-full bg-nogal" />
-              </span>
-              <MonitorPlay className="size-4" aria-hidden />
+              <IndicadorEnVivo className="size-4 text-nogal" />
               <span>
                 Continuar <span className="hidden sm:inline">práctica</span>
               </span>
@@ -96,15 +95,17 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
           {perfil && (
             <div className="flex items-center gap-2.5">
               <DropdownMenu>
-                <DropdownMenuTrigger className="group/cuenta flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent">
+                <DropdownMenuTrigger
+                  ref={botonCuenta}
+                  className="group/cuenta flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton data-[state=open]:bg-sidebar-accent"
+                >
                   {/* Nombre por contenido (no aria-label): así coincide con lo visible (WCAG 2.5.3). */}
                   <span className="sr-only">Cuenta de {perfil.nombre}</span>
-                  <span
-                    aria-hidden
-                    className="flex size-8 items-center justify-center rounded-full bg-salvia-suave text-xs font-semibold text-salvia-oscuro ring-1 ring-lino/20"
-                  >
-                    {iniciales(perfil.nombre)}
-                  </span>
+                  <AvatarCuenta
+                    avatarId={perfil.avatarId}
+                    nombre={perfil.nombre}
+                    className="size-8 text-xs ring-1 ring-lino/20"
+                  />
                   <span
                     className="hidden max-w-40 truncate text-sm font-medium md:inline"
                     aria-hidden
@@ -118,6 +119,7 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
                 </DropdownMenuTrigger>
                 <MenuCuenta
                   perfil={perfil}
+                  botonCuenta={botonCuenta}
                   align="end"
                   sideOffset={8}
                   cerrando={cerrando}

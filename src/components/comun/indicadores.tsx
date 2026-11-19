@@ -1,13 +1,17 @@
-import { ArrowUpRight, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
+import { type ComponentType } from 'react';
 
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { cn } from '@/lib/utils';
+
+export type IconoIndicador = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 
 export interface Indicador {
   /** Ícono descriptivo que acompaña la métrica en la esquina superior derecha. */
-  icono?: LucideIcon;
+  icono?: IconoIndicador;
   etiqueta: string;
   valor: string | number;
   /** Ruta opcional si el valor principal enlaza a una ficha o detalle relacionado. */
@@ -25,9 +29,9 @@ export interface Indicador {
 
 const CLASE_TONO = {
   atencion: {
-    valor: 'text-terracota',
-    punto: 'bg-terracota',
-    cajaIcono: 'bg-terracota-suave text-terracota',
+    valor: 'text-ambar',
+    punto: 'bg-ambar',
+    cajaIcono: 'bg-ambar-suave text-ambar',
   },
   activo: {
     valor: 'text-salvia-oscuro',
@@ -52,10 +56,13 @@ function claseTamanoValor(valor: string | number) {
 export function Indicadores({
   indicadores,
   disposicion = 'franja',
+  sinMarco = false,
   className,
 }: {
   indicadores: readonly Indicador[];
   disposicion?: 'franja' | 'rejilla';
+  /** Omite el borde y el radio exteriores cuando el bloque vive dentro de una tarjeta mayor. */
+  sinMarco?: boolean;
   className?: string;
 }) {
   const rejilla = disposicion === 'rejilla';
@@ -65,7 +72,8 @@ export function Indicadores({
   return (
     <dl
       className={cn(
-        'grid grid-cols-2 overflow-hidden rounded-2xl border bg-card',
+        'grid grid-cols-2 overflow-hidden bg-card',
+        sinMarco === false && 'rounded-2xl border',
         rejilla
           ? 'gap-px bg-border sm:grid-cols-3'
           : filaAmplia
@@ -77,7 +85,8 @@ export function Indicadores({
       {indicadores.map(
         ({ icono: Icono, etiqueta, valor, enlace, detalle, ayuda, tono }, indice) => {
           const tamano = claseTamanoValor(valor);
-          const ultimaImpar = rejilla === false && totalImpar && indice === indicadores.length - 1;
+          const ultimaImpar = totalImpar && indice === indicadores.length - 1;
+          const esEnVivo = Icono === IndicadorEnVivo;
           const contenido = typeof valor === 'number' ? valor.toLocaleString('es-CO') : valor;
 
           return (
@@ -86,8 +95,11 @@ export function Indicadores({
               className={cn(
                 'flex min-w-0 flex-1 flex-col gap-1 px-4 py-4 transition-colors sm:px-5 sm:py-5',
                 rejilla
-                  ? // Opaco: un fondo translúcido dejaría ver el color del filete detrás.
-                    'bg-card hover:bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)]'
+                  ? [
+                      // Opaco: un fondo translúcido dejaría ver el color del filete detrás.
+                      'bg-card hover:bg-[color-mix(in_oklch,var(--card),var(--muted)_35%)]',
+                      ultimaImpar && 'col-span-2 sm:col-span-1',
+                    ]
                   : [
                       'hover:bg-muted/35',
                       ultimaImpar &&
@@ -102,7 +114,7 @@ export function Indicadores({
             >
               <dt className="flex items-start justify-between gap-2 text-sm font-medium text-muted-foreground sm:text-[0.9375rem]">
                 <span className="flex min-w-0 items-center gap-1.5 pt-0.5 leading-snug">
-                  {tono && (
+                  {tono && !esEnVivo && (
                     <span
                       aria-hidden
                       className={cn('size-1.5 shrink-0 rounded-full', CLASE_TONO[tono].punto)}
@@ -119,7 +131,11 @@ export function Indicadores({
                       tono ? CLASE_TONO[tono].cajaIcono : 'bg-muted/75 text-muted-foreground'
                     )}
                   >
-                    <Icono className="size-3.5 sm:size-4" />
+                    {esEnVivo ? (
+                      <IndicadorEnVivo animado={tono === 'activo'} className="size-3.5 sm:size-4" />
+                    ) : (
+                      <Icono className="size-3.5 sm:size-4" />
+                    )}
                   </span>
                 )}
               </dt>

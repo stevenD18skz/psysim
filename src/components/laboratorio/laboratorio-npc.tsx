@@ -9,6 +9,7 @@ import { Component, type ReactNode, Suspense, useId, useRef, useState } from 're
 import { type NpcApi } from '@/components/npc/npc-visor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Selector } from '@/components/ui/selector';
 import { ACCIONES_NPC, type AccionNpc, metaAccion } from '@/lib/npc/acciones';
 import { cargarGlb } from '@/lib/npc/cargar-glb';
 import { buscarModeloNpc, CATALOGO_NPC, type ModeloNpc, urlModeloNpc } from '@/lib/npc/catalogo';
@@ -185,18 +186,15 @@ export function LaboratorioNpc() {
             <label htmlFor={idAccion} className="sr-only">
               Acción
             </label>
-            <select
+            <Selector
               id={idAccion}
-              value={accion}
-              onChange={e => setAccion(e.target.value as AccionNpc)}
-              className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
-            >
-              {ACCIONES_NPC.map(id => (
-                <option key={id} value={id}>
-                  {metaAccion(id).etiqueta}
-                </option>
-              ))}
-            </select>
+              tamano="sm"
+              ariaLabel="Acción"
+              valor={accion}
+              className="w-40"
+              opciones={ACCIONES_NPC.map(id => ({ valor: id, etiqueta: metaAccion(id).etiqueta }))}
+              onChange={nuevo => setAccion(nuevo as AccionNpc)}
+            />
             <Button size="sm" variant="outline" onClick={() => api.current?.play(accion)}>
               play()
             </Button>

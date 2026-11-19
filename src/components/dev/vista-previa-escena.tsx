@@ -8,6 +8,7 @@ import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
 import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { useEscena } from '@/components/3d/use-escena';
 import { VeloEmocional } from '@/components/simulacion/velo-emocional';
+import { Selector } from '@/components/ui/selector';
 import { type EmocionNpc, EMOCIONES_NPC, esEmocionNpc } from '@/lib/conversacion/emociones';
 import { ESTADOS_NPC, type EstadoNpc } from '@/lib/conversacion/estados-npc';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
@@ -55,29 +56,26 @@ function ControlPaciente() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const clase = 'rounded bg-black/60 px-2 py-1 font-mono text-xs text-white';
   return (
     <>
-      <select
-        aria-label="Estado del paciente"
-        className={clase}
-        value={estado}
-        onChange={e => fijarEstado(e.target.value as EstadoNpc)}
-      >
-        {ESTADOS_NPC.map(id => (
-          <option key={id}>{id}</option>
-        ))}
-      </select>
-      <select
-        aria-label="Emoción del paciente"
-        className={clase}
-        value={emocion}
-        onChange={e => fijarEmocion(e.target.value as EmocionNpc)}
-      >
-        {EMOCIONES_NPC.map(id => (
-          <option key={id}>{id}</option>
-        ))}
-      </select>
+      <Selector
+        ariaLabel="Estado del paciente"
+        tamano="sm"
+        variante="oscuro"
+        className="w-32"
+        valor={estado}
+        opciones={ESTADOS_NPC.map(id => ({ valor: id, etiqueta: id }))}
+        onChange={nuevo => fijarEstado(nuevo as EstadoNpc)}
+      />
+      <Selector
+        ariaLabel="Emoción del paciente"
+        tamano="sm"
+        variante="oscuro"
+        className="w-32"
+        valor={emocion}
+        opciones={EMOCIONES_NPC.map(id => ({ valor: id, etiqueta: id }))}
+        onChange={nuevo => fijarEmocion(nuevo as EmocionNpc)}
+      />
     </>
   );
 }
