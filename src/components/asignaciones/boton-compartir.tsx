@@ -35,6 +35,7 @@ export function BotonCompartir({
   correo,
   etiqueta = 'Compartir código',
   size = 'default',
+  variant = 'outline',
   textoCopiable,
   className,
 }: {
@@ -44,6 +45,7 @@ export function BotonCompartir({
   correo?: string | null;
   etiqueta?: string;
   size?: 'default' | 'sm';
+  variant?: 'outline' | 'default';
   /** Si se pasa, añade «Copiar mensaje completo» dentro del menú de compartir. */
   textoCopiable?: string;
   className?: string;
@@ -92,7 +94,7 @@ export function BotonCompartir({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size={size} className={className}>
+        <Button type="button" variant={variant} size={size} className={className}>
           <Share2 aria-hidden />
           {etiqueta}
           <ChevronDown className="opacity-60" aria-hidden />

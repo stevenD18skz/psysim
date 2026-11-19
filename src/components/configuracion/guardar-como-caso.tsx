@@ -101,7 +101,7 @@ export function GuardarComoCaso({
   return (
     // El campo entra desde el botón que lo abrió, para que se lea como su continuación.
     <div className="flex flex-col motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:zoom-in-98">
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center gap-2 sm:w-auto">
         <label htmlFor={idCampo} className="sr-only">
           Nombre del caso
         </label>
@@ -124,7 +124,7 @@ export function GuardarComoCaso({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${idCampo}-error` : undefined}
           disabled={guardando}
-          className="h-9 w-64"
+          className="h-11 min-w-0 flex-1 sm:w-64 sm:flex-none"
         />
         <Button type="button" size="lg" onClick={guardar} disabled={guardando}>
           {guardando ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}

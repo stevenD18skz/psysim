@@ -3,9 +3,9 @@
 import { ChevronsUpDown, CornerDownLeft, Search, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
 import { Input } from '@/components/ui/input';
 import { contarPracticas, filtrarEstudiantes } from '@/lib/estudiantes/estudiantes';
-import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { type EstudianteRegistrado } from '@/types';
 
@@ -55,6 +55,23 @@ export function BuscadorEstudiante({
     setAbierto(false);
   };
 
+  const limpiar = () => {
+    setTermino('');
+    setActivo(0);
+    setAbierto(true);
+    inputRef.current?.focus();
+  };
+
+  const alternarLista = () => {
+    if (deshabilitado) return;
+    if (abierto) {
+      setAbierto(false);
+      return;
+    }
+    setAbierto(true);
+    inputRef.current?.focus();
+  };
+
   const alPulsar = (evento: React.KeyboardEvent<HTMLInputElement>) => {
     if (evento.key === 'ArrowDown' || evento.key === 'ArrowUp') {
       evento.preventDefault();
@@ -100,7 +117,7 @@ export function BuscadorEstudiante({
           }
           autoComplete="off"
           placeholder="Busca por código o nombre…"
-          className={cn('h-11 pl-9', termino.length > 0 ? 'pr-16' : 'pr-9')}
+          className={cn('h-11 pl-9', termino.length > 0 ? 'pr-20' : 'pr-11')}
           value={termino}
           disabled={deshabilitado}
           onChange={evento => {
@@ -113,27 +130,34 @@ export function BuscadorEstudiante({
           onBlur={() => setAbierto(false)}
           onKeyDown={alPulsar}
         />
-        <div className="absolute top-1/2 right-2.5 flex -translate-y-1/2 items-center gap-1">
+        <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5">
           {termino.length > 0 && (
             <button
               type="button"
               aria-label="Limpiar búsqueda"
-              onMouseDown={evento => {
-                evento.preventDefault();
-                setTermino('');
-                setActivo(0);
-                setAbierto(true);
-                inputRef.current?.focus();
-              }}
-              className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-hidden"
+              disabled={deshabilitado}
+              onMouseDown={evento => evento.preventDefault()}
+              onClick={limpiar}
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50"
             >
               <X className="size-3.5" aria-hidden />
             </button>
           )}
-          <ChevronsUpDown
-            className="pointer-events-none size-4 text-muted-foreground"
-            aria-hidden
-          />
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={visible ? 'Ocultar lista de estudiantes' : 'Mostrar lista de estudiantes'}
+            aria-expanded={visible}
+            disabled={deshabilitado}
+            onMouseDown={evento => evento.preventDefault()}
+            onClick={alternarLista}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
+              visible && 'bg-muted/80 text-foreground'
+            )}
+          >
+            <ChevronsUpDown className="size-4" aria-hidden />
+          </button>
         </div>
       </div>
 
@@ -186,17 +210,14 @@ export function BuscadorEstudiante({
                       seleccionado ? 'bg-salvia-suave/65 text-foreground' : 'hover:bg-muted/50'
                     )}
                   >
-                    <span
-                      aria-hidden
+                    <AvatarCuenta
+                      avatarId={estudiante.avatarId}
+                      nombre={estudiante.nombre}
                       className={cn(
-                        'flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors',
-                        seleccionado
-                          ? 'bg-salvia-oscuro text-lino'
-                          : 'bg-salvia-suave text-salvia-oscuro'
+                        'size-9 text-xs transition-colors',
+                        seleccionado && 'bg-salvia-oscuro text-lino'
                       )}
-                    >
-                      {iniciales(estudiante.nombre)}
-                    </span>
+                    />
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-semibold">{estudiante.nombre}</span>
