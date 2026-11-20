@@ -44,7 +44,7 @@ export function GrupoChips({
             disabled={deshabilitado}
             onClick={() => alternar(opcion.id)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden disabled:opacity-50',
+              'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid disabled:opacity-50 sm:min-h-8',
               activa ? 'border-nogal bg-nogal text-lino' : 'bg-card text-foreground hover:bg-muted'
             )}
           >
@@ -92,7 +92,7 @@ export function Sugerencias({ etiqueta, sugerencias, texto, onAgregar }: Sugeren
               setUsadas(prev => (prev.includes(sugerencia) ? prev : [...prev, sugerencia]));
               onAgregar(sugerencia);
             }}
-            className="min-h-7 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
+            className="min-h-9 rounded-full border border-dashed px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-nogal/50 hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid sm:min-h-8"
           >
             + {sugerencia}
           </button>
@@ -136,7 +136,7 @@ export function SelectorOpciones<T extends string>({
           <label
             key={opcion.valor}
             className={cn(
-              'flex cursor-pointer flex-col gap-0.5 rounded-xl border bg-card px-3 py-2 text-sm transition-[border-color,background-color] hover:border-nogal/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring',
+              'flex min-h-11 cursor-pointer flex-col justify-center gap-0.5 rounded-xl border bg-card px-3 py-2 text-sm transition-[border-color,background-color] hover:border-nogal/40 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-solid',
               activa && 'border-nogal bg-salvia-suave/45 ring-1 ring-nogal',
               deshabilitado && 'cursor-not-allowed opacity-50'
             )}

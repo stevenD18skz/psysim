@@ -2,6 +2,7 @@ import { ArrowRight, Plus, SearchX } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { PistaFaro } from '@/components/ayuda/pista-contextual';
 import { type UsoCaso } from '@/components/casos/biblioteca-casos';
 import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
 import { SeccionesCasos } from '@/components/casos/secciones-casos';
@@ -98,6 +99,13 @@ export default async function CasosPage({ searchParams }: PageProps<'/configurac
                 </strong>{' '}
                 {totalPropios === 1 ? 'caso propio' : 'casos propios'}
               </span>
+              <PistaFaro
+                id="biblioteca-casos-plantilla"
+                etiqueta="Adaptar casos"
+                enMadera
+                titulo="Crea versiones propias sin empezar de cero"
+                descripcion="Puedes partir de cualquier caso predefinido para ajustar su dificultad, perfil clínico o motivo de consulta y guardarlo en «Mis casos». Cada tarjeta muestra además cuántas veces lo has asignado."
+              />
             </div>
             <Link
               href="/configuracion"

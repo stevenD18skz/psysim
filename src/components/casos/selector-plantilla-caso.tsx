@@ -1,6 +1,6 @@
 'use client';
 
-import { CopyPlus, Lightbulb, Sparkles } from 'lucide-react';
+import { CopyPlus, Lightbulb, SlidersHorizontal } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
@@ -62,6 +62,7 @@ export function SelectorPlantillaCaso({
 
   return (
     <section
+      data-tour="caso-plantilla"
       aria-labelledby="plantilla-caso-titulo"
       className="flex flex-col gap-4 rounded-2xl border border-salvia/45 bg-salvia-suave/30 p-5"
     >
@@ -145,9 +146,13 @@ export function SelectorPlantillaCaso({
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Sparkles className="size-3.5 text-salvia" aria-hidden />
+            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <SlidersHorizontal className="size-3.5 text-salvia-oscuro" aria-hidden />
               Adaptar actitud al nivel
+              <AyudaContextual
+                etiqueta="Qué cambia al adaptar el nivel"
+                texto="Ajusta automáticamente la apertura, resistencia y exigencia clínica del paciente para nivel básico, intermedio o avanzado sin borrar su historia."
+              />
             </span>
             <div
               role="group"
