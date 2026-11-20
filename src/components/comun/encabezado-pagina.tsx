@@ -51,7 +51,7 @@ export function EncabezadoPagina({
             {volver.etiqueta}
           </Link>
         )}
-        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-end @2xl:justify-between">
+        <div className="flex flex-col gap-4 @3xl:flex-row @3xl:items-end @3xl:justify-between">
           <div className="flex min-w-0 flex-col gap-2">
             <h1 className="text-3xl leading-[1.05] font-bold tracking-[-0.025em] text-balance text-sidebar-foreground sm:text-[2.5rem] print:text-foreground">
               {titulo}

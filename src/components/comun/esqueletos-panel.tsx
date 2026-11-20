@@ -73,7 +73,7 @@ function HeroPagina({
     <MarcoHeroInicio conBordeLateral={conBordeLateral} compacto={Boolean(subbarra) === false}>
       <div className="flex flex-col gap-3">
         {volver && <Skeleton className="h-6 w-28 bg-lino/15" />}
-        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-end @2xl:justify-between">
+        <div className="flex flex-col gap-4 @3xl:flex-row @3xl:items-end @3xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5">
             {titulo ? (
               <h1 className="text-3xl leading-[1.05] font-bold tracking-[-0.025em] text-sidebar-foreground sm:text-[2.5rem]">
@@ -221,24 +221,34 @@ function SubbarraAccesos({ enlaces = 3 }: { enlaces?: number }) {
 
 function Filas({ cantidad = 4 }: { cantidad?: number }) {
   return (
-    <div className="@container divide-y overflow-hidden rounded-2xl border bg-card">
-      {Array.from({ length: cantidad }, (_, i) => (
-        <div
-          key={i}
-          className="grid gap-3 px-5 py-4 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] @2xl:items-center @2xl:gap-8 @2xl:py-5"
-        >
-          <div className="flex min-w-0 flex-col gap-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
+    <div className="@container overflow-hidden rounded-2xl border bg-card">
+      <div className="hidden border-b bg-muted/40 px-5 py-2.5 sm:px-6 @4xl:grid @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_4.5rem_10.5rem] @4xl:items-center @4xl:gap-x-6">
+        <Skeleton className="h-3.5 w-20" />
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-3.5 w-16" />
+        <Skeleton className="ml-auto h-3.5 w-10" />
+        <Skeleton className="ml-auto h-3.5 w-14" />
+      </div>
+      <div className="divide-y">
+        {Array.from({ length: cantidad }, (_, i) => (
+          <div
+            key={i}
+            className="grid gap-3 px-5 py-4 even:bg-muted/30 sm:px-6 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_4.5rem_10.5rem] @4xl:items-center @4xl:gap-x-6 @4xl:py-4.5"
+          >
+            <div className="flex min-w-0 flex-col gap-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-5 w-10 @4xl:ml-auto" />
+            <Skeleton className="h-5 w-24 @4xl:ml-auto" />
           </div>
-          <div className="flex min-w-0 flex-col gap-2">
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-          <Skeleton className="h-6 w-24 rounded-full" />
-          <Skeleton className="h-5 w-20" />
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -471,9 +481,12 @@ export function EsqueletoConfiguracion() {
       hero={
         <HeroPagina
           titulo="Asignar práctica"
-          accion
-          anchoAccion="w-44"
-          tonoAccion="contorno"
+          derecha={
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Skeleton className="h-11 w-40 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+              <Skeleton className="h-11 w-44 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+            </div>
+          }
           subbarra={<SubbarraResumen />}
         />
       }
@@ -516,7 +529,15 @@ export function EsqueletoConstructorCaso({ nuevo = false }: { nuevo?: boolean })
   return (
     <Pagina
       nombre={nuevo ? 'nuevo caso' : 'edición del caso'}
-      hero={<HeroPagina titulo={nuevo ? 'Crear caso' : undefined} volver />}
+      hero={
+        <HeroPagina
+          titulo={nuevo ? 'Crear caso' : undefined}
+          volver
+          accion
+          anchoAccion="w-40"
+          tonoAccion="contorno"
+        />
+      }
     >
       <div
         className={`grid items-start gap-8 rounded-2xl border border-border/80 bg-background p-5 sm:p-7 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] ${SOMBRA_SOBRE_NOGAL}`}
@@ -593,10 +614,10 @@ export function EsqueletoFichaEstudiante() {
           conMeta
           derecha={
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <Skeleton className="h-10 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
-              <Skeleton className="h-10 w-28 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
-              <Skeleton className="h-10 w-40 rounded-[10px] bg-laton/35" />
-              <Skeleton className="size-10 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+              <Skeleton className="h-11 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+              <Skeleton className="h-11 w-28 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+              <Skeleton className="h-11 w-40 rounded-[10px] bg-laton/35" />
+              <Skeleton className="size-11 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
             </div>
           }
         />
@@ -604,7 +625,9 @@ export function EsqueletoFichaEstudiante() {
     >
       <Indicadores elevada />
       <Bloque>
-        <Pestanas cantidad={4} />
+        <div className="w-fit rounded-xl border bg-card p-1">
+          <Pestanas cantidad={4} />
+        </div>
         <Filas cantidad={3} />
       </Bloque>
       <Bloque>
@@ -627,8 +650,15 @@ export function EsqueletoDocentes() {
         />
       }
     >
-      <Indicadores elevada />
-      <Filas cantidad={5} />
+      <Indicadores cantidad={5} elevada />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-5 w-8 rounded-full" />
+        </div>
+        <Filtros />
+        <Filas cantidad={5} />
+      </div>
     </Pagina>
   );
 }
@@ -637,7 +667,18 @@ export function EsqueletoFichaDocente() {
   return (
     <Pagina
       nombre="ficha del docente"
-      hero={<HeroPagina volver conMeta accion anchoAccion="w-32" tonoAccion="contorno" />}
+      hero={
+        <HeroPagina
+          volver
+          conMeta
+          derecha={
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Skeleton className="h-11 w-28 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+              <Skeleton className="size-11 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+            </div>
+          }
+        />
+      }
     >
       <div
         className={`grid gap-4 rounded-2xl border bg-card p-5 sm:grid-cols-2 ${SOMBRA_SOBRE_NOGAL}`}
@@ -692,8 +733,9 @@ export function EsqueletoRevision() {
             volver
             conMeta
             derecha={
-              <div className="flex items-center gap-1.5">
-                <Skeleton className="mr-2 h-4 w-28 bg-lino/15" />
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton className="h-9 w-36 rounded-[10px] border border-lino/25 bg-sidebar-accent/70" />
+                <Skeleton className="mr-1 h-4 w-28 bg-lino/15" />
                 <Skeleton className="size-9 rounded-lg border border-lino/25 bg-sidebar-accent/70" />
                 <Skeleton className="size-9 rounded-lg border border-lino/25 bg-sidebar-accent/70" />
               </div>
@@ -841,19 +883,30 @@ export function EsqueletoIa() {
           titulo="Paciente con IA"
           derecha={
             <div className="flex gap-1 rounded-xl border border-sidebar-border bg-sidebar-accent/70 p-1">
-              <Skeleton className="h-8 w-20 rounded-lg bg-lino/20" />
-              <Skeleton className="h-8 w-20 rounded-lg bg-transparent" />
-              <Skeleton className="h-8 w-20 rounded-lg bg-transparent" />
+              <Skeleton className="h-9 w-16 rounded-lg bg-lino/20" />
+              <Skeleton className="h-9 w-16 rounded-lg bg-transparent" />
+              <Skeleton className="h-9 w-18 rounded-lg bg-transparent" />
+              <Skeleton className="h-9 w-18 rounded-lg bg-transparent" />
             </div>
           }
+          subbarra={<SubbarraResumen />}
         />
       }
     >
-      <div
-        className={`flex flex-col gap-3 rounded-2xl border bg-card p-5 sm:p-6 ${SOMBRA_SOBRE_NOGAL}`}
-      >
-        <Skeleton className="h-6 w-60 max-w-full" />
-        <Lineas />
+      <div className={`flex flex-col gap-4 rounded-2xl border bg-card p-5 ${SOMBRA_SOBRE_NOGAL}`}>
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-5 w-52 max-w-full" />
+          <Skeleton className="h-6 w-32 rounded-full" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-5 w-36" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-4 w-full max-w-2xl" />
       </div>
       <Indicadores />
       <Bloque>
