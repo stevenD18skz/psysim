@@ -144,16 +144,27 @@ export function DialogoEstudiante({
               maxLength={LIMITES.codigoEstudiante.max + 4}
               // El código identifica al estudiante en el historial: no se cambia al editar.
               readOnly={editando}
+              className="read-only:cursor-default read-only:bg-muted/60 read-only:text-muted-foreground"
               aria-invalid={errors.codigo ? true : undefined}
-              aria-describedby={errors.codigo ? 'estudiante-codigo-error' : undefined}
+              aria-describedby={
+                errors.codigo
+                  ? 'estudiante-codigo-error'
+                  : editando
+                    ? 'estudiante-codigo-ayuda'
+                    : undefined
+              }
               disabled={guardando}
               {...register('codigo')}
             />
-            {errors.codigo && (
+            {errors.codigo ? (
               <p id="estudiante-codigo-error" className="text-sm text-destructive">
                 {errors.codigo.message}
               </p>
-            )}
+            ) : editando ? (
+              <p id="estudiante-codigo-ayuda" className="text-xs text-muted-foreground">
+                El código institucional no se puede cambiar.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
