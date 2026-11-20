@@ -35,6 +35,7 @@ import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
+import { RecorridoAsignarPractica } from '@/components/configuracion/recorrido-asignar';
 import { ResumenPacientePaso } from '@/components/configuracion/resumen-paciente-paso';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
@@ -283,7 +284,8 @@ export function ConfiguradorSesion({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <RecorridoAsignarPractica />
       <form
         noValidate
         onSubmit={handleSubmit(onSubmit)}
@@ -294,6 +296,7 @@ export function ConfiguradorSesion({
         <Paso
           numero={1}
           id="paso-escenario-titulo"
+          tourId="config-caso"
           titulo="Caso"
           estado={estadoPaso1}
           ayuda="Alterna entre los casos que diseñaste y los predefinidos de PsySim. Solo se elige un caso por código; púlsalo de nuevo si quieres deseleccionarlo."
@@ -522,6 +525,7 @@ export function ConfiguradorSesion({
           numero={2}
           id="paso-paciente-titulo"
           seccionId="paso-paciente"
+          tourId="config-paciente"
           titulo="Comportamiento del paciente (opcional)"
           estado={estadoPaso2}
           ayuda="El caso ya viene listo para usar. Si quieres adaptarlo para este estudiante o crear un caso propio con otra dificultad a partir de él, usa el bloque de la derecha."
@@ -624,6 +628,7 @@ export function ConfiguradorSesion({
         <Paso
           numero={3}
           id="paso-estudiante-titulo"
+          tourId="config-estudiante"
           titulo="Estudiante y plazo"
           estado={estadoPaso3}
           ultimo
@@ -769,7 +774,10 @@ export function ConfiguradorSesion({
         )}
 
         {/* Acciones */}
-        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
+        <div
+          data-tour="config-generar"
+          className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4"
+        >
           <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
@@ -852,6 +860,8 @@ interface PasoProps {
   ultimo?: boolean;
   /** `id` de la sección, para poder desplazarse hasta ella. */
   seccionId?: string;
+  /** Identificador de foco para el recorrido guiado (`data-tour`). */
+  tourId?: string;
   children: React.ReactNode;
 }
 
@@ -869,11 +879,13 @@ function Paso({
   ayuda,
   ultimo = false,
   seccionId,
+  tourId,
   children,
 }: PasoProps) {
   return (
     <section
       id={seccionId}
+      data-tour={tourId}
       aria-labelledby={id}
       data-estado={estado}
       className="grid scroll-mt-20 grid-cols-[2rem_minmax(0,1fr)] gap-x-4 sm:gap-x-5"
