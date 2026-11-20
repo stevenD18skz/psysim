@@ -13,6 +13,8 @@ const PREFIJOS_DE_LA_CUENTA = [
   'psysim:privacidad-aceptada',
   'psysim:dictado-aceptado',
   'psysim:guia-sesion-vista',
+  'psysim:guia-anotacion-oculta',
+  'psysim:ayuda:',
 ] as const;
 
 function borrarDe(almacen: Storage) {

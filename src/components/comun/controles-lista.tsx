@@ -122,6 +122,8 @@ interface SelectorListaProps {
   parametro: string;
   opciones: readonly { valor: string; etiqueta: string }[];
   defecto: string;
+  /** Pista contextual opcional (p. ej. Coach Mark) alineada junto a la etiqueta del selector. */
+  ayuda?: React.ReactNode;
   className?: string;
 }
 
@@ -131,6 +133,7 @@ export function SelectorLista({
   parametro,
   opciones,
   defecto,
+  ayuda,
   className,
 }: SelectorListaProps) {
   const id = useId();
@@ -140,9 +143,12 @@ export function SelectorLista({
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
-        {etiqueta}
-      </label>
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+          {etiqueta}
+        </label>
+        {ayuda}
+      </div>
       <Selector
         id={id}
         valor={valorSeguro}
