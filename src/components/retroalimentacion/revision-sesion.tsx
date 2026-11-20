@@ -1,8 +1,7 @@
 'use client';
 
 import {
-  Check,
-  HelpCircle,
+  Compass,
   Highlighter,
   Loader2,
   MessageSquareOff,
@@ -12,11 +11,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
-import { Desplegable } from '@/components/comun/desplegable';
 import { EstadoVacio } from '@/components/comun/estado-vacio';
 
 import {
@@ -28,6 +26,10 @@ import {
   irAMarca,
 } from '@/components/retroalimentacion/ancla';
 import { FormularioRetroalimentacion } from '@/components/retroalimentacion/formulario-retroalimentacion';
+import {
+  ID_RECORRIDO_REVISION,
+  RecorridoRevisionPractica,
+} from '@/components/retroalimentacion/recorrido-revision';
 import { IntentoReformulado } from '@/components/sesiones/intento-reformulado';
 import {
   numerarAnotaciones,
@@ -37,6 +39,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { dispararRecorrido } from '@/lib/ayuda/recorridos';
 import {
   actualizarAnotacion,
   crearAnotacion,
@@ -75,18 +78,6 @@ interface Seleccion {
 type Burbuja =
   | { tipo: 'nueva'; seleccion: Seleccion; ancla: Ancla }
   | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
-
-/** Clave local para recordar que el docente ya entendió cómo subrayar y comentar frases. */
-const CLAVE_GUIA_ANOTACION = 'psysim:guia-anotacion-oculta';
-const sinSuscripcion = () => () => {};
-
-function leerGuiaOculta(): boolean {
-  try {
-    return window.localStorage.getItem(CLAVE_GUIA_ANOTACION) === '1';
-  } catch {
-    return true;
-  }
-}
 
 /** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
 const RESALTADO_BORRADOR = 'comentario-borrador';
@@ -187,19 +178,6 @@ export function RevisionSesion({
   const [arrastrando, setArrastrando] = useState(false);
   const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
   const [quitando, setQuitando] = useState<string | null>(null);
-  // La guía se muestra automáticamente solo la primera vez; después se abre bajo demanda.
-  const guiaOcultaInicial = useSyncExternalStore(sinSuscripcion, leerGuiaOculta, () => true);
-  const [guiaManual, setGuiaManual] = useState<boolean | null>(null);
-  const guiaAbierta = guiaManual ?? !guiaOcultaInicial;
-
-  const cerrarGuia = () => {
-    setGuiaManual(false);
-    try {
-      window.localStorage.setItem(CLAVE_GUIA_ANOTACION, '1');
-    } catch {
-      // Ignorar si el navegador bloquea localStorage.
-    }
-  };
 
   const numeros = numerarAnotaciones(sesion.mensajes, anotaciones);
   const ordenadas = [...anotaciones].sort(
@@ -322,12 +300,13 @@ export function RevisionSesion({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
-      <style href={RESALTADO_BORRADOR} precedence="default">
-        {ESTILO_RESALTADO}
-      </style>
-      <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-col">
+    <div className="flex flex-col gap-6">
+      <RecorridoRevisionPractica tieneMensajes={sesion.mensajes.length > 0} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+        <style href={RESALTADO_BORRADOR} precedence="default">
+          {ESTILO_RESALTADO}
+        </style>
+        <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
@@ -339,7 +318,10 @@ export function RevisionSesion({
                 </span>
               )}
               {ia && Object.keys(ia.severidades).length > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                <span
+                  data-tour="revision-severidad"
+                  className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+                >
                   Severidad 0–5
                   <AyudaContextual
                     etiqueta="Qué indica la severidad del paciente"
@@ -352,287 +334,255 @@ export function RevisionSesion({
             {sesion.mensajes.length > 0 && (
               <button
                 type="button"
-                aria-expanded={guiaAbierta}
-                onClick={() => setGuiaManual(!guiaAbierta)}
+                onClick={() => dispararRecorrido(ID_RECORRIDO_REVISION, 0)}
                 className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
               >
-                <HelpCircle className="size-3.5 shrink-0" aria-hidden />
-                {guiaAbierta ? 'Ocultar guía' : '¿Cómo anotar frases?'}
+                <Compass className="size-3.5 shrink-0" aria-hidden />
+                ¿Cómo anotar frases?
               </button>
             )}
           </div>
 
-          {sesion.mensajes.length > 0 && (
-            <Desplegable abierto={guiaAbierta}>
-              <div className="pt-3">
-                <div className="flex flex-col gap-3 rounded-xl border border-ambar/35 bg-ambar-suave/45 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-2.5">
-                    <span
-                      aria-hidden
-                      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-ambar-suave text-ambar"
-                    >
-                      <Highlighter className="size-4" />
-                    </span>
-                    <div className="flex flex-col gap-0.5 text-foreground">
-                      <p className="font-semibold">Comenta frases directas en la conversación</p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        1. Selecciona cualquier fragmento de {nombreEstudiante} (con ratón o Mayús +
-                        flechas) y pulsa{' '}
-                        <strong className="font-medium text-foreground">Comentar selección</strong>.{' '}
-                        2. Pulsa un subrayado ámbar para leerlo, editarlo o quitarlo.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={cerrarGuia}
-                    className="shrink-0 self-start bg-card sm:self-center"
-                  >
-                    <Check className="size-3.5" aria-hidden />
-                    Entendido
-                  </Button>
-                </div>
-              </div>
-            </Desplegable>
-          )}
-        </div>
-
-        {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
-          <EstadoVacio
-            icono={MessageSquareOff}
-            titulo={`${nombreEstudiante} no alcanzó a conversar con el paciente`}
-            descripcion="La práctica se cerró antes de enviar mensajes, por eso no hay transcripción disponible para anotar."
-          />
-        ) : (
-          <ol
-            ref={raiz}
-            aria-label="Conversación de la práctica"
-            className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
-          >
-            {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
-              if (elemento.tipo === 'intento') {
+          {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
+            <EstadoVacio
+              icono={MessageSquareOff}
+              titulo={`${nombreEstudiante} no alcanzó a conversar con el paciente`}
+              descripcion="La práctica se cerró antes de enviar mensajes, por eso no hay transcripción disponible para anotar."
+            />
+          ) : (
+            <ol
+              ref={raiz}
+              data-tour="revision-conversacion"
+              aria-label="Conversación de la práctica"
+              className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
+            >
+              {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
+                if (elemento.tipo === 'intento') {
+                  return (
+                    <IntentoReformulado
+                      key={`intento-${elemento.intento.posicion}`}
+                      intento={elemento.intento}
+                      estudiante={nombreEstudiante ?? sesion.estudiante.nombre}
+                      paciente={sesion.npc.nombre}
+                    />
+                  );
+                }
+                const { mensaje } = elemento;
+                const esEstudiante = mensaje.remitente === 'estudiante';
+                const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
                 return (
-                  <IntentoReformulado
-                    key={`intento-${elemento.intento.posicion}`}
-                    intento={elemento.intento}
-                    estudiante={nombreEstudiante ?? sesion.estudiante.nombre}
-                    paciente={sesion.npc.nombre}
-                  />
-                );
-              }
-              const { mensaje } = elemento;
-              const esEstudiante = mensaje.remitente === 'estudiante';
-              const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
-              return (
-                <li
-                  key={mensaje.id}
-                  data-remitente={mensaje.remitente}
-                  className={cn(
-                    'flex max-w-[88%] flex-col gap-1',
-                    esEstudiante ? 'items-end self-end' : 'self-start'
-                  )}
-                >
-                  <span className="flex flex-wrap items-center gap-x-1.5 px-1 text-xs text-muted-foreground">
-                    <span
+                  <li
+                    key={mensaje.id}
+                    data-remitente={mensaje.remitente}
+                    className={cn(
+                      'flex max-w-[88%] flex-col gap-1',
+                      esEstudiante ? 'items-end self-end' : 'self-start'
+                    )}
+                  >
+                    <span className="flex flex-wrap items-center gap-x-1.5 px-1 text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          esEstudiante ? 'text-salvia-oscuro' : 'text-terracota'
+                        )}
+                      >
+                        {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <time dateTime={mensaje.timestamp} className="tabular-nums">
+                        {formatoHora.format(new Date(mensaje.timestamp))}
+                      </time>
+                      {esEstudiante && propias.length > 0 && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="font-medium text-ambar tabular-nums">
+                            {propias.length === 1
+                              ? '1 comentario'
+                              : `${propias.length} comentarios`}
+                          </span>
+                        </>
+                      )}
+                      {ia?.severidades[mensaje.id] !== undefined && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="tabular-nums">
+                            severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <p
+                      data-texto-mensaje={mensaje.id}
                       className={cn(
-                        'font-semibold',
-                        esEstudiante ? 'text-salvia-oscuro' : 'text-terracota'
+                        'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
+                        esEstudiante
+                          ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
+                          : 'rounded-bl-md border bg-background text-foreground select-none'
                       )}
                     >
-                      {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre}
-                    </span>
-                    <span aria-hidden>·</span>
-                    <time dateTime={mensaje.timestamp} className="tabular-nums">
-                      {formatoHora.format(new Date(mensaje.timestamp))}
-                    </time>
-                    {esEstudiante && propias.length > 0 && (
-                      <>
-                        <span aria-hidden>·</span>
-                        <span className="font-medium text-ambar tabular-nums">
-                          {propias.length === 1 ? '1 comentario' : `${propias.length} comentarios`}
-                        </span>
-                      </>
-                    )}
-                    {ia?.severidades[mensaje.id] !== undefined && (
-                      <>
-                        <span aria-hidden>·</span>
-                        <span className="tabular-nums">
-                          severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}
-                        </span>
-                      </>
-                    )}
+                      <TextoAnotado
+                        contenido={mensaje.contenido}
+                        anotaciones={propias}
+                        numeros={numeros}
+                        activa={existente?.id ?? null}
+                        onAbrir={id => abrir(id)}
+                      />
+                    </p>
+                  </li>
+                );
+              })}
+              {ia?.cierre && (
+                <li
+                  data-testid="cierre-automatico"
+                  className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+                >
+                  <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
+                  <span className="text-muted-foreground">
+                    La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
                   </span>
-                  <p
-                    data-texto-mensaje={mensaje.id}
-                    className={cn(
-                      'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
-                      esEstudiante
-                        ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
-                        : 'rounded-bl-md border bg-background text-foreground select-none'
-                    )}
-                  >
-                    <TextoAnotado
-                      contenido={mensaje.contenido}
-                      anotaciones={propias}
-                      numeros={numeros}
-                      activa={existente?.id ?? null}
-                      onAbrir={id => abrir(id)}
-                    />
-                  </p>
                 </li>
-              );
-            })}
-            {ia?.cierre && (
-              <li
-                data-testid="cierre-automatico"
-                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
-              >
-                <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
-                <span className="text-muted-foreground">
-                  La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
-                </span>
-              </li>
-            )}
-            {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
-            {!ia?.cierre && ia?.finPorTiempo && (
-              <li
-                data-testid="fin-por-tiempo"
-                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
-              >
-                <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
-                <span className="text-muted-foreground">
-                  Pasado el margen para cerrar la entrevista, la práctica terminó sola.
-                </span>
-              </li>
-            )}
-          </ol>
-        )}
-
-        {/* Barra flotante sobre la frase seleccionada (con ratón o con Mayús + flechas). Sin
-            portal: queda justo después del chat en el orden de tabulación. */}
-        <Popover open={mostrarBarra}>
-          {seleccion && <PopoverAnchor virtualRef={{ current: seleccion.ancla }} />}
-          <PopoverContent
-            portal={false}
-            side="top"
-            sideOffset={8}
-            hideWhenDetached
-            onOpenAutoFocus={evento => evento.preventDefault()}
-            onCloseAutoFocus={evento => evento.preventDefault()}
-            onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
-            aria-label="Acciones sobre la selección"
-            className="w-auto rounded-full p-1"
-          >
-            {seleccion?.solapada ? (
-              <p className="px-3 py-1 text-xs font-medium text-destructive">
-                Se cruza con otro comentario. Selecciona otra parte de la frase.
-              </p>
-            ) : (
-              <Button
-                size="sm"
-                className="rounded-full"
-                // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
-                onMouseDown={evento => evento.preventDefault()}
-                onClick={empezarComentario}
-              >
-                <MessageSquarePlus aria-hidden />
-                Comentar selección
-              </Button>
-            )}
-          </PopoverContent>
-        </Popover>
-
-        {/* Globo del comentario: uno nuevo, o el de un subrayado (verlo, editarlo o quitarlo). */}
-        <Popover open={burbuja !== null} onOpenChange={abierto => !abierto && setBurbuja(null)}>
-          {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
-          {burbuja?.tipo === 'nueva' && (
-            <NuevaAnotacion
-              sesionId={sesion.id}
-              seleccion={burbuja.seleccion}
-              onCreada={alCrear}
-              onCancelar={() => setBurbuja(null)}
-            />
-          )}
-          {burbuja?.tipo === 'existente' && existente && (
-            <DetalleAnotacion
-              key={existente.id}
-              anotacion={existente}
-              numero={numeros.get(existente.id) ?? 0}
-              editando={burbuja.editando}
-              quitando={quitando === existente.id}
-              onEditar={editando => setBurbuja({ ...burbuja, editando })}
-              onActualizada={comentario =>
-                setAnotaciones(actuales =>
-                  actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
-                )
-              }
-              onQuitar={() => quitar(existente.id)}
-            />
-          )}
-        </Popover>
-      </section>
-
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-        <FormularioRetroalimentacion
-          sesionId={sesion.id}
-          inicial={sesion.retroalimentacion}
-          nombreEstudiante={sesion.estudiante.nombre}
-          comentarios={anotaciones.length}
-          siguiente={siguiente}
-        />
-        <section
-          aria-labelledby="comentarios-titulo"
-          className="flex flex-col gap-3 rounded-xl border bg-card p-5"
-        >
-          <h2 id="comentarios-titulo" className="text-lg font-bold tracking-[-0.01em]">
-            Comentarios en la conversación
-            <span className="ml-2 text-sm font-semibold text-muted-foreground tabular-nums">
-              {anotaciones.length}
-            </span>
-          </h2>
-          {ordenadas.length === 0 ? (
-            <div className="overflow-hidden rounded-xl border border-dashed border-border/80">
-              <EstadoVacio
-                variante="compacto"
-                sinBordeSuperior
-                icono={Highlighter}
-                tono="ambar"
-                titulo="Sin frases comentadas aún"
-                descripcion={`Selecciona texto en las intervenciones de ${nombreEstudiante} para subrayar y dejar un comentario puntual.`}
-                accion={
-                  !guiaAbierta && sesion.mensajes.length > 0 ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setGuiaManual(true)}
-                    >
-                      Ver cómo anotar frases
-                    </Button>
-                  ) : undefined
-                }
-              />
-            </div>
-          ) : (
-            <ol className="flex flex-col gap-2 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
-              {ordenadas.map(anotacion => (
-                <ComentarioEnLista
-                  key={anotacion.id}
-                  anotacion={anotacion}
-                  numero={numeros.get(anotacion.id) ?? 0}
-                  activa={existente?.id === anotacion.id}
-                  quitando={quitando === anotacion.id}
-                  onIr={() => abrir(anotacion.id)}
-                  onEditar={() => abrir(anotacion.id, true)}
-                  onQuitar={() => quitar(anotacion.id)}
-                />
-              ))}
+              )}
+              {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
+              {!ia?.cierre && ia?.finPorTiempo && (
+                <li
+                  data-testid="fin-por-tiempo"
+                  className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+                >
+                  <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
+                  <span className="text-muted-foreground">
+                    Pasado el margen para cerrar la entrevista, la práctica terminó sola.
+                  </span>
+                </li>
+              )}
             </ol>
           )}
+
+          {/* Barra flotante sobre la frase seleccionada (con ratón o con Mayús + flechas). Sin
+            portal: queda justo después del chat en el orden de tabulación. */}
+          <Popover open={mostrarBarra}>
+            {seleccion && <PopoverAnchor virtualRef={{ current: seleccion.ancla }} />}
+            <PopoverContent
+              portal={false}
+              side="top"
+              sideOffset={8}
+              hideWhenDetached
+              onOpenAutoFocus={evento => evento.preventDefault()}
+              onCloseAutoFocus={evento => evento.preventDefault()}
+              onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
+              aria-label="Acciones sobre la selección"
+              className="w-auto rounded-full p-1"
+            >
+              {seleccion?.solapada ? (
+                <p className="px-3 py-1 text-xs font-medium text-destructive">
+                  Se cruza con otro comentario. Selecciona otra parte de la frase.
+                </p>
+              ) : (
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
+                  onMouseDown={evento => evento.preventDefault()}
+                  onClick={empezarComentario}
+                >
+                  <MessageSquarePlus aria-hidden />
+                  Comentar selección
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Globo del comentario: uno nuevo, o el de un subrayado (verlo, editarlo o quitarlo). */}
+          <Popover open={burbuja !== null} onOpenChange={abierto => !abierto && setBurbuja(null)}>
+            {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
+            {burbuja?.tipo === 'nueva' && (
+              <NuevaAnotacion
+                sesionId={sesion.id}
+                seleccion={burbuja.seleccion}
+                onCreada={alCrear}
+                onCancelar={() => setBurbuja(null)}
+              />
+            )}
+            {burbuja?.tipo === 'existente' && existente && (
+              <DetalleAnotacion
+                key={existente.id}
+                anotacion={existente}
+                numero={numeros.get(existente.id) ?? 0}
+                editando={burbuja.editando}
+                quitando={quitando === existente.id}
+                onEditar={editando => setBurbuja({ ...burbuja, editando })}
+                onActualizada={comentario =>
+                  setAnotaciones(actuales =>
+                    actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
+                  )
+                }
+                onQuitar={() => quitar(existente.id)}
+              />
+            )}
+          </Popover>
         </section>
-      </aside>
+
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+          <FormularioRetroalimentacion
+            sesionId={sesion.id}
+            inicial={sesion.retroalimentacion}
+            nombreEstudiante={sesion.estudiante.nombre}
+            comentarios={anotaciones.length}
+            siguiente={siguiente}
+          />
+          <section
+            data-tour="revision-comentarios"
+            aria-labelledby="comentarios-titulo"
+            className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+          >
+            <h2 id="comentarios-titulo" className="text-lg font-bold tracking-[-0.01em]">
+              Comentarios en la conversación
+              <span className="ml-2 text-sm font-semibold text-muted-foreground tabular-nums">
+                {anotaciones.length}
+              </span>
+            </h2>
+            {ordenadas.length === 0 ? (
+              <div className="overflow-hidden rounded-xl border border-dashed border-border/80">
+                <EstadoVacio
+                  variante="compacto"
+                  sinBordeSuperior
+                  icono={Highlighter}
+                  tono="ambar"
+                  titulo="Sin frases comentadas aún"
+                  descripcion={`Selecciona texto en las intervenciones de ${nombreEstudiante} para subrayar y dejar un comentario puntual.`}
+                  accion={
+                    sesion.mensajes.length > 0 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => dispararRecorrido(ID_RECORRIDO_REVISION, 0)}
+                      >
+                        <Compass aria-hidden />
+                        Ver cómo anotar frases
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </div>
+            ) : (
+              <ol className="flex flex-col gap-2 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
+                {ordenadas.map(anotacion => (
+                  <ComentarioEnLista
+                    key={anotacion.id}
+                    anotacion={anotacion}
+                    numero={numeros.get(anotacion.id) ?? 0}
+                    activa={existente?.id === anotacion.id}
+                    quitando={quitando === anotacion.id}
+                    onIr={() => abrir(anotacion.id)}
+                    onEditar={() => abrir(anotacion.id, true)}
+                    onQuitar={() => quitar(anotacion.id)}
+                  />
+                ))}
+              </ol>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

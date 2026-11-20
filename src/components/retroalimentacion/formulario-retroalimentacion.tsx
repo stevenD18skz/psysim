@@ -182,6 +182,7 @@ export function FormularioRetroalimentacion({
 
   return (
     <section
+      data-tour="revision-formulario"
       aria-labelledby={`${id}-titulo`}
       className="flex flex-col gap-4 rounded-xl border bg-card p-5"
     >
