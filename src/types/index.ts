@@ -176,6 +176,8 @@ export interface DocenteAdmin {
   codigoInstitucional: string;
   rol: RolUsuario;
   activo: boolean;
+  /** Avatar elegido en el menú de cuenta (si no eligió ninguno, se muestran iniciales). */
+  avatarId?: AvatarId | null;
   /** Aún usa la contraseña temporal que le generó el Administrador. */
   contrasenaTemporal: boolean;
   /** Ya entró alguna vez con su cuenta de Google. */

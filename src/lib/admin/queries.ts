@@ -2,9 +2,12 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { CODIGO_PG } from '@/lib/acciones';
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
 import { requerirSuperadmin } from '@/lib/auth/dal';
+import { type AvatarId, esAvatarId } from '@/lib/avatares/catalogo';
 import { aEstudiante, COLUMNAS_RESUMEN, conAvataresDeCuenta } from '@/lib/estudiantes/queries';
+import { log } from '@/lib/log';
 import { CASO_NO_DISPONIBLE, leerTitulosDeEscenarios } from '@/lib/sesiones/datos-privados';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -51,7 +54,25 @@ export const obtenerDocentes = cache(async (): Promise<DocenteAdmin[]> => {
   if (error) {
     throw new Error('No pudimos cargar los docentes.', { cause: error });
   }
-  return data.map(aDocente);
+  const docentes = data.map(aDocente);
+  if (docentes.length === 0) return docentes;
+
+  const admin = createAdminClient();
+  const { data: usuarios, error: errorAvatares } = await admin
+    .from('usuario')
+    .select('id, avatar_id')
+    .in(
+      'id',
+      docentes.map(d => d.id)
+    );
+  if (errorAvatares && errorAvatares.code !== CODIGO_PG.UNDEFINED_COLUMN) {
+    log.error('admin.avatares_docentes_no_disponibles', { codigo: errorAvatares.code });
+  }
+  const avatares = new Map<string, AvatarId>();
+  for (const u of usuarios ?? []) {
+    if (esAvatarId(u.avatar_id)) avatares.set(u.id, u.avatar_id);
+  }
+  return docentes.map(d => ({ ...d, avatarId: avatares.get(d.id) ?? null }));
 });
 
 export interface CasoDeDocente {
