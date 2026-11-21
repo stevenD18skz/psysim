@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -293,20 +293,27 @@ describe('ConfiguradorSesion', () => {
     mockGenerar.mockResolvedValue({ ok: false, error: 'No pudimos confirmar el resultado.' });
     const usuario = userEvent.setup();
     renderizar([E01], E01.id, [ANA], ANA);
-    const generar = async () =>
-      usuario.click(await screen.findByRole('button', { name: /Generar código/ }));
+    const generar = screen.getByRole('button', { name: /Generar código/ });
+    const intentarGenerar = async (intento: number) => {
+      await usuario.click(generar);
+      await waitFor(() => expect(mockGenerar).toHaveBeenCalledTimes(intento));
+      await waitFor(() => expect(generar).toBeEnabled());
+    };
 
-    await generar();
-    await generar();
-    await usuario.click(screen.getByRole('radio', { name: '3 días' }));
-    await generar();
+    await intentarGenerar(1);
+    await intentarGenerar(2);
+    const tresDias = screen.getByRole('radio', { name: '3 días' });
+    await waitFor(() => expect(tresDias).toBeEnabled());
+    await usuario.click(tresDias);
+    expect(tresDias).toBeChecked();
+    await intentarGenerar(3);
 
     const solicitudes = mockGenerar.mock.calls.map(
       ([valores]) => (valores as { solicitudId: string }).solicitudId
     );
-    expect(solicitudes).toHaveLength(3);
     expect(solicitudes[1]).toBe(solicitudes[0]);
     expect(solicitudes[2]).not.toBe(solicitudes[0]);
+    expect(mockGenerar).toHaveBeenLastCalledWith(expect.objectContaining({ vigenciaDias: 3 }));
   });
 
   it('muestra el error del servidor si no se pudo generar el código', async () => {
