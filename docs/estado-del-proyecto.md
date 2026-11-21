@@ -134,8 +134,9 @@ de Codex y se corrijan sus hallazgos.
 5. **Acceso del jurado y E2E en producción (HU-29 · T03 y T04):** crear sus cuentas y correr
    `pnpm test:e2e` con `PLAYWRIGHT_BASE_URL` del despliegue y `--workers=1`.
 6. **Conversar con los 12 pacientes** desde `/laboratorio/npc`, incluido E-07 (HU-24 y HU-49).
-7. **Pasada con lector de pantalla** (NVDA) en la simulación y la revisión del docente (HU-25 ·
-   T07). Con la anterior, cierra los requisitos «Pendiente: verificación manual» del Anexo I.
+7. **Validación de accesibilidad** con Lighthouse, axe DevTools, NVDA y teclado, desde la
+   asignación hasta la lectura de la retroalimentación (HU-25 · T07). Registrar la evidencia para
+   los requisitos de verificación manual del Anexo I. [Pasos de la auditoría](auditoria-codex.md#validación-de-accesibilidad-con-lighthouse-axe-devtools-nvda-y-teclado)
 8. **Figma:** compartir con «Cualquiera con el enlace · puede ver» (HU-51 · T06).
 
 ### 3. Corto

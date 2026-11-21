@@ -80,6 +80,9 @@ Si el paciente no responde, verás un aviso con «Reintentar»: tu conversación
 cierras la pestaña o se cae la conexión, puedes volver a entrar desde «Mis prácticas» mientras la
 práctica siga abierta.
 
+Si el consultorio 3D falla o tarda en cargar, pulsa «Continuar en modo texto». Puedes leer las
+indicaciones, conversar con el paciente y terminar la misma práctica desde esa vista.
+
 ### 2.4 Terminar
 
 Cuando hayas cerrado la entrevista, pulsa «Terminar práctica» y confirma. Después puedes escribir
@@ -147,7 +150,9 @@ autolesión, no dan diagnósticos y no recomiendan medicamentos.
    los intentos reformulados, la reflexión del estudiante y los datos de la práctica (duración e
    intervenciones).
 3. Selecciona con el ratón una frase de una intervención del estudiante, pulsa «Comentar
-   selección», escribe tu comentario y pulsa «Guardar comentario».
+   selección», escribe tu comentario y pulsa «Guardar comentario». Con el teclado, abre «Elegir
+   frase para comentar» debajo de la intervención, selecciona el fragmento con Mayús + flechas y
+   pulsa «Comentar frase».
 4. Escribe el «Comentario general» y la «Nota (0,0 a 5,0)». Lo que escribas queda como borrador
    («Guardar borrador») hasta que pulses «Publicar», o «Publicar y abrir la siguiente» si te quedan
    prácticas por revisar.
@@ -179,15 +184,15 @@ desactiva o las elimina. Una cuenta desactivada pierde el acceso de inmediato.
 
 ## 5. Problemas frecuentes
 
-| Problema                                 | Qué hacer                                                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| «Esta práctica no está disponible»       | El código venció, se anuló, ya se usó o es de otro estudiante. Pídele uno nuevo a tu docente.                       |
-| «Tu cuenta no está registrada en PsySim» | Entraste con un correo que tu docente no ha registrado. Verifica que sea el institucional.                          |
-| «No pudimos cargar el consultorio»       | El navegador no tiene WebGL o la conexión falló. Recarga, actualiza el navegador o prueba con otro.                 |
-| El paciente no responde                  | Pulsa «Reintentar». Si enviaste muchos mensajes seguidos, espera un minuto: hay un límite de diez por minuto.       |
-| La práctica se cerró por inactividad     | Pasaron 10 minutos sin actividad. Tu docente revisará lo conversado; para practicar de nuevo necesitas otro código. |
-| La práctica terminó sola por el tiempo   | Se cumplieron el tiempo de la consulta y los 5 minutos para cerrarla. Lo conversado quedó guardado para tu docente. |
-| No encuentro la retroalimentación        | Aparece en «Mis prácticas» solo cuando el docente la publica.                                                       |
+| Problema                                  | Qué hacer                                                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| «Esta práctica no está disponible»        | El código venció, se anuló, ya se usó o es de otro estudiante. Pídele uno nuevo a tu docente.                                             |
+| «Tu cuenta no está registrada en PsySim»  | Entraste con un correo que tu docente no ha registrado. Verifica que sea el institucional.                                                |
+| El consultorio 3D falla o tarda en cargar | Pulsa «Continuar en modo texto» para seguir la práctica. Si quieres abrir el consultorio, usa «Reintentar» o «Recargar» cuando aparezcan. |
+| El paciente no responde                   | Pulsa «Reintentar». Si enviaste muchos mensajes seguidos, espera un minuto: hay un límite de diez por minuto.                             |
+| La práctica se cerró por inactividad      | Pasaron 10 minutos sin actividad. Tu docente revisará lo conversado; para practicar de nuevo necesitas otro código.                       |
+| La práctica terminó sola por el tiempo    | Se cumplieron el tiempo de la consulta y los 5 minutos para cerrarla. Lo conversado quedó guardado para tu docente.                       |
+| No encuentro la retroalimentación         | Aparece en «Mis prácticas» solo cuando el docente la publica.                                                                             |
 
 ## 6. Privacidad
 
