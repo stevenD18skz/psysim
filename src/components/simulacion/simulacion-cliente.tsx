@@ -67,6 +67,7 @@ import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador'
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
+import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
 import { respuestaEnCamino } from '@/store/conversacion-slice';
@@ -78,6 +79,7 @@ const EscenaSimulacion = dynamic(() => import('@/components/simulacion/escena-si
 });
 
 interface SimulacionClienteProps {
+  cuentaId: string;
   sesion: SesionActiva;
   /** Conversación ya guardada de la sesión (al recargar la página se retoma). */
   historial: MensajeConversacion[];
@@ -88,7 +90,7 @@ interface SimulacionClienteProps {
  * store de Zustand y monta la escena a partir del escenario guardado en el store. Ocupa toda la
  * pantalla, sin la navegación del panel, para que la práctica sea inmersiva.
  */
-export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps) {
+export function SimulacionCliente({ cuentaId, sesion, historial }: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
   const esComputador = useEsComputador();
@@ -106,7 +108,7 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-background">
       {activa?.id === sesion.id ? (
-        <Escenario sesion={activa} />
+        <Escenario key={cuentaId} cuentaId={cuentaId} sesion={activa} />
       ) : (
         <LoadingScreen
           visible
@@ -122,10 +124,11 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
  * HU-13 · T01 — Atajos para iniciar la conversación: tecla E (si el estudiante está cerca) o
  * clic mientras el ratón está capturado y la mira apunta al paciente.
  */
-function useAtajosConversacion() {
+function useAtajosConversacion(activo: boolean) {
   const store = useAppStoreApi();
 
   useEffect(() => {
+    if (!activo) return;
     const alPulsar = (evento: KeyboardEvent) => {
       if (evento.code !== 'KeyE' || evento.repeat || esCampoEditable(evento.target)) return;
       if (iniciarConversacion(store)) evento.preventDefault();
@@ -141,10 +144,10 @@ function useAtajosConversacion() {
       window.removeEventListener('keydown', alPulsar);
       window.removeEventListener('mousedown', alHacerClic);
     };
-  }, [store]);
+  }, [activo, store]);
 }
 
-function Escenario({ sesion }: { sesion: SesionActiva }) {
+function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiva }) {
   const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d);
   const { active: cargandoModelos } = useProgress();
   const [canvasListo, setCanvasListo] = useState(false);
@@ -167,7 +170,10 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     verResultados,
   } = useFinalizarSesion();
 
-  useAtajosConversacion();
+  const [privacidadAceptada, setPrivacidadAceptada] = useState(() =>
+    leerPrivacidadAceptada(cuentaId)
+  );
+  const necesitaInstrucciones = !sesion.comenzada || privacidadAceptada === null;
 
   const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
   // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
@@ -222,7 +228,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   }, [puedeOcultarHud]);
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
-  const enConsulta = lista && comenzada && !resumen && !cierre;
+  const enConsulta = lista && !necesitaInstrucciones && !resumen && !cierre;
+  useAtajosConversacion(enConsulta);
   useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
   useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
@@ -322,7 +329,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       )}
 
       {/* Tras un cierre automático el panel sigue a la vista: ahí está el aviso y la conversación. */}
-      {lista && (conversando || cierre) && !resumen && (
+      {lista && (cierre || (!necesitaInstrucciones && conversando)) && !resumen && (
         <ConversationPanel
           onFinalizar={finalizar}
           finalizando={finalizando}
@@ -331,10 +338,18 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       )}
       {enConsulta && <AvisoPantallaCompleta />}
       {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
-      {lista && !comenzada && !resumen && (
-        <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
+      {lista && necesitaInstrucciones && !resumen && !cierre && (
+        <InstruccionesCaso
+          sesion={sesion}
+          segundosParaCierre={segundosParaCierre}
+          aceptadaAntes={privacidadAceptada}
+          onAceptarPrivacidad={() => {
+            recordarPrivacidadAceptada(cuentaId);
+            setPrivacidadAceptada(new Date().toISOString());
+          }}
+        />
       )}
-      {segundosParaCierre !== null && comenzada && !resumen && (
+      {segundosParaCierre !== null && !necesitaInstrucciones && !resumen && (
         <AvisoInactividad segundosRestantes={segundosParaCierre} comenzada={comenzada} />
       )}
       {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}

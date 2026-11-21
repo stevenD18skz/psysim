@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const idSesionSchema = z.uuid();
 
 export default async function SimulacionPage({ searchParams }: PageProps<'/simulacion'>) {
-  await requerirEstudiante();
+  const perfil = await requerirEstudiante();
 
   const { sesion: parametro } = await searchParams;
 
@@ -52,7 +52,7 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
   // que el estudiante reformuló: el paciente ya no los recuerda).
   const historial = (await obtenerMensajesSesion(sesion.id)).filter(m => !m.descartadoEn);
 
-  return <SimulacionCliente sesion={sesion} historial={historial} />;
+  return <SimulacionCliente cuentaId={perfil.id} sesion={sesion} historial={historial} />;
 }
 
 function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: string }) {

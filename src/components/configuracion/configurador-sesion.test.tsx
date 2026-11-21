@@ -12,7 +12,11 @@ import { ConfiguradorSesion } from './configurador-sesion';
 
 const push = vi.fn();
 const refresh = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
+const replace = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, refresh, replace }),
+  unstable_rethrow: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/asignaciones/actions', () => ({ generarAsignacion: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ entregarEquipo: vi.fn() }));
@@ -241,14 +245,37 @@ describe('ConfiguradorSesion', () => {
     expect(push).not.toHaveBeenCalled();
 
     // Modo presencial: el docente confirma y entrega este computador al estudiante.
-    await usuario.click(within(dialogo).getByRole('button', { name: /Practicar en este equipo/ }));
-    const confirmacion = await screen.findByRole('alertdialog', {
-      name: /¿Ana practica en este computador\?/,
+    const claveBorrador = 'psysim:borrador-retro:docente:practica:general';
+    const claveAnotaciones = 'psysim:borrador-retro:docente:practica:anotaciones';
+    sessionStorage.setItem(claveBorrador, 'Comentario pendiente');
+    sessionStorage.setItem(claveAnotaciones, 'Anotación pendiente');
+    vi.mocked(entregarEquipo)
+      .mockResolvedValueOnce({ ok: false, error: 'No pudimos preparar el equipo.' })
+      .mockResolvedValueOnce({ ok: true, datos: null });
+    replace.mockImplementationOnce(() => {
+      expect(sessionStorage.getItem(claveBorrador)).toBeNull();
+      expect(sessionStorage.getItem(claveAnotaciones)).toBeNull();
     });
-    await usuario.click(
-      within(confirmacion).getByRole('button', { name: /Cerrar mi sesión y entregar/ })
-    );
+
+    const confirmarEntrega = async () => {
+      await usuario.click(
+        within(dialogo).getByRole('button', { name: /Practicar en este equipo/ })
+      );
+      const confirmacion = await screen.findByRole('alertdialog', {
+        name: /¿Ana practica en este computador\?/,
+      });
+      await usuario.click(
+        within(confirmacion).getByRole('button', { name: /Cerrar mi sesión y entregar/ })
+      );
+    };
+
+    await confirmarEntrega();
+    expect(sessionStorage.getItem(claveBorrador)).toBe('Comentario pendiente');
+    expect(sessionStorage.getItem(claveAnotaciones)).toBe('Anotación pendiente');
+    expect(replace).not.toHaveBeenCalled();
+    await confirmarEntrega();
     expect(entregarEquipo).toHaveBeenCalledWith({ id: '77777777-7777-4777-8777-777777777777' });
+    expect(replace).toHaveBeenCalledWith('/entrega');
   });
 
   it('la vigencia por defecto es de 7 días', async () => {

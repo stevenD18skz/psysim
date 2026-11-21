@@ -41,7 +41,7 @@ import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { MINUTOS_CIERRE_INACTIVIDAD, plazoAlSalir } from '@/lib/fechas';
 import { AVISO_FINAL_S, enMinutos, GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
-import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
+import { TEXTO_AUTORIZACION_PRACTICA } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
@@ -113,10 +113,14 @@ const CONTROLES = [
 export function InstruccionesCaso({
   sesion,
   segundosParaCierre,
+  aceptadaAntes,
+  onAceptarPrivacidad,
 }: {
   sesion: SesionActiva;
   /** Cuenta atrás del cierre por inactividad (o `null` si aún no hace falta avisar). */
   segundosParaCierre: number | null;
+  aceptadaAntes: string | null;
+  onAceptarPrivacidad: () => void;
 }) {
   const router = useRouter();
   const comenzarEnStore = useAppStore(state => state.sesion.comenzar);
@@ -125,7 +129,6 @@ export function InstruccionesCaso({
   const idControles = useId();
   const idPrivacidad = useId();
   const [controlesAbiertos, setControlesAbiertos] = useState(() => !guiaYaVista());
-  const [aceptadaAntes] = useState(leerPrivacidadAceptada);
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(aceptadaAntes !== null);
   const [ahoraNo, setAhoraNo] = useState<string | null>(null);
 
@@ -139,6 +142,10 @@ export function InstruccionesCaso({
 
   const comenzar = () =>
     startTransition(async () => {
+      if (sesion.comenzada) {
+        onAceptarPrivacidad();
+        return;
+      }
       let resultado;
       try {
         resultado = await comenzarSesion({ sesionId: sesion.id });
@@ -152,7 +159,7 @@ export function InstruccionesCaso({
         toast.error(resultado.error);
         return;
       }
-      if (aceptadaAntes === null) recordarPrivacidadAceptada();
+      if (aceptadaAntes === null) onAceptarPrivacidad();
       recordarGuiaVista();
       comenzarEnStore(resultado.datos.inicio);
     });
@@ -424,8 +431,7 @@ export function InstruccionesCaso({
                     onChange={evento => setAceptaPrivacidad(evento.target.checked)}
                     className="mt-0.5 size-5 shrink-0 accent-nogal"
                   />
-                  Leí el aviso de privacidad y acepto que mi conversación se procese con Google
-                  Gemini y que la lea mi docente.
+                  {TEXTO_AUTORIZACION_PRACTICA}
                 </label>
                 <a
                   href="/privacidad"
@@ -451,7 +457,11 @@ export function InstruccionesCaso({
                 }
               >
                 {comenzando && <Loader2 className="animate-spin" aria-hidden />}
-                {comenzando ? 'Abriendo el consultorio…' : 'Empezar la práctica'}
+                {comenzando
+                  ? 'Abriendo el consultorio…'
+                  : sesion.comenzada
+                    ? 'Continuar la práctica'
+                    : 'Empezar la práctica'}
               </Button>
             </div>
           </DialogFooter>
