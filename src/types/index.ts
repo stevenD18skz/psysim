@@ -213,6 +213,8 @@ export interface SesionHistorial {
   id: string;
   estado: EstadoSesion;
   comenzada: boolean;
+  /** Intervenciones del estudiante en la conversación vigente. */
+  intervenciones: number;
   inicio: string;
   fin: string | null;
   /** Última actividad registrada por el latido; una práctica en curso se cierra 10 min después. */
@@ -227,8 +229,6 @@ export interface SesionHistorial {
 /** Sesión del docente con su estudiante, para la bandeja de inicio y las revisiones. */
 export interface SesionDocente extends SesionHistorial {
   estudiante: { id: string; nombre: string; codigo: string };
-  /** Intervenciones del estudiante en la conversación vigente. */
-  intervenciones: number;
 }
 
 /** Código de acceso que aún se puede usar, con su estudiante, para la bandeja del docente. */

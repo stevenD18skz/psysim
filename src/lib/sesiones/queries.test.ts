@@ -42,6 +42,7 @@ const FILA_HISTORIAL = {
   inicio: '2026-10-07T15:00:00.000Z',
   fin: '2026-10-07T15:20:00.000Z',
   escenario_id: 'e1',
+  intervenciones: [{ count: 1 }],
   usuario: { nombre: 'Docente Uno' },
   retroalimentacion: { publicada_en: '2026-10-07T18:00:00.000Z', nota: 4.5 },
 };
@@ -66,6 +67,7 @@ describe('historial de sesiones', () => {
         id: 's1',
         estado: 'finalizada',
         comenzada: true,
+        intervenciones: 1,
         inicio: FILA_HISTORIAL.inicio,
         fin: FILA_HISTORIAL.fin,
         escenario: { codigo: 'E-01', titulo: 'Duelo y pérdida' },
@@ -87,6 +89,8 @@ describe('historial de sesiones', () => {
     await obtenerSesionesDeEstudiante('est-1');
     expect(db.de('sesion')[0]!.filtros).toEqual([
       ['eq', 'estudiante_id', 'est-1'],
+      ['eq', 'intervenciones.remitente', 'estudiante'],
+      ['is', 'intervenciones.descartado_en', null],
       ['order', 'inicio', { ascending: false }],
     ]);
   });

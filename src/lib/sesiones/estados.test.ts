@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { duracionSesion, estaPorRevisar, estadoCortoSesion, estadoVisibleSesion } from './estados';
 
-const base = { estado: 'finalizada' as const, comenzada: true, retroalimentacion: null };
+const base = {
+  estado: 'finalizada' as const,
+  comenzada: true,
+  intervenciones: 1,
+  retroalimentacion: null,
+};
 
 describe('estadoVisibleSesion', () => {
   it('en curso: cada rol con su voz; el docente nunca ve el chat en vivo', () => {
@@ -50,11 +55,27 @@ describe('estadoVisibleSesion', () => {
     ).toEqual({ texto: 'Publicada', tono: 'listo' });
   });
 
-  it('sin conversación: se cerró antes de comenzar', () => {
-    expect(
-      estadoVisibleSesion({ ...base, estado: 'interrumpida', comenzada: false }, 'estudiante')
-    ).toEqual({ texto: 'Sin conversación', tono: 'neutro' });
-  });
+  it.each([false, true])(
+    'sin conversación si se interrumpe con cero intervenciones (comenzada: %s)',
+    comenzada => {
+      const sesion = { ...base, estado: 'interrumpida' as const, comenzada, intervenciones: 0 };
+      expect(estadoVisibleSesion(sesion, 'estudiante')).toEqual({
+        texto: 'Sin conversación',
+        tono: 'neutro',
+      });
+      expect(estadoVisibleSesion(sesion, 'docente').texto).toBe('Sin conversación');
+      expect(estaPorRevisar(sesion)).toBe(false);
+      expect(
+        estadoVisibleSesion(
+          {
+            ...sesion,
+            retroalimentacion: { publicada: true, nota: 4 },
+          },
+          'estudiante'
+        ).texto
+      ).toBe('Retroalimentación lista');
+    }
+  );
 
   it('el estudiante no ve los borradores del docente', () => {
     expect(

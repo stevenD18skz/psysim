@@ -9,7 +9,17 @@ export interface EstadoVisible {
   tono: TonoEstado;
 }
 
-type DatosEstado = Pick<SesionHistorial, 'estado' | 'comenzada' | 'retroalimentacion'>;
+type DatosEstado = Pick<
+  SesionHistorial,
+  'estado' | 'comenzada' | 'intervenciones' | 'retroalimentacion'
+>;
+
+/** Una interrupción sin intervenciones no deja una conversación por revisar. */
+export function esInterrupcionSinConversacion(
+  sesion: Pick<SesionHistorial, 'estado' | 'intervenciones'>
+): boolean {
+  return sesion.estado === 'interrumpida' && sesion.intervenciones === 0;
+}
 
 interface ContextoEstado {
   /** Última actividad de una práctica en curso: permite saber si ya se está cerrando. */
@@ -39,12 +49,12 @@ export function estadoVisibleSesion(
     return { texto: docente ? 'Practicando ahora' : 'En curso', tono: 'en-curso' };
   }
 
-  if (sesion.estado === 'interrumpida' && !sesion.comenzada) {
-    return { texto: 'Sin conversación', tono: 'neutro' };
-  }
-
   if (sesion.retroalimentacion?.publicada) {
     return { texto: docente ? 'Publicada' : 'Retroalimentación lista', tono: 'listo' };
+  }
+
+  if (esInterrupcionSinConversacion(sesion)) {
+    return { texto: 'Sin conversación', tono: 'neutro' };
   }
 
   if (!docente) return { texto: 'Esperando retroalimentación', tono: 'pendiente' };
@@ -56,15 +66,14 @@ export function estadoVisibleSesion(
 }
 
 /**
- * ¿Le toca al docente revisarla? Terminó (finalizada o interrumpida), llegó a comenzar (hay una
- * conversación que leer) y su retroalimentación aún no está publicada.
+ * ¿Le toca al docente revisarla? Terminó, llegó a comenzar y su retroalimentación aún está
+ * pendiente. Si se interrumpió, debe haber dejado al menos una intervención vigente.
  */
-export function estaPorRevisar(
-  sesion: Pick<SesionHistorial, 'estado' | 'comenzada' | 'retroalimentacion'>
-): boolean {
+export function estaPorRevisar(sesion: DatosEstado): boolean {
   return (
     sesion.estado !== 'en_curso' &&
     sesion.comenzada &&
+    !esInterrupcionSinConversacion(sesion) &&
     !(sesion.retroalimentacion?.publicada ?? false)
   );
 }

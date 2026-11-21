@@ -33,7 +33,7 @@ import { requerirEstudiante } from '@/lib/auth/dal';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { cierrePorInactividad, formatearHora } from '@/lib/fechas';
-import { duracionSesion } from '@/lib/sesiones/estados';
+import { duracionSesion, esInterrupcionSinConversacion } from '@/lib/sesiones/estados';
 import { obtenerPanelEstudiante, type PracticaEstudiante } from '@/lib/sesiones/queries';
 import { cn } from '@/lib/utils';
 
@@ -54,10 +54,10 @@ export default async function PracticasPage() {
 
   const abierta = practicas.find(p => p.estado === 'en_curso') ?? null;
   const terminadas = practicas.filter(p => p.estado !== 'en_curso');
-  const conConversacion = terminadas.filter(p => p.comenzada);
+  const conConversacion = terminadas.filter(p => p.comenzada && !esInterrupcionSinConversacion(p));
   const conRetro = terminadas.filter(p => p.retroalimentacion?.publicada);
   const sinConversacion = terminadas.filter(
-    p => !p.retroalimentacion?.publicada && p.estado === 'interrumpida' && !p.comenzada
+    p => !p.retroalimentacion?.publicada && esInterrupcionSinConversacion(p)
   );
   const esperando = terminadas.filter(p => !conRetro.includes(p) && !sinConversacion.includes(p));
 
@@ -69,7 +69,7 @@ export default async function PracticasPage() {
   const promedio = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
 
   const segundosTotales = conConversacion.reduce((acc, s) => acc + (duracionSesion(s) ?? 0), 0);
-  const intervencionesTotales = conConversacion.reduce((acc, s) => acc + s.totalIntervenciones, 0);
+  const intervencionesTotales = conConversacion.reduce((acc, s) => acc + s.intervenciones, 0);
   const conNotasEnFrases = conRetro.filter(s => s.totalAnotaciones > 0).length;
 
   const ultimaConRetro = conRetro[0] ?? null;

@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { paginar } from '@/lib/listas';
-import { duracionSesion } from '@/lib/sesiones/estados';
+import { duracionSesion, esInterrupcionSinConversacion } from '@/lib/sesiones/estados';
 import { cn } from '@/lib/utils';
 import { type EstadoSesion } from '@/types';
 
@@ -46,7 +46,7 @@ export interface PracticaEstudianteVista {
     comentarioGeneral: string | null;
     publicadaEn: string | null;
   } | null;
-  totalIntervenciones: number;
+  intervenciones: number;
   totalAnotaciones: number;
   tieneReflexion: boolean;
 }
@@ -77,9 +77,9 @@ const FILAS_POR_GRUPO = 6;
 function FilaPractica({ sesion }: { sesion: PracticaEstudianteVista }) {
   const duracion = duracionSesion(sesion);
   const publicada = sesion.retroalimentacion?.publicada ?? false;
-  const sinConversacion = sesion.estado === 'interrumpida' && !sesion.comenzada;
+  const sinConversacion = !publicada && esInterrupcionSinConversacion(sesion);
   const comentario = sesion.retroalimentacion?.comentarioGeneral?.trim() ?? null;
-  const intervenciones = sesion.comenzada ? sesion.totalIntervenciones : 0;
+  const intervenciones = sesion.intervenciones;
 
   return (
     // Una tarjeta, una lectura: estado y fecha, el caso, quién y cuánto, y a la derecha lo único
@@ -325,7 +325,7 @@ export function HistorialPracticasEstudiante({
   const sinConversacion = useMemo(
     () =>
       filtradasPorTexto.filter(
-        p => !p.retroalimentacion?.publicada && p.estado === 'interrumpida' && !p.comenzada
+        p => !p.retroalimentacion?.publicada && esInterrupcionSinConversacion(p)
       ),
     [filtradasPorTexto]
   );
@@ -336,7 +336,7 @@ export function HistorialPracticasEstudiante({
 
   const totalConRetro = terminadas.filter(p => p.retroalimentacion?.publicada).length;
   const totalSinConversacion = terminadas.filter(
-    p => !p.retroalimentacion?.publicada && p.estado === 'interrumpida' && !p.comenzada
+    p => !p.retroalimentacion?.publicada && esInterrupcionSinConversacion(p)
   ).length;
   const totalEsperando = terminadas.length - totalConRetro - totalSinConversacion;
 

@@ -109,6 +109,7 @@ export function EncabezadoSesion({
   const estado = estadoVisibleSesion(
     {
       ...sesion,
+      intervenciones,
       retroalimentacion: sesion.retroalimentacion
         ? {
             publicada: sesion.retroalimentacion.publicadaEn !== null,

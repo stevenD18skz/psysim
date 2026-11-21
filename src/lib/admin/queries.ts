@@ -203,9 +203,12 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
       .select(
         `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
          usuario ( nombre ),
-         retroalimentacion ( publicada_en, nota )`
+         retroalimentacion ( publicada_en, nota ),
+         intervenciones:mensaje ( count )`
       )
       .eq('estudiante_id', id)
+      .eq('intervenciones.remitente', 'estudiante')
+      .is('intervenciones.descartado_en', null)
       .order('inicio', { ascending: false }),
     admin
       .from('asignacion')
@@ -243,6 +246,7 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
     id: fila.id,
     estado: fila.estado,
     comenzada: fila.comenzada,
+    intervenciones: fila.intervenciones?.[0]?.count ?? 0,
     inicio: fila.inicio,
     fin: fila.fin,
     ultimaActividad: fila.ultima_actividad,
