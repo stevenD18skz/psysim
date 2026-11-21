@@ -184,12 +184,10 @@ export async function* conversarConOrquestador({
 
     const { respuesta, banderasDelTurno } = resultado;
     // El historial no dice si el orquestador cerró la sesión con este turno: se le pregunta. Con
-    // los mismos hechos debe concluir lo mismo que el stream (`completed` no es una crisis), y sin
-    // motivo declarado solo anota una crisis si la severidad de la respuesta la respalda.
+    // los mismos hechos debe concluir lo mismo que el stream. La severidad no prueba el motivo.
     const sesion = await cliente.sesion(cuenta, sesionOrquestador);
     const decision = decidirCierrePorEstado(sesion.status, {
       banderas: banderasDelTurno,
-      severidad: respuesta.severity,
       cierre: sesion.closing_kind,
     });
     yield { tipo: 'fragmento', texto: respuesta.content };

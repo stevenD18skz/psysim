@@ -43,19 +43,10 @@ export function decidirCierre(debeCerrar: boolean, cierre: string | null): Decis
   return { tipo: 'cerrada_alla', codigo: clave === '' ? 'sin_motivo' : 'desconocido' };
 }
 
-/**
- * Severidad desde la que un cierre `terminated` sin motivo se puede leer como crisis. El
- * orquestador cierra por crisis cuando la severidad se queda en el límite superior del rango del
- * caso, y el más bajo de esos límites es 4 (casos básicos; ver `mapeo.ts`).
- */
-export const SEVERIDAD_DE_CRISIS = 4;
-
 /** Lo que se sabe del turno recuperado, además del estado de la sesión. */
 export interface PistasDeCierre {
   /** `risk_flags` del mensaje del estudiante y de la respuesta. */
   banderas?: readonly string[];
-  /** Severidad de la respuesta recuperada. */
-  severidad?: number | null;
   /** `closing_kind` de la sesión, si el orquestador lo devuelve (hoy no lo hace). */
   cierre?: string | null;
 }
@@ -67,10 +58,8 @@ export interface PistasDeCierre {
  *
  * - Si la sesión trae su `closing_kind`, decide él.
  * - `completed` es el cierre `success`.
- * - `terminated` con banderas de maltrato es trato inapropiado. Sin ellas solo es una crisis si
- *   la severidad de la respuesta lo respalda: una sesión también queda `terminated` por un cierre
- *   manual o una limpieza del lado del orquestador, y el docente leería «el paciente entró en
- *   crisis» sin que haya pasado. En ese caso la práctica sigue (con Gemini) y queda registrado.
+ * - `terminated` sin motivo explícito queda como cierre ajeno. Las banderas de maltrato
+ *   identifican un cierre por trato inapropiado.
  */
 export function decidirCierrePorEstado(
   estado: string,
@@ -85,10 +74,7 @@ export function decidirCierrePorEstado(
       BANDERAS_DE_MALTRATO.includes(bandera)
     );
     if (maltrato) return { tipo: 'termina', motivo: 'inapropiada' };
-    const severidad = pistas.severidad;
-    if (typeof severidad === 'number' && severidad >= SEVERIDAD_DE_CRISIS) {
-      return { tipo: 'termina', motivo: 'crisis' };
-    }
+    return { tipo: 'cerrada_alla', codigo: 'sin_motivo' };
   }
   return { tipo: 'cerrada_alla', codigo: 'desconocido' };
 }

@@ -487,10 +487,7 @@ describe('conversarConOrquestador', () => {
       expect(llamada).toHaveBeenCalledOnce();
     });
 
-    it.each([
-      [['abuse'], 2, 'inapropiada'],
-      [['risk'], 4.5, 'crisis'],
-    ])(
+    it.each([[['abuse'], 2, 'inapropiada']])(
       'un turno recuperado que cerró la sesión allá conserva el motivo (%s, severidad %s → %s)',
       async (banderas, severity, motivo) => {
         const { cliente } = clienteFalso([], {
@@ -506,19 +503,19 @@ describe('conversarConOrquestador', () => {
     );
 
     // P2-05: `terminated` también es un cierre manual o una limpieza del lado del orquestador.
-    it('una sesión terminated sin maltrato ni severidad alta no se anota como crisis', async () => {
+    it('una sesión terminated sin motivo, incluso con severidad alta no se anota como crisis', async () => {
       const { cliente } = clienteFalso([], {
         estado: 'terminated',
         historial: [
           mensaje('trainee', MENSAJE),
-          mensaje('patient', 'Estoy un poco mejor.', { severity: 2 }),
+          mensaje('patient', 'Estoy un poco mejor.', { severity: 5 }),
         ],
       });
       const { partes, error } = await conversar(cliente, { reintento: true });
 
       expect(error).toBeNull();
       expect(partes.at(-1)).toMatchObject({
-        resultado: { texto: 'Estoy un poco mejor.', cierre: null, cierreAjeno: 'desconocido' },
+        resultado: { texto: 'Estoy un poco mejor.', cierre: null, cierreAjeno: 'sin_motivo' },
       });
     });
 

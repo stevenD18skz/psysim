@@ -7,7 +7,6 @@ import {
   decidirCierre,
   decidirCierrePorEstado,
   MOTIVO_CAMBIO_POR_CIERRE,
-  SEVERIDAD_DE_CRISIS,
 } from './cierre';
 
 describe('decidirCierre (evento done del stream)', () => {
@@ -42,7 +41,7 @@ describe('decidirCierre (evento done del stream)', () => {
 
 describe('decidirCierrePorEstado (turno recuperado del historial)', () => {
   it('active: la sesión sigue', () => {
-    expect(decidirCierrePorEstado('active', { banderas: ['abuse'], severidad: 5 })).toEqual({
+    expect(decidirCierrePorEstado('active', { banderas: ['abuse'] })).toEqual({
       tipo: 'sigue',
     });
   });
@@ -61,33 +60,19 @@ describe('decidirCierrePorEstado (turno recuperado del historial)', () => {
     });
   });
 
-  it.each([SEVERIDAD_DE_CRISIS, 4.5, 5])(
-    'terminated con la severidad en el límite superior (%s) es una crisis',
-    severidad => {
-      expect(decidirCierrePorEstado('terminated', { banderas: ['risk'], severidad })).toEqual({
-        tipo: 'termina',
-        motivo: 'crisis',
-      });
-    }
-  );
-
-  // P2-05: una sesión también queda `terminated` por un cierre manual o una limpieza allá.
-  it.each([undefined, null, 0, 2, 3.9])(
-    'terminated sin maltrato y con severidad %s no se anota como crisis',
-    severidad => {
-      expect(decidirCierrePorEstado('terminated', { banderas: ['risk'], severidad })).toEqual({
-        tipo: 'cerrada_alla',
-        codigo: 'desconocido',
-      });
-    }
-  );
+  it('terminated sin motivo ni maltrato conserva un cierre neutro', () => {
+    expect(decidirCierrePorEstado('terminated', { banderas: ['risk'] })).toEqual({
+      tipo: 'cerrada_alla',
+      codigo: 'sin_motivo',
+    });
+  });
 
   it('si la sesión trae su closing_kind, decide él', () => {
-    expect(decidirCierrePorEstado('terminated', { cierre: 'crisis', severidad: 1 })).toEqual({
+    expect(decidirCierrePorEstado('terminated', { cierre: 'crisis' })).toEqual({
       tipo: 'termina',
       motivo: 'crisis',
     });
-    expect(decidirCierrePorEstado('terminated', { cierre: 'success', severidad: 5 })).toEqual({
+    expect(decidirCierrePorEstado('terminated', { cierre: 'success' })).toEqual({
       tipo: 'cerrada_alla',
       codigo: 'success',
     });
@@ -99,7 +84,7 @@ describe('decidirCierrePorEstado (turno recuperado del historial)', () => {
   });
 
   it('un estado desconocido no termina la práctica', () => {
-    expect(decidirCierrePorEstado('archived', { banderas: ['abuse'], severidad: 5 })).toEqual({
+    expect(decidirCierrePorEstado('archived', { banderas: ['abuse'] })).toEqual({
       tipo: 'cerrada_alla',
       codigo: 'desconocido',
     });
@@ -112,11 +97,11 @@ describe('decidirCierrePorEstado (turno recuperado del historial)', () => {
 
 describe('los dos caminos concluyen lo mismo con los mismos hechos', () => {
   it.each([
-    ['success', 'completed', [], 1],
-    ['crisis', 'terminated', [], 5],
-    ['inappropriate', 'terminated', ['repeat_abuse'], 3],
-  ] as const)('closing_kind %s y estado %s', (kind, estado, banderas, severidad) => {
-    expect(decidirCierrePorEstado(estado, { banderas, severidad })).toEqual(
+    ['success', 'completed', []],
+    ['crisis', 'terminated', []],
+    ['inappropriate', 'terminated', ['repeat_abuse']],
+  ] as const)('closing_kind %s y estado %s', (kind, estado, banderas) => {
+    expect(decidirCierrePorEstado(estado, { banderas, cierre: kind })).toEqual(
       decidirCierre(true, kind)
     );
   });

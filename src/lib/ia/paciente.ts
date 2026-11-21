@@ -229,7 +229,9 @@ async function* transmitirCon(
     throw new ErrorIA(clasificarError(error), { cause: error });
   }
   if (fallo) throw new ErrorIA(clasificarError(fallo), { cause: fallo });
-  if (!texto.trim()) throw new ErrorIA('respuesta_invalida');
+  if (!texto.trim() || (await resultado.finishReason) === 'length') {
+    throw new ErrorIA('respuesta_invalida');
+  }
 
   // El consumo llega al cerrar el flujo; si el proveedor no lo informa, queda sin dato.
   const uso = await Promise.resolve(resultado.usage).catch(() => null);
