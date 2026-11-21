@@ -21,6 +21,7 @@ const ESTUDIANTE_ID = '55555555-5555-4555-8555-555555555555';
 const ASIGNACION_ID = '77777777-7777-4777-8777-777777777777';
 const SESION_ID = '44444444-4444-4444-8444-444444444444';
 const VALORES = {
+  solicitudId: ASIGNACION_ID,
   escenarioId: '11111111-1111-4111-8111-111111111111',
   promptSistema: 'Eres Marta Lucía, una mujer de 58 años en duelo.',
   estudianteId: ESTUDIANTE_ID,
@@ -53,6 +54,7 @@ describe('generarAsignacion', () => {
     });
     const [insercion] = db.de('asignacion');
     expect(insercion!.valores).toEqual({
+      id: ASIGNACION_ID,
       estudiante_id: ESTUDIANTE_ID,
       escenario_id: VALORES.escenarioId,
       prompt_sistema: VALORES.promptSistema,
@@ -85,11 +87,35 @@ describe('generarAsignacion', () => {
     db.responder(
       'asignacion',
       { error: { code: '23505' } },
+      { data: null },
       { data: { id: ASIGNACION_ID, codigo: 'xyz-abcd-efg', expira_en: 'T' } }
     );
 
     expect(await generarAsignacion(VALORES)).toMatchObject({ ok: true });
-    expect(db.de('asignacion')).toHaveLength(2);
+    expect(db.de('asignacion').map(c => c.operacion)).toEqual(['insert', 'select', 'insert']);
+  });
+
+  it('devuelve el código original cuando se perdió la confirmación', async () => {
+    db.responder('estudiante', { data: { usuario_id: 'u1', docente_id: 'd1' } });
+    db.responder(
+      'asignacion',
+      { error: { code: '23505' } },
+      {
+        data: {
+          id: ASIGNACION_ID,
+          codigo: 'abc-defg-hij',
+          expira_en: 'original',
+          prompt_sistema: VALORES.promptSistema,
+          duracion_minutos: 15,
+        },
+      }
+    );
+
+    expect(await generarAsignacion(VALORES)).toEqual({
+      ok: true,
+      datos: { id: ASIGNACION_ID, codigo: 'abc-defg-hij', expiraEn: 'original' },
+    });
+    expect(db.de('asignacion').map(c => c.operacion)).toEqual(['insert', 'select']);
   });
 
   it('no genera códigos para un estudiante sin cuenta', async () => {
@@ -189,7 +215,7 @@ describe('canjearCodigo', () => {
     db.responder('rpc:canjear_codigo', { error: { code: '500' } });
     expect(await canjearCodigo({ codigo: 'abc-defg-hij' })).toEqual({
       error:
-        'No pudimos comprobar el código. No se ha usado: revisa tu conexión e inténtalo de nuevo.',
+        'No pudimos confirmar el canje. Revisa tu conexión e inténtalo de nuevo para entrar o retomar la práctica.',
     });
   });
 

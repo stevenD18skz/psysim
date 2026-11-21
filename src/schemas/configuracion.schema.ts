@@ -88,6 +88,8 @@ export const generarAsignacionSchema = z.object({
 export type GenerarAsignacionInput = z.input<typeof generarAsignacionSchema>;
 export type GenerarAsignacionData = z.output<typeof generarAsignacionSchema>;
 
+export const solicitudAsignacionSchema = generarAsignacionSchema.extend({ solicitudId: z.uuid() });
+
 export const finalizarSesionSchema = z.object({ sesionId: z.uuid() });
 
 /** HU-23: el estudiante confirma las instrucciones y comienza la simulación. */

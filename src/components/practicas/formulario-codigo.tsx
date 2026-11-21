@@ -30,7 +30,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { canjearCodigo } from '@/lib/asignaciones/actions';
-import { normalizarCodigoAcceso, rutaUnirse } from '@/lib/asignaciones/codigo';
+import {
+  MENSAJE_CANJE_SIN_CONFIRMAR,
+  normalizarCodigoAcceso,
+  rutaUnirse,
+} from '@/lib/asignaciones/codigo';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
 import { coincideBusqueda } from '@/lib/listas';
 import { cn } from '@/lib/utils';
@@ -111,9 +115,7 @@ export function FormularioCodigo({
         // El canje que funciona termina en una redirección: se deja pasar a Next.
         unstable_rethrow(error);
         // Usar el código es idempotente en el servidor: reintentar lleva a la misma práctica.
-        setError(
-          'No pudimos comprobar el código. No se ha usado: revisa tu conexión e inténtalo de nuevo.'
-        );
+        setError(MENSAJE_CANJE_SIN_CONFIRMAR);
       }
     });
   };

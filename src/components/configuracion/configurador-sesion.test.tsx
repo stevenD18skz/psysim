@@ -229,6 +229,7 @@ describe('ConfiguradorSesion', () => {
       estudianteId: ANA.id,
       vigenciaDias: 3,
       duracionMinutos: 20,
+      solicitudId: expect.any(String),
     });
     const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
@@ -286,6 +287,26 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByRole('radio', { name: '7 días' })).toBeChecked();
     await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
     expect(mockGenerar).toHaveBeenCalledWith(expect.objectContaining({ vigenciaDias: 7 }));
+  });
+
+  it('mantiene la solicitud al reintentar y usa otra al cambiar la asignación', async () => {
+    mockGenerar.mockResolvedValue({ ok: false, error: 'No pudimos confirmar el resultado.' });
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id, [ANA], ANA);
+    const generar = async () =>
+      usuario.click(await screen.findByRole('button', { name: /Generar código/ }));
+
+    await generar();
+    await generar();
+    await usuario.click(screen.getByRole('radio', { name: '3 días' }));
+    await generar();
+
+    const solicitudes = mockGenerar.mock.calls.map(
+      ([valores]) => (valores as { solicitudId: string }).solicitudId
+    );
+    expect(solicitudes).toHaveLength(3);
+    expect(solicitudes[1]).toBe(solicitudes[0]);
+    expect(solicitudes[2]).not.toBe(solicitudes[0]);
   });
 
   it('muestra el error del servidor si no se pudo generar el código', async () => {

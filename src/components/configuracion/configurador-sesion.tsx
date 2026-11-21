@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useId, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
@@ -141,6 +141,7 @@ export function ConfiguradorSesion({
   /** Momento de referencia para mostrar cuándo vencerá el código (se fija al abrir la página). */
   const [ahora] = useState(() => Date.now());
   const [generando, startTransition] = useTransition();
+  const solicitud = useRef<{ id: string; configuracion: string } | null>(null);
 
   const {
     handleSubmit,
@@ -223,7 +224,10 @@ export function ConfiguradorSesion({
   const opcionesEstudiante = { shouldDirty: true, shouldValidate: true } as const;
   const elegirEstudiante = (elegido: EstudianteRegistrado) =>
     setValue('estudianteId', elegido.id, opcionesEstudiante);
-  const quitarEstudiante = () => setValue('estudianteId', '', { shouldDirty: true });
+  const quitarEstudiante = () => {
+    solicitud.current = null;
+    setValue('estudianteId', '', { shouldDirty: true });
+  };
 
   // Un estudiante recién registrado aparece al recargar los datos del servidor; queda elegido.
   const onEstudianteRegistrado = (id: string) => {
@@ -257,10 +261,15 @@ export function ConfiguradorSesion({
     const destinatario = conCuenta.find(e => e.id === datos.estudianteId);
     if (!seleccionado || !destinatario) return;
 
+    const configuracion = JSON.stringify(datos);
+    if (solicitud.current?.configuracion !== configuracion) {
+      solicitud.current = { id: crypto.randomUUID(), configuracion };
+    }
+    const solicitudId = solicitud.current.id;
     setErrorServidor(null);
     startTransition(
       sinPerderElPanel(async () => {
-        const resultado = await generarAsignacion(datos);
+        const resultado = await generarAsignacion({ ...datos, solicitudId });
         if (!resultado.ok) {
           setErrorServidor(resultado.error);
           return;
@@ -288,7 +297,7 @@ export function ConfiguradorSesion({
       <RecorridoAsignarPractica />
       <form
         noValidate
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={evento => void handleSubmit(onSubmit)(evento)}
         className="flex flex-col"
         aria-label="Configuración de la práctica"
       >
