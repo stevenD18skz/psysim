@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import {
+  aceptarAvisoAlRetomar,
   clienteAdmin as clienteAdminOpcional,
   crearSesionEstudiante,
   limpiarCodigos,
@@ -54,6 +55,7 @@ async function acercarseAlPaciente(page: Page, sesionId: string) {
   await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
     timeout: 60_000,
   });
+  await aceptarAvisoAlRetomar(page);
 
   const conversar = page.getByRole('button', { name: 'Conversar con Marta' });
   for (let intento = 0; intento < 20 && !(await conversar.isVisible()); intento++) {

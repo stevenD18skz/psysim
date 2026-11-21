@@ -65,6 +65,7 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     // 1. El docente configura el caso E-01 para el estudiante y genera el código.
     await iniciarSesionComoDocente(page);
     await page.goto('/configuracion');
+    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
     await page.getByTestId('escenario-E-01').click();
     await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill('Prueba Uno');
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE) }).click();
@@ -82,16 +83,16 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     const hud = pestanaEstudiante.getByRole('complementary', { name: 'Datos de la práctica' });
     await expect(hud).toContainText('Duelo y pérdida');
 
-    // El docente solo ve que la simulación está en progreso (sin el chat).
-    await page.goto(`/sesiones/${sesionId}`);
-    await expect(page.getByRole('heading', { name: 'Practicando ahora' })).toBeVisible();
-    await expect(page.getByText(INTERVENCION)).toHaveCount(0);
-
     const panel = await abrirConversacion(pestanaEstudiante, 'Marta', 'Marta Lucía');
     const respuesta = await conversar(panel, 'Marta Lucía', INTERVENCION);
     expect(respuesta.length).toBeGreaterThan(0);
     // La etiqueta de emoción de la IA nunca llega al estudiante.
     expect(respuesta).not.toMatch(/^\[\p{L}+\]/u);
+
+    // Aunque el intercambio ya existe, el docente solo ve que la práctica sigue en curso.
+    await page.goto(`/sesiones/${sesionId}`);
+    await expect(page.getByRole('heading', { name: 'Practicando ahora' })).toBeVisible();
+    await expect(page.getByText(INTERVENCION, { exact: true })).toHaveCount(0);
 
     // 3. El estudiante finaliza desde el HUD.
     await panel.getByRole('button', { name: 'Volver a explorar' }).click();
@@ -115,7 +116,8 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     ).toBeVisible();
 
     // El docente revisa: subraya una frase, la comenta, pone la nota y publica.
-    await page.reload();
+    await page.goto('/sesiones?orden=recientes');
+    await page.locator(`li > a[href="/sesiones/${sesionId}"]`).click();
     await expect(page.getByRole('heading', { name: 'Conversación', exact: true })).toBeVisible();
     await seleccionarFragmento(page, 'Soy estudiante de psicología');
     await page.getByRole('button', { name: 'Comentar selección' }).click();
@@ -125,8 +127,20 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await page.getByRole('button', { name: 'Guardar comentario' }).click();
     await expect(page.locator('mark')).toHaveText('Soy estudiante de psicología');
 
-    await page.getByLabel('Comentario general').fill('Buen encuadre inicial y tono empático.');
+    const comentario = 'Buen encuadre inicial y tono empático.';
+    await page.getByLabel('Comentario general').fill(comentario);
     await page.getByLabel('Nota (0,0 a 5,0)').fill('4,5');
+    await page.getByRole('button', { name: 'Guardar borrador' }).click();
+    await expect(page.getByText('Borrador guardado.', { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel('Comentario general')).toHaveValue(comentario);
+    await expect(page.getByLabel('Nota (0,0 a 5,0)')).toHaveValue('4,5');
+    await pestanaEstudiante.reload();
+    await expect(
+      pestanaEstudiante.getByText('Tu docente aún no publica la retroalimentación.')
+    ).toBeVisible();
+    await expect(pestanaEstudiante.getByText(comentario)).toHaveCount(0);
+    await expect(pestanaEstudiante.locator('mark')).toHaveCount(0);
     // «Publicar» (o «Publicar y abrir la siguiente» si quedan pendientes) pide confirmar.
     await page.getByRole('button', { name: /^Publicar/ }).click();
     await page.getByRole('button', { name: /^Publicar/ }).click();
@@ -135,9 +149,7 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     // 4. El estudiante ve la retroalimentación publicada.
     await pestanaEstudiante.reload();
     await expect(pestanaEstudiante.getByTestId('nota-publicada')).toHaveText('4,5');
-    await expect(
-      pestanaEstudiante.getByText('Buen encuadre inicial y tono empático.')
-    ).toBeVisible();
+    await expect(pestanaEstudiante.getByText(comentario)).toBeVisible();
     await expect(pestanaEstudiante.locator('mark')).toHaveText('Soy estudiante de psicología');
     await expect(
       pestanaEstudiante.getByText('Bien: te presentas antes de preguntar.')

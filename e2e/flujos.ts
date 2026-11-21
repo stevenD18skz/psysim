@@ -216,6 +216,14 @@ export async function comenzarSimulacion(page: Page, tituloCaso: RegExp) {
   await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
 }
 
+/** Las sesiones preparadas por la prueba todavía necesitan el permiso del navegador. */
+export async function aceptarAvisoAlRetomar(page: Page) {
+  const continuar = page.getByRole('button', { name: 'Continuar la práctica' });
+  if (!(await continuar.isVisible())) return;
+  await page.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }).check();
+  await continuar.click();
+}
+
 /**
  * Camina hacia el paciente (W) hasta que la interfaz ofrece conversar y abre el panel.
  * `nombreCorto` es el del botón ("Marta"); `nombreCompleto`, el del panel ("Marta Lucía").

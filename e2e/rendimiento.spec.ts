@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { crearSesionEstudiante, limpiarCodigos } from './flujos';
+import { aceptarAvisoAlRetomar, crearSesionEstudiante, limpiarCodigos } from './flujos';
 import {
   hayCredencialesEstudiante,
   iniciarSesionComoEstudiante,
@@ -80,6 +80,7 @@ test.describe('rendimiento del entorno 3D (HU-28)', () => {
     });
     const cargaMs = Date.now() - inicio;
 
+    await aceptarAvisoAlRetomar(page);
     await page.waitForTimeout(MUESTREO_FPS_MS);
     const fps = await promedioFps(page);
 

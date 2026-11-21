@@ -1,6 +1,11 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { clienteAdmin, crearSesionEstudiante, limpiarCodigos } from './flujos';
+import {
+  aceptarAvisoAlRetomar,
+  clienteAdmin,
+  crearSesionEstudiante,
+  limpiarCodigos,
+} from './flujos';
 import {
   hayCredencialesEstudiante,
   iniciarSesionComoEstudiante,
@@ -107,6 +112,7 @@ test.describe('medición de rendimiento del documento (RNF-01 y RNF-02)', () => 
       });
       const cargaMs = Date.now() - inicio;
 
+      await aceptarAvisoAlRetomar(page);
       await iniciarMuestreo(page);
       await page.getByRole('button', { name: 'Ir directo a la conversación' }).click();
       const panel = page.getByRole('region', { name: /^Conversación con / });
