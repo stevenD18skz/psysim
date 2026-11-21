@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
 
-import { limpiarCodigos, prepararSesion, registrarEstudiantePrueba } from './flujos';
+import {
+  abrirCasosPredefinidos,
+  limpiarCodigos,
+  prepararSesion,
+  registrarEstudiantePrueba,
+} from './flujos';
 import {
   hayCredenciales,
   hayCredencialesEstudiante,
@@ -67,7 +72,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
   test('HU-06 · T02: muestra los doce escenarios y expande el perfil del NPC', async ({ page }) => {
     // Los doce escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(12);
     for (const codigo of CODIGOS_OFICIALES) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
@@ -109,7 +114,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   }) => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-01').click();
     // Ajuste guiado, sin escribir instrucciones: viaja con el código.
     await page.getByRole('button', { name: 'Ajustar para esta práctica' }).click();
@@ -156,7 +161,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
     const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-01').click();
     await ajustar.click();
     // El texto completo es la opción avanzada, plegada bajo los ajustes guiados.
@@ -174,7 +179,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(propio).toBeVisible();
 
     // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-03').click();
     await page.getByRole('button', { name: /^Mis casos/ }).click();
     await propio.check({ force: true });

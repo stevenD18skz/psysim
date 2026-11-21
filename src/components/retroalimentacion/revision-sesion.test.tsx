@@ -112,3 +112,45 @@ it('recupera el texto, la frase y el mismo identificador de una anotación tras 
     sessionStorage.getItem(`psysim:borrador-retro:${CUENTA}:${SESION}:anotaciones`)
   ).toBeNull();
 });
+
+it('selecciona por teclado una frase después de un emoji y un salto de línea', async () => {
+  const crear = vi.mocked(crearAnotacion);
+  crear.mockResolvedValueOnce({
+    ok: true,
+    datos: {
+      id: 'anotacion-1',
+      mensajeId: MENSAJE,
+      inicio: 7,
+      fin: 12,
+      fragmento: 'Dime.',
+      comentario: 'Pregunta abierta',
+    },
+  });
+  render(
+    <RevisionSesion
+      sesion={{ ...detalle, mensajes: [{ ...detalle.mensajes[0]!, contenido: 'Hola🌱\r\nDime.' }] }}
+      cuentaId={CUENTA}
+    />
+  );
+  const boton = screen.getByRole('button', { name: 'Elegir frase para comentar' });
+  fireEvent.click(boton);
+  const campo = screen.getByRole<HTMLTextAreaElement>('textbox', {
+    name: 'Texto de la intervención',
+  });
+  expect(campo).toHaveFocus();
+  fireEvent.keyDown(campo, { key: 'Escape' });
+  expect(boton).toHaveFocus();
+  fireEvent.click(boton);
+  screen
+    .getByRole<HTMLTextAreaElement>('textbox', { name: 'Texto de la intervención' })
+    .setSelectionRange(7, 12);
+  fireEvent.click(screen.getByRole('button', { name: 'Comentar frase' }));
+  const comentario = screen.getByLabelText('Comentario sobre la frase seleccionada');
+  expect(comentario).toHaveFocus();
+  fireEvent.change(comentario, { target: { value: 'Pregunta abierta' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar comentario' }));
+  expect(await screen.findByText('Pregunta abierta', { selector: 'span' })).toBeVisible();
+  expect(crear).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mensajeId: MENSAJE, inicio: 7, fin: 12 })
+  );
+});

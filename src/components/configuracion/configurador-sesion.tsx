@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useId, useRef, useState, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
@@ -132,6 +132,8 @@ export function ConfiguradorSesion({
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
+  const botonGenerar = useRef<HTMLButtonElement>(null);
+  const devolverFocoGenerar = useRef(false);
   /** El comportamiento del paciente va plegado hasta que el docente decide ajustarlo. */
   const [ajustando, setAjustando] = useState(ajustarInicial && casoInicial !== null);
   /** Ajustes guiados del paciente para esta práctica (sin escribir instrucciones). */
@@ -142,6 +144,18 @@ export function ConfiguradorSesion({
   const [ahora] = useState(() => Date.now());
   const [generando, startTransition] = useTransition();
   const solicitud = useRef<{ id: string; configuracion: string } | null>(null);
+
+  useEffect(() => {
+    // El diálogo puede cerrarse antes de que termine el refresh que habilita el botón.
+    if (!devolverFocoGenerar.current || codigoGenerado || generando) return;
+    devolverFocoGenerar.current = false;
+    botonGenerar.current?.focus({ preventScroll: true });
+  }, [codigoGenerado, generando]);
+
+  const cerrarCodigo = () => {
+    devolverFocoGenerar.current = true;
+    setCodigoGenerado(null);
+  };
 
   const {
     handleSubmit,
@@ -815,6 +829,7 @@ export function ConfiguradorSesion({
             )}
           </p>
           <Button
+            ref={botonGenerar}
             type="submit"
             variant="accion"
             size="lg"
@@ -831,7 +846,7 @@ export function ConfiguradorSesion({
           </Button>
         </div>
       </form>
-      <CodigoGenerado datos={codigoGenerado} onCerrar={() => setCodigoGenerado(null)} />
+      <CodigoGenerado datos={codigoGenerado} onCerrar={cerrarCodigo} />
     </div>
   );
 }

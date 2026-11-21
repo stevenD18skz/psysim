@@ -85,7 +85,10 @@ export function CodigoGenerado({
 
   return (
     <Dialog open onOpenChange={abierto => !abierto && onCerrar()}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent
+        className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+        onCloseAutoFocus={evento => evento.preventDefault()}
+      >
         <DialogHeader className="border-b bg-muted/35 px-5 py-4 pr-12 text-left sm:px-6 sm:py-5">
           <div className="flex items-start gap-3">
             <span

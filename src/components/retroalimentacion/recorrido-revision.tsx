@@ -14,7 +14,7 @@ const PASOS_REVISION_PRACTICA: readonly PasoRecorrido[] = [
     selector: '[data-tour="revision-conversacion"]',
     titulo: 'Subraya y comenta frases puntuales',
     descripcion:
-      'Selecciona cualquier fragmento escrito por el estudiante (con ratón o Mayús + flechas) y pulsa «Comentar selección». Luego podrás abrir, editar o quitar cada subrayado ámbar.',
+      'Con el teclado, abre «Elegir frase para comentar» debajo de una intervención, selecciona el texto con Mayús + flechas y pulsa «Comentar frase». Con el ratón, también puedes seleccionar directamente en la conversación y pulsar «Comentar selección».',
     consejo:
       'Solo se subrayan las intervenciones del estudiante para que cada comentario apunte a su desempeño.',
     ladoPreferido: 'right',

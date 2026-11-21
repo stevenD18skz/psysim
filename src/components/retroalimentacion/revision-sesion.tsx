@@ -30,6 +30,7 @@ import {
   ID_RECORRIDO_REVISION,
   RecorridoRevisionPractica,
 } from '@/components/retroalimentacion/recorrido-revision';
+import { SelectorFragmento } from '@/components/retroalimentacion/selector-fragmento';
 import { IntentoReformulado } from '@/components/sesiones/intento-reformulado';
 import {
   numerarAnotaciones,
@@ -75,7 +76,7 @@ interface Seleccion {
   /** Se cruza con un comentario existente: no se puede comentar. */
   solapada: boolean;
   /** Copia del rango seleccionado: resalta la frase mientras se escribe el comentario. */
-  rango: Range;
+  rango: Range | null;
   ancla: Ancla;
 }
 
@@ -87,6 +88,7 @@ type Burbuja =
       fragmento: string;
       rango: Range | null;
       ancla: Ancla;
+      focoRetorno?: HTMLButtonElement;
     }
   | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
 
@@ -187,6 +189,7 @@ export function RevisionSesion({
     sesion.retroalimentacion?.anotaciones ?? []
   );
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
+  const [eligiendoFrase, setEligiendoFrase] = useState<string | null>(null);
   /** Botón del ratón presionado sobre el chat: la barra espera a que termine de seleccionar. */
   const [arrastrando, setArrastrando] = useState(false);
   const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
@@ -226,7 +229,7 @@ export function RevisionSesion({
     burbuja?.tipo === 'existente'
       ? (anotaciones.find(a => a.id === burbuja.anotacionId) ?? null)
       : null;
-  const mostrarBarra = seleccion !== null && !arrastrando && burbuja === null;
+  const mostrarBarra = seleccion !== null && !arrastrando && burbuja === null && !eligiendoFrase;
 
   // La selección del texto (con ratón o teclado) se sigue en vivo; al pulsar "Comentar" se fija.
   useEffect(() => {
@@ -267,7 +270,7 @@ export function RevisionSesion({
     };
   }, [rangoBorrador]);
 
-  const empezarComentario = () => {
+  const empezarComentario = (seleccion: Seleccion | null, focoRetorno?: HTMLButtonElement) => {
     if (!seleccion || seleccion.solapada) return;
     const { mensajeId, inicio, fin, fragmento, rango, ancla } = seleccion;
     const anterior = borradores.find(
@@ -281,7 +284,7 @@ export function RevisionSesion({
       fin,
       comentario: '',
     };
-    setBurbuja({ tipo: 'nueva', borrador, fragmento, rango, ancla });
+    setBurbuja({ tipo: 'nueva', borrador, fragmento, rango, ancla, focoRetorno });
     window.getSelection()?.removeAllRanges();
   };
 
@@ -520,6 +523,36 @@ export function RevisionSesion({
                         onAbrir={id => abrir(id)}
                       />
                     </p>
+                    {esEstudiante && (
+                      <SelectorFragmento
+                        texto={mensaje.contenido}
+                        anotaciones={propias}
+                        abierto={eligiendoFrase === mensaje.id}
+                        onAbrir={() => {
+                          setBurbuja(null);
+                          setEligiendoFrase(mensaje.id);
+                        }}
+                        onCerrar={() => setEligiendoFrase(null)}
+                        onElegir={(inicio, fin, origen) => {
+                          setEligiendoFrase(null);
+                          empezarComentario(
+                            {
+                              mensajeId: mensaje.id,
+                              inicio,
+                              fin,
+                              fragmento: fragmentoEntre(mensaje.contenido, inicio, fin),
+                              rango: null,
+                              solapada: false,
+                              ancla: {
+                                getBoundingClientRect: () => origen.getBoundingClientRect(),
+                                contextElement: origen,
+                              },
+                            },
+                            origen
+                          );
+                        }}
+                      />
+                    )}
                   </li>
                 );
               })}
@@ -574,7 +607,7 @@ export function RevisionSesion({
                   className="rounded-full"
                   // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
                   onMouseDown={evento => evento.preventDefault()}
-                  onClick={empezarComentario}
+                  onClick={() => empezarComentario(seleccion)}
                 >
                   <MessageSquarePlus aria-hidden />
                   Comentar selección
@@ -592,6 +625,7 @@ export function RevisionSesion({
                 sesionId={sesion.id}
                 inicial={burbuja.borrador}
                 fragmento={burbuja.fragmento}
+                focoRetorno={burbuja.focoRetorno}
                 onCreada={alCrear}
                 onEditar={respaldarAnotacion}
                 onCancelar={() => {
@@ -744,6 +778,7 @@ function NuevaAnotacion({
   sesionId,
   inicial,
   fragmento,
+  focoRetorno,
   onCreada,
   onEditar,
   onCancelar,
@@ -751,6 +786,7 @@ function NuevaAnotacion({
   sesionId: string;
   inicial: BorradorAnotacion;
   fragmento: string;
+  focoRetorno?: HTMLButtonElement;
   onCreada: (anotacion: Anotacion, borrador: BorradorAnotacion) => void;
   onEditar: (borrador: BorradorAnotacion) => void;
   onCancelar: () => void;
@@ -784,6 +820,12 @@ function NuevaAnotacion({
       align="end"
       hideWhenDetached
       aria-label="Nuevo comentario"
+      onCloseAutoFocus={evento => {
+        if (focoRetorno && document.activeElement === document.body) {
+          evento.preventDefault();
+          focoRetorno.focus();
+        }
+      }}
       // Un clic fuera no descarta lo que ya se escribió.
       onInteractOutside={evento => {
         if (comentario.trim() || abreOtraAnotacion(evento.target)) evento.preventDefault();

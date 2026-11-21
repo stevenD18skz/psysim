@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Eye, Loader2, Save, Send } from 'lucide-react';
 import { unstable_rethrow, useRouter } from 'next/navigation';
-import { useId, useState, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
@@ -34,6 +34,14 @@ interface FormularioRetroalimentacionProps {
 }
 
 type Revision = Omit<Retroalimentacion, 'anotaciones'>;
+
+function mismoContenidoRevision(anterior: Revision | null, actual: Revision) {
+  return (
+    (anterior?.comentarioGeneral ?? '') === actual.comentarioGeneral &&
+    (anterior?.nota ?? null) === actual.nota &&
+    (anterior?.publicadaEn ?? null) === actual.publicadaEn
+  );
+}
 
 function textoNota(nota: number | null | undefined) {
   return nota == null ? '' : formatearNota(nota);
@@ -71,9 +79,7 @@ export function FormularioRetroalimentacion({
   const base =
     inicial &&
     inicial.actualizadoEn > (revision?.actualizadoEn ?? '') &&
-    inicial.comentarioGeneral === (revision?.comentarioGeneral ?? '') &&
-    inicial.nota === (revision?.nota ?? null) &&
-    inicial.publicadaEn === (revision?.publicadaEn ?? null)
+    mismoContenidoRevision(revision, inicial)
       ? inicial
       : revision;
   const version = base?.actualizadoEn ?? null;
@@ -110,6 +116,15 @@ export function FormularioRetroalimentacion({
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, startTransition] = useTransition();
+  const campoNota = useRef<HTMLInputElement>(null);
+  const botonPublicar = useRef<HTMLButtonElement>(null);
+  const devolverFoco = useRef(false);
+
+  useEffect(() => {
+    if (confirmando || enviando || !devolverFoco.current) return;
+    devolverFoco.current = false;
+    botonPublicar.current?.focus();
+  }, [confirmando, enviando]);
 
   const nota = leerNota(notaTexto);
   const errorNota =
@@ -117,28 +132,42 @@ export function FormularioRetroalimentacion({
   const publicada = publicadaEn !== null;
   const primerNombre = nombreEstudiante.split(' ')[0];
 
+  const validarNota = () => {
+    if (!errorNota) return true;
+    campoNota.current?.focus();
+    return false;
+  };
+
+  const cerrarConfirmacion = () => {
+    devolverFoco.current = true;
+    setConfirmando(false);
+  };
+
   const enviar = (modo: ModoRevision) => {
-    if (conflicto) return;
-    if (errorNota) {
-      setError(errorNota);
-      return;
-    }
+    if (conflicto || !validarNota()) return;
     setError(null);
+    const solicitud = { sesionId, modo, version, comentarioGeneral: comentario, nota };
     startTransition(async () => {
       let resultado;
       try {
-        resultado = await guardarRetroalimentacion({
-          sesionId,
-          modo,
-          version,
-          comentarioGeneral: comentario,
-          nota,
-        });
+        resultado = await guardarRetroalimentacion(solicitud);
+        if (
+          resultado.ok &&
+          resultado.datos.conflicto &&
+          mismoContenidoRevision(base, resultado.datos.revision)
+        ) {
+          // Anotar puede crear o fechar la revisión antes de que llegue el refresco. La nueva
+          // versión sigue protegiendo el guardado si otra pestaña edita durante el reintento.
+          resultado = await guardarRetroalimentacion({
+            ...solicitud,
+            version: resultado.datos.revision.actualizadoEn,
+          });
+        }
       } catch (error) {
         // Una redirección (p. ej. sesión caducada) no es un fallo de red.
         unstable_rethrow(error);
         // Sin conexión: el texto se queda en el formulario (y en el borrador local).
-        setConfirmando(false);
+        if (modo === 'publicar') cerrarConfirmacion();
         setError(
           'No pudimos guardar: revisa tu conexión. Tu texto sigue aquí: inténtalo de nuevo.'
         );
@@ -146,6 +175,7 @@ export function FormularioRetroalimentacion({
       }
       setConfirmando(false);
       if (!resultado.ok) {
+        if (modo === 'publicar') cerrarConfirmacion();
         setError(resultado.error || 'No pudimos guardar. Tu texto sigue aquí: inténtalo de nuevo.');
         return;
       }
@@ -287,6 +317,7 @@ export function FormularioRetroalimentacion({
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${id}-nota`}>Nota (0,0 a 5,0)</Label>
         <Input
+          ref={campoNota}
           id={`${id}-nota`}
           inputMode="decimal"
           autoComplete="off"
@@ -299,13 +330,13 @@ export function FormularioRetroalimentacion({
           disabled={enviando}
         />
         {errorNota && (
-          <p id={`${id}-nota-error`} className="text-sm text-destructive">
+          <p id={`${id}-nota-error`} role="alert" className="text-sm text-destructive">
             {errorNota}
           </p>
         )}
       </div>
 
-      {error && error !== errorNota && (
+      {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
@@ -314,13 +345,23 @@ export function FormularioRetroalimentacion({
       <div className="flex flex-col gap-3 border-t pt-4">
         {conflicto ? null : confirmando ? (
           <div className="flex flex-col gap-3 rounded-lg bg-muted p-3">
-            <p className="text-sm">
+            <p id={`${id}-publicacion`} className="text-sm">
               {primerNombre} verá la nota, el comentario general y tus comentarios ({comentarios})
               en cuanto publiques.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
+                variant="ghost"
+                onClick={cerrarConfirmacion}
+                aria-describedby={`${id}-publicacion`}
+                disabled={enviando}
+                autoFocus
+              >
+                Volver
+              </Button>
+              <Button
                 variant="accion"
+                aria-describedby={`${id}-publicacion`}
                 onClick={() => enviar('publicar')}
                 disabled={enviando}
                 aria-busy={enviando}
@@ -331,9 +372,6 @@ export function FormularioRetroalimentacion({
                   : siguiente
                     ? 'Publicar y abrir la siguiente'
                     : 'Publicar'}
-              </Button>
-              <Button variant="ghost" onClick={() => setConfirmando(false)} disabled={enviando}>
-                Volver
               </Button>
             </div>
           </div>
@@ -346,7 +384,14 @@ export function FormularioRetroalimentacion({
               </Button>
             ) : (
               <>
-                <Button variant="accion" onClick={() => setConfirmando(true)} disabled={enviando}>
+                <Button
+                  ref={botonPublicar}
+                  variant="accion"
+                  onClick={() => {
+                    if (validarNota()) setConfirmando(true);
+                  }}
+                  disabled={enviando}
+                >
                   <Send aria-hidden />
                   {siguiente ? 'Publicar y abrir la siguiente' : 'Publicar'}
                 </Button>

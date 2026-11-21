@@ -24,6 +24,16 @@ function admin() {
 }
 
 const LETRAS = 'abcdefghijklmnopqrstuvwxyz';
+
+/** El primer clic puede llegar antes de que el configurador termine de hidratarse. */
+export async function abrirCasosPredefinidos(page: Page) {
+  const pestana = page.getByRole('button', { name: /^Casos predefinidos/ });
+  await expect(async () => {
+    await pestana.click();
+    await expect(pestana).toHaveAttribute('aria-pressed', 'true', { timeout: 1500 });
+  }).toPass({ timeout: 30_000 });
+}
+
 const letras = (n: number) =>
   Array.from({ length: n }, () => LETRAS[Math.floor(Math.random() * LETRAS.length)]).join('');
 

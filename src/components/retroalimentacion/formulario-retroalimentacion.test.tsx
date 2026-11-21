@@ -42,6 +42,26 @@ describe('FormularioRetroalimentacion', () => {
     guardar.mockReset();
   });
 
+  it('retira el error al corregir la nota y devuelve el foco al cancelar la publicación', () => {
+    abrir();
+    const campo = screen.getByLabelText(/Nota \(0,0/);
+    editar('Comentario pendiente', '6');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
+    expect(campo).toHaveFocus();
+    expect(screen.getByRole('alert')).toHaveTextContent('La nota máxima es 5,0');
+
+    fireEvent.change(campo, { target: { value: '4,5' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    const volver = screen.getByRole('button', { name: 'Volver' });
+    expect(volver).toHaveFocus();
+    expect(volver).toHaveAccessibleDescription(/verá la nota/);
+    fireEvent.click(volver);
+    expect(screen.getByRole('button', { name: 'Publicar' })).toHaveFocus();
+    expect(campo).toHaveValue('4,5');
+    expect(guardar).not.toHaveBeenCalled();
+  });
+
   it('recupera comentario y nota con coma después de un corte, solo para la misma cuenta', async () => {
     guardar.mockRejectedValue(new Error('sin red'));
     const primera = abrir();
@@ -103,5 +123,67 @@ describe('FormularioRetroalimentacion', () => {
         comentarioGeneral: 'Edición local',
       })
     );
+  });
+
+  it('guarda después de anotar antes de que llegue la versión de la revisión', async () => {
+    const inicializada = {
+      comentarioGeneral: '',
+      nota: null,
+      publicadaEn: null,
+      actualizadoEn: VERSION,
+    };
+    const edicion = { comentarioGeneral: 'Texto del docente', nota: 4.5 };
+    guardar.mockResolvedValueOnce({ ok: true, datos: { conflicto: true, revision: inicializada } });
+    guardar.mockResolvedValueOnce({
+      ok: true,
+      datos: { conflicto: false, revision: { ...inicializada, ...edicion } },
+    });
+    abrir();
+    editar(edicion.comentarioGeneral, '4,5');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
+
+    await waitFor(() => expect(guardar).toHaveBeenCalledTimes(2));
+    expect(guardar).toHaveBeenNthCalledWith(1, {
+      ...edicion,
+      sesionId: SESION,
+      modo: 'borrador',
+      version: null,
+    });
+    expect(guardar).toHaveBeenNthCalledWith(2, {
+      ...edicion,
+      sesionId: SESION,
+      modo: 'borrador',
+      version: VERSION,
+    });
+    await waitFor(() =>
+      expect(sessionStorage.getItem(`psysim:borrador-retro:${CUENTA}:${SESION}:general`)).toBeNull()
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('mantiene el conflicto si otra pestaña publica durante el reintento', async () => {
+    const inicializada = {
+      comentarioGeneral: '',
+      nota: null,
+      publicadaEn: null,
+      actualizadoEn: VERSION,
+    };
+    guardar.mockResolvedValueOnce({ ok: true, datos: { conflicto: true, revision: inicializada } });
+    guardar.mockResolvedValueOnce({
+      ok: true,
+      datos: {
+        conflicto: true,
+        revision: { ...inicializada, nota: 3, publicadaEn: '2026-11-20T15:00:01+00:00' },
+      },
+    });
+    abrir();
+    editar('Edición local', '4,5');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'La retroalimentación publicada cambió'
+    );
+    expect(screen.getByLabelText('Comentario general')).toHaveValue('Edición local');
+    expect(guardar).toHaveBeenCalledTimes(2);
   });
 });

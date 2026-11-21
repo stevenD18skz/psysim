@@ -1,11 +1,11 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import {
+  abrirCasosPredefinidos,
   abrirConversacion,
   canjearCodigoEnPracticas,
   clienteAdmin,
   comenzarSimulacion,
-  conversar,
   limpiarCodigos,
   registrarEstudiantePrueba,
 } from './flujos';
@@ -14,6 +14,7 @@ import {
   iniciarSesionComoDocente,
   iniciarSesionComoEstudiante,
   MOTIVO_SIN_ESTUDIANTE,
+  respuestaDelChat,
 } from './helpers';
 
 /**
@@ -31,29 +32,44 @@ const ESTUDIANTE = 'Estudiante de Prueba Uno';
 const INTERVENCION =
   'Buenas tardes, Marta. Soy estudiante de psicología. ¿Cómo se ha sentido esta semana?';
 let codigo = '';
+let sesionCreada: string | undefined;
 
-/** Selecciona un fragmento de la primera intervención del estudiante (como con el ratón). */
+/** Selecciona una frase con las teclas del navegador y abre su comentario. */
 async function seleccionarFragmento(page: Page, fragmento: string) {
-  await page.evaluate(texto => {
-    const elemento = document.querySelector('[data-remitente="estudiante"] [data-texto-mensaje]')!;
-    const nodo = [...elemento.childNodes]
-      .flatMap(n => (n.nodeType === Node.TEXT_NODE ? [n] : [...n.childNodes]))
-      .find(n => n.textContent?.includes(texto))!;
-    const inicio = nodo.textContent!.indexOf(texto);
-    const rango = document.createRange();
-    rango.setStart(nodo, inicio);
-    rango.setEnd(nodo, inicio + texto.length);
-    const seleccion = window.getSelection()!;
-    seleccion.removeAllRanges();
-    seleccion.addRange(rango);
-  }, fragmento);
+  await page.getByRole('button', { name: 'Elegir frase para comentar' }).press('Enter');
+  const campo = page.getByRole('textbox', { name: 'Texto de la intervención' });
+  await expect(campo).toBeFocused();
+  const inicio = (await campo.inputValue()).indexOf(fragmento);
+  expect(inicio).toBeGreaterThanOrEqual(0);
+  await page.keyboard.press('Control+Home');
+  for (let i = 0; i < inicio; i++) await page.keyboard.press('ArrowRight');
+  for (const _ of fragmento) await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Comentar frase' })).toBeFocused();
+  await page.keyboard.press('Enter');
 }
 
 test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
   test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
   test.beforeAll(() => registrarEstudiantePrueba());
-  test.afterAll(() => (codigo ? limpiarCodigos([codigo]) : undefined));
+  test.afterAll(async () => {
+    if (!codigo) return;
+    await limpiarCodigos([codigo]);
+    const admin = clienteAdmin()!;
+    const asignacion = await admin
+      .from('asignacion')
+      .select('id')
+      .eq('codigo', codigo)
+      .maybeSingle();
+    expect(asignacion.error).toBeNull();
+    expect(asignacion.data).toBeNull();
+    if (!sesionCreada) return;
+    const sesion = await admin.from('sesion').select('id').eq('id', sesionCreada).maybeSingle();
+    expect(sesion.error).toBeNull();
+    expect(sesion.data).toBeNull();
+  });
 
   test('código de acceso, simulación, revisión y retroalimentación publicada', async ({
     browser,
@@ -65,27 +81,59 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     // 1. El docente configura el caso E-01 para el estudiante y genera el código.
     await iniciarSesionComoDocente(page);
     await page.goto('/configuracion');
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-01').click();
     await page.getByRole('combobox', { name: 'Busca al estudiante' }).fill('Prueba Uno');
     await page.getByRole('option', { name: new RegExp(ESTUDIANTE) }).click();
-    await page.getByRole('button', { name: 'Generar código' }).click();
+    const generar = page.getByRole('button', { name: 'Generar código' });
+    await generar.click();
     const dialogo = page.getByRole('dialog', { name: /Código listo para/ });
     codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
     await dialogo.getByRole('button', { name: 'Listo' }).click();
+    await expect(generar).toBeFocused();
 
     // 2. El estudiante, en su propio navegador, canjea el código y conversa.
     const contextoEstudiante = await browser.newContext();
     const pestanaEstudiante = await contextoEstudiante.newPage();
     await iniciarSesionComoEstudiante(pestanaEstudiante);
     const sesionId = await canjearCodigoEnPracticas(pestanaEstudiante, codigo.toUpperCase());
+    sesionCreada = sesionId;
     await comenzarSimulacion(pestanaEstudiante, /Duelo y pérdida/);
     const hud = pestanaEstudiante.getByRole('complementary', { name: 'Datos de la práctica' });
     await expect(hud).toContainText('Duelo y pérdida');
 
     const panel = await abrirConversacion(pestanaEstudiante, 'Marta', 'Marta Lucía');
-    const respuesta = await conversar(panel, 'Marta Lucía', INTERVENCION);
-    expect(respuesta.length).toBeGreaterThan(0);
+    // El servidor procesa y guarda el turno real. El navegador pierde solo la respuesta.
+    let estadoPrimeraRespuesta: number | undefined;
+    let primeraRespuesta: string | undefined;
+    await pestanaEstudiante.route(
+      '**/api/npc/chat',
+      async ruta => {
+        try {
+          const respuestaReal = await ruta.fetch({ timeout: 60_000 });
+          estadoPrimeraRespuesta = respuestaReal.status();
+          if (respuestaReal.ok())
+            primeraRespuesta = (await respuestaDelChat(respuestaReal)).respuesta_npc;
+          await respuestaReal.dispose();
+        } finally {
+          await ruta.abort();
+        }
+      },
+      { times: 1 }
+    );
+    const campo = panel.getByLabel('Tu intervención para Marta Lucía');
+    await campo.fill(INTERVENCION);
+    await campo.press('Enter');
+    const reintentar = panel.getByRole('button', { name: 'Reintentar' });
+    await expect(reintentar).toBeVisible({ timeout: 65_000 });
+    expect(estadoPrimeraRespuesta).toBe(200);
+    expect(primeraRespuesta).toBeTruthy();
+    await reintentar.click();
+    const respuestas = panel.locator('[data-remitente="npc"]');
+    await expect(respuestas).toHaveCount(1, { timeout: 40_000 });
+    await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando');
+    const respuesta = (await respuestas.first().locator('p').textContent())!.trim();
+    expect(respuesta).toBe(primeraRespuesta);
     // La etiqueta de emoción de la IA nunca llega al estudiante.
     expect(respuesta).not.toMatch(/^\[\p{L}+\]/u);
 
@@ -117,19 +165,18 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
 
     // El docente revisa: subraya una frase, la comenta, pone la nota y publica.
     await page.goto('/sesiones?orden=recientes');
-    await page.locator(`li > a[href="/sesiones/${sesionId}"]`).click();
+    await page.locator(`a[href="/sesiones/${sesionId}"]:visible`).click();
     await expect(page.getByRole('heading', { name: 'Conversación', exact: true })).toBeVisible();
-    await seleccionarFragmento(page, 'Soy estudiante de psicología');
-    await page.getByRole('button', { name: 'Comentar selección' }).click();
-    await page
-      .getByLabel('Comentario sobre la frase seleccionada')
-      .fill('Bien: te presentas antes de preguntar.');
-    await page.getByRole('button', { name: 'Guardar comentario' }).click();
-    await expect(page.locator('mark')).toHaveText('Soy estudiante de psicología');
-
     const comentario = 'Buen encuadre inicial y tono empático.';
     await page.getByLabel('Comentario general').fill(comentario);
     await page.getByLabel('Nota (0,0 a 5,0)').fill('4,5');
+    await seleccionarFragmento(page, 'Soy estudiante de psicología');
+    const anotacion = page.getByLabel('Comentario sobre la frase seleccionada');
+    await expect(anotacion).toBeFocused();
+    await anotacion.fill('Bien: te presentas antes de preguntar.');
+    await anotacion.press('Control+Enter');
+    await expect(page.getByRole('button', { name: 'Elegir frase para comentar' })).toBeFocused();
+    await expect(page.locator('mark')).toHaveText('Soy estudiante de psicología');
     await page.getByRole('button', { name: 'Guardar borrador' }).click();
     await expect(page.getByText('Borrador guardado.', { exact: true })).toBeVisible();
     await page.reload();
@@ -156,19 +203,34 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     ).toBeVisible();
 
     // Y queda registrado en Supabase.
-    const admin = clienteAdmin();
-    if (admin) {
-      const { data } = await admin
+    const admin = clienteAdmin()!;
+    const [sesion, mensajes, ia] = await Promise.all([
+      admin
         .from('sesion')
         .select('estado, retroalimentacion ( nota, publicada_en, anotacion ( fragmento ) )')
         .eq('id', sesionId)
-        .single();
-      expect(data?.estado).toBe('finalizada');
-      expect(data?.retroalimentacion).toMatchObject({
-        nota: 4.5,
-        anotacion: [{ fragmento: 'Soy estudiante de psicología' }],
-      });
-    }
+        .single(),
+      admin.from('mensaje').select('remitente, contenido').eq('sesion_id', sesionId),
+      admin.from('mensaje_ia').select('proveedor').eq('sesion_id', sesionId).single(),
+    ]);
+    expect(sesion.error).toBeNull();
+    expect(sesion.data?.estado).toBe('finalizada');
+    expect(sesion.data?.retroalimentacion).toMatchObject({
+      nota: 4.5,
+      publicada_en: expect.any(String),
+      anotacion: [{ fragmento: 'Soy estudiante de psicología' }],
+    });
+    expect(mensajes.error).toBeNull();
+    expect(mensajes.data).toHaveLength(2);
+    expect(mensajes.data).toEqual(
+      expect.arrayContaining([
+        { remitente: 'estudiante', contenido: INTERVENCION },
+        { remitente: 'npc', contenido: respuesta },
+      ])
+    );
+    expect(ia.error).toBeNull();
+    expect(ia.data?.proveedor).toMatch(/^(orquestador|gemini)$/);
+    test.info().annotations.push({ type: 'proveedor IA', description: ia.data?.proveedor });
     await contextoEstudiante.close();
   });
 });
