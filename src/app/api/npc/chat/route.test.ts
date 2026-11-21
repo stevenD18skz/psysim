@@ -450,10 +450,18 @@ describe('POST /api/npc/chat', () => {
     expect(guardar).not.toHaveBeenCalled();
   });
 
-  it('RNF-03.7: si el conteo falla, la práctica sigue', async () => {
-    clienteFalso(sesionEnCurso, { errorLimite: true });
+  it('RNF-03.7: suelta la reserva sin llamar a la IA y permite reintentar cuando vuelve el contador', async () => {
+    const { guardar } = clienteFalso(sesionEnCurso, { errorLimite: true });
+    const fallo = await POST(peticion(cuerpoValido));
+    expect(fallo.status).toBe(503);
+    expect(fallo.headers.get('Retry-After')).toBe('5');
+    expect(transmitirTurno).not.toHaveBeenCalled();
+    expect(guardar).not.toHaveBeenCalled();
+
+    const recuperado = clienteFalso(sesionEnCurso);
     expect((await POST(peticion(cuerpoValido))).status).toBe(200);
-    expect(transmitirTurno).toHaveBeenCalled();
+    expect(transmitirTurno).toHaveBeenCalledTimes(1);
+    expect(recuperado.guardar).toHaveBeenCalledTimes(1);
   });
 
   it('RNF-03.7: las peticiones rechazadas antes de la IA no gastan turnos', async () => {

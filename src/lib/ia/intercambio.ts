@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { type EventoChat, type NpcChatResponse } from '@/schemas/npc-chat.schema';
 
 import { MAX_INTERVENCIONES_POR_SESION } from './historial';
+import { ESPERA_CONTADOR_IA_S, MENSAJE_CONTADOR_IA } from './cuota';
 import { ErrorIA, type TipoErrorIA } from './paciente';
 import { type RespuestaProcesada } from './procesar';
 import { transmitirTurno, type TurnoPaciente } from './turno';
@@ -31,7 +32,7 @@ const fallo = (status: number, error: string, espera_s?: number): ErrorDeChat =>
 
 /** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
 const ERRORES_IA: Record<
-  Exclude<TipoErrorIA, 'espera_del_paciente' | 'consultorio_ocupado'>,
+  Exclude<TipoErrorIA, 'espera_del_paciente' | 'consultorio_ocupado' | 'cuota_indisponible'>,
   { status: number; mensaje: string }
 > = {
   tiempo_agotado: { status: 504, mensaje: 'El paciente tardó demasiado en responder.' },
@@ -60,6 +61,8 @@ export function errorDeIa(error: unknown): ErrorDeChat {
   if (error.tipo === 'consultorio_ocupado') {
     return fallo(429, mensajeConsultorioOcupado(error.enCurso ?? 0), ESPERA_CONSULTORIO_S);
   }
+  if (error.tipo === 'cuota_indisponible')
+    return fallo(503, MENSAJE_CONTADOR_IA, ESPERA_CONTADOR_IA_S);
   const { status, mensaje } = ERRORES_IA[error.tipo];
   return fallo(status, mensaje);
 }

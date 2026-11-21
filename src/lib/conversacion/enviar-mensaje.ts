@@ -40,8 +40,10 @@ interface OpcionesEnvio {
  * La sesión vencida (401), la práctica ya terminada (409) y los límites (429) tienen un aviso
  * propio: con el genérico, el estudiante reintentaría algo que no puede funcionar.
  */
-const mensajeDeError = (status: number, detalle: string | null) =>
-  [401, 409, 429].includes(status) && detalle ? detalle : MENSAJE_NO_DISPONIBLE;
+const mensajeDeError = (status: number, detalle: string | null, tieneEspera = false) =>
+  ([401, 409, 429].includes(status) || (status === 503 && tieneEspera)) && detalle
+    ? detalle
+    : MENSAJE_NO_DISPONIBLE;
 
 /** Lee la respuesta por partes del servidor (Server-Sent Events) y entrega sus eventos válidos. */
 async function* leerEventos(
@@ -262,7 +264,13 @@ export async function enviarMensaje(
     if (!respuesta.ok) {
       const error = npcChatErrorSchema.safeParse(json);
       if (error.success && error.data.fin) return terminar(error.data.fin);
-      return fallar(mensajeDeError(respuesta.status, error.success ? error.data.error : null));
+      return fallar(
+        mensajeDeError(
+          respuesta.status,
+          error.success ? error.data.error : null,
+          respuesta.headers.has('Retry-After')
+        )
+      );
     }
     const datos = npcChatResponseSchema.safeParse(json);
     return datos.success ? completar(datos.data) : fallar(MENSAJE_NO_DISPONIBLE);
@@ -316,7 +324,7 @@ export async function enviarMensaje(
       } else if (evento.fin) {
         return terminar(evento.fin);
       } else {
-        return fallar(mensajeDeError(evento.status, evento.error));
+        return fallar(mensajeDeError(evento.status, evento.error, evento.espera_s !== undefined));
       }
     }
   } catch {

@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { esperaDeCuota } from '@/lib/ia/cuota';
+
 import { esMotivoCierre, type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type ProveedorIA } from '@/lib/env/orquestador';
 import { log } from '@/lib/log';
@@ -219,19 +221,19 @@ export async function fijarGemini(sesionId: string, motivo: string): Promise<voi
 
 /**
  * Reserva un cupo de la cuenta en el último minuto. Devuelve 0 si quedó reservado o los
- * milisegundos que faltan para el siguiente. Si el conteo falla, devuelve 0: la práctica sigue y
- * el 429 del orquestador queda como red de seguridad.
+ * milisegundos que faltan para el siguiente. `null` indica que no se pudo confirmar el cupo.
  */
-export async function reservarTurno(cuenta: string): Promise<number> {
+export async function reservarTurno(cuenta: string): Promise<number | null> {
   const { data, error } = await createAdminClient().rpc('reservar_turno_orquestador', {
     p_cuenta: cuenta,
     p_cupo: CUPO_POR_MINUTO,
   });
-  if (error) {
-    log.error('orquestador.turno_no_reservado', { codigo: error.code });
-    return 0;
+  const esperaMs = esperaDeCuota(data);
+  if (error || esperaMs === null) {
+    log.error('orquestador.turno_no_reservado', { codigo: error?.code });
+    return null;
   }
-  return Math.max(0, data);
+  return esperaMs;
 }
 
 /** La sesión del orquestador ya quedó cerrada (o ya no existe): no hay que volver a intentarlo. */

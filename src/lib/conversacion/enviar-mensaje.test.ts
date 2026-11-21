@@ -274,6 +274,19 @@ describe('enviarMensaje (HU-13 · T03)', () => {
     expect(conversacion.pendiente?.contenido).toBe('Hola');
   });
 
+  it('conserva el mensaje y muestra la espera cuando el contador de cuota no responde', async () => {
+    const store = storeListo();
+    const aviso = 'No pudimos comprobar el cupo del paciente. Inténtalo en 5 s.';
+    const resultado = await enviarMensaje(store, 'Hola', {
+      fetch: vi.fn(async () =>
+        Response.json({ error: aviso }, { status: 503, headers: { 'Retry-After': '5' } })
+      ),
+      ahora,
+    });
+    expect(resultado).toEqual({ ok: false, motivo: aviso });
+    expect(store.getState().conversacion.pendiente?.contenido).toBe('Hola');
+  });
+
   it('muestra el aviso del servidor cuando la práctica ya terminó (409)', async () => {
     const store = storeListo();
     const resultado = await enviarMensaje(store, 'Hola', {

@@ -218,6 +218,14 @@ describe('transmitirTurno con el orquestador', () => {
   });
 
   describe('lo que nunca activa Gemini', () => {
+    it('el contador indisponible se comunica como un fallo recuperable', async () => {
+      delOrquestador(new ErrorOrquestador('cuota_indisponible'));
+      const { error } = await recoger(turno());
+      expect(error).toMatchObject({ tipo: 'cuota_indisponible' });
+      expect(transmitirRespuestaPaciente).not.toHaveBeenCalled();
+      expect(fijarGemini).not.toHaveBeenCalled();
+    });
+
     it('el límite de mensajes: se le pide al estudiante esperar', async () => {
       delOrquestador(new ErrorOrquestador('limite', { estado: 429, esperaS: 14 }));
       const { error } = await recoger(turno());

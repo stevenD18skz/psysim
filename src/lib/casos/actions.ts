@@ -3,6 +3,7 @@
 import { requerirDocente } from '@/lib/auth/dal';
 import { type ResultadoAccion } from '@/lib/acciones';
 import { ErrorIA, type TipoErrorIA } from '@/lib/ia/paciente';
+import { esperaDeCuota, MENSAJE_CONTADOR_IA } from '@/lib/ia/cuota';
 import { responderDeUnaVez } from '@/lib/ia/prueba';
 import { log } from '@/lib/log';
 import { sincronizarCasoDespues } from '@/lib/orquestador/diferido';
@@ -213,6 +214,7 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
   tiempo_agotado: 'El paciente tardó demasiado en responder. Inténtalo de nuevo.',
   autenticacion: 'El servicio de IA no está disponible.',
   limite: 'El servicio de IA está saturado. Inténtalo en unos segundos.',
+  cuota_indisponible: MENSAJE_CONTADOR_IA,
   respuesta_invalida: 'El servicio de IA devolvió una respuesta inválida.',
   fuga_de_instrucciones:
     'La respuesta repetía las instrucciones del paciente y se descartó. Prueba con otro mensaje.',
@@ -225,8 +227,7 @@ const MENSAJES_ERROR_IA: Record<TipoErrorIA, string> = {
 /**
  * Chat de prueba del constructor: responde con el prompt que se está redactando (más las reglas
  * fijas), por el mismo camino que la práctica real. No guarda nada ni necesita una sesión, pero
- * cuenta en el límite de llamadas a la IA por minuto (si el conteo falla, la prueba sigue, igual
- * que en la práctica).
+ * cuenta en el límite de llamadas a la IA por minuto.
  */
 export async function probarPaciente(
   valores: unknown
@@ -239,10 +240,13 @@ export async function probarPaciente(
   }
 
   const supabase = await createClient();
-  const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
-  if (errorLimite) {
-    log.error('caso.limite_no_verificado', { codigo: errorLimite.code });
-  } else if (esperaS > 0) {
+  const { data: reserva, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+  const esperaS = esperaDeCuota(reserva);
+  if (errorLimite || esperaS === null) {
+    log.error('caso.limite_no_verificado', { codigo: errorLimite?.code });
+    return { ok: false, error: MENSAJE_CONTADOR_IA };
+  }
+  if (esperaS > 0) {
     return {
       ok: false,
       error: `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,

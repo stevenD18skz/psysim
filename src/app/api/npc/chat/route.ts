@@ -1,4 +1,5 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { ESPERA_CONTADOR_IA_S, esperaDeCuota, MENSAJE_CONTADOR_IA } from '@/lib/ia/cuota';
 import { type EmocionNpc, esEmocionNpc } from '@/lib/conversacion/emociones';
 import {
   contarIntervenciones,
@@ -331,12 +332,18 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
-    // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log). El cupo
-    // por cuenta del orquestador es otro límite y se reserva aparte, al pedir el turno.
-    const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
-    if (errorLimite) {
-      log.error('npc_chat.limite_no_verificado', { peticion, codigo: errorLimite.code, sesion_id });
-    } else if (esperaS > 0) {
+    // minuto de este estudiante. El cupo por cuenta del orquestador se reserva aparte.
+    const { data: reserva, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+    const esperaS = esperaDeCuota(reserva);
+    if (errorLimite || esperaS === null) {
+      log.error('npc_chat.limite_no_verificado', {
+        peticion,
+        codigo: errorLimite?.code,
+        sesion_id,
+      });
+      return responderError(503, MENSAJE_CONTADOR_IA, { esperaS: ESPERA_CONTADOR_IA_S });
+    }
+    if (esperaS > 0) {
       log.info('npc_chat.limite_alcanzado', { peticion, sesion_id, espera_s: esperaS });
       return responderError(
         429,

@@ -25,6 +25,7 @@ export type TipoErrorOrquestador =
   | 'sesion_cerrada'
   /** 429: se pasó de 10 mensajes por minuto en esa cuenta. Se espera; nunca activa Gemini. */
   | 'limite'
+  | 'cuota_indisponible'
   /** Respondió 2xx, pero con un cuerpo que no cumple el contrato. */
   | 'respuesta_invalida';
 

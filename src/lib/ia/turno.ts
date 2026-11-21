@@ -51,7 +51,7 @@ export interface TurnoPaciente {
    * Marca con la que la petición tomó el turno de la práctica (`turno_ia`). Si el turno termina
    * sin guardarse, se suelta con ella. `null`: no se pudo tomar y la práctica sigue sin marca.
    */
-  marcaDeTurno?: string | null;
+  marcaDeTurno?: string;
   /** Intercambios vigentes guardados en PsySim. */
   intercambios: number;
   /** El estudiante volvió a un momento anterior («ensayar otra respuesta»). */
@@ -183,6 +183,8 @@ async function* partesDelTurno(
     if (fallo.tipo === 'limite') {
       throw new ErrorIA('espera_del_paciente', { esperaS: fallo.esperaS ?? 5 });
     }
+    if (fallo.tipo === 'cuota_indisponible')
+      throw new ErrorIA('cuota_indisponible', { cause: fallo });
     if (!esFalloDelServicio(fallo.tipo)) {
       // 400, 403, 404 o 422: PsySim envió algo mal o le faltan permisos. No se esconde con Gemini.
       log.error('npc_chat.orquestador_rechazo', {

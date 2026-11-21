@@ -264,6 +264,16 @@ describe('conversarConOrquestador', () => {
   });
 
   describe('turnero y límite de mensajes por minuto', () => {
+    it('con el contador caído conserva el turno para reintentar y no llama al modelo', async () => {
+      vi.mocked(reservarTurno).mockResolvedValueOnce(null).mockResolvedValueOnce(0);
+      const { cliente, conversar: llamada } = clienteFalso([[...texto('Hola.'), fin()]]);
+      expect((await conversar(cliente)).error).toMatchObject({ tipo: 'cuota_indisponible' });
+      expect(llamada).not.toHaveBeenCalled();
+
+      expect((await conversar(cliente)).error).toBeNull();
+      expect(llamada).toHaveBeenCalledTimes(1);
+    });
+
     it('sin cupo espera lo que diga el turnero, avisa y después conversa', async () => {
       vi.mocked(reservarTurno).mockResolvedValueOnce(7_300).mockResolvedValueOnce(0);
       const { cliente } = clienteFalso([[...texto('Hola.'), fin()]]);

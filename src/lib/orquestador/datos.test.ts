@@ -136,9 +136,9 @@ describe('reservarTurno', () => {
     expect(await reservarTurno(CUENTA)).toBe(12_400);
   });
 
-  it('si el conteo falla deja pasar: el 429 del orquestador es la red de seguridad', async () => {
+  it('distingue un contador indisponible de una reserva concedida', async () => {
     db.responder('rpc:reservar_turno_orquestador', { error: { code: 'XX000' } });
-    expect(await reservarTurno(CUENTA)).toBe(0);
+    expect(await reservarTurno(CUENTA)).toBeNull();
     expect(log.error).toHaveBeenCalledWith('orquestador.turno_no_reservado', { codigo: 'XX000' });
   });
 });

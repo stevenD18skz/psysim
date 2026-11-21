@@ -39,6 +39,7 @@ export type TipoErrorIA =
   | 'tiempo_agotado'
   | 'autenticacion'
   | 'limite'
+  | 'cuota_indisponible'
   | 'respuesta_invalida'
   /** La respuesta copiaba las instrucciones del paciente (LLM07). */
   | 'fuga_de_instrucciones'

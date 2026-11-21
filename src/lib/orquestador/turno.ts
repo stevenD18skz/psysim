@@ -215,6 +215,7 @@ export async function* conversarConOrquestador({
     // Turnero: un cupo de la cuenta en el último minuto, o esperar a que se libere.
     for (;;) {
       const esperaMs = await reservarTurno(cuenta.clave);
+      if (esperaMs === null) throw new ErrorOrquestador('cuota_indisponible');
       if (esperaMs === 0) break;
       if (plazo.restanteMs() - esperaMs < RESERVA_RESPALDO_MS + MINIMO_PARA_TURNO_MS) {
         void registrarEvento({ ...evento, tipo: 'limite', detalle: 'turnero', esperaMs });
