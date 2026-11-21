@@ -219,6 +219,7 @@ describe('POST /api/npc/chat', () => {
     vi.clearAllMocks();
     vi.mocked(obtenerSesionUsuario).mockResolvedValue({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: 'e57d1a00-0000-4000-8000-000000000001',
         nombre: 'Ana Pérez',
@@ -328,6 +329,7 @@ describe('POST /api/npc/chat', () => {
     // El docente ya no conversa con el paciente: solo el estudiante dueño de la sesión.
     vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: 'd0c3e7e4-0000-4000-8000-000000000001',
         nombre: 'Docente',

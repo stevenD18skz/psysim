@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
  * revisarlo antes de enviarlo.
  */
 
-const CLAVE_ACEPTADO = 'psysim:dictado-aceptado';
+const claveAceptado = (cuentaId: string) => `psysim:dictado-aceptado:v1:${cuentaId}`;
 
 interface ResultadoReconocimiento {
   isFinal: boolean;
@@ -50,15 +50,16 @@ function constructorReconocedor(): ConstructorReconocedor | null {
 
 const sinSuscripcion = () => () => {};
 
-function leerAceptado(): boolean {
+function leerAceptado(cuentaId: string | null): boolean {
   try {
-    return localStorage.getItem(CLAVE_ACEPTADO) === '1';
+    return cuentaId !== null && localStorage.getItem(claveAceptado(cuentaId)) === '1';
   } catch {
     return false;
   }
 }
 
 interface BotonDictadoProps {
+  cuentaId: string | null;
   /** Añade el texto reconocido (frases completas) al campo. */
   onTexto: (texto: string) => void;
   deshabilitado: boolean;
@@ -67,7 +68,12 @@ interface BotonDictadoProps {
 }
 
 /** Botón de micrófono junto a «Enviar». No aparece si el navegador no reconoce voz. */
-export function BotonDictado({ onTexto, deshabilitado, onPedirAceptacion }: BotonDictadoProps) {
+export function BotonDictado({
+  cuentaId,
+  onTexto,
+  deshabilitado,
+  onPedirAceptacion,
+}: BotonDictadoProps) {
   const disponible = useSyncExternalStore(
     sinSuscripcion,
     () => constructorReconocedor() !== null,
@@ -118,13 +124,13 @@ export function BotonDictado({ onTexto, deshabilitado, onPedirAceptacion }: Boto
       reconocedor.current?.stop();
       return;
     }
-    if (leerAceptado()) {
+    if (leerAceptado(cuentaId)) {
       empezar();
       return;
     }
     onPedirAceptacion(() => {
       try {
-        localStorage.setItem(CLAVE_ACEPTADO, '1');
+        if (cuentaId !== null) localStorage.setItem(claveAceptado(cuentaId), '1');
       } catch {
         // Sin almacenamiento: se volverá a preguntar en la próxima visita.
       }

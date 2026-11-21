@@ -44,8 +44,9 @@ beforeEach(() => {
   vi.mocked(createAdminClient).mockReturnValue(db.cliente as never);
 });
 
-function conUsuario() {
+function conUsuario(segundosRestantes: number | null = 1800) {
   db.auth.getUser.mockResolvedValueOnce({ data: { user: USUARIO }, error: null });
+  db.responder('rpc:segundos_sesion_cuenta', { data: segundosRestantes });
 }
 
 describe('obtenerSesionUsuario (DAL)', () => {
@@ -60,6 +61,7 @@ describe('obtenerSesionUsuario (DAL)', () => {
 
     expect(await obtenerSesionUsuario()).toEqual({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: USUARIO.id,
         nombre: 'Ana Gómez',
@@ -71,6 +73,15 @@ describe('obtenerSesionUsuario (DAL)', () => {
       },
     });
   });
+
+  it.each([0, null])(
+    'un token todavía válido con plazo %s exige volver al acceso',
+    async segundos => {
+      conUsuario(segundos);
+      await expect(requerirUsuario()).rejects.toThrow('NEXT_REDIRECT:/login');
+      expect(db.de('usuario')).toHaveLength(0);
+    }
+  );
 
   it('usa las iniciales en una cuenta que todavía no tiene avatar', async () => {
     conUsuario();

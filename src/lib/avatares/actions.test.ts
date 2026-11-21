@@ -29,7 +29,11 @@ let db: SupabaseFalso;
 beforeEach(() => {
   db = crearSupabaseFalso();
   vi.mocked(createAdminClient).mockReturnValue(db.cliente as never);
-  vi.mocked(obtenerSesionUsuario).mockResolvedValue({ estado: 'autorizado', perfil: PERFIL });
+  vi.mocked(obtenerSesionUsuario).mockResolvedValue({
+    estado: 'autorizado',
+    segundosRestantes: 1800,
+    perfil: PERFIL,
+  });
 });
 
 describe('guardarAvatar', () => {
@@ -63,8 +67,12 @@ describe('guardarAvatar', () => {
   it.each<SesionUsuario>([
     { estado: 'sin-sesion' },
     { estado: 'sin-permiso' },
-    { estado: 'autorizado', perfil: { ...PERFIL, id: 'otra-cuenta' } },
-    { estado: 'autorizado', perfil: { ...PERFIL, contrasenaTemporal: true } },
+    { estado: 'autorizado', segundosRestantes: 1800, perfil: { ...PERFIL, id: 'otra-cuenta' } },
+    {
+      estado: 'autorizado',
+      segundosRestantes: 1800,
+      perfil: { ...PERFIL, contrasenaTemporal: true },
+    },
   ])('rechaza la escritura si la sesión ya no permite el cambio (%j)', async sesion => {
     vi.mocked(obtenerSesionUsuario).mockResolvedValue(sesion);
     expect(await guardarAvatar('brote', PERFIL.id)).toMatchObject({ ok: false });

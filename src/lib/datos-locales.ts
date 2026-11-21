@@ -6,7 +6,10 @@
  * dictado los acepta cada persona, no el equipo. Se compara por prefijo, así que una clave exacta
  * también sirve. Las preferencias del equipo (sonido, voz, ambiente) se conservan.
  */
+export const CLAVE_CUENTA_ACTIVA = 'psysim:cuenta-activa';
+
 const PREFIJOS_DE_LA_CUENTA = [
+  CLAVE_CUENTA_ACTIVA,
   'psysim:notas:',
   'psysim:intervencion-pendiente:',
   'psysim:borrador-retro:',

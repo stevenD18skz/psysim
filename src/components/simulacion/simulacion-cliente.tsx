@@ -335,6 +335,8 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
       )}
       {enConsulta && !hudOculto && herramientas.notas && (
         <LibretaNotas
+          key={`${cuentaId}:${sesion.id}`}
+          cuentaId={cuentaId}
           sesionId={sesion.id}
           conversando={conversando}
           onCerrar={() => alternarHerramienta('notas')}

@@ -23,7 +23,7 @@ import { type PerfilUsuario, type RolUsuario } from '@/types';
 export type SesionUsuario =
   | { estado: 'sin-sesion' }
   | { estado: 'sin-permiso' }
-  | { estado: 'autorizado'; perfil: PerfilUsuario };
+  | { estado: 'autorizado'; perfil: PerfilUsuario; segundosRestantes: number };
 
 const COLUMNAS_PERFIL =
   'id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal';
@@ -56,6 +56,13 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
   if (errorUsuario || !user) {
     return { estado: 'sin-sesion' };
   }
+
+  const { data: segundosRestantes, error: errorVigencia } =
+    await supabase.rpc('segundos_sesion_cuenta');
+  if (errorVigencia) {
+    throw new Error('No pudimos comprobar la vigencia de la sesión.', { cause: errorVigencia });
+  }
+  if (!segundosRestantes || segundosRestantes < 0) return { estado: 'sin-sesion' };
 
   const admin = createAdminClient();
   const consultaPerfil = await admin
@@ -103,6 +110,7 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
 
   return {
     estado: 'autorizado',
+    segundosRestantes,
     perfil: {
       id: perfil.id,
       nombre: perfil.nombre,
@@ -119,6 +127,12 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
  * Exige una sesión válida con cualquier rol. Redirige a /login o a /acceso-denegado si no la hay.
  */
 export async function requerirUsuario(): Promise<PerfilUsuario> {
+  return (await requerirSesionUsuario()).perfil;
+}
+
+export async function requerirSesionUsuario(): Promise<
+  Extract<SesionUsuario, { estado: 'autorizado' }>
+> {
   const sesion = await obtenerSesionUsuario();
 
   if (sesion.estado === 'sin-sesion') {
@@ -128,7 +142,7 @@ export async function requerirUsuario(): Promise<PerfilUsuario> {
     redirect(RUTA_ACCESO_DENEGADO);
   }
 
-  return sesion.perfil;
+  return sesion;
 }
 
 /**

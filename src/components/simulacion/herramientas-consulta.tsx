@@ -172,13 +172,9 @@ export function HojaRemision({
   );
 }
 
-function claveNotas(sesionId: string) {
-  return `psysim:notas:${sesionId}`;
-}
-
-function leerNotas(sesionId: string): string {
+function leerNotas(clave: string): string {
   try {
-    return localStorage.getItem(claveNotas(sesionId)) ?? '';
+    return localStorage.getItem(clave) ?? '';
   } catch {
     return '';
   }
@@ -189,16 +185,19 @@ function leerNotas(sesionId: string): string {
  * quiere retomar). Se guardan solo en este navegador; el docente no las ve.
  */
 export function LibretaNotas({
+  cuentaId,
   sesionId,
   conversando,
   onCerrar,
 }: {
+  cuentaId: string;
   sesionId: string;
   conversando: boolean;
   onCerrar: () => void;
 }) {
   const id = useId();
-  const [notas, setNotas] = useState(() => leerNotas(sesionId));
+  const clave = `psysim:notas:${cuentaId}:${sesionId}`;
+  const [notas, setNotas] = useState(() => leerNotas(clave));
   const campo = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -208,14 +207,14 @@ export function LibretaNotas({
   useEffect(() => {
     const temporizador = setTimeout(() => {
       try {
-        if (notas) localStorage.setItem(claveNotas(sesionId), notas);
-        else localStorage.removeItem(claveNotas(sesionId));
+        if (notas) localStorage.setItem(clave, notas);
+        else localStorage.removeItem(clave);
       } catch {
         // Sin almacenamiento: las notas duran mientras la página siga abierta.
       }
     }, 400);
     return () => clearTimeout(temporizador);
-  }, [notas, sesionId]);
+  }, [notas, clave]);
 
   return (
     <PanelFlotante titulo="Mis notas" lado="derecha" conversando={conversando} onCerrar={onCerrar}>

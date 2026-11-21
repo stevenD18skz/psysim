@@ -50,6 +50,7 @@ describe('POST /api/metrics/save (HU-19)', () => {
     vi.mocked(createClient).mockResolvedValue(db.cliente as never);
     vi.mocked(obtenerSesionUsuario).mockResolvedValue({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: 'e57d1a00-0000-4000-8000-000000000001',
         nombre: 'Ana Pérez',
@@ -165,6 +166,7 @@ describe('POST /api/metrics/save (HU-19)', () => {
   it('responde 403 si quien llama no es estudiante (el docente no cierra prácticas ajenas)', async () => {
     vi.mocked(obtenerSesionUsuario).mockResolvedValueOnce({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: 'd0c3a000-0000-4000-8000-000000000001',
         nombre: 'Docente',

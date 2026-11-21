@@ -108,6 +108,7 @@ export function ConversationPanel({
   onContinuar,
 }: ConversationPanelProps) {
   const store = useAppStoreApi();
+  const cuentaId = useAppStore(state => state.sesion.cuentaId ?? null);
   const nombre = useAppStore(state => state.sesion.activa?.npc.nombre ?? 'Paciente');
   const mensajes = useAppStore(state => state.conversacion.mensajes);
   const estado = useAppStore(state => state.npc.estado);
@@ -445,6 +446,8 @@ export function ConversationPanel({
             </p>
           </div>
           <BotonDictado
+            key={cuentaId}
+            cuentaId={cuentaId}
             deshabilitado={bloqueado}
             onTexto={dictado => {
               registrarTecleo(dictado.length);

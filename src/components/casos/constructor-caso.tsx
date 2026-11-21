@@ -67,6 +67,7 @@ import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 import { type DificultadEscenario, type EscenarioCatalogo } from '@/types';
 
 interface ConstructorCasoProps {
+  cuentaId: string;
   /** Si se indica, el formulario edita ese caso; si no, crea uno nuevo. */
   casoId?: string;
   valoresIniciales?: CasoFormInput;
@@ -91,6 +92,7 @@ const OPCIONES_DIFICULTAD = (['basico', 'intermedio', 'avanzado'] as const).map(
  * de seguridad comunes las añade siempre el servidor.
  */
 export function ConstructorCaso({
+  cuentaId,
   casoId,
   valoresIniciales,
   catalogo = [],
@@ -118,7 +120,7 @@ export function ConstructorCaso({
   const valores = useWatch({ control });
   // Un caso se escribe en varios minutos: se guarda un borrador y se avisa antes de perderlo.
   const { borrador, descartar, limpiar } = useBorrador({
-    clave: `psysim:borrador-caso:${casoId ?? 'nuevo'}`,
+    clave: `psysim:borrador-caso:${cuentaId}:${casoId ?? 'nuevo'}`,
     valores,
     sucio: isDirty,
   });

@@ -1049,11 +1049,13 @@ export type Database = {
         Args: { p_sesion_id: string };
         Returns: boolean;
       };
+      registrar_actividad_cuenta: { Args: never; Returns: number | null };
       reservar_peticion_ia: { Args: never; Returns: number };
       reservar_turno_orquestador: {
         Args: { p_cuenta: string; p_cupo?: number };
         Returns: number;
       };
+      segundos_sesion_cuenta: { Args: never; Returns: number | null };
       sesion_limite_inactividad: { Args: never; Returns: string };
       tiempo_de_consulta: {
         Args: { p_sesion_id: string };

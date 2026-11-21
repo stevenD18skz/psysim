@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
-import { requerirUsuario } from '@/lib/auth/dal';
+import { VigilarSesion } from '@/components/layout/vigilar-sesion';
+import { requerirSesionUsuario } from '@/lib/auth/dal';
 import { AppStoreProvider } from '@/store/app-store-provider';
 
 /** Los paneles del docente y del estudiante son privados: ningún buscador debe indexarlos. */
@@ -19,12 +20,12 @@ export const metadata: Metadata = {
 export default async function ProtectedLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const perfil = await requerirUsuario();
+  const { perfil, segundosRestantes } = await requerirSesionUsuario();
 
   return (
     // `key` fuerza un store nuevo si cambia el usuario sin recargar la página.
-    <AppStoreProvider key={perfil.id} estadoInicial={{ auth: { perfil } }}>
-      {children}
-    </AppStoreProvider>
+    <VigilarSesion key={perfil.id} cuentaId={perfil.id} segundosRestantes={segundosRestantes}>
+      <AppStoreProvider estadoInicial={{ auth: { perfil } }}>{children}</AppStoreProvider>
+    </VigilarSesion>
   );
 }

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function EditarCasoPage({ params }: PageProps<'/configuracion/casos/[id]'>) {
-  await requerirDocente();
+  const perfil = await requerirDocente();
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
@@ -37,7 +37,12 @@ export default async function EditarCasoPage({ params }: PageProps<'/configuraci
         <div
           className={`rounded-2xl border border-border/80 bg-background p-5 sm:p-7 ${SOMBRA_SOBRE_NOGAL}`}
         >
-          <ConstructorCaso casoId={caso.id} valoresIniciales={valoresDeCaso(caso)} />
+          <ConstructorCaso
+            key={`${perfil.id}:${caso.id}`}
+            cuentaId={perfil.id}
+            casoId={caso.id}
+            valoresIniciales={valoresDeCaso(caso)}
+          />
         </div>
       </ContenedorHero>
     </div>
