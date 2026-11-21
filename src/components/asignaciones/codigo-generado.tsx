@@ -2,7 +2,7 @@
 
 import { ArrowRight, CheckCircle2, KeyRound, Link2, Send } from 'lucide-react';
 import Link from 'next/link';
-import { useSyncExternalStore } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 
 import { BotonCompartir } from '@/components/asignaciones/boton-compartir';
 import { BotonCopiar } from '@/components/asignaciones/boton-copiar';
@@ -77,6 +77,7 @@ export function CodigoGenerado({
 }) {
   const origen = useOrigen();
   const esComputador = useEsComputador();
+  const titulo = useRef<HTMLHeadingElement>(null);
   if (!datos) return null;
 
   const primerNombre = datos.estudiante.nombre.split(' ')[0];
@@ -87,7 +88,23 @@ export function CodigoGenerado({
     <Dialog open onOpenChange={abierto => !abierto && onCerrar()}>
       <DialogContent
         className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+        onOpenAutoFocus={evento => {
+          evento.preventDefault();
+          titulo.current?.focus();
+        }}
         onCloseAutoFocus={evento => evento.preventDefault()}
+        onKeyDown={evento => {
+          // Un tooltip en salida puede capturar Escape antes que Radix cierre el diálogo.
+          if (
+            evento.key === 'Escape' &&
+            evento.target instanceof Node &&
+            evento.currentTarget.contains(evento.target)
+          ) {
+            evento.preventDefault();
+            evento.stopPropagation();
+            onCerrar();
+          }
+        }}
       >
         <DialogHeader className="border-b bg-muted/35 px-5 py-4 pr-12 text-left sm:px-6 sm:py-5">
           <div className="flex items-start gap-3">
@@ -98,7 +115,9 @@ export function CodigoGenerado({
               <CheckCircle2 className="size-5" />
             </span>
             <div className="flex min-w-0 flex-col gap-1">
-              <DialogTitle>Código listo para {primerNombre}</DialogTitle>
+              <DialogTitle ref={titulo} tabIndex={-1}>
+                Código listo para {primerNombre}
+              </DialogTitle>
               <DialogDescription>
                 Sirve una sola vez, solo con la cuenta de {primerNombre}, hasta el{' '}
                 {formatearFechaHora(datos.expiraEn)}.

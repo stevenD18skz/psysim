@@ -455,10 +455,10 @@ El 21 de noviembre de 2026 se retomó el trabajo en `develop` desde `e23d278`, q
 
 En Chromium, con respuestas ficticias, se comprobó el consentimiento, la intervención, el reintento y el cierre con el consultorio 3D activo, con WebGL desactivado, con la descarga de la escena detenida y cuando la escena devolvió un 503. A 1366 × 800 y 390 × 844 se seleccionó una frase con teclado, se guardó la anotación, se corrigió la nota, se publicó la revisión y se abrió el comentario en la vista de estudiante. «Listo» y Escape devolvieron el foco a «Generar código». Pasaron las 2.210 pruebas de Vitest en 149 archivos, TypeScript, ESLint en el código cambiado y la compilación de producción con configuración ficticia.
 
-La regresión de teclado quedó incorporada al E2E del ciclo completo. Quedan tres comprobaciones para la versión de entrega.
+La regresión de teclado quedó incorporada al E2E del ciclo completo. Estas comprobaciones se repiten según los cambios de la versión de entrega.
 
 1. Repetir el E2E con las dos cuentas de prueba y la IA real en el commit de entrega. El árbol de trabajo ya pasó la [validación local](#validación-del-ciclo-completo-con-ia-real).
-2. Completar la [validación de accesibilidad](#validación-de-accesibilidad-con-lighthouse-axe-devtools-nvda-y-teclado).
+2. Si cambian las pantallas del recorrido, repetir las comprobaciones afectadas de la [validación de accesibilidad](#validación-de-accesibilidad-con-lighthouse-axe-devtools-nvda-y-teclado).
 3. Comprobar la salud profunda en staging con sesión de Vercel y confirmar que `revision` coincide con el commit desplegado.
 
 ### Validación del ciclo completo con IA real
@@ -471,7 +471,16 @@ La primera anotación puede crear la fila de revisión antes de que llegue el re
 
 ### Validación de accesibilidad con Lighthouse, axe DevTools, NVDA y teclado
 
-**Pendiente.** Usar el commit que se va a entregar y las cuentas de prueba. Cubrir la generación del código, las indicaciones y la conversación de E-01, el cierre de la práctica, la revisión del docente y la lectura de la retroalimentación por el estudiante.
+El 21 de noviembre de 2026 se auditó E-01 en Chrome 158.0.8127.37 con las dos cuentas ficticias, en 3D y en modo texto con WebGL desactivado. Se guardaron 24 capturas de Lighthouse 13.6.0 y los escaneos de axe-core. La extensión axe DevTools 4.140.0 revisó «Código listo», el selector de frase, la nota inválida y la confirmación de publicación. NVDA 2026.3.1 anunció las indicaciones, la respuesta del paciente, el error de nota y la confirmación de publicación en ambos modos. También leyó la frase comentada y su comentario desde la cuenta del estudiante en la pasada 3D.
+
+La revisión de accesibilidad se corrigió sobre la base publicada `f8f56ca` en `develop`:
+
+- El historial vuelve a exponer una lista de intervenciones. La respuesta completa del paciente sigue teniendo su propio anuncio. [Panel de conversación](../src/components/simulacion/conversation-panel.tsx)
+- El texto del aviso «Comentario agregado» usa los colores de éxito del tema y alcanza 6,20:1. [Notificaciones](../src/components/ui/sonner.tsx)
+- Al cerrar una frase comentada, el foco vuelve al control que la abrió, ya sea el subrayado o el botón de la lista. [Vista del estudiante](../src/components/practicas/vista-conversacion.tsx)
+- «Código listo» abre con foco en el título. Escape cierra el diálogo desde sus controles y devuelve el foco a «Generar código». Si el menú «Compartir» está abierto, Escape cierra el menú primero. [Diálogo del código](../src/components/asignaciones/codigo-generado.tsx)
+
+Para repetir la validación, usar las cuentas de prueba y el commit que se va a entregar. Cubrir el recorrido desde la generación del código hasta la lectura de la retroalimentación.
 
 | Comprobación | Qué hacer                                                                                                                                                                                                                                                                                                  | Evidencia                                                                                                                          |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |

@@ -258,9 +258,8 @@ export function ConversationPanel({
 
         <div className="relative min-h-0 flex-1">
           <ol
-            role="log"
+            role="list"
             aria-label="Historial de la conversación"
-            aria-live="off"
             className={cn(
               'flex h-full flex-col gap-3 overflow-y-auto px-4 py-4',
               // Con un aviso visible, el último mensaje queda por encima del aviso.

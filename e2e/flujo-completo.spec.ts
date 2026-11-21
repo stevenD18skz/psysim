@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 
 import {
@@ -89,7 +90,28 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await generar.click();
     const dialogo = page.getByRole('dialog', { name: /Código listo para/ });
     codigo = (await dialogo.getByTestId('codigo-acceso').textContent())!.trim();
-    await dialogo.getByRole('button', { name: 'Listo' }).click();
+    const tituloCodigo = dialogo.getByRole('heading');
+    await expect(tituloCodigo).toBeFocused();
+
+    const compartir = dialogo.getByRole('button', { name: 'Compartir', exact: true });
+    await compartir.press('Enter');
+    const menuCompartir = page.getByRole('menu');
+    await expect(menuCompartir).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menuCompartir).toBeHidden();
+    await expect(dialogo).toBeVisible();
+
+    await tituloCodigo.focus();
+    await page.keyboard.press('Tab');
+    await expect(dialogo.getByRole('button', { name: 'Copiar código' })).toBeFocused();
+    const listo = dialogo.getByRole('button', { name: 'Listo', exact: true });
+    for (let paso = 0; paso < 8; paso++) {
+      if (await listo.evaluate(control => document.activeElement === control)) break;
+      await page.keyboard.press('Tab');
+    }
+    await expect(listo).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialogo).toBeHidden();
     await expect(generar).toBeFocused();
 
     // 2. El estudiante, en su propio navegador, canjea el código y conversa.
@@ -132,6 +154,8 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     const respuestas = panel.locator('[data-remitente="npc"]');
     await expect(respuestas).toHaveCount(1, { timeout: 40_000 });
     await expect(panel.getByTestId('estado-npc')).toHaveText('Escuchando');
+    const historial = panel.getByRole('list', { name: 'Historial de la conversación' });
+    await expect(historial.getByRole('listitem')).toHaveCount(2);
     const respuesta = (await respuestas.first().locator('p').textContent())!.trim();
     expect(respuesta).toBe(primeraRespuesta);
     // La etiqueta de emoción de la IA nunca llega al estudiante.
@@ -177,6 +201,15 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await anotacion.press('Control+Enter');
     await expect(page.getByRole('button', { name: 'Elegir frase para comentar' })).toBeFocused();
     await expect(page.locator('mark')).toHaveText('Soy estudiante de psicología');
+    const notificaciones = '[data-sonner-toast][data-type="success"]';
+    const aviso = page.locator(notificaciones).filter({ hasText: 'Comentario agregado.' });
+    await aviso.hover();
+    const contraste = await new AxeBuilder({ page })
+      .include(notificaciones)
+      .withRules(['color-contrast'])
+      .analyze();
+    expect(contraste.violations).toEqual([]);
+    expect(contraste.passes.map(regla => regla.id)).toContain('color-contrast');
     await page.getByRole('button', { name: 'Guardar borrador' }).click();
     await expect(page.getByText('Borrador guardado.', { exact: true })).toBeVisible();
     await page.reload();
@@ -197,10 +230,25 @@ test.describe('flujo completo docente ↔ estudiante (HU-27 · T01)', () => {
     await pestanaEstudiante.reload();
     await expect(pestanaEstudiante.getByTestId('nota-publicada')).toHaveText('4,5');
     await expect(pestanaEstudiante.getByText(comentario)).toBeVisible();
-    await expect(pestanaEstudiante.locator('mark')).toHaveText('Soy estudiante de psicología');
-    await expect(
-      pestanaEstudiante.getByText('Bien: te presentas antes de preguntar.')
-    ).toBeVisible();
+    const frase = pestanaEstudiante.locator('mark');
+    await expect(frase).toHaveText('Soy estudiante de psicología');
+    const comentarioDeFrase = pestanaEstudiante.getByRole('dialog', {
+      name: 'Comentario 1 de tu docente',
+    });
+    await frase.press('Space');
+    await expect(comentarioDeFrase).toContainText('Bien: te presentas antes de preguntar.');
+    await pestanaEstudiante.keyboard.press('Escape');
+    await expect(comentarioDeFrase).toBeHidden();
+    await expect(frase).toBeFocused();
+
+    const comentarioEnLista = pestanaEstudiante.getByRole('button', {
+      name: /Bien: te presentas antes de preguntar/,
+    });
+    await comentarioEnLista.press('Enter');
+    await expect(comentarioDeFrase).toBeVisible();
+    await pestanaEstudiante.keyboard.press('Escape');
+    await expect(comentarioDeFrase).toBeHidden();
+    await expect(comentarioEnLista).toBeFocused();
 
     // Y queda registrado en Supabase.
     const admin = clienteAdmin()!;
