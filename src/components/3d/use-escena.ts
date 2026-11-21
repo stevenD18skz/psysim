@@ -29,17 +29,23 @@ export function rutasModelos(escena: Escena): string[] {
  * Descarga y valida el JSON de la escena (public/scenes/*.json) y, en cuanto se conoce,
  * inicia la precarga de sus modelos para que se descarguen mientras se ve la pantalla de carga.
  */
-export function useEscena(ruta: string): { estado: EstadoEscena; reintentar: () => void } {
+export function useEscena(
+  ruta: string,
+  activa = true
+): { estado: EstadoEscena; reintentar: () => void } {
   const [estado, setEstado] = useState<EstadoEscena>({ estado: 'cargando' });
   const [intento, setIntento] = useState(0);
 
   useEffect(() => {
+    if (!activa) return;
     const controlador = new AbortController();
 
     fetch(`/${ruta}`, { signal: controlador.signal })
       .then(async respuesta => {
         if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
-        const resultado = escenaSchema.safeParse(await respuesta.json());
+        const datos: unknown = await respuesta.json();
+        if (controlador.signal.aborted) return;
+        const resultado = escenaSchema.safeParse(datos);
         if (!resultado.success) {
           console.error('[escena] Configuración inválida:', resultado.error.issues);
           setEstado({ estado: 'error', mensaje: 'La configuración del consultorio no es válida.' });
@@ -58,7 +64,7 @@ export function useEscena(ruta: string): { estado: EstadoEscena; reintentar: () 
       });
 
     return () => controlador.abort();
-  }, [ruta, intento]);
+  }, [activa, ruta, intento]);
 
   const reintentar = useCallback(() => {
     setEstado({ estado: 'cargando' });

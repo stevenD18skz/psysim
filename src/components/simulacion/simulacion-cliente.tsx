@@ -15,7 +15,7 @@ import {
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
 import {
@@ -156,9 +156,13 @@ function useAtajosConversacion(activo: boolean) {
 }
 
 function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiva }) {
-  const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d);
+  const store = useAppStoreApi();
+  const [modoTexto, setModoTexto] = useState(false);
+  const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d, !modoTexto);
   const { active: cargandoModelos } = useProgress();
   const [canvasListo, setCanvasListo] = useState(false);
+  const [falloLienzo, setFalloLienzo] = useState(false);
+  const avisarFalloLienzo = useCallback(() => setFalloLienzo(true), []);
   const [bloqueado, setBloqueado] = useState(false);
   const depuracion = useSearchParams().get('debug') === '1';
   const estadoNpc = useAppStore(state => state.npc.estado);
@@ -183,7 +187,13 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
   );
   const necesitaInstrucciones = !sesion.comenzada || privacidadAceptada === null;
 
-  const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  const escenaLista =
+    !modoTexto && !falloLienzo && estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  const lista = modoTexto || escenaLista;
+  const continuarEnTexto = () => {
+    setModoTexto(true);
+    if (!necesitaInstrucciones && !cierre) iniciarConversacion(store, { directo: true });
+  };
   // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
   const segundosParaCierre = useInactividad({
     sesionId: sesion.id,
@@ -220,7 +230,7 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
   const [hudOculto, setHudOculto] = useState(false);
   // Atajo Ctrl + H: mismo efecto que el botón. Con el modificador no estorba al escribir (chat,
   // notas), pero no actúa con un diálogo abierto.
-  const puedeOcultarHud = lista && !resumen;
+  const puedeOcultarHud = escenaLista && !resumen;
   useEffect(() => {
     if (!puedeOcultarHud) return;
     const alPulsar = (evento: KeyboardEvent) => {
@@ -242,10 +252,11 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && !necesitaInstrucciones && !resumen && !cierre;
-  useAtajosConversacion(enConsulta);
+  const enEscena = escenaLista && enConsulta;
+  useAtajosConversacion(enEscena);
   useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
-  useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
+  useMuestreoProximidad(enEscena && estadoNpc !== 'sesion_finalizada');
 
   // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
   useEffect(() => {
@@ -255,19 +266,20 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
 
   return (
     <>
-      {estado.estado === 'lista' && (
+      {!modoTexto && !falloLienzo && estado.estado === 'lista' && (
         <EscenaSimulacion
           escena={estado.escena}
           onListo={() => setCanvasListo(true)}
           onBloqueoCambia={setBloqueado}
+          onFallo={avisarFalloLienzo}
         />
       )}
 
       {/* Ambiente dinámico: el velo de la pantalla sigue el clima emocional del paciente. */}
-      {lista && <VeloEmocional />}
+      {escenaLista && <VeloEmocional />}
 
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
+      <div inert={!lista} className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
           {!hudOculto && (
             <HudSesion
@@ -293,8 +305,8 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
               </>
             )}
             {!hudOculto && <BotonSonido motor={motorAudio} />}
-            {!hudOculto && <BotonAjustes />}
-            {!hudOculto && !conversando && <BotonControles />}
+            {!hudOculto && !modoTexto && <BotonAjustes />}
+            {!hudOculto && !modoTexto && !conversando && <BotonControles />}
             {!hudOculto && enConsulta && (
               <BotonFinalizar
                 onFinalizar={finalizar}
@@ -315,10 +327,24 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
           </div>
         </div>
 
-        {enConsulta && explorando && !bloqueado && (
+        {enConsulta && modoTexto && explorando && (
+          <div className="mt-auto flex justify-center pb-6">
+            <Button
+              className="pointer-events-auto"
+              size="lg"
+              variant="accion"
+              autoFocus
+              onClick={() => iniciarConversacion(store, { directo: true })}
+            >
+              <MessageCircle aria-hidden />
+              Ir directo a la conversación
+            </Button>
+          </div>
+        )}
+        {enEscena && explorando && !bloqueado && (
           <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
         )}
-        {enConsulta && explorando && bloqueado && (
+        {enEscena && explorando && bloqueado && (
           <>
             <Mira resaltada={cerca && apuntando} />
             {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
@@ -346,16 +372,18 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
       {/* Tras un cierre automático el panel sigue a la vista: ahí está el aviso y la conversación. */}
       {lista && (cierre || (!necesitaInstrucciones && conversando)) && !resumen && (
         <ConversationPanel
+          modoTexto={modoTexto}
           onFinalizar={finalizar}
           finalizando={finalizando}
           onContinuar={verResultados}
         />
       )}
-      {enConsulta && <AvisoPantallaCompleta />}
+      {enEscena && <AvisoPantallaCompleta />}
       {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
       {lista && necesitaInstrucciones && !resumen && !cierre && (
         <InstruccionesCaso
           sesion={sesion}
+          modoTexto={modoTexto}
           segundosParaCierre={segundosParaCierre}
           aceptadaAntes={privacidadAceptada}
           onAceptarPrivacidad={() => {
@@ -369,36 +397,70 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
       )}
       {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}
 
-      {estado.estado === 'error' && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
-          <div role="alert" className="flex max-w-sm flex-col items-center gap-4 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <AlertTriangle className="size-6" aria-hidden />
-            </span>
-            <h2 className="text-xl font-bold">No pudimos cargar el consultorio</h2>
-            <p className="text-sm text-muted-foreground">
-              Revisa tu conexión e inténtalo de nuevo. Tu práctica sigue abierta mientras no pasen
-              10 minutos sin actividad.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="accion" onClick={reintentar}>
-                <RotateCw aria-hidden />
-                Reintentar
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/practicas">Ir a Mis prácticas</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+      {!modoTexto && estado.estado === 'error' && (
+        <AvisoEscenaNoDisponible
+          titulo="No pudimos cargar el consultorio"
+          descripcion="Revisa tu conexión o sigue la práctica en modo texto."
+          onContinuarEnTexto={continuarEnTexto}
+          onReintentar={reintentar}
+        />
+      )}
+      {!modoTexto && falloLienzo && (
+        <AvisoEscenaNoDisponible
+          titulo="Tu navegador no pudo mostrar el consultorio en 3D"
+          descripcion="Puedes seguir la práctica en modo texto."
+          onContinuarEnTexto={continuarEnTexto}
+        />
       )}
 
       <LoadingScreen
-        visible={!lista && estado.estado !== 'error'}
+        visible={!lista && !falloLienzo && estado.estado !== 'error'}
         titulo={sesion.escenario.titulo}
         competencia={sesion.escenario.competenciaCentral}
+        onContinuarEnTexto={continuarEnTexto}
       />
     </>
+  );
+}
+
+function AvisoEscenaNoDisponible({
+  titulo,
+  descripcion,
+  onContinuarEnTexto,
+  onReintentar,
+}: {
+  titulo: string;
+  descripcion: string;
+  onContinuarEnTexto: () => void;
+  onReintentar?: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
+      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertTriangle className="size-6" aria-hidden />
+        </span>
+        <div role="alert">
+          <h2 className="text-xl font-bold">{titulo}</h2>
+          <p className="text-sm text-muted-foreground">{descripcion}</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="accion" onClick={onContinuarEnTexto}>
+            <MessageCircle aria-hidden />
+            Continuar en modo texto
+          </Button>
+          {onReintentar && (
+            <Button variant="outline" onClick={onReintentar}>
+              <RotateCw aria-hidden />
+              Reintentar
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href="/practicas">Ir a Mis prácticas</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
