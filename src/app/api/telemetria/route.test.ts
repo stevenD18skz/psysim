@@ -53,6 +53,23 @@ describe('POST /api/telemetria', () => {
     );
   });
 
+  it('normaliza errores y métricas aunque el navegador mande el código o el identificador', async () => {
+    await POST(
+      peticion({ tipo: 'error', ruta: '/unirse/abc-defg-hij', mensaje: 'Falló el canje' })
+    );
+    await POST(
+      peticion({ tipo: 'vital', ruta: '/sesiones/identificador', nombre: 'LCP', valor: 42 })
+    );
+    expect(log.error).toHaveBeenCalledWith(
+      'cliente.error',
+      expect.objectContaining({ ruta: '/unirse/[codigo]' })
+    );
+    expect(log.info).toHaveBeenCalledWith(
+      'cliente.vital',
+      expect.objectContaining({ ruta: '/sesiones/[id]' })
+    );
+  });
+
   it('400 si el cuerpo no es JSON o no cumple el esquema (y no registra nada)', async () => {
     expect((await POST(peticion('no es json'))).status).toBe(400);
     expect((await POST(peticion({ tipo: 'clic' }))).status).toBe(400);

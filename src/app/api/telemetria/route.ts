@@ -3,7 +3,7 @@ import { idPeticion } from '@/lib/observabilidad/peticion';
 import {
   limpiarMensaje,
   MAX_BYTES_TELEMETRIA,
-  rutaSinParametros,
+  patronDePantalla,
   telemetriaSchema,
 } from '@/lib/observabilidad/telemetria';
 
@@ -72,7 +72,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!datos.success) return new Response(null, { status: 400 });
 
   const peticion = idPeticion(request);
-  const ruta = rutaSinParametros(datos.data.ruta);
+  const ruta = patronDePantalla(datos.data.ruta);
   if (datos.data.tipo === 'error') {
     log.error('cliente.error', {
       peticion,
