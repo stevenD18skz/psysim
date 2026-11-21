@@ -949,6 +949,17 @@ export type Database = {
         }[];
       };
       cerrar_sesiones_inactivas: { Args: never; Returns: number };
+      crear_anotacion_revision: {
+        Args: {
+          p_id: string;
+          p_sesion_id: string;
+          p_mensaje_id: string;
+          p_inicio: number;
+          p_fin: number;
+          p_comentario: string;
+        };
+        Returns: Database['public']['Tables']['anotacion']['Row'][];
+      };
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
       eliminar_estudiante: {
         Args: { p_estudiante_id: string };
@@ -999,6 +1010,22 @@ export type Database = {
       guardar_reflexion: {
         Args: { p_contenido: string; p_sesion_id: string };
         Returns: undefined;
+      };
+      guardar_revision: {
+        Args: {
+          p_sesion_id: string;
+          p_modo: string;
+          p_version: string | null;
+          p_comentario: string;
+          p_nota: number | null;
+        };
+        Returns: {
+          resultado: 'guardado' | 'conflicto';
+          comentario_general: string;
+          nota: number | null;
+          publicada_en: string | null;
+          actualizado_en: string;
+        }[];
       };
       guardar_turno_chat: {
         Args: Database['public']['Functions']['guardar_intercambio_ia']['Args'] & {

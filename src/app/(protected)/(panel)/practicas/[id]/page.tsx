@@ -39,9 +39,7 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
     intervenciones: sesion.mensajes.filter(m => m.remitente === 'estudiante').length,
   });
   const totalComentarios = retro?.anotaciones.length ?? 0;
-  const actualizada =
-    retro?.publicadaEn &&
-    new Date(retro.actualizadoEn).getTime() - new Date(retro.publicadaEn).getTime() > 1000;
+  const actualizada = retro !== null && retro.actualizadoEn !== retro.publicadaEn;
 
   return (
     <div className="flex flex-1 flex-col">

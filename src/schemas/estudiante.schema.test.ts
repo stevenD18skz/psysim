@@ -4,9 +4,9 @@ import { canjearCodigoSchema } from './asignacion.schema';
 import { correoEstudianteSchema, registrarEstudianteSchema } from './estudiante.schema';
 import {
   crearAnotacionSchema,
+  guardarRetroalimentacionSchema,
   leerNota,
   notaSchema,
-  publicarRetroalimentacionSchema,
 } from './retroalimentacion.schema';
 
 const SESION_ID = '44444444-4444-4444-8444-444444444444';
@@ -87,23 +87,26 @@ describe('notas', () => {
   });
 });
 
-describe('publicarRetroalimentacionSchema', () => {
+describe('guardarRetroalimentacionSchema', () => {
   it('exige el comentario general y la nota', () => {
-    const resultado = publicarRetroalimentacionSchema.safeParse({
+    const resultado = guardarRetroalimentacionSchema.safeParse({
       sesionId: SESION_ID,
+      modo: 'publicar',
+      version: null,
       comentarioGeneral: '  ',
       nota: null,
     });
     const errores = resultado.error?.flatten().fieldErrors;
     expect(errores?.comentarioGeneral?.[0]).toBe(
-      'Escribe la retroalimentación general antes de publicar.'
+      'Escribe la retroalimentación general antes de guardar cambios públicos.'
     );
-    expect(errores?.nota?.[0]).toBe('Pon la nota antes de publicar.');
+    expect(errores?.nota?.[0]).toBe('Pon la nota antes de guardar cambios públicos.');
   });
 });
 
 describe('crearAnotacionSchema', () => {
   const base = {
+    id: '66666666-6666-4666-8666-666666666666',
     sesionId: SESION_ID,
     mensajeId: '55555555-5555-4555-8555-555555555555',
     inicio: 3,

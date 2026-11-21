@@ -31,7 +31,7 @@ export const metadata: Metadata = {
  * práctica por revisar sin volver a la lista.
  */
 export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>) {
-  await requerirDocente();
+  const perfil = await requerirDocente();
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
@@ -115,7 +115,9 @@ export default async function SesionPage({ params }: PageProps<'/sesiones/[id]'>
               />
             )}
             <RevisionSesion
+              key={`${perfil.id}:${sesion.id}`}
               sesion={sesion}
+              cuentaId={perfil.id}
               ia={ia}
               siguiente={proxima ? { id: proxima.id, nombre: proxima.estudiante.nombre } : null}
             />

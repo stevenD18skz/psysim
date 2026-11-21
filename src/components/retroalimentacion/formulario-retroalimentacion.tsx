@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Eye, Loader2, Save, Send } from 'lucide-react';
 import { unstable_rethrow, useRouter } from 'next/navigation';
-import { useEffect, useId, useState, useSyncExternalStore, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
@@ -10,20 +10,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useRespaldoRevision } from '@/hooks/use-respaldo-revision';
 import { formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
-import {
-  guardarRetroalimentacion,
-  publicarRetroalimentacion,
-} from '@/lib/retroalimentacion/actions';
+import { guardarRetroalimentacion } from '@/lib/retroalimentacion/actions';
 import {
   LIMITES_RETROALIMENTACION,
+  borradorRevisionSchema,
   leerNota,
   notaSchema,
+  type ModoRevision,
 } from '@/schemas/retroalimentacion.schema';
 import { type Retroalimentacion } from '@/types';
 
 interface FormularioRetroalimentacionProps {
   sesionId: string;
+  cuentaId: string;
   inicial: Retroalimentacion | null;
   nombreEstudiante: string;
   /** Comentarios sobre frases: se nombran al confirmar la publicación. */
@@ -32,48 +33,10 @@ interface FormularioRetroalimentacionProps {
   siguiente: { id: string; nombre: string } | null;
 }
 
-const claveBorrador = (sesionId: string) => `psysim:borrador-retro:${sesionId}`;
+type Revision = Omit<Retroalimentacion, 'anotaciones'>;
 
-const sinSuscripcion = () => () => {};
-/** El borrador local tal como estaba al abrir la práctica (escribir no lo cambia). */
-const borradoresAlAbrir = new Map<string, string | null>();
-
-function leerBorradorAlAbrir(sesionId: string): string | null {
-  if (!borradoresAlAbrir.has(sesionId)) {
-    let valor: string | null = null;
-    try {
-      valor = window.sessionStorage.getItem(claveBorrador(sesionId));
-    } catch {
-      // Sin almacenamiento no hay nada que recuperar.
-    }
-    borradoresAlAbrir.set(sesionId, valor);
-  }
-  return borradoresAlAbrir.get(sesionId) ?? null;
-}
-
-function guardarBorradorLocal(sesionId: string, texto: string) {
-  try {
-    window.sessionStorage.setItem(claveBorrador(sesionId), texto);
-  } catch {
-    // Sin almacenamiento solo se pierde la copia de respaldo.
-  }
-}
-
-function borrarBorradorLocal(sesionId: string) {
-  try {
-    window.sessionStorage.removeItem(claveBorrador(sesionId));
-  } catch {
-    // Nada que limpiar.
-  }
-}
-
-/** ¿Se editó después de publicarla? (el estudiante ve «Actualizada el…»). */
-function fueEditada(publicadaEn: string | null, actualizadoEn: string | null) {
-  return (
-    publicadaEn !== null &&
-    actualizadoEn !== null &&
-    new Date(actualizadoEn).getTime() - new Date(publicadaEn).getTime() > 1000
-  );
+function textoNota(nota: number | null | undefined) {
+  return nota == null ? '' : formatearNota(nota);
 }
 
 /**
@@ -84,6 +47,7 @@ function fueEditada(publicadaEn: string | null, actualizadoEn: string | null) {
  */
 export function FormularioRetroalimentacion({
   sesionId,
+  cuentaId,
   inicial,
   nombreEstudiante,
   comentarios,
@@ -91,34 +55,58 @@ export function FormularioRetroalimentacion({
 }: FormularioRetroalimentacionProps) {
   const id = useId();
   const router = useRouter();
-  const [comentario, setComentarioEstado] = useState(inicial?.comentarioGeneral ?? '');
-  const [notaTexto, setNotaTexto] = useState(
-    inicial?.nota !== null && inicial?.nota !== undefined ? formatearNota(inicial.nota) : ''
+  const [valores, setValores] = useState({
+    comentario: inicial?.comentarioGeneral ?? '',
+    notaTexto: textoNota(inicial?.nota),
+  });
+  const { comentario, notaTexto } = valores;
+  const [revision, setRevision] = useState<Revision | null>(inicial);
+  const [conflicto, setConflicto] = useState<Revision | null>(null);
+  const [borradorVisto, setBorradorVisto] = useState(false);
+  const respaldo = useRespaldoRevision(
+    `psysim:borrador-retro:${cuentaId}:${sesionId}:general`,
+    borradorRevisionSchema
   );
-  // Texto que quedó sin guardar en esta pestaña (p. ej. tras un fallo de red y una recarga).
-  const borradorPrevio = useSyncExternalStore(
-    sinSuscripcion,
-    () => leerBorradorAlAbrir(sesionId),
-    () => null
-  );
-  const [borradorDescartado, setBorradorDescartado] = useState(false);
-  // Al salir de la práctica se olvida la lectura: al volver (sin recargar) se lee de nuevo.
-  useEffect(() => () => void borradoresAlAbrir.delete(sesionId), [sesionId]);
+  // Al refrescar después de anotar puede cambiar la fecha sin cambiar el formulario.
+  const base =
+    inicial &&
+    inicial.actualizadoEn > (revision?.actualizadoEn ?? '') &&
+    inicial.comentarioGeneral === (revision?.comentarioGeneral ?? '') &&
+    inicial.nota === (revision?.nota ?? null) &&
+    inicial.publicadaEn === (revision?.publicadaEn ?? null)
+      ? inicial
+      : revision;
+  const version = base?.actualizadoEn ?? null;
+  const publicadaEn = (conflicto ?? base)?.publicadaEn ?? null;
+  const actualizadoEn = (conflicto ?? base)?.actualizadoEn ?? null;
+  const borradorPrevio = respaldo.borrador;
   const borradorRecuperable =
-    !borradorDescartado &&
+    !borradorVisto &&
     borradorPrevio &&
-    borradorPrevio !== (inicial?.comentarioGeneral ?? '') &&
-    borradorPrevio !== comentario
+    (borradorPrevio.comentario.trim() !== (base?.comentarioGeneral ?? '') ||
+      leerNota(borradorPrevio.notaTexto) !== (base?.nota ?? null))
       ? borradorPrevio
       : null;
 
-  // Lo escrito se guarda también en la pestaña: un fallo de red o una recarga no lo borra.
-  const setComentario = (valor: string) => {
-    setComentarioEstado(valor);
-    guardarBorradorLocal(sesionId, valor);
-  };
-  const [publicadaEn, setPublicadaEn] = useState(inicial?.publicadaEn ?? null);
-  const [actualizadoEn, setActualizadoEn] = useState(inicial?.actualizadoEn ?? null);
+  function editar(nuevos: typeof valores) {
+    setValores(nuevos);
+    setBorradorVisto(true);
+    respaldo.actualizar(() => ({ ...nuevos, version }));
+  }
+
+  function resolverConflicto(conservarEdicion: boolean) {
+    if (!conflicto) return;
+    setRevision(conflicto);
+    setConflicto(null);
+    setBorradorVisto(true);
+    setError(null);
+    if (conservarEdicion) {
+      respaldo.actualizar(() => ({ ...valores, version: conflicto.actualizadoEn }));
+    } else {
+      setValores({ comentario: conflicto.comentarioGeneral, notaTexto: textoNota(conflicto.nota) });
+      respaldo.actualizar(() => null);
+    }
+  }
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, startTransition] = useTransition();
@@ -129,19 +117,23 @@ export function FormularioRetroalimentacion({
   const publicada = publicadaEn !== null;
   const primerNombre = nombreEstudiante.split(' ')[0];
 
-  const enviar = (publicar: boolean) => {
+  const enviar = (modo: ModoRevision) => {
+    if (conflicto) return;
     if (errorNota) {
       setError(errorNota);
       return;
     }
     setError(null);
     startTransition(async () => {
-      const valores = { sesionId, comentarioGeneral: comentario, nota };
       let resultado;
       try {
-        resultado = publicar
-          ? await publicarRetroalimentacion(valores)
-          : await guardarRetroalimentacion(valores);
+        resultado = await guardarRetroalimentacion({
+          sesionId,
+          modo,
+          version,
+          comentarioGeneral: comentario,
+          nota,
+        });
       } catch (error) {
         // Una redirección (p. ej. sesión caducada) no es un fallo de red.
         unstable_rethrow(error);
@@ -157,12 +149,16 @@ export function FormularioRetroalimentacion({
         setError(resultado.error || 'No pudimos guardar. Tu texto sigue aquí: inténtalo de nuevo.');
         return;
       }
-      borrarBorradorLocal(sesionId);
-      setBorradorDescartado(true);
-      setPublicadaEn(resultado.datos.publicadaEn);
-      setActualizadoEn(resultado.datos.actualizadoEn);
+      const confirmada = resultado.datos.revision;
+      if (resultado.datos.conflicto) {
+        setConflicto(confirmada);
+        return;
+      }
+      respaldo.actualizar(() => null);
+      setBorradorVisto(true);
+      setRevision(confirmada);
 
-      if (publicar && !publicada) {
+      if (modo === 'publicar') {
         if (siguiente) {
           toast.success(`Publicada. Abriste la práctica de ${siguiente.nombre.split(' ')[0]}.`);
           router.push(`/sesiones/${siguiente.id}`);
@@ -172,11 +168,7 @@ export function FormularioRetroalimentacion({
         }
         return;
       }
-      toast.success(
-        publicada
-          ? `Cambios guardados. ${primerNombre} verá la fecha de actualización (${formatearFechaHora(resultado.datos.actualizadoEn ?? new Date().toISOString())}).`
-          : 'Borrador guardado.'
-      );
+      toast.success(modo === 'editar' ? 'Cambios guardados.' : 'Borrador guardado.');
     });
   };
 
@@ -210,15 +202,16 @@ export function FormularioRetroalimentacion({
 
       {borradorRecuperable && (
         <div className="flex flex-col gap-2 rounded-lg bg-ambar-suave px-3 py-2.5 text-sm text-ambar sm:flex-row sm:items-center">
-          <p className="flex-1">Tienes un texto sin guardar de antes en esta pestaña.</p>
+          <p className="flex-1">Tienes cambios sin guardar de antes en esta pestaña.</p>
           <div className="flex gap-2">
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={() => {
-                setComentario(borradorRecuperable);
-                setBorradorDescartado(true);
+                setValores(borradorRecuperable);
+                setBorradorVisto(true);
+                if (base && borradorRecuperable.version !== version) setConflicto(base);
               }}
             >
               Recuperarlo
@@ -228,11 +221,47 @@ export function FormularioRetroalimentacion({
               size="sm"
               variant="ghost"
               onClick={() => {
-                borrarBorradorLocal(sesionId);
-                setBorradorDescartado(true);
+                respaldo.actualizar(() => null);
+                setBorradorVisto(true);
               }}
             >
               Descartar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {conflicto && (
+        <div className="flex flex-col gap-2 rounded-lg border bg-muted p-3 text-sm">
+          <p role="alert" className="font-medium">
+            {conflicto.publicadaEn
+              ? 'La retroalimentación publicada cambió. Revisa lo que ve el estudiante.'
+              : 'El borrador guardado cambió. Revisa la versión actual antes de continuar.'}
+          </p>
+          <dl className="flex flex-col gap-1">
+            <dt className="font-medium">Nota actual</dt>
+            <dd>{conflicto.nota === null ? 'Sin nota' : formatearNota(conflicto.nota)}</dd>
+            <dt className="font-medium">Comentario actual</dt>
+            <dd className="max-h-44 overflow-auto wrap-anywhere whitespace-pre-wrap">
+              {conflicto.comentarioGeneral || 'Sin comentario general'}
+            </dd>
+          </dl>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => resolverConflicto(true)}
+            >
+              Continuar con mi edición
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => resolverConflicto(false)}
+            >
+              Usar la versión actual
             </Button>
           </div>
         </div>
@@ -243,7 +272,7 @@ export function FormularioRetroalimentacion({
         <Textarea
           id={`${id}-comentario`}
           value={comentario}
-          onChange={evento => setComentario(evento.target.value)}
+          onChange={evento => editar({ ...valores, comentario: evento.target.value })}
           placeholder="Fortalezas, aspectos por mejorar y una recomendación para la próxima práctica."
           className="min-h-40"
           maxLength={LIMITES_RETROALIMENTACION.comentarioGeneral}
@@ -263,7 +292,7 @@ export function FormularioRetroalimentacion({
           autoComplete="off"
           placeholder="Ej.: 4,5"
           value={notaTexto}
-          onChange={evento => setNotaTexto(evento.target.value)}
+          onChange={evento => editar({ ...valores, notaTexto: evento.target.value })}
           className="w-32 text-lg font-semibold ancho-semiexpandido tabular-nums"
           aria-invalid={errorNota ? true : undefined}
           aria-describedby={errorNota ? `${id}-nota-error` : undefined}
@@ -283,7 +312,7 @@ export function FormularioRetroalimentacion({
       )}
 
       <div className="flex flex-col gap-3 border-t pt-4">
-        {confirmando ? (
+        {conflicto ? null : confirmando ? (
           <div className="flex flex-col gap-3 rounded-lg bg-muted p-3">
             <p className="text-sm">
               {primerNombre} verá la nota, el comentario general y tus comentarios ({comentarios})
@@ -292,7 +321,7 @@ export function FormularioRetroalimentacion({
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="accion"
-                onClick={() => enviar(true)}
+                onClick={() => enviar('publicar')}
                 disabled={enviando}
                 aria-busy={enviando}
               >
@@ -311,9 +340,9 @@ export function FormularioRetroalimentacion({
         ) : (
           <div className="flex flex-wrap gap-2">
             {publicada ? (
-              <Button onClick={() => enviar(false)} disabled={enviando} aria-busy={enviando}>
+              <Button onClick={() => enviar('editar')} disabled={enviando} aria-busy={enviando}>
                 {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
-                {enviando ? 'Guardando…' : 'Guardar cambios'}
+                {enviando ? 'Guardando…' : 'Guardar cambios publicados'}
               </Button>
             ) : (
               <>
@@ -323,7 +352,7 @@ export function FormularioRetroalimentacion({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => enviar(false)}
+                  onClick={() => enviar('borrador')}
                   disabled={enviando}
                   aria-busy={enviando}
                 >
@@ -343,7 +372,7 @@ export function FormularioRetroalimentacion({
           {publicada && publicadaEn
             ? `Publicada el ${formatearFechaHora(publicadaEn)}`
             : 'Solo tú ves el borrador.'}
-          {publicada && fueEditada(publicadaEn, actualizadoEn) && actualizadoEn
+          {publicada && actualizadoEn && actualizadoEn !== publicadaEn
             ? ` · Editada el ${formatearFechaHora(actualizadoEn)}`
             : !publicada && actualizadoEn
               ? ` · Guardado el ${formatearFechaHora(actualizadoEn)}`

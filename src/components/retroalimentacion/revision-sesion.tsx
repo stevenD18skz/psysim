@@ -39,6 +39,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { useRespaldoRevision } from '@/hooks/use-respaldo-revision';
 import { dispararRecorrido } from '@/lib/ayuda/recorridos';
 import {
   actualizarAnotacion,
@@ -58,7 +59,11 @@ import {
 } from '@/lib/conversacion/cierre';
 import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
-import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
+import {
+  borradoresAnotacionSchema,
+  LIMITES_RETROALIMENTACION,
+  type BorradorAnotacion,
+} from '@/schemas/retroalimentacion.schema';
 import { type Anotacion, type DetalleSesion, type MensajeConversacion } from '@/types';
 import { MENSAJE_SIN_CONEXION, sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
@@ -76,7 +81,13 @@ interface Seleccion {
 
 /** Globo flotante abierto sobre la conversación. */
 type Burbuja =
-  | { tipo: 'nueva'; seleccion: Seleccion; ancla: Ancla }
+  | {
+      tipo: 'nueva';
+      borrador: BorradorAnotacion;
+      fragmento: string;
+      rango: Range | null;
+      ancla: Ancla;
+    }
   | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
 
 /** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
@@ -158,10 +169,12 @@ function leerSeleccion(
  */
 export function RevisionSesion({
   sesion,
+  cuentaId,
   ia = null,
   siguiente = null,
 }: {
   sesion: DetalleSesion;
+  cuentaId: string;
   /** Severidad del paciente en cada respuesta y cierre automático, si el motor los registró. */
   ia?: IaDeSesion | null;
   /** Próxima práctica por revisar (para «Publicar y abrir la siguiente»), o `null` si es la última. */
@@ -178,6 +191,31 @@ export function RevisionSesion({
   const [arrastrando, setArrastrando] = useState(false);
   const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
   const [quitando, setQuitando] = useState<string | null>(null);
+  const respaldo = useRespaldoRevision(
+    `psysim:borrador-retro:${cuentaId}:${sesion.id}:anotaciones`,
+    borradoresAnotacionSchema
+  );
+  const borradores = respaldo.borrador ?? [];
+  const idAbierto = burbuja?.tipo === 'nueva' ? burbuja.borrador.id : burbuja?.anotacionId;
+  const pendientes = borradores.filter(borrador => {
+    if (borrador.id === idAbierto || !borrador.comentario.trim()) return false;
+    const registrada = anotaciones.find(a => a.id === borrador.id);
+    return registrada?.comentario !== borrador.comentario.trim();
+  });
+
+  function respaldarAnotacion(borrador: BorradorAnotacion) {
+    respaldo.actualizar(actuales => [
+      ...(actuales ?? []).filter(actual => actual.id !== borrador.id),
+      borrador,
+    ]);
+  }
+
+  function descartarAnotacion(id: string) {
+    respaldo.actualizar(actuales => {
+      const restantes = actuales?.filter(actual => actual.id !== id);
+      return restantes?.length ? restantes : null;
+    });
+  }
 
   const numeros = numerarAnotaciones(sesion.mensajes, anotaciones);
   const ordenadas = [...anotaciones].sort(
@@ -220,7 +258,7 @@ export function RevisionSesion({
   }, []);
 
   // Mientras se escribe el comentario, la frase sigue resaltada aunque ya no esté seleccionada.
-  const rangoBorrador = burbuja?.tipo === 'nueva' ? burbuja.seleccion.rango : null;
+  const rangoBorrador = burbuja?.tipo === 'nueva' ? burbuja.rango : null;
   useEffect(() => {
     if (!rangoBorrador || typeof CSS === 'undefined' || !('highlights' in CSS)) return;
     CSS.highlights.set(RESALTADO_BORRADOR, new Highlight(rangoBorrador));
@@ -231,7 +269,19 @@ export function RevisionSesion({
 
   const empezarComentario = () => {
     if (!seleccion || seleccion.solapada) return;
-    setBurbuja({ tipo: 'nueva', seleccion, ancla: seleccion.ancla });
+    const { mensajeId, inicio, fin, fragmento, rango, ancla } = seleccion;
+    const anterior = borradores.find(
+      b => b.tipo === 'nueva' && b.mensajeId === mensajeId && b.inicio === inicio && b.fin === fin
+    );
+    const borrador = anterior ?? {
+      tipo: 'nueva',
+      id: crypto.randomUUID(),
+      mensajeId,
+      inicio,
+      fin,
+      comentario: '',
+    };
+    setBurbuja({ tipo: 'nueva', borrador, fragmento, rango, ancla });
     window.getSelection()?.removeAllRanges();
   };
 
@@ -245,9 +295,49 @@ export function RevisionSesion({
     });
   };
 
-  const alCrear = (anotacion: Anotacion) => {
-    setAnotaciones(actuales => [...actuales, anotacion]);
-    setBurbuja(null);
+  function recuperarAnotacion(borrador: BorradorAnotacion) {
+    if (anotaciones.some(a => a.id === borrador.id)) {
+      abrir(borrador.id, true);
+      return;
+    }
+    const mensaje = sesion.mensajes.find(m => m.id === borrador.mensajeId);
+    const elemento = raiz.current?.querySelector<HTMLElement>(
+      `[data-texto-mensaje="${borrador.mensajeId}"]`
+    );
+    if (!mensaje || !elemento) return;
+    elemento.scrollIntoView({ block: 'nearest' });
+    setBurbuja({
+      tipo: 'nueva',
+      borrador,
+      fragmento: fragmentoEntre(mensaje.contenido, borrador.inicio, borrador.fin),
+      rango: null,
+      ancla: {
+        getBoundingClientRect: () => elemento.getBoundingClientRect(),
+        contextElement: elemento,
+      },
+    });
+  }
+
+  const alCrear = (anotacion: Anotacion, borrador: BorradorAnotacion) => {
+    setAnotaciones(actuales => [...actuales.filter(a => a.id !== anotacion.id), anotacion]);
+    const cambiarBurbuja = (siguiente: Burbuja | null) =>
+      setBurbuja(actual =>
+        actual?.tipo === 'nueva' && actual.borrador.id === borrador.id ? siguiente : actual
+      );
+    if (anotacion.comentario === borrador.comentario.trim()) {
+      descartarAnotacion(borrador.id);
+      cambiarBurbuja(null);
+      toast.success('Comentario agregado.');
+    } else {
+      respaldarAnotacion({ ...borrador, tipo: 'edicion' });
+      cambiarBurbuja({
+        tipo: 'existente',
+        anotacionId: anotacion.id,
+        editando: true,
+        ancla: anclaDeMarca(anotacion.id, raiz.current),
+      });
+      toast.info('Recuperaste el comentario guardado. Confirma si quieres actualizarlo.');
+    }
     router.refresh();
   };
 
@@ -256,6 +346,7 @@ export function RevisionSesion({
   const restaurar = async (anotacion: Anotacion) => {
     try {
       const resultado = await crearAnotacion({
+        id: crypto.randomUUID(),
         sesionId: sesion.id,
         mensajeId: anotacion.mensajeId,
         inicio: anotacion.inicio,
@@ -288,6 +379,7 @@ export function RevisionSesion({
           : undefined,
       });
       setAnotaciones(actuales => actuales.filter(a => a.id !== id));
+      descartarAnotacion(id);
       setBurbuja(actual =>
         actual?.tipo === 'existente' && actual.anotacionId === id ? null : actual
       );
@@ -496,25 +588,45 @@ export function RevisionSesion({
             {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
             {burbuja?.tipo === 'nueva' && (
               <NuevaAnotacion
+                key={burbuja.borrador.id}
                 sesionId={sesion.id}
-                seleccion={burbuja.seleccion}
+                inicial={burbuja.borrador}
+                fragmento={burbuja.fragmento}
                 onCreada={alCrear}
-                onCancelar={() => setBurbuja(null)}
+                onEditar={respaldarAnotacion}
+                onCancelar={() => {
+                  descartarAnotacion(burbuja.borrador.id);
+                  setBurbuja(null);
+                }}
               />
             )}
             {burbuja?.tipo === 'existente' && existente && (
               <DetalleAnotacion
                 key={existente.id}
                 anotacion={existente}
+                borrador={borradores.find(b => b.id === existente.id)?.comentario}
                 numero={numeros.get(existente.id) ?? 0}
                 editando={burbuja.editando}
                 quitando={quitando === existente.id}
                 onEditar={editando => setBurbuja({ ...burbuja, editando })}
-                onActualizada={comentario =>
+                onRespaldar={comentario =>
+                  respaldarAnotacion({
+                    id: existente.id,
+                    tipo: 'edicion',
+                    mensajeId: existente.mensajeId,
+                    inicio: existente.inicio,
+                    fin: existente.fin,
+                    comentario,
+                  })
+                }
+                onDescartar={() => descartarAnotacion(existente.id)}
+                onActualizada={comentario => {
+                  descartarAnotacion(existente.id);
                   setAnotaciones(actuales =>
                     actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
-                  )
-                }
+                  );
+                  router.refresh();
+                }}
                 onQuitar={() => quitar(existente.id)}
               />
             )}
@@ -524,6 +636,7 @@ export function RevisionSesion({
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <FormularioRetroalimentacion
             sesionId={sesion.id}
+            cuentaId={cuentaId}
             inicial={sesion.retroalimentacion}
             nombreEstudiante={sesion.estudiante.nombre}
             comentarios={anotaciones.length}
@@ -540,6 +653,45 @@ export function RevisionSesion({
                 {anotaciones.length}
               </span>
             </h2>
+            {pendientes.length > 0 && (
+              <ul aria-label="Comentarios sin guardar" className="flex flex-col gap-2">
+                {pendientes.map(borrador => {
+                  const mensaje = sesion.mensajes.find(m => m.id === borrador.mensajeId);
+                  return (
+                    <li
+                      key={borrador.id}
+                      className="flex flex-col gap-2 rounded-lg bg-muted p-3 text-sm"
+                    >
+                      <p className="font-medium">Comentario pendiente</p>
+                      {mensaje && (
+                        <p className="line-clamp-2 text-muted-foreground">
+                          {fragmentoEntre(mensaje.contenido, borrador.inicio, borrador.fin)}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!mensaje}
+                          onClick={() => recuperarAnotacion(borrador)}
+                        >
+                          Recuperar comentario
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => descartarAnotacion(borrador.id)}
+                        >
+                          Descartar
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {ordenadas.length === 0 ? (
               <div className="overflow-hidden rounded-xl border border-dashed border-border/80">
                 <EstadoVacio
@@ -590,37 +742,37 @@ export function RevisionSesion({
 /** Globo para escribir el comentario de la frase recién seleccionada. */
 function NuevaAnotacion({
   sesionId,
-  seleccion,
+  inicial,
+  fragmento,
   onCreada,
+  onEditar,
   onCancelar,
 }: {
   sesionId: string;
-  seleccion: Seleccion;
-  onCreada: (anotacion: Anotacion) => void;
+  inicial: BorradorAnotacion;
+  fragmento: string;
+  onCreada: (anotacion: Anotacion, borrador: BorradorAnotacion) => void;
+  onEditar: (borrador: BorradorAnotacion) => void;
   onCancelar: () => void;
 }) {
   const id = useId();
-  const [comentario, setComentario] = useState('');
+  const [comentario, setComentario] = useState(inicial.comentario);
   const [error, setError] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
 
   const guardar = () => {
-    if (!comentario.trim()) return;
+    if (guardando || !comentario.trim()) return;
+    setError(null);
+    const borrador = { ...inicial, comentario };
+    onEditar(borrador);
     startTransition(
       sinPerderElPanel(async () => {
-        const resultado = await crearAnotacion({
-          sesionId,
-          mensajeId: seleccion.mensajeId,
-          inicio: seleccion.inicio,
-          fin: seleccion.fin,
-          comentario,
-        });
+        const resultado = await crearAnotacion({ ...borrador, sesionId });
         if (!resultado.ok) {
           setError(resultado.error);
           return;
         }
-        toast.success('Comentario agregado.');
-        onCreada(resultado.datos);
+        onCreada(resultado.datos, borrador);
       })
     );
   };
@@ -640,7 +792,7 @@ function NuevaAnotacion({
     >
       <p className="flex items-start gap-2 rounded-lg bg-ambar-suave/60 px-2.5 py-2 text-xs leading-snug text-foreground">
         <Quote className="mt-0.5 size-3.5 shrink-0 text-ambar" aria-hidden />
-        <span className="line-clamp-2">{seleccion.fragmento}</span>
+        <span className="line-clamp-2">{fragmento}</span>
       </p>
       <label htmlFor={id} className="sr-only">
         Comentario sobre la frase seleccionada
@@ -649,7 +801,11 @@ function NuevaAnotacion({
         id={id}
         autoFocus
         value={comentario}
-        onChange={evento => setComentario(evento.target.value)}
+        onChange={evento => {
+          const texto = evento.target.value;
+          setComentario(texto);
+          onEditar({ ...inicial, comentario: texto });
+        }}
         onKeyDown={evento => {
           if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
         }}
@@ -683,28 +839,34 @@ function NuevaAnotacion({
 /** Globo de un subrayado ya comentado: muestra el comentario y permite editarlo o quitarlo. */
 function DetalleAnotacion({
   anotacion,
+  borrador,
   numero,
   editando,
   quitando,
   onEditar,
+  onRespaldar,
+  onDescartar,
   onActualizada,
   onQuitar,
 }: {
   anotacion: Anotacion;
+  borrador?: string;
   numero: number;
   editando: boolean;
   quitando: boolean;
   onEditar: (editando: boolean) => void;
+  onRespaldar: (comentario: string) => void;
+  onDescartar: () => void;
   onActualizada: (comentario: string) => void;
   onQuitar: () => void;
 }) {
   const id = useId();
-  const [texto, setTexto] = useState(anotacion.comentario);
+  const [texto, setTexto] = useState(borrador ?? anotacion.comentario);
   const [guardando, startTransition] = useTransition();
   const cambiado = editando && texto.trim() !== anotacion.comentario;
 
   const guardar = () => {
-    if (!texto.trim()) return;
+    if (guardando || !texto.trim()) return;
     startTransition(
       sinPerderElPanel(async () => {
         const resultado = await actualizarAnotacion({ id: anotacion.id, comentario: texto });
@@ -721,6 +883,7 @@ function DetalleAnotacion({
 
   const cancelar = () => {
     setTexto(anotacion.comentario);
+    onDescartar();
     onEditar(false);
   };
 
@@ -751,7 +914,11 @@ function DetalleAnotacion({
             id={id}
             autoFocus
             value={texto}
-            onChange={evento => setTexto(evento.target.value)}
+            onChange={evento => {
+              const valor = evento.target.value;
+              setTexto(valor);
+              onRespaldar(valor);
+            }}
             onKeyDown={evento => {
               if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
             }}
