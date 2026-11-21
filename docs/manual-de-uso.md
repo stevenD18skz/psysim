@@ -119,11 +119,12 @@ ves a los estudiantes que registras.
    se le notan las emociones o qué datos guarda.
 3. Elige al estudiante, cuánto dura la consulta (10, 15, 20 o 30 minutos; 15 por defecto) y la
    vigencia del código, y pulsa «Generar código».
+4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
 
 El estudiante conoce la duración desde las instrucciones del caso. El tiempo corre desde su
 primera intervención; a los 3 minutos del final recibe un aviso y, al cumplirse, una invitación a
 cerrar la entrevista. Tiene 5 minutos más para cerrarla; después, la práctica termina sola y en la
-transcripción verás «Terminó al cumplirse el tiempo de la consulta». 4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
+transcripción verás «Terminó al cumplirse el tiempo de la consulta».
 
 Un código sin usar se puede anular con «Anular». Si el estudiante va a practicar en tu computador,
 usa «Practicar en este equipo»: la plataforma cierra primero tu sesión para que el estudiante
@@ -148,7 +149,8 @@ autolesión, no dan diagnósticos y no recomiendan medicamentos.
 3. Selecciona con el ratón una frase de una intervención del estudiante, pulsa «Comentar
    selección», escribe tu comentario y pulsa «Guardar comentario».
 4. Escribe el «Comentario general» y la «Nota (0,0 a 5,0)». Lo que escribas queda como borrador
-   hasta que pulses «Publicar».
+   («Guardar borrador») hasta que pulses «Publicar», o «Publicar y abrir la siguiente» si te quedan
+   prácticas por revisar.
 
 El estudiante solo ve la retroalimentación después de publicada.
 
@@ -156,6 +158,18 @@ El estudiante solo ve la retroalimentación después de publicada.
 
 En «Revisiones», «Exportar CSV» descarga las prácticas en una hoja de cálculo. En la ficha de cada
 estudiante está su hoja de notas, lista para imprimir o guardar como PDF.
+
+### 3.7 Recorridos guiados y pistas
+
+Crear un caso, asignar una práctica y revisar una conversación tienen un recorrido guiado: la
+primera vez la plataforma te lo ofrece («Iniciar recorrido» o «Ahora no») y después puedes
+repetirlo con «Recorrido guiado» en el encabezado. El recorrido resalta cada control de la
+pantalla real; avanza con las flechas del teclado y sal con Esc. Junto a algunas funciones poco
+evidentes verás además una pista con un punto dorado: púlsala para leer la explicación y
+descártala con «Entendido».
+
+En el menú de tu cuenta puedes elegir un avatar o seguir con tus iniciales. Esto también vale para
+los estudiantes.
 
 ## 4. Guía del Administrador
 
@@ -178,6 +192,7 @@ desactiva o las elimina. Una cuenta desactivada pierde el acceso de inmediato.
 ## 6. Privacidad
 
 El texto de la conversación se guarda en la plataforma y se envía al servicio de inteligencia
-artificial de Google para generar las respuestas del paciente. No escribas datos personales
+artificial que genera las respuestas del paciente: el orquestador de NPC o, si no responde, Google
+Gemini. No escribas datos personales
 reales, tuyos ni de otras personas. El aviso completo está en
 <https://psysim.vercel.app/privacidad>.

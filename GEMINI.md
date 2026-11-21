@@ -108,17 +108,16 @@ decisiones con las leyes de psicología aplicada al diseño de interfaces de `la
 
 ---
 
-## Estado actual y base reciente (actualizado al 18 de noviembre de 2026)
+## Estado actual y base reciente (actualizado al 19 de noviembre de 2026)
 
 ### 1. Ramas, Git y entorno
 
 - **Ramas activas:** solo existen `main` (producción) y `develop` (staging). Las ramas previas
   (`test/verificacion-supabase-al-dia` y `feat/orquestador-npc`) ya se fusionaron en `develop` y se
   eliminaron tanto en local como en `origin`.
-- **Último commit en `develop` (`origin/develop` al día):** `0f861b2`
-  (`Merge pull request #32 from stevenD18skz/develop`; sobre la base de `bff0b5d` se integraron
-  mejoras en el inicio, listados paginados, sesiones, casos, popover de cuenta, accesibilidad y
-  orquestador).
+- **Último commit en `develop` (`origin/develop` al día):** `2adaa6b`
+  (`docs: prompt para la auditoría de Codex tras cerrar la interfaz`), con 16 commits ordenados por
+  funcionalidad sobre `0f861b2` (`fdc457a` a `2adaa6b`).
 - **GitHub CLI (`gh`):** autenticado para `stevenD18skz` en
   `C:\Users\braya\AppData\Roaming\GitHub CLI\hosts.yml`.
 - **Plugins globales instalados en Antigravity (`C:\Users\braya\.gemini\config\`):**
@@ -138,7 +137,7 @@ decisiones con las leyes de psicología aplicada al diseño de interfaces de `la
   completo de sesión en vivo (`POST /sessions/start` → `POST /conversation/{id}/stream` →
   `PATCH /sessions/{id}/time` → `PATCH /sessions/{id}/end`).
 
-### 3. Datos de prueba en Supabase (`scripts/seed-docentes.ts`, commit `d59f092` y ampliado)
+### 3. Datos de prueba en Supabase (`scripts/seed-docentes.ts`, commit `d59f092` y ampliado en `7952724`)
 
 - 1 Administrador de prueba (`admin@psysim.test`, `ADM-0001`).
 - 3 docentes de prueba (`docente1@psysim.test`, `docente2@psysim.test`, `docente3@psysim.test`).
@@ -151,98 +150,78 @@ decisiones con las leyes de psicología aplicada al diseño de interfaces de `la
     (`209990004`).
   - `docente3@psysim.test`: `estudiante5@psysim.test` (`209990005`).
 
-### 4. Vista de Administrador y mejoras de UI/UX recientes (`2d45084` a `0f861b2` y cambios del 17 y 18 de noviembre en trabajo)
+### 4. Mejoras de UI/UX completadas y subidas a `develop` (`2d45084` a `2adaa6b`)
 
-1. **Vista global de estudiantes y proveedor IA para el Administrador (`2d45084`):**
-   - El `superadmin` ve todos los estudiantes de todos los docentes en `/estudiantes`, puede
-     filtrarlos por docente, abrir cualquier ficha en `/estudiantes/[id]` y asignarles o gestionar
-     prácticas desde `/configuracion`.
-   - Nota técnica clave: `public.estudiante` tiene dos claves foráneas hacia `public.usuario`
-     (`docente_id` y `usuario_id`), por lo que en PostgREST siempre se debe desambiguar con
+1. **Base de datos, vista global del Administrador y componentes compartidos (`2d45084`, `ea90126`,
+   `fdc457a`, `67257a8`, `2117371`):**
+   - `superadmin` accede a todos los estudiantes de la plataforma en `/estudiantes`, sus fichas en
+     `/estudiantes/[id]` y asignación desde `/configuracion`. Nota técnica PostgREST: desambiguar
+     siempre `public.estudiante` hacia `public.usuario` con
      `usuario!estudiante_docente_id_fkey ( nombre )`.
-   - `/admin/ia` muestra siempre la tarjeta de estado de configuración del proveedor
-     (`Orquestador de NPC`, respaldo `Gemini`, capacidad y cuentas configuradas) aunque haya 0
-     prácticas registradas en el periodo seleccionado.
-2. **Componentes base, skeletons y ayuda contextual (`ea90126`):**
-   - `AyudaContextual` (`src/components/comun/ayuda-contextual.tsx`): ícono de ayuda accesible por
-     ratón, teclado y toque táctil.
-   - `Indicadores` (`src/components/comun/indicadores.tsx`): soporta `detalle`, `ayuda` (tooltip),
-     `sinMarco` y ajuste completo en 3 celdas móvil (`col-span-2 sm:col-span-1`).
-   - `CargandoPanel` (`src/app/(protected)/(panel)/loading.tsx`): corregido con el contenedor
-     `mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10` y silueta realista de
-     encabezado, indicadores y listas.
-   - `Button`, `Input`, `Textarea`, `Tooltip` y `SelectorLista` refinados siguiendo `DESIGN.md`
-     («Nogal y salvia»).
-3. **Asignar práctica y «Crear caso a partir de» (`bff0b5d` y `0f861b2`):**
-   - **Paso 1 de `/configuracion` (`ConfiguradorSesion`):** dividido en pestañas segmentadas
-     (**Casos predefinidos** y **Mis casos**) para mostrar una sección a la vez, con insignia del
-     caso elegido.
-   - **Paso 2 de `/configuracion` (`ResumenPacientePaso` y `AjustesPaciente`):** bloque derecho
-     rediseñado con resumen de exigencia, atajos de 1 clic (**Hacerlo más accesible hoy**,
-     **Hacerlo más retador hoy**), botón **Ajustar para esta práctica**, opción de plegar y acceso
-     a **Crear caso a partir de este**.
-   - **«Crear caso a partir de» y variantes de dificultad (`valoresDesdePlantilla`,
-     `adaptarDificultadCaso`, `SelectorPlantillaCaso`):** permite crear un caso propio en el
-     constructor guiado (`/configuracion/casos/nuevo?desde=<id>`) partiendo de cualquier caso
-     oficial (`E-01`..`E-12`) o propio, y adaptar su dificultad (**Básico**, **Intermedio**,
-     **Avanzado**) con un clic.
-4. **Refinamiento UI/UX de portada (`/`, `/manual`) e inicio de Administrador (`/inicio`) — 17 de noviembre de 2026 (pendiente de commit en `develop`):**
-   - **Portada pública y `/manual` (`src/app/page.tsx`, `src/app/manual/page.tsx`, `src/components/landing/`):**
-     navegación con subrayado en latón; `HeroConsultorio` con imágenes `unoptimized` y rotación
-     aleatoria automática cada `6500 ms` sin controles manuales (pausa al enfocar o con
-     `reducir movimiento`); línea temporal de 5 pasos en `CicloPractica`; tarjetas en arco sin
-     esquinas blancas en `EscenariosGaleria` y `RevisionIlustrativa` con acceso al manual.
-   - **Inicio de Administrador (`PanelPlataforma`, `src/components/inicio/panel-plataforma.tsx`):**
-     dos franjas claras de 3 KPIs: **Toda la plataforma** (`Docentes activos`, `Estudiantes` y
-     **`Practicando ahora`** en la 3.ª posición superior) y **Tus estudiantes** (cifras exclusivas del
-     Administrador como docente: `Tus estudiantes`, `Por revisar` con `Nota media` propia y
-     `Tus prácticas`). Marca `Tú` en **Actividad por docente** y refresco automático también ante
-     prácticas activas en toda la plataforma.
-   - **Resumen del Orquestador (`ResumenOrquestador`, `src/components/inicio/resumen-orquestador.tsx`):**
-     bloque en la columna derecha de `/inicio` bajo `Tu bandeja`, alimentado con `obtenerMetricasIa(7)`:
-     reparto Orquestador vs Respaldo Gemini, pasos a Gemini, latencia media/`p95`, fallos/esperas,
-     cupo simultáneo y motivo principal.
-   - **Bandeja paginada (`BandejaDocente`, `ListaPaginada`, `formatearVencimientoCodigo`):**
-     filas de **Practicando ahora** y **Por revisar** reorganizadas en 2 niveles; **Códigos sin usar**
-     con código institucional bajo el nombre del estudiante a la izquierda y vencimiento natural a
-     la derecha (`Vence hoy`, `Vence mañana`, `Vence en X días` en `America/Bogota`); paginación
-     local por bloque (`3`–`4` en riel lateral, `5`–`6` en columnas) para equilibrar columnas ante 20+
-     elementos.
-   - **Ícono «en vivo» `((o))` (`IndicadorEnVivo`, `src/components/comun/indicador-en-vivo.tsx`):**
-     ondas concéntricas animadas solo bajo `prefers-reduced-motion: no-preference`, unificado en
-     `InsigniaEstado`, `Indicadores`, `BarraEstudiante`, `/inicio`, `/estudiantes`, `/practicas` y
-     `/sesiones/[id]`.
-5. **Refinamiento UI/UX de `/configuracion` y modal de código generado (18 de noviembre de 2026, pendiente de commit en `develop`):**
-   - **Leyes de UX (`lawsofux.com`):** incorporadas arriba en `GEMINI.md` como criterio operativo
-     junto con `intent`, `impeccable` y `antislop`.
-   - **Modal enfocado para «Ver o editar el texto completo (avanzado)» (`AjustesPaciente`,
-     `ConfiguradorSesion`):** reemplaza el `<details>` en línea por un diálogo `sm:max-w-3xl` con la
-     misma anatomía que «Ver las 15 reglas exactas», estado del texto, contador de palabras y
-     caracteres, **Copiar texto**, **Volver al original**, aviso de edición manual y propagación de
-     errores de validación dentro y fuera del diálogo.
-   - **Buscador de estudiantes (`BuscadorEstudiante`):** el ícono derecho (`<>`, `ChevronsUpDown`)
-     ahora es un `<button type="button">` real que abre y cierra la lista sin perder el foco del
-     campo, junto con el botón de limpiar búsqueda accesible.
-   - **Modal «Código listo para {estudiante}» (`CodigoGenerado`, `BotonCopiar`, `BotonCompartir`):**
-     tarjeta de nogal más protagonista (`rounded-2xl`, filo sutil en latón, código en `2.35rem`) con
-     botón solo ícono `44 × 44 px` y tooltip (`Copiar código` / `Copiado`) junto al código; campo
-     compuesto de **Enlace directo** con botón solo ícono + tooltip a la derecha (`Copiar enlace`);
-     bloque dedicado **Enviar instrucciones** con `Compartir` en variante primaria de nogal (una
-     sola acción de latón: `Listo`) y cuerpo desplazable en pantallas cortas.
-   - **Pulido general de `/configuracion` (`ConfiguradorSesion`, `ResumenPacientePaso`,
-     `GuardarComoCaso`):** recuperación entre pestañas cuando una búsqueda coincide solo en la otra
-     sección, botón `X` en el chip del caso elegido, Paso 3 con duración y vigencia en 2 columnas y
-     píldoras de `44 px` en móvil, corrección de desborde móvil en `GuardarComoCaso` y retiro del
-     ícono genérico `Sparkles`.
+   - **Avatares de cuenta (`fdc457a`):** 15 emblemas geométricos en `AVATARES` + iniciales (con
+     restricción `CHECK` en `public.usuario.avatar_id`). El 19 de noviembre se probó un prototipo
+     de selector hexagonal ojo de pez estilo Claude y se revirtió para retomarlo otro día con más
+     tiempo; `dialogo-avatar-cuenta.tsx` permanece en su versión estable.
+   - **Sistema visual unificado (`67257a8`, `2117371`):** `SelectorLista` personalizado aplicado en
+     toda la app, `IndicadorEnVivo` `((o))` respetando `prefers-reduced-motion`, `EstadoVacio`
+     informativo y accionable en todos los bloques vacíos, `AyudaContextual` accesible, barras de
+     desplazamiento personalizadas «Nogal y salvia» en `src/app/globals.css` y esqueletos de carga
+     actualizados.
+2. **Portada pública (`/`, `/manual`) e inicio de Administrador (`/inicio`) (`b920310`, `b300b3e`):**
+   - Portada con `HeroConsultorio` rotativo (`6500 ms`), línea temporal de 5 pasos en
+     `CicloPractica`, tarjetas en arco en `EscenariosGaleria` y acceso a `/manual`.
+   - `PanelPlataforma` con dos franjas de 3 KPIs (**Toda la plataforma** con `Practicando ahora` en
+     3.ª posición y **Tus estudiantes** exclusivos del Administrador), `ResumenOrquestador` en la
+     columna derecha (`obtenerMetricasIa(7)`) y `BandejaDocente` paginada con vencimientos
+     naturales en `America/Bogota`.
+3. **Asignar práctica (`/configuracion`) y modal de código generado (`bff0b5d`, `526821c`,
+   `942189c`):**
+   - Paso 1 dividido en pestañas (**Casos predefinidos** / **Mis casos**) con recuperación entre
+     pestañas; Paso 2 con resumen de exigencia, atajos de 1 clic, modal enfocado `sm:max-w-3xl`
+     para el prompt completo avanzado y acceso a **Crear caso a partir de este**; Paso 3 con
+     duración y vigencia en 2 columnas.
+   - `BuscadorEstudiante` con botón real de desplegable y limpiar; modal **Código listo** con
+     tarjeta de nogal protagonista, botón de copia junto al código y junto al enlace, y una sola
+     acción de latón (`Listo`).
+4. **Revisiones (`/sesiones`, `/sesiones/[id]`), Estudiantes (`/estudiantes`, `/estudiantes/[id]`) y
+   Administración (`/admin`, `/admin/docentes/[id]`, `/admin/ia`) (`33ddcf6`, `8248a93`, `bc4d533`,
+   `cd833f8`, `ab12f21`):**
+   - Patrón cebra (_zebra striping_), fechas relativas y columnas fijas `@container`
+     (`REJILLA_REVISIONES`, `REJILLA_COMPACTA`, `REJILLA_SESIONES`) para alinear armónicamente
+     todos los estados (`Publicada`, `Por revisar`, `Borrador guardado`, `Sin conversación`,
+     `Interrumpida`) en `/sesiones` y `/estudiantes/[id]`.
+   - Ficha `/estudiantes/[id]` pulida: corrección de contraste en botones del hero nogal
+     (`.hero-acciones-nogal` con `[data-variant='outline'][data-size]`), botones de copia en
+     código/correo/códigos de acceso y acceso directo a prácticas activas o por revisar.
+   - Vistas de docentes (`/admin`, `/admin/docentes/[id]`) renovadas con el mismo rigor y avatares.
+   - Panel `/admin/ia` rediseñado: selector de periodo `PistaSegmentada`, `RefrescoAutomatico`,
+     tarjeta de configuración del proveedor en 4 columnas, barra de reparto Orquestador vs Gemini,
+     tablas numéricas alineadas a la derecha con `AyudaContextual` en columnas técnicas, barras de
+     carga y accesos rápidos para el tope de prácticas simultáneas.
+5. **Constructor de casos (`/configuracion/casos/nuevo` y edición) y sistema de recorridos guiados
+   (`a99c140`, `be2d83d`, `942189c`, `bc4d533`, `cd833f8`, `ab12f21`):**
+   - Constructor reorganizado por secciones con progreso en vivo, `AyudaContextual` en campos clave,
+     retrato 3D en `FichaPaciente`, prueba de 1 clic en `ProbarPaciente` y botón único de latón
+     `Guardar caso`.
+   - **`RecorridoGuiado` (_Spotlight Guided Tour_):** implementado en `src/components/ayuda/` sobre
+     una única capa GPU `translate3d` con `box-shadow` (sin desincronización del aura ni rebote de
+     scroll) y botón «Ver guía» para repetirlo cuando se quiera. Activo en **Asignar práctica**
+     (`/configuracion`), **Revisar práctica** (`/sesiones/[id]`) y **Crear/Editar caso**.
+   - **`PistaFaro` (_Coach Marks_ descartables):** persistidos bajo `psysim:ayuda:` (limpiados al
+     cerrar sesión en `src/lib/datos-locales.ts`), activos en `/sesiones`, `/estudiantes/[id]`,
+     `/configuracion/casos` y `/admin/ia`.
 
 ### 5. Qué sigue
 
-1. **Prioridad activa (refinamiento de UI/UX pieza por pieza):** continuar con la siguiente vista o
-   bloque que indique el usuario (aplicando `impeccable`, `intent`, `antislop` y las Leyes de UX).
-   Ya quedaron revisados portada (`/`), `/inicio` de Administrador y `/configuracion` (pendientes
-   de commit).
-2. **Al terminar esta fase de UI/UX (dejado para el cierre por indicación del usuario):**
-   - Revisar y commitear en `develop` los cambios de UI/UX tras validar `pnpm check`.
+1. **Siguiente ronda de UI/UX (vistas aún pendientes de auditoría profunda):**
+   - **Experiencia del estudiante:** `/practicas`, `/practicas/[id]`, ingreso presencial con código
+     (`/entrega`) y HUD/controles de la simulación 3D (`/simulacion`).
+   - **Acceso y vistas informativas:** `/login` y `/privacidad`, además de revisar los hallazgos de
+     la auditoría de Codex (`docs/auditoria-codex.md` / `2adaa6b`) cuando corresponda.
+   - **Opcional para después:** retomar con calma un rediseño a medida del selector de avatar si el
+     usuario decide cambiar `dialogo-avatar-cuenta.tsx`.
+2. **Al terminar la fase de UI/UX (dejado para el cierre por indicación del usuario):**
+   - Validar `pnpm check` y commitear en `develop` las mejoras finales.
    - Actualizar la documentación (`docs/orquestador.md`, `docs/estado-del-proyecto.md` y el aviso de
      privacidad en `/privacidad`).
    - Configurar las variables de entorno del orquestador en **Vercel** (`IA_PROVEEDOR`,

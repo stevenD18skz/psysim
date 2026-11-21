@@ -383,6 +383,36 @@ miniatura del control (`ControlCitado`: filete, fondo tarjeta, peso 500), no ent
 basta con redactar mejor («entran con su cuenta de Google»), se redacta. Las comillas angulares
 quedan para citas reales: la frase del paciente o un fragmento comentado de la conversación.
 
+### Recorridos guiados y pistas contextuales
+
+Ayuda para el docente sobre la interfaz real, nunca en una pantalla aparte (`src/components/ayuda/`).
+
+- **Recorrido guiado** (`RecorridoGuiado`): una sola capa dibuja a la vez el velo en nogal
+  (`box-shadow: 0 0 0 100vmax`) y el aura de latón alrededor del control que se explica, así que
+  nunca se desincronizan al desplazar o cambiar de paso. Globo en nogal con puntos de progreso,
+  flechas y `Esc`, trampa de foco y foco devuelto al cerrar. Hay tres: crear un caso, asignar una
+  práctica y revisar una conversación. Se ofrece una vez con una invitación y se repite desde su
+  botón.
+- **Pista contextual** (`PistaFaro`): píldora pequeña con un faro de latón junto a una función poco
+  evidente (la vista matriz de Revisiones, el modo presencial). Abre un globo en nogal con la
+  explicación concreta y se descarta para siempre con «Entendido».
+- Lo que recuerdan en el navegador lleva el prefijo `psysim:ayuda:` y se borra al entregar el
+  equipo en modo presencial.
+
+### Avatar de cuenta
+
+Cada cuenta (docente, estudiante o Administrador) puede elegir uno de 15 avatares ilustrados (brote,
+sol, marea, luna, flor, brújula, montaña, horizonte, órbita, concha, hoja, destello, prisma, brisa,
+pluma) desde el menú de cuenta. Si no elige ninguno, se muestran sus iniciales sobre salvia suave.
+Los avatares son de la persona, no del paciente: nunca usan terracota.
+
+### Barras de desplazamiento
+
+Delgadas (10 px), redondeadas y sin carril visible. El pulgar es nogal al 24 % sobre lino (44 % al
+pasar y 62 % al arrastrar) y lino al 26 % sobre la madera (menú lateral, cabeceras de nogal). En
+Chromium y Safari se dibujan con `::-webkit-scrollbar`; en Firefox, con `scrollbar-color`. Los
+elementos con la clase `no-scrollbar` quedan fuera de este estilo.
+
 ## Do's and Don'ts
 
 ### Do:
