@@ -8,6 +8,7 @@
  */
 const PREFIJOS_DE_LA_CUENTA = [
   'psysim:notas:',
+  'psysim:intervencion-pendiente:',
   'psysim:borrador-retro:',
   'psysim:borrador-caso:',
   'psysim:privacidad-aceptada',

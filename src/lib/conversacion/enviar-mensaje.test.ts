@@ -4,6 +4,7 @@ import { crearAppStore } from '@/store/app-store';
 import { type SesionActiva } from '@/types';
 
 import { enviarMensaje, MENSAJE_NO_DISPONIBLE, RUTA_CHAT } from './enviar-mensaje';
+import { leerIntervencionPendiente } from './pendiente-local';
 
 const sesion: SesionActiva = {
   id: '5b1c2f0e-8f7a-4a51-9c5e-1b2f3d4e5f60',
@@ -57,6 +58,60 @@ describe('enviarMensaje (HU-13 · T03)', () => {
 
   beforeEach(() => {
     reloj = 1000;
+    sessionStorage.clear();
+  });
+
+  it('tras recargar conserva el id del pendiente y reconcilia el historial sin duplicar A', async () => {
+    const cuenta = 'cuenta-pruebas';
+    const anterior = crearAppStore();
+    anterior.getState().sesion.iniciar(sesion, [], cuenta);
+    anterior.getState().npc.actualizarEstadoNPC('esperando_input');
+    await enviarMensaje(anterior, 'Mensaje A', {
+      fetch: vi.fn().mockRejectedValue(new Error('Respuesta perdida')),
+    });
+    const pendiente = leerIntervencionPendiente(cuenta, sesion.id);
+    expect(pendiente?.contenido).toBe('Mensaje A');
+    expect(leerIntervencionPendiente('otra-cuenta', sesion.id)).toBeNull();
+
+    const nuevo = crearAppStore();
+    nuevo.getState().sesion.iniciar(sesion, [], cuenta);
+    expect(nuevo.getState().conversacion.pendiente?.id).toBe(pendiente?.id);
+    nuevo.getState().npc.actualizarEstadoNPC('esperando_input');
+    nuevo.getState().npc.actualizarEstadoNPC('procesando');
+    nuevo.getState().npc.actualizarEstadoNPC('error_comunicacion');
+    const timestamp = new Date().toISOString();
+    const mensajes = [
+      {
+        id: crypto.randomUUID(),
+        remitente: 'estudiante' as const,
+        contenido: 'Mensaje A',
+        timestamp,
+      },
+      { id: crypto.randomUUID(), remitente: 'npc' as const, contenido: 'Respuesta A', timestamp },
+      {
+        id: crypto.randomUUID(),
+        remitente: 'estudiante' as const,
+        contenido: 'Mensaje B',
+        timestamp,
+      },
+      { id: crypto.randomUUID(), remitente: 'npc' as const, contenido: 'Respuesta B', timestamp },
+    ];
+    await enviarMensaje(
+      nuevo,
+      { reintentar: true },
+      {
+        fetch: async (_url, init) => {
+          expect(JSON.parse(String(init?.body))).toMatchObject({
+            turno_id: pendiente?.id,
+            reintento: true,
+          });
+          return jsonResponse({ ...respuestaOk, historial_recuperado: mensajes });
+        },
+      }
+    );
+    expect(nuevo.getState().conversacion.mensajes).toEqual(mensajes);
+    expect(nuevo.getState().metricas.totalMensajes).toBe(2);
+    expect(leerIntervencionPendiente(cuenta, sesion.id)).toBeNull();
   });
 
   it('envía el mensaje, agrega la respuesta con su latencia y pasa a respondiendo', async () => {
@@ -527,4 +582,24 @@ describe('enviarMensaje con la respuesta por partes', () => {
     expect(resultado).toEqual({ ok: true });
     expect(store.getState().conversacion.mensajes.at(-1)?.contenido).toBe(INICIO + RESTO);
   });
+
+  it.each([false, true])(
+    'un cierre definitivo retira el pendiente y el reintento (SSE: %s)',
+    async sse => {
+      const datos = { error: 'La práctica ya terminó.', fin: 'cerrada' };
+      const store = storeListo();
+      await enviarMensaje(store, 'Este mensaje no quedó guardado', {
+        fetch: async () =>
+          sse
+            ? flujoDeEventos([evento('error', { ...datos, status: 409 })])
+            : jsonResponse(datos, 409),
+      });
+      expect(store.getState().conversacion).toMatchObject({
+        cierre: 'cerrada',
+        pendiente: null,
+        mensajes: [],
+        error: null,
+      });
+    }
+  );
 });

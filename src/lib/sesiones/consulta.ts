@@ -37,28 +37,43 @@ export async function leerTiempoDeConsulta(
 }
 
 /**
- * Se cumplieron el tiempo de la consulta y su margen, y el estudiante intentó seguir: la práctica
- * termina aquí, en el servidor, con el motivo neutro. Antes dependía de que el navegador avisara;
- * si la pestaña se cerraba, quedaba `interrumpida` y sin el motivo.
- *
- * Llamar solo con una práctica que ya pasó por RLS y cuyo tiempo midió la base de datos. Escribe
- * con la clave secreta porque el estudiante no puede escribir `fin_motivo`. No lanza: si falla, la
- * práctica sigue en curso y el navegador la termina por el camino de siempre.
+ * La base decide si venció alguno de los plazos y devuelve el cierre o cuánto falta
+ * para el límite de inactividad. `null` indica que no se pudo comprobar.
  */
-export async function terminarPorTiempo(sesionId: string): Promise<boolean> {
+export async function resolverVencimiento(
+  supabase: Cliente,
+  sesionId: string
+): Promise<
+  | { restantesS: number }
+  | {
+      fin: 'tiempo' | 'cerrada';
+      inicio: string;
+      terminoEn: string;
+      estado: 'finalizada' | 'interrumpida';
+    }
+  | null
+> {
   try {
-    const { data, error } = await createAdminClient()
+    const { data: restantesS, error } = await supabase.rpc('verificar_vencimiento_sesion', {
+      p_sesion_id: sesionId,
+    });
+    if (error) throw error;
+    if (restantesS !== null) return { restantesS };
+    const { data: sesion, error: errorSesion } = await supabase
       .from('sesion')
-      .update({ estado: 'finalizada', fin_motivo: 'tiempo' })
+      .select('estado, fin_motivo, inicio, fin')
       .eq('id', sesionId)
-      .eq('estado', 'en_curso')
-      .select('id');
-    if (error) throw new Error('No pudimos terminar la práctica.', { cause: error });
-    if (data.length > 0) log.info('practica.termino_por_tiempo', { sesion_id: sesionId });
-    return data.length > 0;
+      .maybeSingle();
+    if (errorSesion || !sesion?.fin || sesion.estado === 'en_curso') return null;
+    return {
+      fin: sesion.fin_motivo === 'tiempo' ? 'tiempo' : 'cerrada',
+      inicio: sesion.inicio,
+      terminoEn: sesion.fin,
+      estado: sesion.estado,
+    };
   } catch {
-    log.warn('practica.no_terminada_por_tiempo', { sesion_id: sesionId });
-    return false;
+    log.warn('practica.vencimiento_no_verificado', { sesion_id: sesionId });
+    return null;
   }
 }
 

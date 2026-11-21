@@ -83,9 +83,15 @@ export function iniciarConversacion(
   /** `directo`: sin recorrer el consultorio (alternativa para teclado o lector de pantalla). */
   { directo = false }: { directo?: boolean } = {}
 ): boolean {
-  const { npc, sesion } = store.getState();
+  const { npc, sesion, conversacion } = store.getState();
   if (!sesion.activa?.comenzada) return false;
   if (npc.estado !== 'inactivo') return false;
   if (!directo && !interaccionStore.getState().cerca) return false;
-  return npc.actualizarEstadoNPC('esperando_input');
+  if (!npc.actualizarEstadoNPC('esperando_input')) return false;
+  if (conversacion.pendiente) {
+    conversacion.establecerError('Quedó un mensaje por confirmar. Puedes reintentarlo.');
+    npc.actualizarEstadoNPC('procesando');
+    npc.actualizarEstadoNPC('error_comunicacion');
+  }
+  return true;
 }

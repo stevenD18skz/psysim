@@ -199,50 +199,24 @@ describe('registrarActividad (cierre por inactividad)', () => {
 });
 
 describe('cerrarSesionPorInactividad', () => {
-  const horas = {
-    inicio: '2026-10-06T15:00:00.000Z',
-    fin: '2026-10-06T15:12:00.000Z',
-    estado: 'interrumpida',
-  };
-
-  it('da por interrumpida una sesión en curso y devuelve sus horas', async () => {
-    db.responder('sesion', { data: horas });
-
+  it('otro dispositivo sigue activo y se devuelve el tiempo restante', async () => {
+    db.responder('rpc:verificar_vencimiento_sesion', { data: 550 });
     expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toEqual({
       ok: true,
-      datos: horas,
+      datos: { restantesS: 550 },
     });
-    const [actualizacion] = db.de('sesion');
-    expect(actualizacion).toMatchObject({
-      operacion: 'update',
-      valores: { estado: 'interrumpida' },
-    });
-    expect(actualizacion!.filtros).toEqual(
-      expect.arrayContaining([
-        ['eq', 'id', SESION_ID],
-        ['eq', 'estado', 'en_curso'],
-      ])
-    );
+    expect(db.de('sesion')).toHaveLength(0);
   });
-
-  it('si el barrido ya la había cerrado, devuelve la sesión terminada', async () => {
-    db.responder('sesion', { data: null }, { data: horas });
-
+  it('devuelve las horas del cierre que decidió la base', async () => {
+    db.responder('rpc:verificar_vencimiento_sesion', { data: null });
+    db.responder('sesion', { data: { estado: 'interrumpida', inicio: 'inicio', fin: 'fin' } });
     expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toEqual({
       ok: true,
-      datos: horas,
+      datos: { estado: 'interrumpida', inicio: 'inicio', terminoEn: 'fin', fin: 'cerrada' },
     });
-    expect(db.de('sesion')[1]).toMatchObject({ operacion: 'select' });
   });
-
-  it.each([
-    ['la sesión no existe', [{ data: null }, { data: null }]],
-    ['falla la base de datos', [{ error: { code: '500' } }]],
-  ])('falla si %s', async (_, respuestas) => {
-    db.responder('sesion', ...respuestas);
-    expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toEqual({
-      ok: false,
-      error: 'No pudimos terminar la práctica. Inténtalo de nuevo.',
-    });
+  it('no anuncia un cierre que no pudo confirmar', async () => {
+    db.responder('rpc:verificar_vencimiento_sesion', { error: { code: 'XX000' } });
+    expect(await cerrarSesionPorInactividad({ sesionId: SESION_ID })).toMatchObject({ ok: false });
   });
 });

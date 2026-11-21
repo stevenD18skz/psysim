@@ -66,6 +66,7 @@ import {
 import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
+import { descartarIntervencionConfirmada } from '@/lib/conversacion/pendiente-local';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
 import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
@@ -83,6 +84,7 @@ interface SimulacionClienteProps {
   sesion: SesionActiva;
   /** Conversación ya guardada de la sesión (al recargar la página se retoma). */
   historial: MensajeConversacion[];
+  turnosGuardados: string[];
 }
 
 /**
@@ -90,7 +92,12 @@ interface SimulacionClienteProps {
  * store de Zustand y monta la escena a partir del escenario guardado en el store. Ocupa toda la
  * pantalla, sin la navegación del panel, para que la práctica sea inmersiva.
  */
-export function SimulacionCliente({ cuentaId, sesion, historial }: SimulacionClienteProps) {
+export function SimulacionCliente({
+  cuentaId,
+  sesion,
+  historial,
+  turnosGuardados,
+}: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
   const esComputador = useEsComputador();
@@ -99,8 +106,9 @@ export function SimulacionCliente({ cuentaId, sesion, historial }: SimulacionCli
   // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del estudiante), con la
   // hora de inicio de la base de datos y la conversación guardada.
   useEffect(() => {
-    iniciarSesion(sesion, historial);
-  }, [sesion, historial, iniciarSesion]);
+    descartarIntervencionConfirmada(cuentaId, sesion.id, turnosGuardados);
+    iniciarSesion(sesion, historial, cuentaId);
+  }, [sesion, historial, cuentaId, turnosGuardados, iniciarSesion]);
 
   // En un celular o tableta no se monta la escena (ni corre el latido): se explica dónde abrirla.
   if (esComputador === false) return <AvisoSimulacionMovil sesion={sesion} />;
@@ -185,7 +193,12 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
   // Cuando la última respuesta del paciente terminó de mostrarse, la práctica se cierra sola (con
   // sus métricas); el estudiante lee el aviso del panel y sigue a los resultados.
   useEffect(() => {
-    if (cierre && lista && (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')) {
+    if (
+      cierre &&
+      cierre !== 'cerrada' &&
+      lista &&
+      (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')
+    ) {
       terminarPorCierre();
     }
   }, [cierre, lista, estadoNpc, terminarPorCierre]);

@@ -97,7 +97,7 @@ export function consultaAlResponder(
  * aquí como `sin_guardar`, para que el siguiente concilie con el proveedor.
  */
 export async function* responderIntercambio(
-  turno: TurnoPaciente
+  turno: TurnoPaciente & { marcaDeTurno: string }
 ): AsyncGenerator<EventoChat, void, void> {
   const resultado = { guardado: false };
   try {
@@ -110,7 +110,7 @@ export async function* responderIntercambio(
 }
 
 async function* responderTurno(
-  turno: TurnoPaciente,
+  turno: TurnoPaciente & { marcaDeTurno: string },
   final: { guardado: boolean }
 ): AsyncGenerator<EventoChat, void, void> {
   const { peticion, sesionId } = turno;
@@ -144,8 +144,9 @@ async function* responderTurno(
   const timestampRespuesta = new Date().toISOString();
 
   const { data: guardado, error: errorGuardado } = await createAdminClient()
-    .rpc('guardar_intercambio_ia', {
+    .rpc('guardar_turno_chat', {
       p_sesion_id: sesionId,
+      p_marca: turno.marcaDeTurno,
       p_mensaje: turno.mensaje,
       p_respuesta: completa.texto,
       p_emocion: completa.emocion,
@@ -160,14 +161,15 @@ async function* responderTurno(
       p_cierre: resultado.cierre,
     })
     .maybeSingle();
-  if (errorGuardado) {
+  if (errorGuardado || !guardado) {
     log.error('npc_chat.mensajes_no_guardados', {
       peticion,
-      codigo: errorGuardado.code,
+      codigo: errorGuardado?.code,
       sesion_id: sesionId,
     });
-    if (errorGuardado.code === '55000') yield fallo(409, MENSAJE_PRACTICA_TERMINADA);
-    else if (errorGuardado.code === '54000') yield fallo(429, mensajeTope());
+    if (errorGuardado?.code === '55000') {
+      yield { ...fallo(409, MENSAJE_PRACTICA_TERMINADA), fin: 'cerrada' };
+    } else if (errorGuardado?.code === '54000') yield fallo(429, mensajeTope());
     // Sin guardar, el docente no vería el intercambio en la transcripción y el paciente lo
     // olvidaría en el siguiente turno: mejor que el estudiante lo reintente.
     else yield fallo(503, 'No pudimos guardar tu mensaje. Inténtalo de nuevo.');
@@ -202,8 +204,8 @@ async function* responderTurno(
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: resultado.tokensEntrada,
     tokens_salida: resultado.tokensSalida,
-    id_mensaje_estudiante: guardado?.id_estudiante ?? null,
-    id_mensaje_npc: guardado?.id_npc ?? null,
+    id_mensaje_estudiante: guardado.id_estudiante,
+    id_mensaje_npc: guardado.id_npc,
     cierre: resultado.cierre,
     consulta: consultaAlResponder(turno.consulta),
   };

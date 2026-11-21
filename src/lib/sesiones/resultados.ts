@@ -29,21 +29,21 @@ export function metricasDeSesion(
   sesion: Pick<DetalleSesion, 'comenzada' | 'inicio' | 'fin' | 'mensajes'>,
   fila: FilaMetrica | null
 ): MetricasSesion {
+  const latencias = sesion.mensajes.flatMap(m =>
+    m.remitente === 'npc' && m.latencia_ms !== undefined ? [m.latencia_ms] : []
+  );
+  const { latencia_promedio_ms, latencia_maxima_ms } = calcularMetricasAgregadas(latencias);
   if (fila) {
     return {
       totalMensajes: fila.total_mensajes,
-      latenciaPromedioMs: fila.latencia_promedio_ms,
-      latenciaMaximaMs: fila.latencia_maxima_ms,
+      latenciaPromedioMs: fila.latencia_promedio_ms ?? latencia_promedio_ms,
+      latenciaMaximaMs: fila.latencia_maxima_ms ?? latencia_maxima_ms,
       duracionSegundos: fila.duracion_segundos,
       proximidadPromedioM: proximidadDe(fila.indicadores),
       origen: 'guardadas',
     };
   }
 
-  const latencias = sesion.mensajes.flatMap(m =>
-    m.remitente === 'npc' && m.latencia_ms !== undefined ? [m.latencia_ms] : []
-  );
-  const { latencia_promedio_ms, latencia_maxima_ms } = calcularMetricasAgregadas(latencias);
   return {
     totalMensajes: sesion.mensajes.filter(m => m.remitente === 'estudiante').length,
     latenciaPromedioMs: latencia_promedio_ms,

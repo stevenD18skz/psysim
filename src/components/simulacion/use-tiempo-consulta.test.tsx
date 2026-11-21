@@ -96,7 +96,11 @@ describe('useFinPorTiempo', () => {
   it('pasado el margen, termina la práctica por tiempo cuando el servidor lo confirma', async () => {
     vi.mocked(consultarTiempo).mockResolvedValue({
       ok: true,
-      datos: { duracionS: QUINCE_MIN, transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S + 1 },
+      datos: {
+        duracionS: QUINCE_MIN,
+        transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S + 1,
+        fin: 'tiempo',
+      },
     });
     const { result } = montar();
     fijar(result.current, QUINCE_MIN + GRACIA_CONSULTA_S - 2);
@@ -128,7 +132,11 @@ describe('useFinPorTiempo', () => {
       .mockRejectedValueOnce(new Error('sin conexión'))
       .mockResolvedValue({
         ok: true,
-        datos: { duracionS: QUINCE_MIN, transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S + 20 },
+        datos: {
+          duracionS: QUINCE_MIN,
+          transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S + 20,
+          fin: 'tiempo',
+        },
       });
     const { result } = montar();
     fijar(result.current, QUINCE_MIN + GRACIA_CONSULTA_S);

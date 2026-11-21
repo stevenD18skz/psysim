@@ -5,17 +5,11 @@ import { MAX_INTERVENCIONES_POR_SESION } from '@/lib/ia/historial';
 import { ErrorIA } from '@/lib/ia/paciente';
 import { type EventoTurno, type RespuestaProcesada } from '@/lib/ia/procesar';
 import { transmitirTurno } from '@/lib/ia/turno';
-import {
-  leerSesionIa,
-  leerTurno,
-  type SesionIa,
-  soltarTurno,
-  tomarTurno,
-} from '@/lib/orquestador/datos';
+import { leerSesionIa, type SesionIa, soltarTurno, tomarTurno } from '@/lib/orquestador/datos';
 import { barrerDespues, cerrarDespues } from '@/lib/orquestador/diferido';
 import { anotarCierreDelOrquestador } from '@/lib/orquestador/practica';
 import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
-import { leerTiempoDeConsulta, terminarPorTiempo } from '@/lib/sesiones/consulta';
+import { leerTiempoDeConsulta, resolverVencimiento } from '@/lib/sesiones/consulta';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
 import { GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { crearLectorSse } from '@/lib/sse';
@@ -34,7 +28,7 @@ vi.mock('@/lib/sesiones/datos-privados', () => ({
 // El tiempo de consulta lo calcula la base de datos (`tiempo_de_consulta`): aquí se fija.
 vi.mock('@/lib/sesiones/consulta', () => ({
   leerTiempoDeConsulta: vi.fn(),
-  terminarPorTiempo: vi.fn(),
+  resolverVencimiento: vi.fn(),
 }));
 vi.mock('@/lib/log', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 // El proveedor del paciente (orquestador o Gemini) se prueba en `lib/ia/turno.test.ts`: aquí se
@@ -43,7 +37,6 @@ vi.mock('@/lib/ia/turno', () => ({ transmitirTurno: vi.fn() }));
 // La marca de turno (`turno_ia`) la decide la base de datos (`tomar_turno_ia`): aquí se fija.
 vi.mock('@/lib/orquestador/datos', () => ({
   leerSesionIa: vi.fn(),
-  leerTurno: vi.fn(),
   tomarTurno: vi.fn(),
   soltarTurno: vi.fn(),
 }));
@@ -239,10 +232,14 @@ describe('POST /api/npc/chat', () => {
     vi.mocked(leerEscenarioDeSesion).mockResolvedValue(escenarioDeLaSesion);
     vi.mocked(leerPromptDeSesion).mockResolvedValue(PROMPT);
     vi.mocked(leerSesionIa).mockResolvedValue(null);
-    vi.mocked(leerTurno).mockResolvedValue(null);
     vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'libre', marca: MARCA });
     vi.mocked(leerTiempoDeConsulta).mockResolvedValue(null);
-    vi.mocked(terminarPorTiempo).mockResolvedValue(true);
+    vi.mocked(resolverVencimiento).mockResolvedValue({
+      fin: 'tiempo',
+      estado: 'finalizada',
+      inicio: 'inicio',
+      terminoEn: 'fin',
+    });
     turno({ tipo: 'completo', respuesta: deGemini });
   });
 
@@ -286,7 +283,8 @@ describe('POST /api/npc/chat', () => {
     );
 
     // Guarda el intercambio completo desde el servidor: el estudiante no escribe en `mensaje`.
-    expect(guardar).toHaveBeenCalledWith('guardar_intercambio_ia', {
+    expect(guardar).toHaveBeenCalledWith('guardar_turno_chat', {
+      p_marca: MARCA,
       p_sesion_id: SESION_ID,
       p_mensaje: cuerpoValido.mensaje_usuario,
       p_respuesta: TEXTO,
@@ -363,13 +361,13 @@ describe('POST /api/npc/chat', () => {
     expect(transmitirTurno).not.toHaveBeenCalled();
   });
 
-  it('responde 500 si no se puede leer el caso o el proveedor de la práctica', async () => {
+  it('informa los fallos de lectura del caso y del proveedor', async () => {
     clienteFalso(sesionEnCurso);
     vi.mocked(leerPromptDeSesion).mockRejectedValueOnce(new Error('caído'));
     expect((await POST(peticion(cuerpoValido))).status).toBe(500);
 
     vi.mocked(leerSesionIa).mockRejectedValueOnce(new Error('caído'));
-    expect((await POST(peticion(cuerpoValido))).status).toBe(500);
+    expect((await POST(peticion(cuerpoValido))).status).toBe(503);
     expect(transmitirTurno).not.toHaveBeenCalled();
   });
 
@@ -620,24 +618,56 @@ describe('POST /api/npc/chat', () => {
     describe('con el identificador de la intervención', () => {
       const conTurno = { ...cuerpoValido, turno_id: TURNO_ID, reintento: true };
 
+      it('recupera A con sus ids y el historial vigente aunque B ya se haya guardado', async () => {
+        vi.mocked(tomarTurno).mockResolvedValue({
+          resultado: 'guardado',
+          ids: { estudiante: ID_MENSAJE_ESTUDIANTE, npc: ID_MENSAJE_NPC },
+          cierre: null,
+        });
+        const otrasFilas = [
+          { ...guardados[0]!, id: '22222222-2222-4222-8222-222222222222', contenido: 'Mensaje B' },
+          {
+            ...guardados[1]!,
+            id: '33333333-3333-4333-8333-333333333333',
+            contenido: 'Respuesta B',
+          },
+        ];
+        const { guardar, rpc } = clienteFalso(sesionEnCurso, {
+          guardados: [...guardados, ...otrasFilas],
+        });
+        const respuesta = await POST(peticion(conTurno));
+        expect(respuesta.status).toBe(200);
+        expect(await respuesta.json()).toMatchObject({
+          id_mensaje_estudiante: ID_MENSAJE_ESTUDIANTE,
+          id_mensaje_npc: ID_MENSAJE_NPC,
+          respuesta_npc: 'Mal, la verdad.',
+          historial_recuperado: [
+            expect.objectContaining({ id: ID_MENSAJE_ESTUDIANTE }),
+            expect.objectContaining({ id: ID_MENSAJE_NPC }),
+            expect.objectContaining({ contenido: 'Mensaje B' }),
+            expect.objectContaining({ contenido: 'Respuesta B' }),
+          ],
+        });
+        expect(transmitirTurno).not.toHaveBeenCalled();
+        expect(guardar).not.toHaveBeenCalled();
+        expect(rpc).not.toHaveBeenCalled();
+      });
+
       it('el mismo identificador ya guardado devuelve lo guardado', async () => {
-        vi.mocked(leerTurno).mockResolvedValue({ turnoId: TURNO_ID, estado: 'guardado' });
+        vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'guardado_anterior' });
         clienteFalso(sesionEnCurso, { guardados });
         const respuesta = await POST(peticion(conTurno));
 
         expect(respuesta.status).toBe(200);
         expect(await respuesta.json()).toMatchObject({ respuesta_npc: 'Mal, la verdad.' });
         expect(transmitirTurno).not.toHaveBeenCalled();
-        expect(tomarTurno).not.toHaveBeenCalled();
+        expect(tomarTurno).toHaveBeenCalledWith(SESION_ID, TURNO_ID);
       });
 
       it('repetir a propósito la misma frase es otra intervención, aunque su envío se reintente', async () => {
         // El estudiante dijo «sí», se guardó, volvió a decir «sí» y ese segundo envío falló: el
         // reintento lleva otro identificador y no debe devolver la respuesta del primero.
-        vi.mocked(leerTurno).mockResolvedValue({
-          turnoId: '11111111-2222-4333-8444-555555555555',
-          estado: 'guardado',
-        });
+
         const { guardar } = clienteFalso(sesionEnCurso, { guardados });
         const respuesta = await POST(peticion(conTurno));
 
@@ -648,16 +678,15 @@ describe('POST /api/npc/chat', () => {
       });
 
       it('el mismo identificador que no llegó a guardarse se vuelve a responder', async () => {
-        vi.mocked(leerTurno).mockResolvedValue({ turnoId: TURNO_ID, estado: 'sin_guardar' });
+        vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'pendiente', marca: MARCA });
         clienteFalso(sesionEnCurso, { guardados });
         await POST(peticion(conTurno));
         expect(transmitirTurno).toHaveBeenCalledOnce();
       });
 
-      it('si la marca la dejó un cliente sin identificador, compara el texto como antes', async () => {
-        vi.mocked(leerTurno).mockResolvedValue({ turnoId: null, estado: 'guardado' });
+      it('un cliente antiguo sin identificador compara el texto como antes', async () => {
         clienteFalso(sesionEnCurso, { guardados });
-        const respuesta = await POST(peticion(conTurno));
+        const respuesta = await POST(peticion({ ...cuerpoValido, reintento: true }));
         expect(await respuesta.json()).toMatchObject({ respuesta_npc: 'Mal, la verdad.' });
         expect(transmitirTurno).not.toHaveBeenCalled();
       });
@@ -666,6 +695,32 @@ describe('POST /api/npc/chat', () => {
 
   // P2-02: la marca de turno de la práctica (`turno_ia`).
   describe('un turno a la vez por práctica', () => {
+    it('lee el intercambio confirmado por otra petición mientras espera la reserva', async () => {
+      const guardados: {
+        remitente: 'estudiante' | 'npc';
+        contenido: string;
+        descartado_en: null;
+      }[] = [];
+      const { leerHistorial } = clienteFalso(sesionEnCurso, { guardados });
+      vi.mocked(tomarTurno).mockImplementationOnce(async () => {
+        expect(leerHistorial).not.toHaveBeenCalled();
+        guardados.push(
+          { remitente: 'estudiante' as const, contenido: 'Intervención A', descartado_en: null },
+          { remitente: 'npc' as const, contenido: 'Respuesta A', descartado_en: null }
+        );
+        return { resultado: 'libre', marca: MARCA };
+      });
+      expect((await POST(peticion(cuerpoValido))).status).toBe(200);
+      expect(transmitirTurno).toHaveBeenCalledWith(
+        expect.objectContaining({
+          historial: [
+            { rol: 'user', contenido: 'Intervención A' },
+            { rol: 'assistant', contenido: 'Respuesta A' },
+          ],
+        })
+      );
+    });
+
     it('toma el turno con el identificador de la intervención y pasa la marca al turno', async () => {
       clienteFalso(sesionEnCurso);
       await POST(peticion({ ...cuerpoValido, turno_id: TURNO_ID }));
@@ -697,10 +752,10 @@ describe('POST /api/npc/chat', () => {
       expect(transmitirTurno).toHaveBeenCalledWith(expect.objectContaining({ reintento: true }));
     });
 
-    it('no toma el turno si la petición se rechaza antes (límite por minuto)', async () => {
+    it('libera la reserva sin enviar si el cupo está agotado', async () => {
       clienteFalso(sesionEnCurso, { esperaLimite: 20 });
       expect((await POST(peticion(cuerpoValido))).status).toBe(429);
-      expect(tomarTurno).not.toHaveBeenCalled();
+      expect(soltarTurno).toHaveBeenCalledWith(SESION_ID, MARCA, 'sin_enviar');
     });
 
     it.each([
@@ -716,11 +771,12 @@ describe('POST /api/npc/chat', () => {
       }
     );
 
-    it('sin marca (la base aún no tiene la tabla) la práctica sigue igual', async () => {
-      vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'libre', marca: null });
+    it('si la reserva falla responde 503 y no llama al proveedor', async () => {
+      vi.mocked(tomarTurno).mockResolvedValue({ resultado: 'no_disponible' });
       turno(new ErrorIA('tiempo_agotado'));
       clienteFalso(sesionEnCurso);
-      expect((await POST(peticion(cuerpoValido))).status).toBe(504);
+      expect((await POST(peticion(cuerpoValido))).status).toBe(503);
+      expect(transmitirTurno).not.toHaveBeenCalled();
       expect(soltarTurno).not.toHaveBeenCalled();
     });
   });
@@ -742,7 +798,7 @@ describe('POST /api/npc/chat', () => {
         expect.objectContaining({ sesionIa: sesionDelOrquestador })
       );
       expect(guardar).toHaveBeenCalledWith(
-        'guardar_intercambio_ia',
+        'guardar_turno_chat',
         expect.objectContaining({
           p_proveedor: 'orquestador',
           p_modelo: 'modelo-del-orquestador',
@@ -791,7 +847,7 @@ describe('POST /api/npc/chat', () => {
 
       expect(await respuesta.json()).toMatchObject({ respuesta_npc: TEXTO, cierre: 'crisis' });
       expect(guardar).toHaveBeenCalledWith(
-        'guardar_intercambio_ia',
+        'guardar_turno_chat',
         expect.objectContaining({ p_cierre: 'crisis', p_severidad: 5 })
       );
       // El orquestador ya cerró su sesión: se anota para no cerrarla otra vez. No pasa a Gemini.
@@ -816,7 +872,7 @@ describe('POST /api/npc/chat', () => {
         // Sin motivo de cierre: no hay aviso en el navegador ni bloqueo de la práctica.
         expect(await respuesta.json()).toMatchObject({ respuesta_npc: TEXTO, cierre: null });
         expect(guardar).toHaveBeenCalledWith(
-          'guardar_intercambio_ia',
+          'guardar_turno_chat',
           expect.objectContaining({ p_cierre: null, p_severidad: 2 })
         );
         // Desde el siguiente turno responde Gemini.
@@ -937,7 +993,6 @@ describe('POST /api/npc/chat', () => {
 
       expect(respuesta.status).toBe(409);
       expect(transmitirTurno).not.toHaveBeenCalled();
-      expect(tomarTurno).not.toHaveBeenCalled();
       expect(rpc).not.toHaveBeenCalled();
     });
 
@@ -1047,7 +1102,7 @@ describe('POST /api/npc/chat', () => {
       clienteFalso({ ...sesionEnCurso, estado: 'finalizada' });
       const respuesta = await POST(peticion(porPartes));
       expect(respuesta.status).toBe(409);
-      expect(await respuesta.json()).toEqual({ error: 'La práctica ya terminó.' });
+      expect(await respuesta.json()).toEqual({ error: 'La práctica ya terminó.', fin: 'cerrada' });
     });
 
     it('si el navegador se desconecta, la respuesta se guarda igual', async () => {
@@ -1123,20 +1178,20 @@ describe('POST /api/npc/chat', () => {
       // No gasta un turno del límite de mensajes por minuto.
       expect(rpc).not.toHaveBeenCalled();
       // P2-06: la práctica termina en el servidor, avise o no el navegador, y se cierra allá.
-      expect(terminarPorTiempo).toHaveBeenCalledWith(SESION_ID);
+      expect(resolverVencimiento).toHaveBeenCalledWith(expect.anything(), SESION_ID);
       expect(cerrarDespues).toHaveBeenCalledWith(SESION_ID);
     });
 
-    it('si no logra terminarla, responde igual y la termina el navegador', async () => {
+    it('si no puede confirmar el cierre, la petición se puede reintentar', async () => {
       clienteFalso(sesionEnCurso);
-      vi.mocked(terminarPorTiempo).mockResolvedValue(false);
+      vi.mocked(resolverVencimiento).mockResolvedValue(null);
       vi.mocked(leerTiempoDeConsulta).mockResolvedValue({
         duracionS: QUINCE_MIN,
         transcurridoS: QUINCE_MIN + GRACIA_CONSULTA_S,
       });
       const respuesta = await POST(peticion(cuerpoValido));
-      expect(respuesta.status).toBe(409);
-      expect((await respuesta.json()).fin).toBe('tiempo');
+      expect(respuesta.status).toBe(503);
+      expect((await respuesta.json()).fin).toBeUndefined();
       expect(cerrarDespues).not.toHaveBeenCalled();
     });
 

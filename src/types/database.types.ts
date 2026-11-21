@@ -800,6 +800,52 @@ export type Database = {
           },
         ];
       };
+      turno_ia_guardado: {
+        Row: {
+          sesion_id: string;
+          turno_id: string;
+          id_estudiante: string;
+          id_npc: string;
+          cierre: string | null;
+        };
+        Insert: {
+          sesion_id: string;
+          turno_id: string;
+          id_estudiante: string;
+          id_npc: string;
+          cierre?: string | null;
+        };
+        Update: {
+          sesion_id?: string;
+          turno_id?: string;
+          id_estudiante?: string;
+          id_npc?: string;
+          cierre?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'turno_ia_guardado_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'turno_ia_guardado_id_estudiante_fkey';
+            columns: ['id_estudiante'];
+            isOneToOne: false;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'turno_ia_guardado_id_npc_fkey';
+            columns: ['id_npc'];
+            isOneToOne: false;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       usuario: {
         Row: {
           activo: boolean;
@@ -954,6 +1000,12 @@ export type Database = {
         Args: { p_contenido: string; p_sesion_id: string };
         Returns: undefined;
       };
+      guardar_turno_chat: {
+        Args: Database['public']['Functions']['guardar_intercambio_ia']['Args'] & {
+          p_marca: string;
+        };
+        Returns: { id_estudiante: string; id_npc: string }[];
+      };
       guardar_metricas_cierre: {
         Args: {
           p_indicadores?: Json;
@@ -983,6 +1035,20 @@ export type Database = {
       tomar_turno_ia: {
         Args: { p_sesion_id: string; p_turno_id?: string; p_vigencia_s?: number };
         Returns: { resultado: string; marca: string | null }[];
+      };
+      tomar_turno_chat: {
+        Args: { p_sesion_id: string; p_turno_id?: string };
+        Returns: {
+          resultado: string;
+          marca: string | null;
+          id_estudiante: string | null;
+          id_npc: string | null;
+          cierre: string | null;
+        }[];
+      };
+      verificar_vencimiento_sesion: {
+        Args: { p_sesion_id: string };
+        Returns: number | null;
       };
     };
     Enums: {

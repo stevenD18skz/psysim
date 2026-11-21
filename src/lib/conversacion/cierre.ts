@@ -17,7 +17,7 @@ export function esMotivoCierre(valor: unknown): valor is MotivoCierre {
  * `sesion_ia.cierre_motivo`, sino en `sesion.fin_motivo`.
  */
 export const FIN_POR_TIEMPO = 'tiempo';
-export type FinDePractica = MotivoCierre | typeof FIN_POR_TIEMPO;
+export type FinDePractica = MotivoCierre | typeof FIN_POR_TIEMPO | 'cerrada';
 
 /**
  * Lo que lee el estudiante cuando la práctica se cierra sola. Es un momento delicado: se dice qué
@@ -25,6 +25,11 @@ export type FinDePractica = MotivoCierre | typeof FIN_POR_TIEMPO;
  * «crisis» como etiqueta del estudiante ni se le atribuye un error: eso lo conversa con su docente.
  */
 export const AVISO_CIERRE: Record<FinDePractica, { titulo: string; detalle: string }> = {
+  cerrada: {
+    titulo: 'La práctica ya terminó',
+    detalle:
+      'Si tenías una intervención pendiente, quedó fuera de la conversación. Puedes volver a leer lo que se guardó en los resultados.',
+  },
   crisis: {
     titulo: 'La conversación terminó aquí',
     detalle:

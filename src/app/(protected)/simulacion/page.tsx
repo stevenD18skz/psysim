@@ -12,6 +12,7 @@ import {
   obtenerMensajesSesion,
   obtenerSesionEnCurso,
 } from '@/lib/escenarios/queries';
+import { leerTurnosGuardados } from '@/lib/orquestador/datos';
 
 export const metadata: Metadata = {
   title: 'Simulación',
@@ -50,9 +51,17 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
 
   // La conversación guardada permite retomar la sesión tras recargar la página (sin los intentos
   // que el estudiante reformuló: el paciente ya no los recuerda).
+  const turnosGuardados = await leerTurnosGuardados(sesion.id);
   const historial = (await obtenerMensajesSesion(sesion.id)).filter(m => !m.descartadoEn);
 
-  return <SimulacionCliente cuentaId={perfil.id} sesion={sesion} historial={historial} />;
+  return (
+    <SimulacionCliente
+      cuentaId={perfil.id}
+      sesion={sesion}
+      historial={historial}
+      turnosGuardados={turnosGuardados}
+    />
+  );
 }
 
 function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: string }) {
