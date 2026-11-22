@@ -1,3 +1,4 @@
+import { type AvatarId } from '@/lib/avatares/catalogo';
 import { type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { type EmocionNpc, type IntensidadEmocion } from '@/lib/conversacion/emociones';
@@ -72,6 +73,7 @@ export interface EstudianteRegistrado {
   correo: string | null;
   /** `true` si tiene cuenta: puede recibir códigos de acceso. */
   cuentaVinculada: boolean;
+  avatarId: AvatarId | null;
   creadoEn: string;
   metricas: MetricasEstudiante;
   /** Docente al que pertenece el registro (presente cuando el Administrador ve todos). */
@@ -161,6 +163,7 @@ export interface PerfilUsuario {
   correo: string;
   codigoInstitucional: string;
   rol: RolUsuario;
+  avatarId: AvatarId | null;
   /** Usa la contraseña temporal que generó el Administrador: se le pide cambiarla. */
   contrasenaTemporal: boolean;
 }
@@ -173,6 +176,8 @@ export interface DocenteAdmin {
   codigoInstitucional: string;
   rol: RolUsuario;
   activo: boolean;
+  /** Avatar elegido en el menú de cuenta (si no eligió ninguno, se muestran iniciales). */
+  avatarId?: AvatarId | null;
   /** Aún usa la contraseña temporal que le generó el Administrador. */
   contrasenaTemporal: boolean;
   /** Ya entró alguna vez con su cuenta de Google. */
@@ -208,6 +213,8 @@ export interface SesionHistorial {
   id: string;
   estado: EstadoSesion;
   comenzada: boolean;
+  /** Intervenciones del estudiante en la conversación vigente. */
+  intervenciones: number;
   inicio: string;
   fin: string | null;
   /** Última actividad registrada por el latido; una práctica en curso se cierra 10 min después. */
@@ -222,8 +229,6 @@ export interface SesionHistorial {
 /** Sesión del docente con su estudiante, para la bandeja de inicio y las revisiones. */
 export interface SesionDocente extends SesionHistorial {
   estudiante: { id: string; nombre: string; codigo: string };
-  /** Intervenciones del estudiante en la conversación vigente. */
-  intervenciones: number;
 }
 
 /** Código de acceso que aún se puede usar, con su estudiante, para la bandeja del docente. */

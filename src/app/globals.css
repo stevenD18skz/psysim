@@ -138,10 +138,16 @@
   --sidebar-accent-foreground: #f6efe4;
   --sidebar-border: rgb(255 255 255 / 0.1);
   --sidebar-ring: var(--laton);
+  --barra-pulgar: rgb(58 36 24 / 0.24);
+  --barra-pulgar-hover: rgb(58 36 24 / 0.44);
+  --barra-pulgar-activo: rgb(58 36 24 / 0.62);
 }
 
 /* Modo oscuro (sin interruptor en la interfaz): el consultorio de noche. */
 .dark {
+  --barra-pulgar: rgb(241 243 238 / 0.26);
+  --barra-pulgar-hover: rgb(241 243 238 / 0.46);
+  --barra-pulgar-activo: rgb(241 243 238 / 0.64);
   --background: #1b1612;
   --foreground: #efe9df;
   --card: #241d17;
@@ -218,7 +224,6 @@
   }
   html {
     @apply font-sans;
-    scrollbar-color: color-mix(in oklch, var(--nogal) 35%, transparent) transparent;
   }
   /* Los títulos usan el ancho expandido de Archivo: la voz de la marca. */
   h1,
@@ -283,29 +288,88 @@
     ),
     linear-gradient(180deg, var(--nogal-claro), var(--nogal));
   /* El anillo de foco nogal desaparece sobre la madera: aquí es latón claro (5,7:1). Las tarjetas
-     claras dentro de la madera recuperan el anillo nogal. */
+     claras dentro de la madera recuperan el anillo nogal y las barras oscuras. */
   --ring: var(--laton-claro);
+  --barra-pulgar: rgb(241 243 238 / 0.26);
+  --barra-pulgar-hover: rgb(241 243 238 / 0.46);
+  --barra-pulgar-activo: rgb(241 243 238 / 0.64);
   & :where(.bg-card, .bg-background, .bg-popover, .bg-muted) {
     --ring: var(--nogal);
+    --barra-pulgar: rgb(58 36 24 / 0.24);
+    --barra-pulgar-hover: rgb(58 36 24 / 0.44);
+    --barra-pulgar-activo: rgb(58 36 24 / 0.62);
   }
 }
 
-/* Botones secundarios dentro de encabezados sobre nogal: contorno claro sobre la madera y foco en latón. */
-.hero-acciones-nogal [data-slot='button'][data-variant='outline'] {
+/* Barras de desplazamiento «Nogal y salvia»: delgadas, redondeadas y discretas en toda la app.
+   En Chromium/Safari usamos `::-webkit-scrollbar` (si también se fijara `scrollbar-color`, Chrome
+   121+ ignoraría los pseudoelementos); en Firefox entra el bloque estándar. */
+[data-sidebar='sidebar'] {
+  --barra-pulgar: rgb(241 243 238 / 0.26);
+  --barra-pulgar-hover: rgb(241 243 238 / 0.46);
+  --barra-pulgar-activo: rgb(241 243 238 / 0.64);
+}
+
+@supports selector(::-webkit-scrollbar) {
+  *:not(.no-scrollbar)::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-color: var(--barra-pulgar);
+    background-clip: content-box;
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-thumb:hover {
+    background-color: var(--barra-pulgar-hover);
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-thumb:active {
+    background-color: var(--barra-pulgar-activo);
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  *:not(.no-scrollbar)::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  *:not(.no-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--barra-pulgar-hover) transparent;
+  }
+}
+
+/* Botones secundarios dentro de encabezados sobre nogal: contorno claro sobre la madera y foco
+   en latón. Se seleccionan por `data-variant` + `data-size` (y no por `data-slot='button'`)
+   porque los disparadores de Radix con `asChild` (DialogTrigger, DropdownMenuTrigger…)
+   sobrescriben `data-slot`. */
+.hero-acciones-nogal [data-variant='outline'][data-size] {
   border-color: rgb(241 243 238 / 0.35);
   background-color: transparent;
   color: var(--sidebar-foreground);
   box-shadow: none;
 }
-.hero-acciones-nogal [data-slot='button'][data-variant='outline']:hover {
+.hero-acciones-nogal [data-variant='outline'][data-size]:hover,
+.hero-acciones-nogal [data-variant='outline'][data-size][aria-expanded='true'],
+.hero-acciones-nogal [data-variant='outline'][data-size][data-state='open'] {
   border-color: rgb(241 243 238 / 0.7);
   background-color: var(--sidebar-accent);
   color: var(--sidebar-foreground);
 }
-.hero-acciones-nogal [data-slot='button'][data-variant='ghost'] {
+.hero-acciones-nogal [data-variant='ghost'][data-size] {
   color: var(--sidebar-foreground);
 }
-.hero-acciones-nogal [data-slot='button'][data-variant='ghost']:hover {
+.hero-acciones-nogal [data-variant='ghost'][data-size]:hover,
+.hero-acciones-nogal [data-variant='ghost'][data-size][aria-expanded='true'],
+.hero-acciones-nogal [data-variant='ghost'][data-size][data-state='open'] {
   background-color: var(--sidebar-accent);
   color: var(--sidebar-foreground);
 }
@@ -334,6 +398,24 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  @keyframes onda-en-vivo {
+    0%,
+    100% {
+      opacity: 0.95;
+    }
+    50% {
+      opacity: 0.28;
+    }
+  }
+
+  .onda-en-vivo-interior {
+    animation: onda-en-vivo 2.2s ease-in-out infinite;
+  }
+
+  .onda-en-vivo-exterior {
+    animation: onda-en-vivo 2.2s ease-in-out 0.35s infinite;
+  }
+
   details::details-content {
     block-size: 0;
     opacity: 0;
@@ -394,9 +476,110 @@ html {
   }
 }
 
+.avisos-psysim[data-sonner-toaster] {
+  font-family: inherit;
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] {
+  --aviso-tinta: var(--nogal);
+  --aviso-fondo: var(--muted);
+  --toast-button-margin-start: 0;
+  --toast-button-margin-end: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+  min-height: 4rem;
+  padding: 0.75rem 2.75rem 0.75rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  font-family: inherit;
+  font-size: 0.875rem;
+  box-shadow: 0 12px 22px -12px color-mix(in srgb, var(--aviso-tinta) 50%, transparent);
+}
+
+.aviso-psysim[data-sonner-toast][data-type='success'] {
+  --aviso-tinta: var(--salvia-oscuro);
+  --aviso-fondo: var(--salvia-suave);
+}
+
+.aviso-psysim[data-sonner-toast][data-type='warning'] {
+  --aviso-tinta: var(--ambar);
+  --aviso-fondo: var(--ambar-suave);
+}
+
+.aviso-psysim[data-sonner-toast][data-type='error'] {
+  --aviso-tinta: var(--destructive);
+  --aviso-fondo: var(--terracota-suave);
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-icon] {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0;
+  place-items: center;
+  border-radius: 0.625rem;
+  background: var(--aviso-fondo);
+  color: var(--aviso-tinta);
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-icon] svg {
+  margin: 0;
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-content] {
+  grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-title] {
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-description] {
+  color: var(--muted-foreground);
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-button] {
+  grid-column: 2;
+  justify-self: start;
+  min-height: 1.75rem;
+  border-radius: 0.375rem;
+  background: var(--aviso-fondo);
+  color: var(--aviso-tinta);
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true'] [data-close-button] {
+  inset: 0.5rem 0.45rem auto auto;
+  width: 1.875rem;
+  height: 1.875rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  transform: none;
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true']:hover [data-close-button]:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.aviso-psysim[data-sonner-toast][data-styled='true']
+  :is([data-close-button], [data-button]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
 @media print {
-  html {
+  * {
     scrollbar-color: auto;
+    scrollbar-width: auto;
   }
   /* Papel blanco aunque se impriman los gráficos de fondo (si no, el lino asoma al pie). */
   html,

@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 /**
  * Telemetría del navegador (errores y Core Web Vitals) que se envía a `/api/telemetria`.
- * Se limita a lo mínimo para diagnosticar y no lleva datos personales: la ruta se recorta sin
- * parámetros ni fragmento, los textos se truncan y no hay identificadores de persona.
+ * Envía el patrón de la pantalla y limita el texto al necesario para diagnosticar el error.
  */
 export const MAX_BYTES_TELEMETRIA = 2048;
 
@@ -30,10 +29,49 @@ export const telemetriaSchema = z.discriminatedUnion('tipo', [
 
 export type Telemetria = z.infer<typeof telemetriaSchema>;
 
-/** Solo la ruta: fuera `?parametros` y `#fragmento`, que pueden llevar códigos de acceso. */
-export function rutaSinParametros(url: string): string {
-  const sinParametros = url.split(/[?#]/)[0] ?? '/';
-  return sinParametros.startsWith('/') ? sinParametros.slice(0, 200) : '/';
+const PANTALLAS = new Set([
+  '/',
+  '/acceso-denegado',
+  '/admin',
+  '/admin/ia',
+  '/configuracion',
+  '/configuracion/casos',
+  '/configuracion/casos/nuevo',
+  '/contrasena',
+  '/dev/modelos',
+  '/dev/pasos',
+  '/entrega',
+  '/entrega/fin',
+  '/estudiantes',
+  '/inicio',
+  '/laboratorio',
+  '/laboratorio/npc',
+  '/login',
+  '/manual',
+  '/practicas',
+  '/privacidad',
+  '/resultados',
+  '/sesiones',
+  '/simulacion',
+]);
+
+const PANTALLAS_DINAMICAS = [
+  [/^\/admin\/docentes\/[^/]+$/, '/admin/docentes/[id]'],
+  [/^\/configuracion\/casos\/[^/]+$/, '/configuracion/casos/[id]'],
+  [/^\/dev\/escena\/[^/]+$/, '/dev/escena/[archivo]'],
+  [/^\/estudiantes\/[^/]+\/notas$/, '/estudiantes/[id]/notas'],
+  [/^\/estudiantes\/[^/]+$/, '/estudiantes/[id]'],
+  [/^\/practicas\/[^/]+$/, '/practicas/[id]'],
+  [/^\/sesiones\/[^/]+$/, '/sesiones/[id]'],
+  [/^\/unirse\/[^/]+$/, '/unirse/[codigo]'],
+] as const;
+
+/** Nunca conserva segmentos que podrían haber sido escritos por el navegador. */
+export function patronDePantalla(url: string): string {
+  if (!url.startsWith('/') || url.startsWith('//')) return '/otra';
+  const ruta = url.split(/[?#]/)[0]?.replace(/\/+$/, '') || '/';
+  if (PANTALLAS.has(ruta)) return ruta;
+  return PANTALLAS_DINAMICAS.find(([patron]) => patron.test(ruta))?.[1] ?? '/otra';
 }
 
 /** Quita direcciones y códigos largos que podrían colarse en un mensaje de error. */

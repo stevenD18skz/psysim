@@ -1,5 +1,9 @@
 import { type StateCreator } from 'zustand';
 
+import {
+  leerIntervencionPendiente,
+  recordarIntervencionPendiente,
+} from '@/lib/conversacion/pendiente-local';
 import { type MensajeConversacion, type SesionActiva } from '@/types';
 
 import { type AppState } from './app-store';
@@ -10,6 +14,7 @@ import { estadoInicialNpc } from './npc-slice';
 export interface SesionState {
   /** Sesión de simulación en curso (HU-06 · T04). `null` si no hay ninguna. */
   activa: SesionActiva | null;
+  cuentaId?: string;
 }
 
 export interface SesionSlice {
@@ -19,7 +24,7 @@ export interface SesionSlice {
      * estado del NPC y las métricas. `historial` permite retomar una conversación ya guardada
      * (p. ej. tras recargar la página).
      */
-    iniciar: (sesion: SesionActiva, historial?: MensajeConversacion[]) => void;
+    iniciar: (sesion: SesionActiva, historial?: MensajeConversacion[], cuentaId?: string) => void;
     /**
      * HU-23 · T03 — El estudiante confirmó las instrucciones: marca la sesión como comenzada con
      * la hora de inicio que fijó la base de datos.
@@ -30,7 +35,7 @@ export interface SesionSlice {
   };
 }
 
-export const estadoInicialSesion: SesionState = { activa: null };
+export const estadoInicialSesion: SesionState = { activa: null, cuentaId: undefined };
 
 /** Slice `sesion`: datos de la simulación activa (escenario, paciente y estudiante). */
 export const crearSesionSlice =
@@ -38,19 +43,23 @@ export const crearSesionSlice =
   set => ({
     sesion: {
       ...inicial,
-      iniciar: (activa, historial = []) =>
+      iniciar: (activa, historial = [], cuentaId) => {
+        const pendiente =
+          cuentaId && !activa.cierre ? leerIntervencionPendiente(cuentaId, activa.id) : null;
         set(state => ({
-          sesion: { ...state.sesion, activa },
+          sesion: { ...state.sesion, activa, cuentaId },
           conversacion: {
             ...state.conversacion,
             ...estadoInicialConversacion,
-            mensajes: historial,
+            mensajes: pendiente ? [...historial, pendiente] : historial,
+            pendiente,
             cierre: activa.cierre ?? null,
             consulta: activa.consulta ? { ...activa.consulta, medidoEn: performance.now() } : null,
           },
           npc: { ...state.npc, ...estadoInicialNpc },
           metricas: { ...state.metricas, ...metricasDesdeHistorial(historial) },
-        })),
+        }));
+      },
       comenzar: inicio =>
         set(state => {
           const { activa } = state.sesion;
@@ -58,11 +67,16 @@ export const crearSesionSlice =
           return { sesion: { ...state.sesion, activa: { ...activa, comenzada: true, inicio } } };
         }),
       limpiar: () =>
-        set(state => ({
-          sesion: { ...state.sesion, ...estadoInicialSesion },
-          conversacion: { ...state.conversacion, ...estadoInicialConversacion },
-          npc: { ...state.npc, ...estadoInicialNpc },
-          metricas: { ...state.metricas, ...metricasDesdeHistorial([]) },
-        })),
+        set(state => {
+          if (state.sesion.activa) {
+            recordarIntervencionPendiente(state.sesion.cuentaId, state.sesion.activa.id, null);
+          }
+          return {
+            sesion: { ...state.sesion, ...estadoInicialSesion },
+            conversacion: { ...state.conversacion, ...estadoInicialConversacion },
+            npc: { ...state.npc, ...estadoInicialNpc },
+            metricas: { ...state.metricas, ...metricasDesdeHistorial([]) },
+          };
+        }),
     },
   });

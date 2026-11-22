@@ -24,6 +24,16 @@ function admin() {
 }
 
 const LETRAS = 'abcdefghijklmnopqrstuvwxyz';
+
+/** El primer clic puede llegar antes de que el configurador termine de hidratarse. */
+export async function abrirCasosPredefinidos(page: Page) {
+  const pestana = page.getByRole('button', { name: /^Casos predefinidos/ });
+  await expect(async () => {
+    await pestana.click();
+    await expect(pestana).toHaveAttribute('aria-pressed', 'true', { timeout: 1500 });
+  }).toPass({ timeout: 30_000 });
+}
+
 const letras = (n: number) =>
   Array.from({ length: n }, () => LETRAS[Math.floor(Math.random() * LETRAS.length)]).join('');
 
@@ -214,6 +224,14 @@ export async function comenzarSimulacion(page: Page, tituloCaso: RegExp) {
   await page.getByRole('button', { name: 'Empezar la práctica' }).click();
   await expect(instrucciones).toBeHidden();
   await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeVisible();
+}
+
+/** Las sesiones preparadas por la prueba todavía necesitan el permiso del navegador. */
+export async function aceptarAvisoAlRetomar(page: Page) {
+  const continuar = page.getByRole('button', { name: 'Continuar la práctica' });
+  if (!(await continuar.isVisible())) return;
+  await page.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }).check();
+  await continuar.click();
 }
 
 /**

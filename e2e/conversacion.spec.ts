@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import {
+  aceptarAvisoAlRetomar,
   clienteAdmin as clienteAdminOpcional,
   crearSesionEstudiante,
   limpiarCodigos,
@@ -54,6 +55,7 @@ async function acercarseAlPaciente(page: Page, sesionId: string) {
   await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
     timeout: 60_000,
   });
+  await aceptarAvisoAlRetomar(page);
 
   const conversar = page.getByRole('button', { name: 'Conversar con Marta' });
   for (let intento = 0; intento < 20 && !(await conversar.isVisible()); intento++) {
@@ -91,6 +93,13 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     const sesionId = await crearSesion();
     const conversar = await acercarseAlPaciente(page, sesionId);
     await expect(page.getByText(/Estás frente a Marta/)).toBeVisible();
+
+    const abrirManual = page.getByRole('button', { name: 'Manual de uso', exact: true });
+    await abrirManual.click();
+    const manual = page.getByRole('dialog', { name: 'Manual de uso de PsySim' });
+    await expect(manual).toBeVisible();
+    await manual.getByRole('button', { name: 'Atrás' }).click();
+    await expect(abrirManual).toBeFocused();
 
     await conversar.click();
     const panel = page.getByRole('region', { name: 'Conversación con Marta Lucía' });

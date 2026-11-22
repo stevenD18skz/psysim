@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, MonitorSmartphone } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
@@ -16,7 +17,7 @@ import {
 import { useEsComputador } from '@/hooks/use-es-computador';
 import { olvidarDatosDeLaCuenta } from '@/lib/datos-locales';
 import { entregarEquipo } from '@/lib/equipo-compartido/actions';
-import { primerNombre } from '@/lib/equipo-compartido/entrega';
+import { primerNombre, RUTA_ENTREGA } from '@/lib/equipo-compartido/entrega';
 import { sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
 /**
@@ -38,6 +39,7 @@ export function BotonEntregarEquipo({
   className?: string;
 }) {
   const esComputador = useEsComputador();
+  const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [entregando, startTransition] = useTransition();
   const nombre = primerNombre(estudiante);
@@ -47,14 +49,15 @@ export function BotonEntregarEquipo({
   const entregar = () =>
     startTransition(
       sinPerderElPanel(async () => {
-        // El estudiante que recibe el equipo no debe encontrar borradores de retroalimentación.
-        olvidarDatosDeLaCuenta();
-        // Si todo va bien, la acción cierra la sesión y redirige a la pantalla de entrega.
         const resultado = await entregarEquipo({ id: asignacionId });
-        if (resultado && !resultado.ok) {
+        if (!resultado.ok) {
           toast.error(resultado.error);
           setAbierto(false);
+          return;
         }
+        olvidarDatosDeLaCuenta();
+        router.replace(RUTA_ENTREGA);
+        router.refresh();
       })
     );
 

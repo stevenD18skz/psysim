@@ -55,6 +55,7 @@ type AvisoPanel =
   { tipo: 'reformular'; mensaje: MensajeConversacion } | { tipo: 'dictado'; aceptar: () => void };
 
 interface ConversationPanelProps {
+  modoTexto?: boolean;
   onFinalizar: () => void;
   finalizando: boolean;
   /** El paciente cerró la consulta: lleva al cierre de la práctica. */
@@ -103,11 +104,13 @@ function useRelleno(estado: EstadoNpc): boolean {
  * para ensayar otra respuesta y dictar con la voz.
  */
 export function ConversationPanel({
+  modoTexto = false,
   onFinalizar,
   finalizando,
   onContinuar,
 }: ConversationPanelProps) {
   const store = useAppStoreApi();
+  const cuentaId = useAppStore(state => state.sesion.cuentaId ?? null);
   const nombre = useAppStore(state => state.sesion.activa?.npc.nombre ?? 'Paciente');
   const mensajes = useAppStore(state => state.conversacion.mensajes);
   const estado = useAppStore(state => state.npc.estado);
@@ -198,7 +201,10 @@ export function ConversationPanel({
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-3 sm:p-4">
       <section
         aria-label={`Conversación con ${nombre}`}
-        className="pointer-events-auto flex h-[min(44dvh,28rem)] w-full max-w-[46rem] flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-[0_20px_50px_-20px_rgb(29_20_14/0.55)] backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-6"
+        className={cn(
+          'pointer-events-auto flex w-full max-w-[46rem] flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-[0_20px_50px_-20px_rgb(29_20_14/0.55)] backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-6',
+          modoTexto ? 'h-[min(76dvh,48rem)]' : 'h-[min(44dvh,28rem)]'
+        )}
       >
         <header className="flex items-center gap-3 border-b px-4 py-2.5">
           <span
@@ -236,23 +242,24 @@ export function ConversationPanel({
               {ETIQUETA_ESTADO[estado] ?? ''}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto"
-            onClick={volverAExplorar}
-            disabled={estado !== 'esperando_input' || cierre !== null}
-          >
-            <ArrowLeft aria-hidden />
-            Volver a explorar
-          </Button>
+          {!modoTexto && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={volverAExplorar}
+              disabled={estado !== 'esperando_input' || cierre !== null}
+            >
+              <ArrowLeft aria-hidden />
+              Volver a explorar
+            </Button>
+          )}
         </header>
 
         <div className="relative min-h-0 flex-1">
           <ol
-            role="log"
+            role="list"
             aria-label="Historial de la conversación"
-            aria-live="off"
             className={cn(
               'flex h-full flex-col gap-3 overflow-y-auto px-4 py-4',
               // Con un aviso visible, el último mensaje queda por encima del aviso.
@@ -445,6 +452,8 @@ export function ConversationPanel({
             </p>
           </div>
           <BotonDictado
+            key={cuentaId}
+            cuentaId={cuentaId}
             deshabilitado={bloqueado}
             onTexto={dictado => {
               registrarTecleo(dictado.length);

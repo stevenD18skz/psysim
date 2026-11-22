@@ -29,22 +29,29 @@ const comentarioGeneralSchema = z
     `La retroalimentación no puede superar los ${LIMITES_RETROALIMENTACION.comentarioGeneral.toLocaleString('es-CO')} caracteres.`
   );
 
-/** Guardar el borrador: todo es opcional. */
-export const guardarRetroalimentacionSchema = z.object({
-  sesionId: z.uuid(),
-  comentarioGeneral: comentarioGeneralSchema,
-  nota: notaSchema.nullable(),
-});
+export const guardarRetroalimentacionSchema = z
+  .object({
+    sesionId: z.uuid(),
+    modo: z.enum(['borrador', 'publicar', 'editar']),
+    version: z.iso.datetime({ offset: true }).nullable(),
+    comentarioGeneral: comentarioGeneralSchema,
+    nota: notaSchema.nullable(),
+  })
+  .refine(({ modo, comentarioGeneral }) => modo === 'borrador' || comentarioGeneral.length > 0, {
+    path: ['comentarioGeneral'],
+    message: 'Escribe la retroalimentación general antes de guardar cambios públicos.',
+  })
+  .refine(({ modo, nota }) => modo === 'borrador' || nota !== null, {
+    path: ['nota'],
+    message: 'Pon la nota antes de guardar cambios públicos.',
+  });
 
-export type GuardarRetroalimentacionInput = z.input<typeof guardarRetroalimentacionSchema>;
+export type ModoRevision = z.infer<typeof guardarRetroalimentacionSchema>['modo'];
 
-/** Publicar exige la retroalimentación general y la nota. */
-export const publicarRetroalimentacionSchema = guardarRetroalimentacionSchema.extend({
-  comentarioGeneral: comentarioGeneralSchema.min(
-    1,
-    'Escribe la retroalimentación general antes de publicar.'
-  ),
-  nota: notaSchema.nullable().refine(nota => nota !== null, 'Pon la nota antes de publicar.'),
+export const borradorRevisionSchema = z.object({
+  comentario: z.string().max(LIMITES_RETROALIMENTACION.comentarioGeneral),
+  notaTexto: z.string(),
+  version: z.iso.datetime({ offset: true }).nullable(),
 });
 
 const comentarioSchema = z
@@ -59,6 +66,7 @@ const comentarioSchema = z
 /** Subrayar una frase de una intervención del estudiante y comentarla. */
 export const crearAnotacionSchema = z
   .object({
+    id: z.uuid(),
     sesionId: z.uuid(),
     mensajeId: z.uuid(),
     inicio: z.int().min(0),
@@ -71,6 +79,19 @@ export const crearAnotacionSchema = z
   });
 
 export type CrearAnotacionInput = z.input<typeof crearAnotacionSchema>;
+
+export const borradoresAnotacionSchema = z.array(
+  z.object({
+    tipo: z.enum(['nueva', 'edicion']),
+    id: z.uuid(),
+    mensajeId: z.uuid(),
+    inicio: z.int().min(0),
+    fin: z.int().min(1),
+    comentario: z.string().max(LIMITES_RETROALIMENTACION.comentario),
+  })
+);
+
+export type BorradorAnotacion = z.infer<typeof borradoresAnotacionSchema>[number];
 
 export const actualizarAnotacionSchema = z.object({ id: z.uuid(), comentario: comentarioSchema });
 

@@ -14,6 +14,7 @@ import type { Metadata } from 'next';
 import { type Route } from 'next';
 import Link from 'next/link';
 
+import { PistaFaro } from '@/components/ayuda/pista-contextual';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { BusquedaLista, QuitarFiltros, SelectorLista } from '@/components/comun/controles-lista';
 import {
@@ -30,6 +31,7 @@ import { requerirDocente } from '@/lib/auth/dal';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { codigoVisibleCaso } from '@/lib/escenarios/etiquetas';
 import { formatearDia, formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { tiempoRelativo } from '@/lib/fechas';
 import {
   conParametros,
   IDS_PERIODO,
@@ -116,6 +118,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
   const casos = [...new Map(sesiones.map(s => [s.escenario.codigo, s.escenario])).values()].sort(
     (a, b) => a.codigo.localeCompare(b.codigo)
   );
+  const ahora = new Date();
   const hayFiltros = Boolean(consulta || caso || periodo !== 'todo');
   const exportar = conParametros('/sesiones/exportar', actuales, {}, defectos);
 
@@ -214,6 +217,17 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
               parametro="agrupar"
               defecto="lista"
               opciones={AGRUPACIONES}
+              ayuda={
+                sesiones.length >= 2 ? (
+                  <PistaFaro
+                    id="revisiones-vistas"
+                    etiqueta="Vista matriz"
+                    titulo="Analiza a todo tu grupo de un vistazo"
+                    descripcion="En «Ver» puedes agrupar las prácticas por estudiante, por caso o abrir la matriz estudiantes × casos para revisar notas y pendientes en una sola tabla."
+                    alineacion="end"
+                  />
+                ) : undefined
+              }
             />
             <QuitarFiltros claves={FILTROS_LISTA} />
           </div>
@@ -228,7 +242,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             url={url}
           />
         ) : agrupar === 'lista' ? (
-          <VistaLista sesiones={filtradas} pagina={pagina} url={url} />
+          <VistaLista sesiones={filtradas} pagina={pagina} url={url} ahora={ahora} />
         ) : agrupar === 'matriz' ? (
           <VistaMatriz sesiones={filtradas} pagina={pagina} url={url} />
         ) : (
@@ -239,6 +253,7 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
             porEstudiante={agrupar === 'estudiante'}
             pagina={pagina}
             url={url}
+            ahora={ahora}
           />
         )}
       </ContenedorHero>
@@ -248,23 +263,48 @@ export default async function RevisionesPage({ searchParams }: PageProps<'/sesio
 
 type Url = (cambios: Record<string, string | number | null>) => string;
 
+/** Rejilla compartida entre encabezado y filas de Revisiones: columnas fijas para Nota y Acción. */
+const REJILLA_REVISIONES =
+  '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_4.5rem_10.5rem] @4xl:items-center @4xl:gap-x-6';
+
+/** Rejilla compartida de las filas dentro de cada grupo («Por estudiante» / «Por caso»). */
+const REJILLA_COMPACTA =
+  '@3xl:grid-cols-[minmax(0,1fr)_11.5rem_11.5rem_3.75rem_10.25rem] @3xl:items-center @3xl:gap-x-4';
+
 function VistaLista({
   sesiones,
   pagina,
   url,
+  ahora,
 }: {
   sesiones: SesionDocente[];
   pagina: number;
   url: Url;
+  ahora: Date;
 }) {
   const resultado = paginar(sesiones, pagina, PRACTICAS_POR_PAGINA);
   return (
     <section aria-label="Prácticas" className="flex flex-col gap-4">
-      <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
-        {resultado.visibles.map(sesion => (
-          <FilaRevision key={sesion.id} sesion={sesion} />
-        ))}
-      </ul>
+      <div className="@container overflow-hidden rounded-2xl border bg-card">
+        <div
+          aria-hidden
+          className={cn(
+            'hidden border-b bg-muted/40 px-5 py-2.5 text-xs font-medium text-muted-foreground sm:px-6 @4xl:grid',
+            REJILLA_REVISIONES
+          )}
+        >
+          <span>Estudiante</span>
+          <span>Caso y fecha</span>
+          <span>Estado</span>
+          <span className="text-right">Nota</span>
+          <span className="text-right">Acción</span>
+        </div>
+        <ul className="flex flex-col divide-y">
+          {resultado.visibles.map(sesion => (
+            <FilaRevision key={sesion.id} sesion={sesion} ahora={ahora} />
+          ))}
+        </ul>
+      </div>
       <Paginacion
         pagina={resultado}
         enlace={n => url({ pagina: n })}
@@ -278,16 +318,28 @@ function VistaLista({
 function accionDe(sesion: SesionDocente): string {
   if (sesion.estado === 'en_curso') return 'Ver estado';
   if (sesion.retroalimentacion?.publicada) return 'Ver revisión';
-  return sesion.retroalimentacion ? 'Continuar revisión' : 'Revisar';
+  if (sesion.retroalimentacion) return 'Continuar revisión';
+  if (sesion.estado === 'interrumpida' && !sesion.comenzada) return 'Ver detalle';
+  return 'Revisar';
 }
 
-function FilaRevision({ sesion }: { sesion: SesionDocente }) {
+function FilaRevision({ sesion, ahora }: { sesion: SesionDocente; ahora: Date }) {
   const estado = estadoVisibleSesion(sesion, 'docente', {
     ultimaActividad: sesion.ultimaActividad,
   });
   const duracion = duracionSesion(sesion);
   const publicada = sesion.retroalimentacion?.publicada ?? false;
-  const { esperaDias, corta } = senalesRevision(sesion);
+  const { esperaDias, corta } = senalesRevision(sesion, ahora);
+  const referenciaTiempo = sesion.fin ?? sesion.inicio;
+  const haceCuanto = tiempoRelativo(referenciaTiempo, ahora);
+  const etiquetaInterrupcion =
+    sesion.estado === 'interrumpida'
+      ? !sesion.comenzada
+        ? 'No llegó a comenzar'
+        : publicada
+          ? 'Interrumpida'
+          : null
+      : null;
 
   const intervenciones =
     sesion.comenzada && sesion.intervenciones > 0
@@ -296,35 +348,48 @@ function FilaRevision({ sesion }: { sesion: SesionDocente }) {
         : `${sesion.intervenciones} intervenciones`
       : null;
 
+  const requiereRevision = !publicada && sesion.estado !== 'en_curso' && sesion.comenzada;
+
   return (
-    // En pantallas anchas, una tabla de verdad: quién, qué caso, cómo va y qué hacer. Cada columna
-    // lleva a lo sumo dos líneas; las señales raras (espera, muy corta) bajan a una tercera.
-    <li className="group relative grid gap-3 px-5 py-4 hover:bg-muted/50 sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-x-8 md:py-5">
+    // Columnas con anchos fijos para Nota y Acción: ningún estado desplaza las columnas vecinas.
+    <li
+      className={cn(
+        'group relative grid gap-3 px-5 py-4 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:px-6 @4xl:py-4.5',
+        REJILLA_REVISIONES
+      )}
+    >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate font-semibold">{sesion.estudiante.nombre}</span>
+        <span className="truncate font-semibold text-foreground">{sesion.estudiante.nombre}</span>
         <span className="font-mono text-xs text-muted-foreground">{sesion.estudiante.codigo}</span>
       </div>
 
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-medium text-pretty">{sesion.escenario.titulo}</span>
-        <span className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+        <span className="font-medium text-pretty text-foreground">{sesion.escenario.titulo}</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
           <CodigoCaso
             codigo={sesion.escenario.codigo}
-            className="font-mono text-xs text-foreground"
+            className="font-mono text-xs font-medium text-foreground"
           />
-          <span className="tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
+          <span
+            title={formatearFechaHora(sesion.inicio)}
+            className="font-medium text-foreground/85 tabular-nums first-letter:uppercase"
+          >
+            {haceCuanto}
+          </span>
+          <span aria-hidden>·</span>
+          <span className="text-xs tabular-nums">{formatearFechaHora(sesion.inicio)}</span>
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-col items-start gap-1.5">
+      <div className="flex min-w-0 flex-col items-start gap-1">
         <InsigniaEstado estado={estado} />
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground tabular-nums">
-          {duracion !== null && <span>{formatearDuracion(duracion)}</span>}
-          {intervenciones && <span>{intervenciones}</span>}
-          {sesion.estado === 'interrumpida' && (
-            <span>{sesion.comenzada ? 'Interrumpida' : 'No llegó a comenzar'}</span>
-          )}
-        </span>
+        {(duracion !== null || intervenciones || etiquetaInterrupcion) && (
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+            {duracion !== null && <span>{formatearDuracion(duracion)}</span>}
+            {intervenciones && <span>{intervenciones}</span>}
+            {etiquetaInterrupcion && <span>{etiquetaInterrupcion}</span>}
+          </span>
+        )}
         {((esperaDias !== null && esperaDias >= 1) || corta) && (
           <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-medium">
             {esperaDias !== null && esperaDias >= 1 && (
@@ -348,28 +413,45 @@ function FilaRevision({ sesion }: { sesion: SesionDocente }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-6 md:justify-end">
-        {publicada && (
-          <p className="flex items-baseline gap-1.5 md:flex-col md:items-end md:gap-0">
-            <span className="text-xs text-muted-foreground">Nota</span>
-            <span className="text-xl font-semibold ancho-semiexpandido tabular-nums">
-              {formatearNota(sesion.retroalimentacion?.nota ?? null)}
+      <div className="flex items-center justify-between gap-4 border-t border-border/50 pt-2.5 @4xl:contents">
+        <div className="flex items-baseline gap-1.5 @4xl:justify-end">
+          {publicada ? (
+            <>
+              <span className="text-xs text-muted-foreground @4xl:hidden">Nota</span>
+              <span className="text-lg font-bold text-foreground ancho-semiexpandido tabular-nums">
+                {formatearNota(sesion.retroalimentacion?.nota ?? null)}
+              </span>
+            </>
+          ) : (
+            <>
+              <span aria-hidden className="hidden text-sm text-muted-foreground/55 @4xl:inline">
+                —
+              </span>
+              <span className="sr-only">Sin nota</span>
+            </>
+          )}
+        </div>
+
+        <div className="ml-auto flex justify-end @4xl:ml-0">
+          <Link
+            href={`/sesiones/${sesion.id}`}
+            className={cn(
+              'inline-flex w-fit items-center gap-1.5 rounded-md text-sm whitespace-nowrap underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
+              requiereRevision
+                ? 'font-semibold text-foreground'
+                : 'font-medium text-muted-foreground group-hover:text-foreground'
+            )}
+          >
+            {accionDe(sesion)}
+            <span className="sr-only">
+              : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
             </span>
-          </p>
-        )}
-        <Link
-          href={`/sesiones/${sesion.id}`}
-          className="inline-flex w-fit items-center gap-1.5 rounded-md text-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-        >
-          {accionDe(sesion)}
-          <span className="sr-only">
-            : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
-          </span>
-          <ArrowRight
-            className="size-4 transition-transform group-hover:translate-x-0.5"
-            aria-hidden
-          />
-        </Link>
+            <ArrowRight
+              className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        </div>
       </div>
     </li>
   );
@@ -380,11 +462,13 @@ function VistaGrupos({
   porEstudiante,
   pagina,
   url,
+  ahora,
 }: {
   grupos: ResumenGrupo[];
   porEstudiante: boolean;
   pagina: number;
   url: Url;
+  ahora: Date;
 }) {
   const resultado = paginar(grupos, pagina, GRUPOS_POR_PAGINA);
   return (
@@ -398,6 +482,7 @@ function VistaGrupos({
             key={grupo.clave}
             grupo={grupo}
             porEstudiante={porEstudiante}
+            ahora={ahora}
             verTodas={url(
               porEstudiante
                 ? { agrupar: null, q: grupo.subtitulo }
@@ -418,10 +503,12 @@ function VistaGrupos({
 function GrupoRevision({
   grupo,
   porEstudiante,
+  ahora,
   verTodas,
 }: {
   grupo: ResumenGrupo;
   porEstudiante: boolean;
+  ahora: Date;
   /** Lista filtrada con todas las prácticas del grupo. */
   verTodas: string;
 }) {
@@ -465,9 +552,14 @@ function GrupoRevision({
             />
           </span>
         </summary>
-        <ul className="divide-y border-t">
+        <ul className="@container divide-y border-t">
           {grupo.sesiones.slice(0, PRACTICAS_POR_GRUPO).map(sesion => (
-            <FilaCompacta key={sesion.id} sesion={sesion} porEstudiante={porEstudiante} />
+            <FilaCompacta
+              key={sesion.id}
+              sesion={sesion}
+              porEstudiante={porEstudiante}
+              ahora={ahora}
+            />
           ))}
         </ul>
         {(restantes > 0 || (porEstudiante && grupo.enlace)) && (
@@ -498,47 +590,89 @@ function GrupoRevision({
 function FilaCompacta({
   sesion,
   porEstudiante,
+  ahora,
 }: {
   sesion: SesionDocente;
   porEstudiante: boolean;
+  ahora: Date;
 }) {
   const estado = estadoVisibleSesion(sesion, 'docente', {
     ultimaActividad: sesion.ultimaActividad,
   });
   const publicada = sesion.retroalimentacion?.publicada ?? false;
+  const haceCuanto = tiempoRelativo(sesion.fin ?? sesion.inicio, ahora);
+  const requiereRevision = !publicada && sesion.estado !== 'en_curso' && sesion.comenzada;
+
   return (
-    <li className="group relative flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-muted/50">
-      <span className="min-w-0 flex-1">
+    <li
+      className={cn(
+        'group relative grid gap-2 px-4 py-3 text-sm transition-colors even:bg-muted/30 hover:bg-muted/60',
+        REJILLA_COMPACTA
+      )}
+    >
+      <span className="min-w-0 truncate">
         {porEstudiante ? (
           <>
             <CodigoCaso codigo={sesion.escenario.codigo} className="mr-2 font-mono text-xs" />
-            {sesion.escenario.titulo}
+            <span className="font-medium text-foreground">{sesion.escenario.titulo}</span>
           </>
         ) : (
           <>
-            {sesion.estudiante.nombre}
+            <span className="font-medium text-foreground">{sesion.estudiante.nombre}</span>
             <span className="ml-2 font-mono text-xs text-muted-foreground">
               {sesion.estudiante.codigo}
             </span>
           </>
         )}
       </span>
-      <span className="text-muted-foreground">{formatearDia(sesion.inicio)}</span>
-      <InsigniaEstado estado={estado} />
-      {publicada && (
-        <span className="w-10 text-right font-semibold tabular-nums">
-          {formatearNota(sesion.retroalimentacion?.nota ?? null)}
-        </span>
-      )}
-      <Link
-        href={`/sesiones/${sesion.id}`}
-        className="font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+      <span
+        title={formatearFechaHora(sesion.inicio)}
+        className="text-xs text-muted-foreground tabular-nums first-letter:uppercase @3xl:text-right"
       >
-        {accionDe(sesion)}
-        <span className="sr-only">
-          : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
+        {haceCuanto} · {formatearDia(sesion.inicio)}
+      </span>
+      <div>
+        <InsigniaEstado estado={estado} />
+      </div>
+      <div className="flex items-center justify-between gap-3 @3xl:contents">
+        <span className="tabular-nums @3xl:text-right">
+          {publicada ? (
+            <span className="font-semibold text-foreground">
+              <span className="mr-1 text-xs font-normal text-muted-foreground @3xl:hidden">
+                Nota
+              </span>
+              {formatearNota(sesion.retroalimentacion?.nota ?? null)}
+            </span>
+          ) : (
+            <>
+              <span aria-hidden className="hidden text-muted-foreground/55 @3xl:inline">
+                —
+              </span>
+              <span className="sr-only">Sin nota</span>
+            </>
+          )}
         </span>
-      </Link>
+        <span className="ml-auto flex justify-end @3xl:ml-0">
+          <Link
+            href={`/sesiones/${sesion.id}`}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md whitespace-nowrap underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
+              requiereRevision
+                ? 'font-semibold text-foreground'
+                : 'font-medium text-muted-foreground group-hover:text-foreground'
+            )}
+          >
+            {accionDe(sesion)}
+            <span className="sr-only">
+              : {sesion.estudiante.nombre}, {sesion.escenario.titulo}
+            </span>
+            <ArrowRight
+              className="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        </span>
+      </div>
     </li>
   );
 }
@@ -618,7 +752,7 @@ function VistaMatriz({
         aria-labelledby="matriz-titulo"
         // `relative`: el texto para lectores de pantalla (sr-only, absoluto) queda dentro del
         // contenedor con scroll y no ensancha la página en el celular.
-        className="relative max-h-[70vh] overflow-auto rounded-xl border bg-card outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative max-h-[70vh] overflow-auto rounded-xl border bg-card outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
       >
         <table className="w-full min-w-[36rem] text-sm">
           <thead className="sticky top-0 z-10 border-b bg-muted text-xs font-semibold text-muted-foreground">
@@ -653,10 +787,13 @@ function VistaMatriz({
           </thead>
           <tbody className="divide-y">
             {resultado.visibles.map(e => (
-              <tr key={e.id} className="hover:bg-muted/40">
+              <tr
+                key={e.id}
+                className="group/fila transition-colors even:bg-muted/30 hover:bg-muted/60"
+              >
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium shadow-[1px_0_0_var(--border)]"
+                  className="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium shadow-[1px_0_0_var(--border)] transition-colors group-even/fila:bg-[color-mix(in_oklch,var(--card),var(--muted)_30%)] group-hover/fila:bg-[color-mix(in_oklch,var(--card),var(--muted)_60%)]"
                 >
                   <span className="block max-w-[14rem] truncate">{e.nombre}</span>
                   <span className="font-mono text-xs font-normal text-muted-foreground">

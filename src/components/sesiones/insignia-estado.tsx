@@ -1,3 +1,4 @@
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { type EstadoVisible, type TonoEstado } from '@/lib/sesiones/estados';
 import { cn } from '@/lib/utils';
 
@@ -8,7 +9,7 @@ const CLASES_TONO: Record<TonoEstado, string> = {
   neutro: 'bg-muted text-muted-foreground',
 };
 
-/** Estado de una sesión o de un código como etiqueta de color (con punto animado si está en curso). */
+/** Estado de una sesión o de un código como etiqueta de color (con ondas en vivo si está en curso). */
 export function InsigniaEstado({
   estado,
   className,
@@ -25,12 +26,7 @@ export function InsigniaEstado({
         className
       )}
     >
-      {estado.tono === 'en-curso' && (
-        <span aria-hidden className="relative flex size-2">
-          <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-60 motion-safe:animate-ping" />
-          <span className="relative inline-flex size-2 rounded-full bg-salvia" />
-        </span>
-      )}
+      {estado.tono === 'en-curso' && <IndicadorEnVivo className="size-3.5 shrink-0" />}
       {estado.texto}
     </span>
   );

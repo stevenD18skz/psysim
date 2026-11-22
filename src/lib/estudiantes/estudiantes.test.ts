@@ -20,6 +20,7 @@ function estudiante(codigo: string, nombre: string): EstudianteRegistrado {
     nombre,
     correo: null,
     cuentaVinculada: false,
+    avatarId: null,
     creadoEn: '2026-10-01T15:00:00.000Z',
     metricas: {
       sesiones: 1,

@@ -3,6 +3,7 @@
 import { useProgress } from '@react-three/drei';
 import {
   AlertTriangle,
+  BookOpen,
   Check,
   Compass,
   Copy,
@@ -15,7 +16,7 @@ import {
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
 import {
@@ -28,6 +29,12 @@ import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { audioEspacialStore } from '@/components/3d/oyente-audio';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
+import {
+  AnuncioPistaPractica,
+  PistaPrimeraPractica,
+  useAyudaPrimeraPractica,
+} from '@/components/simulacion/ayuda-primera-practica';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
@@ -63,10 +70,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
+import { descartarIntervencionConfirmada } from '@/lib/conversacion/pendiente-local';
 import { buscarModeloNpc } from '@/lib/npc/catalogo';
+import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
 import { useAppStore, useAppStoreApi } from '@/store/app-store-provider';
 import { respuestaEnCamino } from '@/store/conversacion-slice';
@@ -78,9 +88,12 @@ const EscenaSimulacion = dynamic(() => import('@/components/simulacion/escena-si
 });
 
 interface SimulacionClienteProps {
+  cuentaId: string;
   sesion: SesionActiva;
   /** Conversación ya guardada de la sesión (al recargar la página se retoma). */
   historial: MensajeConversacion[];
+  turnosGuardados: string[];
+  primeraPractica: boolean;
 }
 
 /**
@@ -88,7 +101,13 @@ interface SimulacionClienteProps {
  * store de Zustand y monta la escena a partir del escenario guardado en el store. Ocupa toda la
  * pantalla, sin la navegación del panel, para que la práctica sea inmersiva.
  */
-export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps) {
+export function SimulacionCliente({
+  cuentaId,
+  sesion,
+  historial,
+  turnosGuardados,
+  primeraPractica,
+}: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
   const esComputador = useEsComputador();
@@ -97,8 +116,9 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   // sincroniza con la sesión que verificó el servidor (RLS garantiza que es del estudiante), con la
   // hora de inicio de la base de datos y la conversación guardada.
   useEffect(() => {
-    iniciarSesion(sesion, historial);
-  }, [sesion, historial, iniciarSesion]);
+    descartarIntervencionConfirmada(cuentaId, sesion.id, turnosGuardados);
+    iniciarSesion(sesion, historial, cuentaId);
+  }, [sesion, historial, cuentaId, turnosGuardados, iniciarSesion]);
 
   // En un celular o tableta no se monta la escena (ni corre el latido): se explica dónde abrirla.
   if (esComputador === false) return <AvisoSimulacionMovil sesion={sesion} />;
@@ -106,7 +126,12 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-background">
       {activa?.id === sesion.id ? (
-        <Escenario sesion={activa} />
+        <Escenario
+          key={`${cuentaId}:${sesion.id}`}
+          cuentaId={cuentaId}
+          sesion={activa}
+          primeraPractica={primeraPractica}
+        />
       ) : (
         <LoadingScreen
           visible
@@ -122,12 +147,20 @@ export function SimulacionCliente({ sesion, historial }: SimulacionClienteProps)
  * HU-13 · T01 — Atajos para iniciar la conversación: tecla E (si el estudiante está cerca) o
  * clic mientras el ratón está capturado y la mira apunta al paciente.
  */
-function useAtajosConversacion() {
+function useAtajosConversacion(activo: boolean) {
   const store = useAppStoreApi();
 
   useEffect(() => {
+    if (!activo) return;
     const alPulsar = (evento: KeyboardEvent) => {
-      if (evento.code !== 'KeyE' || evento.repeat || esCampoEditable(evento.target)) return;
+      if (
+        evento.code !== 'KeyE' ||
+        evento.repeat ||
+        esCampoEditable(evento.target) ||
+        (evento.target instanceof Element &&
+          evento.target.closest('[role="dialog"], [role="alertdialog"]'))
+      )
+        return;
       if (iniciarConversacion(store)) evento.preventDefault();
     };
     const alHacerClic = () => {
@@ -141,13 +174,25 @@ function useAtajosConversacion() {
       window.removeEventListener('keydown', alPulsar);
       window.removeEventListener('mousedown', alHacerClic);
     };
-  }, [store]);
+  }, [activo, store]);
 }
 
-function Escenario({ sesion }: { sesion: SesionActiva }) {
-  const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d);
+function Escenario({
+  cuentaId,
+  sesion,
+  primeraPractica,
+}: {
+  cuentaId: string;
+  sesion: SesionActiva;
+  primeraPractica: boolean;
+}) {
+  const store = useAppStoreApi();
+  const [modoTexto, setModoTexto] = useState(false);
+  const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d, !modoTexto);
   const { active: cargandoModelos } = useProgress();
   const [canvasListo, setCanvasListo] = useState(false);
+  const [falloLienzo, setFalloLienzo] = useState(false);
+  const avisarFalloLienzo = useCallback(() => setFalloLienzo(true), []);
   const [bloqueado, setBloqueado] = useState(false);
   const depuracion = useSearchParams().get('debug') === '1';
   const estadoNpc = useAppStore(state => state.npc.estado);
@@ -167,9 +212,18 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
     verResultados,
   } = useFinalizarSesion();
 
-  useAtajosConversacion();
+  const [privacidadAceptada, setPrivacidadAceptada] = useState(() =>
+    leerPrivacidadAceptada(cuentaId)
+  );
+  const necesitaInstrucciones = !sesion.comenzada || privacidadAceptada === null;
 
-  const lista = estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  const escenaLista =
+    !modoTexto && !falloLienzo && estado.estado === 'lista' && canvasListo && !cargandoModelos;
+  const lista = modoTexto || escenaLista;
+  const continuarEnTexto = () => {
+    setModoTexto(true);
+    if (!necesitaInstrucciones && !cierre) iniciarConversacion(store, { directo: true });
+  };
   // Tras 10 minutos sin interacción la sesión se cierra (con aviso en el último minuto).
   const segundosParaCierre = useInactividad({
     sesionId: sesion.id,
@@ -179,7 +233,12 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   // Cuando la última respuesta del paciente terminó de mostrarse, la práctica se cierra sola (con
   // sus métricas); el estudiante lee el aviso del panel y sigue a los resultados.
   useEffect(() => {
-    if (cierre && lista && (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')) {
+    if (
+      cierre &&
+      cierre !== 'cerrada' &&
+      lista &&
+      (estadoNpc === 'esperando_input' || estadoNpc === 'inactivo')
+    ) {
       terminarPorCierre();
     }
   }, [cierre, lista, estadoNpc, terminarPorCierre]);
@@ -201,7 +260,7 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   const [hudOculto, setHudOculto] = useState(false);
   // Atajo Ctrl + H: mismo efecto que el botón. Con el modificador no estorba al escribir (chat,
   // notas), pero no actúa con un diálogo abierto.
-  const puedeOcultarHud = lista && !resumen;
+  const puedeOcultarHud = escenaLista && !resumen;
   useEffect(() => {
     if (!puedeOcultarHud) return;
     const alPulsar = (evento: KeyboardEvent) => {
@@ -222,10 +281,19 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
   }, [puedeOcultarHud]);
   const alternarHerramienta = (herramienta: Herramienta) =>
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
-  const enConsulta = lista && comenzada && !resumen && !cierre;
+  const enConsulta = lista && !necesitaInstrucciones && !resumen && !cierre;
+  const enEscena = escenaLista && enConsulta;
+  const [manualAbierto, setManualAbierto] = useState(false);
+  const ayuda = useAyudaPrimeraPractica({
+    cuentaId,
+    modoTexto,
+    activa:
+      primeraPractica && enConsulta && !hudOculto && !manualAbierto && (modoTexto || !conversando),
+  });
+  useAtajosConversacion(enEscena);
   useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
-  useMuestreoProximidad(enConsulta && estadoNpc !== 'sesion_finalizada');
+  useMuestreoProximidad(enEscena && estadoNpc !== 'sesion_finalizada');
 
   // La escena 3D coloca la voz del paciente y los oídos del estudiante (audio espacial).
   useEffect(() => {
@@ -235,19 +303,20 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
 
   return (
     <>
-      {estado.estado === 'lista' && (
+      {!modoTexto && !falloLienzo && estado.estado === 'lista' && (
         <EscenaSimulacion
           escena={estado.escena}
           onListo={() => setCanvasListo(true)}
           onBloqueoCambia={setBloqueado}
+          onFallo={avisarFalloLienzo}
         />
       )}
 
       {/* Ambiente dinámico: el velo de la pantalla sigue el clima emocional del paciente. */}
-      {lista && <VeloEmocional />}
+      {escenaLista && <VeloEmocional />}
 
       {/* Capa de interfaz: no bloquea los eventos del canvas salvo en sus propios elementos. */}
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
+      <div inert={!lista} className="pointer-events-none absolute inset-0 z-10 flex flex-col p-4">
         <div className="flex items-start justify-between gap-4">
           {!hudOculto && (
             <HudSesion
@@ -256,49 +325,95 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
               compacto={conversando}
             />
           )}
-          <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
-            {depuracion && <IndicadorFps />}
-            {!hudOculto && enConsulta && (
-              <>
-                <BotonHerramienta
-                  herramienta="remision"
-                  abierta={herramientas.remision}
-                  onAlternar={() => alternarHerramienta('remision')}
-                />
-                <BotonHerramienta
-                  herramienta="notas"
-                  abierta={herramientas.notas}
-                  onAlternar={() => alternarHerramienta('notas')}
-                />
-              </>
-            )}
-            {!hudOculto && <BotonSonido motor={motorAudio} />}
-            {!hudOculto && <BotonAjustes />}
-            {!hudOculto && !conversando && <BotonControles />}
-            {!hudOculto && enConsulta && (
-              <BotonFinalizar
-                onFinalizar={finalizar}
-                finalizando={finalizando}
-                // Nunca con una respuesta de la IA en camino (evita cierres a medias).
-                deshabilitado={enCamino}
-              />
-            )}
-            {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
+          <TooltipProvider>
+            <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
+              <AnuncioPistaPractica actual={ayuda.actual} />
+              {depuracion && <IndicadorFps />}
+              {!hudOculto && enConsulta && (
+                <>
+                  <PistaPrimeraPractica control="remision" ayuda={ayuda}>
+                    <BotonHerramienta
+                      herramienta="remision"
+                      abierta={herramientas.remision}
+                      onAlternar={() => alternarHerramienta('remision')}
+                    />
+                  </PistaPrimeraPractica>
+                  <PistaPrimeraPractica control="notas" ayuda={ayuda}>
+                    <BotonHerramienta
+                      herramienta="notas"
+                      abierta={herramientas.notas}
+                      onAlternar={() => alternarHerramienta('notas')}
+                    />
+                  </PistaPrimeraPractica>
+                </>
+              )}
+              {!hudOculto && <BotonSonido motor={motorAudio} />}
+              {!hudOculto && !modoTexto && <BotonAjustes />}
+              {!hudOculto && !modoTexto && !conversando && (
+                <PistaPrimeraPractica control="controles" ayuda={ayuda}>
+                  <BotonControles />
+                </PistaPrimeraPractica>
+              )}
+              {!hudOculto && enConsulta && (
+                <>
+                  <DialogoManual
+                    alCambiar={abierto => {
+                      setManualAbierto(abierto);
+                      if (abierto && document.pointerLockElement) document.exitPointerLock();
+                    }}
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="pointer-events-auto bg-card/90 backdrop-blur"
+                      aria-label="Manual de uso"
+                      title="Manual de uso"
+                    >
+                      <BookOpen aria-hidden />
+                    </Button>
+                  </DialogoManual>
+                  <BotonFinalizar
+                    onFinalizar={finalizar}
+                    finalizando={finalizando}
+                    // Nunca con una respuesta de la IA en camino (evita cierres a medias).
+                    deshabilitado={enCamino}
+                  />
+                </>
+              )}
+              {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
                 confirmación dice la hora. */}
-            {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
-            {puedeOcultarHud && (
-              <BotonOcultarHud
-                oculto={hudOculto}
-                onAlternar={() => setHudOculto(valor => !valor)}
-              />
-            )}
-          </div>
+              {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
+              {puedeOcultarHud && (
+                <PistaPrimeraPractica control="ocultar" ayuda={ayuda}>
+                  <BotonOcultarHud
+                    oculto={hudOculto}
+                    onAlternar={() => setHudOculto(valor => !valor)}
+                  />
+                </PistaPrimeraPractica>
+              )}
+            </div>
+          </TooltipProvider>
         </div>
 
-        {enConsulta && explorando && !bloqueado && (
+        {enConsulta && modoTexto && explorando && (
+          <div className="mt-auto flex justify-center pb-6">
+            <Button
+              className="pointer-events-auto"
+              size="lg"
+              variant="accion"
+              autoFocus
+              onClick={() => iniciarConversacion(store, { directo: true })}
+            >
+              <MessageCircle aria-hidden />
+              Ir directo a la conversación
+            </Button>
+          </div>
+        )}
+        {enEscena && explorando && !bloqueado && (
           <InvitacionExplorar nombrePaciente={nombrePaciente} cerca={cerca} />
         )}
-        {enConsulta && explorando && bloqueado && (
+        {enEscena && explorando && bloqueado && (
           <>
             <Mira resaltada={cerca && apuntando} />
             {cerca && <PistaConversar nombrePaciente={nombrePaciente} apuntando={apuntando} />}
@@ -315,6 +430,8 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       )}
       {enConsulta && !hudOculto && herramientas.notas && (
         <LibretaNotas
+          key={`${cuentaId}:${sesion.id}`}
+          cuentaId={cuentaId}
           sesionId={sesion.id}
           conversando={conversando}
           onCerrar={() => alternarHerramienta('notas')}
@@ -322,53 +439,97 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
       )}
 
       {/* Tras un cierre automático el panel sigue a la vista: ahí está el aviso y la conversación. */}
-      {lista && (conversando || cierre) && !resumen && (
+      {lista && (cierre || (!necesitaInstrucciones && conversando)) && !resumen && (
         <ConversationPanel
+          modoTexto={modoTexto}
           onFinalizar={finalizar}
           finalizando={finalizando}
           onContinuar={verResultados}
         />
       )}
-      {enConsulta && <AvisoPantallaCompleta />}
+      {enEscena && <AvisoPantallaCompleta />}
       {/* Las instrucciones muestran su propio aviso de inactividad (un diálogo modal taparía otro). */}
-      {lista && !comenzada && !resumen && (
-        <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
+      {lista && necesitaInstrucciones && !resumen && !cierre && (
+        <InstruccionesCaso
+          sesion={sesion}
+          modoTexto={modoTexto}
+          segundosParaCierre={segundosParaCierre}
+          aceptadaAntes={privacidadAceptada}
+          onAceptarPrivacidad={() => {
+            recordarPrivacidadAceptada(cuentaId);
+            setPrivacidadAceptada(new Date().toISOString());
+          }}
+        />
       )}
-      {segundosParaCierre !== null && comenzada && !resumen && (
+      {segundosParaCierre !== null && !necesitaInstrucciones && !resumen && (
         <AvisoInactividad segundosRestantes={segundosParaCierre} comenzada={comenzada} />
       )}
       {resumen && <SesionFinalizada resumen={resumen} sesion={sesion} motivo={motivo} />}
 
-      {estado.estado === 'error' && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
-          <div role="alert" className="flex max-w-sm flex-col items-center gap-4 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <AlertTriangle className="size-6" aria-hidden />
-            </span>
-            <h2 className="text-xl font-bold">No pudimos cargar el consultorio</h2>
-            <p className="text-sm text-muted-foreground">
-              Revisa tu conexión e inténtalo de nuevo. Tu práctica sigue abierta mientras no pasen
-              10 minutos sin actividad.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="accion" onClick={reintentar}>
-                <RotateCw aria-hidden />
-                Reintentar
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/practicas">Ir a Mis prácticas</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+      {!modoTexto && estado.estado === 'error' && (
+        <AvisoEscenaNoDisponible
+          titulo="No pudimos cargar el consultorio"
+          descripcion="Revisa tu conexión o sigue la práctica en modo texto."
+          onContinuarEnTexto={continuarEnTexto}
+          onReintentar={reintentar}
+        />
+      )}
+      {!modoTexto && falloLienzo && (
+        <AvisoEscenaNoDisponible
+          titulo="Tu navegador no pudo mostrar el consultorio en 3D"
+          descripcion="Puedes seguir la práctica en modo texto."
+          onContinuarEnTexto={continuarEnTexto}
+        />
       )}
 
       <LoadingScreen
-        visible={!lista && estado.estado !== 'error'}
+        visible={!lista && !falloLienzo && estado.estado !== 'error'}
         titulo={sesion.escenario.titulo}
         competencia={sesion.escenario.competenciaCentral}
+        onContinuarEnTexto={continuarEnTexto}
       />
     </>
+  );
+}
+
+function AvisoEscenaNoDisponible({
+  titulo,
+  descripcion,
+  onContinuarEnTexto,
+  onReintentar,
+}: {
+  titulo: string;
+  descripcion: string;
+  onContinuarEnTexto: () => void;
+  onReintentar?: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-background p-6">
+      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertTriangle className="size-6" aria-hidden />
+        </span>
+        <div role="alert">
+          <h2 className="text-xl font-bold">{titulo}</h2>
+          <p className="text-sm text-muted-foreground">{descripcion}</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="accion" onClick={onContinuarEnTexto}>
+            <MessageCircle aria-hidden />
+            Continuar en modo texto
+          </Button>
+          {onReintentar && (
+            <Button variant="outline" onClick={onReintentar}>
+              <RotateCw aria-hidden />
+              Reintentar
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href="/practicas">Ir a Mis prácticas</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -380,6 +541,14 @@ function Escenario({ sesion }: { sesion: SesionActiva }) {
 function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string; cerca: boolean }) {
   const store = useAppStoreApi();
   const nombreCorto = nombrePaciente.split(' ')[0];
+  const botonExplorar = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // Al salir con Escape, devuelve el foco desde el lienzo sin quitárselo a un control del HUD.
+    if (document.activeElement instanceof HTMLCanvasElement) {
+      botonExplorar.current?.focus({ preventScroll: true });
+    }
+  }, []);
 
   return (
     <div className="mt-auto flex justify-center pb-6">
@@ -417,7 +586,12 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
           </li>
         </ul>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button id={ID_BOTON_EXPLORAR} size="lg" variant={cerca ? 'outline' : 'accion'}>
+          <Button
+            ref={botonExplorar}
+            id={ID_BOTON_EXPLORAR}
+            size="lg"
+            variant={cerca ? 'outline' : 'accion'}
+          >
             Comenzar a explorar
           </Button>
           {cerca && (

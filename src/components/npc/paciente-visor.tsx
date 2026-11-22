@@ -7,6 +7,7 @@ import { PCFShadowMap, Vector3 } from 'three';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Selector } from '@/components/ui/selector';
 import { duracionEscritura } from '@/components/simulacion/use-texto-progresivo';
 import { planVoz } from '@/lib/audio/voz';
 import {
@@ -127,8 +128,6 @@ export default function PacienteVisor({ modelo, className }: PacienteVisorProps)
     return () => clearTimeout(espera);
   }, [estado, frase]);
 
-  const selector = 'h-8 rounded-lg border border-input bg-transparent px-2 text-sm';
-
   return (
     <div
       className={cn(
@@ -177,29 +176,25 @@ export default function PacienteVisor({ modelo, className }: PacienteVisorProps)
             <label htmlFor={idEstado} className="text-muted-foreground">
               Estado
             </label>
-            <select
+            <Selector
               id={idEstado}
-              value={estado}
-              onChange={e => setEstado(e.target.value as EstadoNpc)}
-              className={selector}
-            >
-              {ESTADOS_NPC.map(id => (
-                <option key={id}>{id}</option>
-              ))}
-            </select>
+              tamano="sm"
+              ariaLabel="Estado"
+              valor={estado}
+              opciones={ESTADOS_NPC.map(id => ({ valor: id, etiqueta: id }))}
+              onChange={nuevo => setEstado(nuevo as EstadoNpc)}
+            />
             <label htmlFor={idEmocion} className="text-muted-foreground">
               Emoción
             </label>
-            <select
+            <Selector
               id={idEmocion}
-              value={emocion}
-              onChange={e => setEmocion(e.target.value as EmocionNpc)}
-              className={selector}
-            >
-              {EMOCIONES_NPC.map(id => (
-                <option key={id}>{id}</option>
-              ))}
-            </select>
+              tamano="sm"
+              ariaLabel="Emoción"
+              valor={emocion}
+              opciones={EMOCIONES_NPC.map(id => ({ valor: id, etiqueta: id }))}
+              onChange={nuevo => setEmocion(nuevo as EmocionNpc)}
+            />
             <span className="text-muted-foreground">Intensidad</span>
             <div role="radiogroup" aria-label="Intensidad" className="flex gap-1.5">
               {([1, 2, 3] as const).map(n => (

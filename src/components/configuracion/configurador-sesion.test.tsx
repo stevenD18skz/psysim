@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { guardarVariante } from '@/lib/casos/actions';
@@ -12,7 +12,11 @@ import { ConfiguradorSesion } from './configurador-sesion';
 
 const push = vi.fn();
 const refresh = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
+const replace = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, refresh, replace }),
+  unstable_rethrow: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/asignaciones/actions', () => ({ generarAsignacion: vi.fn() }));
 vi.mock('@/lib/equipo-compartido/actions', () => ({ entregarEquipo: vi.fn() }));
@@ -86,6 +90,7 @@ function estudiante(
   return {
     correo: `${datos.codigo}@correounivalle.edu.co`,
     cuentaVinculada: true,
+    avatarId: null,
     creadoEn: '2026-10-01T15:00:00.000Z',
     metricas: {
       sesiones: 3,
@@ -107,6 +112,7 @@ const ANA = estudiante({
   id: '55555555-5555-4555-8555-555555555555',
   codigo: '202012345',
   nombre: 'Ana María Pérez',
+  avatarId: 'brujula',
 });
 /** Registro antiguo (sin correo): aún no puede recibir códigos. */
 const SIN_CUENTA = estudiante({
@@ -137,11 +143,22 @@ function renderizar(
 
 describe('ConfiguradorSesion', () => {
   beforeEach(() => {
+    // Radix usa ResizeObserver al abrir los tooltips y jsdom no lo implementa.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      }
+    );
     push.mockReset();
     refresh.mockReset();
     mockGenerar.mockReset();
     mockGuardar.mockReset();
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it('muestra los escenarios y expande el perfil del NPC al seleccionar uno (HU-06 · T02)', async () => {
     const usuario = userEvent.setup();
@@ -154,14 +171,21 @@ describe('ConfiguradorSesion', () => {
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
 
     expect(screen.getByRole('heading', { name: 'Paciente E-01' })).toBeVisible();
-    // El comportamiento va plegado: se despliega con «Ajustar».
+    // El comportamiento va plegado: se despliega con «Ajustar» y el texto completo se abre en modal.
     await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(E01.npc.promptSistema);
+    await usuario.click(screen.getByRole('button', { name: 'Listo' }));
 
     // Solo un escenario seleccionado a la vez.
     await usuario.click(screen.getByRole('radio', { name: /Ansiedad generalizada/ }));
     expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).not.toBeChecked();
     expect(screen.getByRole('radio', { name: /Ansiedad generalizada/ })).toBeChecked();
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(E02.npc.promptSistema);
   });
 
@@ -205,6 +229,7 @@ describe('ConfiguradorSesion', () => {
       estudianteId: ANA.id,
       vigenciaDias: 3,
       duracionMinutos: 20,
+      solicitudId: expect.any(String),
     });
     const dialogo = await screen.findByRole('dialog', { name: /Código listo para/ });
     expect(within(dialogo).getByTestId('codigo-acceso')).toHaveTextContent('abc-defg-hij');
@@ -221,14 +246,37 @@ describe('ConfiguradorSesion', () => {
     expect(push).not.toHaveBeenCalled();
 
     // Modo presencial: el docente confirma y entrega este computador al estudiante.
-    await usuario.click(within(dialogo).getByRole('button', { name: /Practicar en este equipo/ }));
-    const confirmacion = await screen.findByRole('alertdialog', {
-      name: /¿Ana practica en este computador\?/,
+    const claveBorrador = 'psysim:borrador-retro:docente:practica:general';
+    const claveAnotaciones = 'psysim:borrador-retro:docente:practica:anotaciones';
+    sessionStorage.setItem(claveBorrador, 'Comentario pendiente');
+    sessionStorage.setItem(claveAnotaciones, 'Anotación pendiente');
+    vi.mocked(entregarEquipo)
+      .mockResolvedValueOnce({ ok: false, error: 'No pudimos preparar el equipo.' })
+      .mockResolvedValueOnce({ ok: true, datos: null });
+    replace.mockImplementationOnce(() => {
+      expect(sessionStorage.getItem(claveBorrador)).toBeNull();
+      expect(sessionStorage.getItem(claveAnotaciones)).toBeNull();
     });
-    await usuario.click(
-      within(confirmacion).getByRole('button', { name: /Cerrar mi sesión y entregar/ })
-    );
+
+    const confirmarEntrega = async () => {
+      await usuario.click(
+        within(dialogo).getByRole('button', { name: /Practicar en este equipo/ })
+      );
+      const confirmacion = await screen.findByRole('alertdialog', {
+        name: /¿Ana practica en este computador\?/,
+      });
+      await usuario.click(
+        within(confirmacion).getByRole('button', { name: /Cerrar mi sesión y entregar/ })
+      );
+    };
+
+    await confirmarEntrega();
+    expect(sessionStorage.getItem(claveBorrador)).toBe('Comentario pendiente');
+    expect(sessionStorage.getItem(claveAnotaciones)).toBe('Anotación pendiente');
+    expect(replace).not.toHaveBeenCalled();
+    await confirmarEntrega();
     expect(entregarEquipo).toHaveBeenCalledWith({ id: '77777777-7777-4777-8777-777777777777' });
+    expect(replace).toHaveBeenCalledWith('/entrega');
   });
 
   it('la vigencia por defecto es de 7 días', async () => {
@@ -239,6 +287,33 @@ describe('ConfiguradorSesion', () => {
     expect(screen.getByRole('radio', { name: '7 días' })).toBeChecked();
     await usuario.click(screen.getByRole('button', { name: /Generar código/ }));
     expect(mockGenerar).toHaveBeenCalledWith(expect.objectContaining({ vigenciaDias: 7 }));
+  });
+
+  it('mantiene la solicitud al reintentar y usa otra al cambiar la asignación', async () => {
+    mockGenerar.mockResolvedValue({ ok: false, error: 'No pudimos confirmar el resultado.' });
+    const usuario = userEvent.setup();
+    renderizar([E01], E01.id, [ANA], ANA);
+    const generar = screen.getByRole('button', { name: /Generar código/ });
+    const intentarGenerar = async (intento: number) => {
+      await usuario.click(generar);
+      await waitFor(() => expect(mockGenerar).toHaveBeenCalledTimes(intento));
+      await waitFor(() => expect(generar).toBeEnabled());
+    };
+
+    await intentarGenerar(1);
+    await intentarGenerar(2);
+    const tresDias = screen.getByRole('radio', { name: '3 días' });
+    await waitFor(() => expect(tresDias).toBeEnabled());
+    await usuario.click(tresDias);
+    expect(tresDias).toBeChecked();
+    await intentarGenerar(3);
+
+    const solicitudes = mockGenerar.mock.calls.map(
+      ([valores]) => (valores as { solicitudId: string }).solicitudId
+    );
+    expect(solicitudes[1]).toBe(solicitudes[0]);
+    expect(solicitudes[2]).not.toBe(solicitudes[0]);
+    expect(mockGenerar).toHaveBeenLastCalledWith(expect.objectContaining({ vigenciaDias: 3 }));
   });
 
   it('muestra el error del servidor si no se pudo generar el código', async () => {
@@ -260,12 +335,18 @@ describe('ConfiguradorSesion', () => {
     await usuario.click(duelo);
     expect(duelo).toBeChecked();
     await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
-    await usuario.click(screen.getByText('Ver o editar el texto completo (avanzado)'));
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
+    expect(screen.getByRole('dialog', { name: /Texto completo de Paciente/ })).toBeVisible();
     expect(screen.getByLabelText('Comportamiento del paciente')).toBeVisible();
+    await usuario.click(screen.getByRole('button', { name: 'Listo' }));
 
     await usuario.click(duelo);
     expect(duelo).not.toBeChecked();
-    expect(screen.queryByLabelText('Comportamiento del paciente')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Guardar como mi caso/ })).toBeDisabled();
 
     // Se puede volver a elegir el mismo u otro caso.
@@ -339,6 +420,9 @@ describe('ConfiguradorSesion', () => {
 
     expect(screen.getByRole('radio', { name: /Mi caso de ansiedad/ })).toBeChecked();
     await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
     expect(screen.getByLabelText('Comportamiento del paciente')).toHaveValue(
       PROPIO.npc.promptSistema
     );
@@ -365,10 +449,14 @@ describe('ConfiguradorSesion', () => {
 
     await usuario.click(screen.getByRole('radio', { name: /Duelo y pérdida/ }));
     await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
-    await usuario.click(screen.getByText('Ver o editar el texto completo (avanzado)'));
-    const prompt = screen.getByLabelText('Comportamiento del paciente');
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
+    const dialogoPrompt = screen.getByRole('dialog', { name: /Texto completo de Paciente/ });
+    const prompt = within(dialogoPrompt).getByLabelText('Comportamiento del paciente');
     await usuario.clear(prompt);
     await usuario.type(prompt, 'Un prompt ajustado por el docente para el grupo A.');
+    await usuario.click(within(dialogoPrompt).getByRole('button', { name: 'Listo' }));
     // Editado a mano: los ajustes rápidos quedan en pausa y se usa el texto.
     expect(screen.getByText('Usará el texto que editaste.')).toBeVisible();
 
@@ -416,11 +504,16 @@ describe('ConfiguradorSesion', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Ajustar para esta práctica' }));
     await usuario.click(screen.getByRole('radio', { name: /Se abre más/ }));
-    const texto = screen.getByLabelText('Comportamiento del paciente');
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ver o editar el texto completo (avanzado)' })
+    );
+    const dialogoPrompt = screen.getByRole('dialog', { name: /Texto completo de Paciente/ });
+    const texto = within(dialogoPrompt).getByLabelText('Comportamiento del paciente');
     expect((texto as HTMLTextAreaElement).value).toContain('Ajustes del docente');
 
-    await usuario.click(screen.getByRole('button', { name: 'Volver al original' }));
+    await usuario.click(within(dialogoPrompt).getByRole('button', { name: 'Volver al original' }));
     expect(texto).toHaveValue(E01.npc.promptSistema);
+    await usuario.click(within(dialogoPrompt).getByRole('button', { name: 'Listo' }));
     expect(screen.getByText(/se comportará como describe el caso/)).toBeVisible();
   });
 
@@ -498,7 +591,9 @@ describe('ConfiguradorSesion', () => {
       renderizar([E01, E02], undefined, [ANA, SIN_CUENTA]);
 
       await usuario.click(screen.getByRole('combobox'));
-      expect(screen.getByRole('option', { name: /Ana María Pérez/ })).toBeVisible();
+      const opcionAna = screen.getByRole('option', { name: /Ana María Pérez/ });
+      expect(opcionAna).toBeVisible();
+      expect(opcionAna.querySelector('svg.lucide-compass')).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: /Pedro Sin Cuenta/ })).not.toBeInTheDocument();
     });
 
@@ -523,10 +618,36 @@ describe('ConfiguradorSesion', () => {
       expect(screen.getByRole('combobox')).toBeVisible();
     });
 
+    it('el botón lateral del buscador abre y cierra la lista de estudiantes', async () => {
+      const usuario = userEvent.setup();
+      renderizar([E01, E02], undefined, [ANA]);
+
+      expect(screen.queryByRole('option', { name: /Ana María Pérez/ })).not.toBeInTheDocument();
+
+      await usuario.click(screen.getByRole('button', { name: 'Mostrar lista de estudiantes' }));
+      expect(screen.getByRole('option', { name: /Ana María Pérez/ })).toBeVisible();
+
+      await usuario.click(screen.getByRole('button', { name: 'Ocultar lista de estudiantes' }));
+      expect(screen.queryByRole('option', { name: /Ana María Pérez/ })).not.toBeInTheDocument();
+    });
+
     it('un estudiante preseleccionado sin cuenta no queda elegido', () => {
       renderizar([E01, E02], undefined, [ANA, SIN_CUENTA], SIN_CUENTA);
       expect(screen.queryByTestId('estudiante-elegido')).not.toBeInTheDocument();
     });
+  });
+
+  it('ofrece cambiar de pestaña si la búsqueda solo coincide en la otra sección', async () => {
+    const usuario = userEvent.setup();
+    const otros = Array.from({ length: 6 }, (_, i) =>
+      escenario(`E-2${i}`, `Caso oficial ${i}`, `9999999${i}-0000-4000-8000-000000000000`)
+    );
+    renderizar([PROPIO, E01, ...otros]);
+
+    // Con casos propios abre en «Mis casos»; al buscar un caso predefinido ofrece saltar allí.
+    await usuario.type(screen.getByLabelText('Buscar un caso'), 'Duelo');
+    await usuario.click(screen.getByRole('button', { name: 'Ver 1 en Casos predefinidos' }));
+    expect(screen.getByRole('radio', { name: /Duelo y pérdida/ })).toBeVisible();
   });
 
   it('pagina los casos propios cuando hay más de 12 y reinicia la página al buscar', async () => {

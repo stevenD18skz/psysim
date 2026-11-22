@@ -1,4 +1,4 @@
-import { rutaSinParametros, type Telemetria } from './telemetria';
+import { patronDePantalla, type Telemetria } from './telemetria';
 
 /** Tope por visita: un error que se repite en bucle no debe inundar el registro. */
 const MAX_ENVIOS_POR_VISITA = 8;
@@ -15,7 +15,7 @@ export function enviarTelemetria(evento: Evento): void {
   if (typeof window === 'undefined' || enviados >= MAX_ENVIOS_POR_VISITA) return;
   enviados += 1;
   try {
-    const cuerpo = JSON.stringify({ ...evento, ruta: rutaSinParametros(window.location.pathname) });
+    const cuerpo = JSON.stringify({ ...evento, ruta: patronDePantalla(window.location.pathname) });
     const enviadoPorBeacon =
       typeof navigator.sendBeacon === 'function' &&
       navigator.sendBeacon('/api/telemetria', new Blob([cuerpo], { type: 'application/json' }));

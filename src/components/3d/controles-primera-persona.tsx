@@ -167,7 +167,11 @@ export function ControlesPrimeraPersona({
       minPolarAngle={Math.PI * 0.22}
       maxPolarAngle={Math.PI * 0.78}
       enabled={habilitado}
-      onLock={() => onBloqueoCambia?.(true)}
+      onLock={() => {
+        // Capturar el ratón no mueve el foco. El botón que lo activa desaparece al explorar.
+        obtenerEstado().gl.domElement.focus({ preventScroll: true });
+        onBloqueoCambia?.(true);
+      }}
       onUnlock={() => onBloqueoCambia?.(false)}
     />
   );

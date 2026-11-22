@@ -15,6 +15,7 @@ function estudiante(
     nombre,
     correo: cuentaVinculada ? `${nombre}@correounivalle.edu.co` : null,
     cuentaVinculada,
+    avatarId: null,
     creadoEn: 'T',
     metricas: {
       sesiones: 0,

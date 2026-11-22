@@ -1,11 +1,15 @@
 'use client';
 
+import { SearchX } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { BibliotecaCasos, type UsoCaso } from '@/components/casos/biblioteca-casos';
 import { BotonSeccion } from '@/components/comun/boton-seccion';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 import { PaginacionLocal } from '@/components/comun/paginacion';
 import { PistaSegmentada } from '@/components/comun/pista-segmentada';
+import { Button } from '@/components/ui/button';
 import { paginar } from '@/lib/listas';
 import { cn } from '@/lib/utils';
 import { type EscenarioCatalogo } from '@/types';
@@ -96,9 +100,16 @@ export function SeccionesCasos({
             />
           </>
         ) : predefinidos.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-input/50 px-5 py-6 text-sm text-muted-foreground">
-            Ningún caso predefinido coincide con los filtros.
-          </p>
+          <EstadoVacio
+            icono={SearchX}
+            titulo="Ningún caso predefinido coincide con los filtros"
+            descripcion="Prueba con otro criterio o limpia los filtros para explorar los 12 casos oficiales."
+            accion={
+              <Button asChild size="sm" variant="outline">
+                <Link href="/configuracion/casos">Quitar filtros</Link>
+              </Button>
+            }
+          />
         ) : (
           <>
             <BibliotecaCasos casos={resultado.visibles} uso={uso} />

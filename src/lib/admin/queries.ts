@@ -2,9 +2,12 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { CODIGO_PG } from '@/lib/acciones';
 import { estadoAsignacion } from '@/lib/asignaciones/codigo';
 import { requerirSuperadmin } from '@/lib/auth/dal';
-import { aEstudiante, COLUMNAS_RESUMEN } from '@/lib/estudiantes/queries';
+import { type AvatarId, esAvatarId } from '@/lib/avatares/catalogo';
+import { aEstudiante, COLUMNAS_RESUMEN, conAvataresDeCuenta } from '@/lib/estudiantes/queries';
+import { log } from '@/lib/log';
 import { CASO_NO_DISPONIBLE, leerTitulosDeEscenarios } from '@/lib/sesiones/datos-privados';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -51,7 +54,25 @@ export const obtenerDocentes = cache(async (): Promise<DocenteAdmin[]> => {
   if (error) {
     throw new Error('No pudimos cargar los docentes.', { cause: error });
   }
-  return data.map(aDocente);
+  const docentes = data.map(aDocente);
+  if (docentes.length === 0) return docentes;
+
+  const admin = createAdminClient();
+  const { data: usuarios, error: errorAvatares } = await admin
+    .from('usuario')
+    .select('id, avatar_id')
+    .in(
+      'id',
+      docentes.map(d => d.id)
+    );
+  if (errorAvatares && errorAvatares.code !== CODIGO_PG.UNDEFINED_COLUMN) {
+    log.error('admin.avatares_docentes_no_disponibles', { codigo: errorAvatares.code });
+  }
+  const avatares = new Map<string, AvatarId>();
+  for (const u of usuarios ?? []) {
+    if (esAvatarId(u.avatar_id)) avatares.set(u.id, u.avatar_id);
+  }
+  return docentes.map(d => ({ ...d, avatarId: avatares.get(d.id) ?? null }));
 });
 
 export interface CasoDeDocente {
@@ -102,7 +123,7 @@ export async function obtenerFichaDocente(id: string): Promise<{
     if (error) {
       throw new Error('No pudimos cargar los estudiantes del docente.', { cause: error });
     }
-    estudiantes = data.flatMap(fila => aEstudiante(fila) ?? []);
+    estudiantes = await conAvataresDeCuenta(data.flatMap(fila => aEstudiante(fila) ?? []));
   }
 
   return {
@@ -149,12 +170,13 @@ export const obtenerTodosLosEstudiantes = cache(async (): Promise<EstudianteRegi
     ])
   );
 
-  return resumen.data.flatMap(fila => {
+  const estudiantes = resumen.data.flatMap(fila => {
     const base = aEstudiante(fila);
     if (!base) return [];
     const docente = docentesPorRegistro.get(base.id);
     return [{ ...base, ...(docente && { docente }) }];
   });
+  return conAvataresDeCuenta(estudiantes);
 });
 
 /**
@@ -181,9 +203,12 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
       .select(
         `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
          usuario ( nombre ),
-         retroalimentacion ( publicada_en, nota )`
+         retroalimentacion ( publicada_en, nota ),
+         intervenciones:mensaje ( count )`
       )
       .eq('estudiante_id', id)
+      .eq('intervenciones.remitente', 'estudiante')
+      .is('intervenciones.descartado_en', null)
       .order('inicio', { ascending: false }),
     admin
       .from('asignacion')
@@ -211,13 +236,17 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
     ...sesionesRes.data.map(f => f.escenario_id),
     ...asignacionesRes.data.map(f => f.escenario_id),
   ];
-  const titulos = await leerTitulosDeEscenarios(idsEscenarios);
+  const [titulos, [estudiante]] = await Promise.all([
+    leerTitulosDeEscenarios(idsEscenarios),
+    conAvataresDeCuenta([base]),
+  ]);
   const ahora = new Date();
 
   const sesiones: SesionHistorial[] = sesionesRes.data.map(fila => ({
     id: fila.id,
     estado: fila.estado,
     comenzada: fila.comenzada,
+    intervenciones: fila.intervenciones?.[0]?.count ?? 0,
     inicio: fila.inicio,
     fin: fila.fin,
     ultimaActividad: fila.ultima_actividad,
@@ -245,7 +274,7 @@ export async function obtenerFichaEstudianteAdmin(id: string): Promise<{
   }));
 
   return {
-    estudiante: { ...base, ...(docente && { docente }) },
+    estudiante: { ...(estudiante ?? base), ...(docente && { docente }) },
     sesiones,
     asignaciones,
   };

@@ -96,55 +96,74 @@ export function AccionesDocente({
 
   return (
     <>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant={enFicha ? 'outline' : 'ghost'}
-            size={enFicha ? 'icon-lg' : 'icon-sm'}
-            aria-label={`Más acciones para ${docente.nombre}`}
-          >
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-60">
-          {!enFicha && (
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/docentes/${docente.id}`}>
-                <Eye aria-hidden />
-                Ver ficha
-              </Link>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={() => setDialogo('editar')}>
+      <div className="flex items-center justify-end gap-1.5">
+        {enFicha ? (
+          <Button type="button" variant="outline" size="lg" onClick={() => setDialogo('editar')}>
             <Pencil aria-hidden />
-            Editar datos y rol
-          </DropdownMenuItem>
-          {!esPropio && (
-            <>
-              <DropdownMenuItem onSelect={() => setDialogo('contrasena')}>
-                <KeyRound aria-hidden />
-                Generar contraseña temporal
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setDialogo('estado')}>
-                {docente.activo ? <PowerOff aria-hidden /> : <Power aria-hidden />}
-                {docente.activo ? 'Desactivar cuenta' : 'Reactivar cuenta'}
-              </DropdownMenuItem>
-              {conHistorial ? (
-                <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground">
-                  <Trash2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  Tiene historial: desactívala en lugar de eliminarla.
-                </DropdownMenuLabel>
-              ) : (
-                <DropdownMenuItem variant="destructive" onSelect={() => setDialogo('eliminar')}>
-                  <Trash2 aria-hidden />
-                  Eliminar cuenta
+            Editar
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={() => setDialogo('editar')}>
+            <Pencil aria-hidden />
+            Editar
+          </Button>
+        )}
+
+        {(!enFicha || !esPropio) && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={enFicha ? 'outline' : 'ghost'}
+                size={enFicha ? 'icon-lg' : 'icon-sm'}
+                title="Más acciones"
+                aria-label={`Más acciones para ${docente.nombre}`}
+              >
+                <MoreHorizontal aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              {!enFicha && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/admin/docentes/${docente.id}`}>
+                    <Eye aria-hidden />
+                    Ver ficha
+                  </Link>
                 </DropdownMenuItem>
               )}
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              {!enFicha && (
+                <DropdownMenuItem onSelect={() => setDialogo('editar')}>
+                  <Pencil aria-hidden />
+                  Editar datos y rol
+                </DropdownMenuItem>
+              )}
+              {!esPropio && (
+                <>
+                  <DropdownMenuItem onSelect={() => setDialogo('contrasena')}>
+                    <KeyRound aria-hidden />
+                    Generar contraseña temporal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setDialogo('estado')}>
+                    {docente.activo ? <PowerOff aria-hidden /> : <Power aria-hidden />}
+                    {docente.activo ? 'Desactivar cuenta' : 'Reactivar cuenta'}
+                  </DropdownMenuItem>
+                  {conHistorial ? (
+                    <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground">
+                      <Trash2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                      Tiene historial: desactívala en lugar de eliminarla.
+                    </DropdownMenuLabel>
+                  ) : (
+                    <DropdownMenuItem variant="destructive" onSelect={() => setDialogo('eliminar')}>
+                      <Trash2 aria-hidden />
+                      Eliminar cuenta
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       <DialogoDocente
         docente={docente}

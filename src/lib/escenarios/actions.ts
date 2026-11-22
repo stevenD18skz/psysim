@@ -6,8 +6,12 @@ import { getProveedorIa } from '@/lib/env/orquestador';
 import { mensajeConsultorioOcupado } from '@/lib/orquestador/cuentas';
 import { cerrarDespues } from '@/lib/orquestador/diferido';
 import { reservarCuentaAlComenzar } from '@/lib/orquestador/practica';
-import { anotarFinPorTiempo, leerTiempoDeConsulta } from '@/lib/sesiones/consulta';
-import { type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
+import {
+  anotarFinPorTiempo,
+  leerTiempoDeConsulta,
+  resolverVencimiento,
+} from '@/lib/sesiones/consulta';
+import { faseDeConsulta, type TiempoConsulta } from '@/lib/sesiones/tiempo-consulta';
 import { createClient } from '@/lib/supabase/server';
 import {
   actividadSesionSchema,
@@ -16,7 +20,6 @@ import {
   finalizarSesionSchema,
   reformularSchema,
 } from '@/schemas/configuracion.schema';
-import { type EstadoSesion } from '@/types';
 import { log } from '@/lib/log';
 
 export type { ResultadoAccion } from '@/lib/acciones';
@@ -176,56 +179,26 @@ export async function reformularIntervencion(
   return { ok: true, datos: { descartados: data } };
 }
 
-/**
- * La simulación lleva 10 minutos sin interacción: la sesión pasa a `interrumpida` y su hora de
- * fin es la de la última actividad (trigger `sesion_asignar_fin`). Si el barrido de la base de
- * datos ya la había cerrado, devuelve igualmente sus horas para mostrar el resumen.
- */
+/** Comprueba el vencimiento sin registrar actividad de esta pestaña. */
 export async function cerrarSesionPorInactividad(
   valores: unknown
-): Promise<ResultadoAccion<{ inicio: string; fin: string; estado: EstadoSesion }>> {
+): Promise<ResultadoAccion<NonNullable<Awaited<ReturnType<typeof resolverVencimiento>>>>> {
   await requerirEstudiante();
-
   const datos = actividadSesionSchema.safeParse(valores);
-  if (!datos.success) {
-    return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
-  }
-
-  const supabase = await createClient();
-  const { data: cerrada, error } = await supabase
-    .from('sesion')
-    .update({ estado: 'interrumpida' })
-    .eq('id', datos.data.sesionId)
-    .eq('estado', 'en_curso')
-    .select('inicio, fin, estado')
-    .maybeSingle();
-
-  let sesion = cerrada;
-  if (!error && !sesion) {
-    const { data: yaCerrada } = await supabase
-      .from('sesion')
-      .select('inicio, fin, estado')
-      .eq('id', datos.data.sesionId)
-      .neq('estado', 'en_curso')
-      .maybeSingle();
-    sesion = yaCerrada;
-  }
-
-  if (error || !sesion?.fin) {
-    if (error) log.error('practica.no_cerrada_por_inactividad', { codigo: error.code });
-    return { ok: false, error: 'No pudimos terminar la práctica. Inténtalo de nuevo.' };
-  }
-
-  cerrarDespues(datos.data.sesionId);
-
-  return { ok: true, datos: { inicio: sesion.inicio, fin: sesion.fin, estado: sesion.estado } };
+  if (!datos.success) return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
+  const estado = await resolverVencimiento(await createClient(), datos.data.sesionId);
+  if (!estado) return { ok: false, error: 'No pudimos comprobar el cierre. Inténtalo de nuevo.' };
+  if ('fin' in estado) cerrarDespues(datos.data.sesionId);
+  return { ok: true, datos: estado };
 }
 
 /**
  * Cuánto lleva la consulta según la base de datos. El navegador la pide cuando su reloj indica que
  * se acabó el margen de cierre: solo termina la práctica por tiempo si el servidor lo confirma.
  */
-export async function consultarTiempo(valores: unknown): Promise<ResultadoAccion<TiempoConsulta>> {
+export async function consultarTiempo(
+  valores: unknown
+): Promise<ResultadoAccion<TiempoConsulta & { fin?: 'tiempo' | 'cerrada' }>> {
   await requerirEstudiante();
 
   const datos = consultarTiempoSchema.safeParse(valores);
@@ -233,7 +206,16 @@ export async function consultarTiempo(valores: unknown): Promise<ResultadoAccion
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
 
-  const tiempo = await leerTiempoDeConsulta(await createClient(), datos.data.sesionId);
+  const supabase = await createClient();
+  const tiempo = await leerTiempoDeConsulta(supabase, datos.data.sesionId);
   if (!tiempo) return { ok: false, error: 'No pudimos leer el tiempo de la consulta.' };
+  if (faseDeConsulta(tiempo) === 'vencida') {
+    const estado = await resolverVencimiento(supabase, datos.data.sesionId);
+    if (!estado) return { ok: false, error: 'No pudimos comprobar el cierre. Inténtalo de nuevo.' };
+    if ('fin' in estado) {
+      cerrarDespues(datos.data.sesionId);
+      return { ok: true, datos: { ...tiempo, fin: estado.fin } };
+    }
+  }
   return { ok: true, datos: tiempo };
 }

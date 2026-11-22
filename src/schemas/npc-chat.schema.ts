@@ -90,9 +90,23 @@ export const npcChatResponseSchema = z.object({
     })
     .nullable()
     .default(null),
+  /** Historial vigente al recuperar un turno ya guardado, incluso si después hubo otros. */
+  historial_recuperado: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        remitente: z.enum(['estudiante', 'npc']),
+        contenido: z.string(),
+        timestamp: z.iso.datetime(),
+        latencia_ms: z.number().int().nonnegative().optional(),
+        emocion: z.enum(EMOCIONES_NPC).optional(),
+      })
+    )
+    .optional(),
 });
 
 const intensidadSchema = z.number().int().min(1).max(3).nullable();
+const finChatSchema = z.enum([FIN_POR_TIEMPO, 'cerrada', ...MOTIVOS_CIERRE]);
 
 /**
  * Eventos de la respuesta por partes (`por_partes: true`). Viajan como Server-Sent Events: el
@@ -119,7 +133,7 @@ export const eventoChatSchema = z.discriminatedUnion('tipo', [
     status: z.number().int(),
     error: z.string(),
     espera_s: z.number().int().positive().optional(),
-    fin: z.literal(FIN_POR_TIEMPO).optional(),
+    fin: finChatSchema.optional(),
   }),
 ]);
 
@@ -128,8 +142,8 @@ export const npcChatErrorSchema = z.object({
   error: z.string(),
   /** Detalle por campo cuando la validación falla (400). */
   campos: z.record(z.string(), z.array(z.string())).optional(),
-  /** La práctica ya no acepta intervenciones porque se cumplió el tiempo de la consulta. */
-  fin: z.literal(FIN_POR_TIEMPO).optional(),
+  /** La práctica ya no acepta intervenciones. */
+  fin: finChatSchema.optional(),
 });
 
 export type MensajeHistorial = z.infer<typeof mensajeHistorialSchema>;

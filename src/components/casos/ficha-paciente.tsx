@@ -1,6 +1,8 @@
 import { Lock, MessageSquareQuote } from 'lucide-react';
 
+import { AvatarPaciente } from '@/components/pacientes/avatar-paciente';
 import { ACTITUDES, NIVELES_RIESGO, SINTOMAS } from '@/lib/casos/opciones';
+import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import { type CamposCaso } from '@/schemas/caso.schema';
 
 /**
@@ -8,7 +10,14 @@ import { type CamposCaso } from '@/schemas/caso.schema';
  * decidió, ordenado como una ficha, sin la redacción técnica que recibe la IA. Lo que aún falta
  * se marca en su lugar.
  */
-export function FichaPaciente({ campos }: { campos: CamposCaso }) {
+export function FichaPaciente({
+  campos,
+  consultorio,
+}: {
+  campos: CamposCaso;
+  /** Ruta de la escena 3D seleccionada: actualiza el retrato del paciente en tiempo real. */
+  consultorio?: string;
+}) {
   const nombre = campos.nombre.trim();
   const edad = Number.isFinite(campos.edad) && campos.edad > 0 ? `${campos.edad} años` : null;
   const sintomas = [
@@ -20,16 +29,25 @@ export function FichaPaciente({ campos }: { campos: CamposCaso }) {
   const secretos = (campos.secretos ?? []).filter(s => s.dato.trim() && s.condicion.trim());
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl bg-lino/60 p-4 text-sm">
-      <div>
-        <p className="text-lg leading-tight font-bold text-terracota">
-          {nombre || <Falta>Nombre del paciente</Falta>}
-        </p>
-        <p className="text-muted-foreground">
-          {[edad, campos.ocupacion.trim() || null].filter(Boolean).join(' · ') || (
-            <Falta>Edad y ocupación</Falta>
-          )}
-        </p>
+    <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-lino/60 p-4 text-sm">
+      <div className="flex items-center gap-3">
+        {consultorio && (
+          <AvatarPaciente
+            src={avatarDeEscena(consultorio)}
+            nombre={nombre || 'Paciente'}
+            className="size-12 shrink-0 text-sm ring-2 ring-card"
+          />
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-lg leading-tight font-bold text-terracota">
+            {nombre || <Falta>Nombre del paciente</Falta>}
+          </p>
+          <p className="text-muted-foreground">
+            {[edad, campos.ocupacion.trim() || null].filter(Boolean).join(' · ') || (
+              <Falta>Edad y ocupación</Falta>
+            )}
+          </p>
+        </div>
       </div>
       <Bloque titulo="Qué le pasa">
         {campos.situacion.trim() || <Falta>La situación y el motivo de consulta</Falta>}

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
 import { consultarTiempo } from '@/lib/escenarios/actions';
 import {
   consultaAhora,
@@ -77,8 +76,8 @@ export function useFinPorTiempo({ sesionId, activo }: { sesionId: string; activo
         return;
       }
       const { conversacion } = store.getState();
-      if (resultado?.ok && faseDeConsulta(resultado.datos) === 'vencida') {
-        if (!conversacion.cierre) conversacion.establecerCierre(FIN_POR_TIEMPO);
+      if (resultado?.ok && resultado.datos.fin) {
+        if (!conversacion.cierre) conversacion.establecerCierre(resultado.datos.fin);
         return;
       }
       if (resultado?.ok) conversacion.actualizarConsulta(resultado.datos);

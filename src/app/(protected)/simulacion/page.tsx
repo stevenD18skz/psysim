@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button';
 import { requerirEstudiante } from '@/lib/auth/dal';
 import {
   obtenerIdUltimaSesionEnCurso,
+  obtenerIdPrimeraPractica,
   obtenerMensajesSesion,
   obtenerSesionEnCurso,
 } from '@/lib/escenarios/queries';
+import { leerTurnosGuardados } from '@/lib/orquestador/datos';
 
 export const metadata: Metadata = {
   title: 'Simulación',
@@ -20,7 +22,7 @@ export const metadata: Metadata = {
 const idSesionSchema = z.uuid();
 
 export default async function SimulacionPage({ searchParams }: PageProps<'/simulacion'>) {
-  await requerirEstudiante();
+  const perfil = await requerirEstudiante();
 
   const { sesion: parametro } = await searchParams;
 
@@ -50,9 +52,23 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
 
   // La conversación guardada permite retomar la sesión tras recargar la página (sin los intentos
   // que el estudiante reformuló: el paciente ya no los recuerda).
-  const historial = (await obtenerMensajesSesion(sesion.id)).filter(m => !m.descartadoEn);
+  const [turnosGuardados, mensajes, primeraPractica] = await Promise.all([
+    leerTurnosGuardados(sesion.id),
+    obtenerMensajesSesion(sesion.id),
+    obtenerIdPrimeraPractica()
+      .then(primera => primera === null || primera === sesion.id)
+      .catch(() => false),
+  ]);
 
-  return <SimulacionCliente sesion={sesion} historial={historial} />;
+  return (
+    <SimulacionCliente
+      cuentaId={perfil.id}
+      sesion={sesion}
+      historial={mensajes.filter(m => !m.descartadoEn)}
+      turnosGuardados={turnosGuardados}
+      primeraPractica={primeraPractica}
+    />
+  );
 }
 
 function EstadoVacio({ titulo, descripcion }: { titulo: string; descripcion: string }) {

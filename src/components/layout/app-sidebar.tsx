@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BookOpen,
   ChevronsUpDown,
   ClipboardList,
   House,
@@ -16,12 +17,14 @@ import {
 import { type Route } from 'next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
 import { DialogoCambiarContrasena } from '@/components/layout/dialogo-cambiar-contrasena';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
@@ -38,7 +41,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ETIQUETA_ROL, RUTA_INICIO } from '@/lib/auth/routes';
-import { iniciales } from '@/lib/nombres';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 
@@ -91,6 +93,7 @@ function estaActivo(pathname: string, enlace: Enlace) {
 export function AppSidebar({ porRevisar }: { porRevisar: number }) {
   const pathname = usePathname();
   const perfil = useAppStore(state => state.auth.perfil);
+  const botonCuenta = useRef<HTMLButtonElement>(null);
   const { salir, cerrando } = useCerrarSesion();
   const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
   const contraido = state === 'collapsed' && !isMobile;
@@ -184,21 +187,29 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
         <SidebarFooter className="border-t border-sidebar-border p-2">
           <SidebarMenu>
             <SidebarMenuItem>
+              <DialogoManual>
+                <SidebarMenuButton tooltip="Manual de uso">
+                  <BookOpen aria-hidden />
+                  <span className="group-data-[collapsible=icon]:sr-only">Manual de uso</span>
+                </SidebarMenuButton>
+              </DialogoManual>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
+                    ref={botonCuenta}
                     size="lg"
                     tooltip={perfil.nombre}
                     className="h-14 text-sidebar-foreground transition-colors group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
                   >
                     {/* Nombre por contenido (no aria-label): coincide con lo visible (WCAG 2.5.3). */}
                     <span className="sr-only">Cuenta de {perfil.nombre}</span>
-                    <span
-                      aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro ring-1 ring-lino/20"
-                    >
-                      {iniciales(perfil.nombre)}
-                    </span>
+                    <AvatarCuenta
+                      avatarId={perfil.avatarId}
+                      nombre={perfil.nombre}
+                      className="size-9 text-sm ring-1 ring-lino/20"
+                    />
                     <span
                       aria-hidden
                       className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden"
@@ -214,6 +225,7 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
                 </DropdownMenuTrigger>
                 <MenuCuenta
                   perfil={perfil}
+                  botonCuenta={botonCuenta}
                   side={isMobile ? 'top' : 'right'}
                   align="end"
                   sideOffset={10}

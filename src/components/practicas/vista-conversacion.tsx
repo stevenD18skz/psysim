@@ -1,7 +1,9 @@
 'use client';
 
-import { Highlighter } from 'lucide-react';
+import { Highlighter, MessageSquareOff } from 'lucide-react';
 import { useRef, useState } from 'react';
+
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 
 import {
   ABRE_ANOTACION,
@@ -34,7 +36,9 @@ const formatoHora = new Intl.DateTimeFormat('es-CO', {
  */
 export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
   const raiz = useRef<HTMLOListElement>(null);
-  const [abierta, setAbierta] = useState<{ id: string; ancla: Ancla } | null>(null);
+  const [abierta, setAbierta] = useState<{ id: string; ancla: Ancla; origen: HTMLElement } | null>(
+    null
+  );
 
   const anotaciones = sesion.retroalimentacion?.publicadaEn
     ? sesion.retroalimentacion.anotaciones
@@ -45,16 +49,18 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
   );
   const seleccionada = abierta ? anotaciones.find(a => a.id === abierta.id) : undefined;
 
-  const abrir = (id: string) => {
+  const abrir = (id: string, origen: HTMLElement) => {
     irAMarca(id);
-    setAbierta({ id, ancla: anclaDeMarca(id, raiz.current) });
+    setAbierta({ id, ancla: anclaDeMarca(id, raiz.current), origen });
   };
 
   if (sesion.mensajes.length === 0 && sesion.intentos.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-        No alcanzaste a conversar con el paciente en esta práctica.
-      </p>
+      <EstadoVacio
+        icono={MessageSquareOff}
+        titulo="No alcanzaste a conversar con el paciente"
+        descripcion="Esta práctica se cerró antes de intercambiar mensajes, así que no hay transcripción para releer."
+      />
     );
   }
 
@@ -133,6 +139,12 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
               portal={false}
               side="bottom"
               hideWhenDetached
+              onCloseAutoFocus={evento => {
+                if (document.activeElement === document.body) {
+                  evento.preventDefault();
+                  abierta?.origen.focus();
+                }
+              }}
               onInteractOutside={evento => {
                 if (abreOtraAnotacion(evento.target)) evento.preventDefault();
               }}
@@ -169,7 +181,7 @@ export function VistaConversacion({ sesion }: { sesion: DetalleSesion }) {
               <button
                 type="button"
                 {...ABRE_ANOTACION}
-                onClick={() => abrir(anotacion.id)}
+                onClick={evento => abrir(anotacion.id, evento.currentTarget)}
                 className={cn(
                   'flex w-full flex-col gap-1.5 rounded-xl border p-3 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
                   abierta?.id === anotacion.id

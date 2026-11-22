@@ -10,6 +10,7 @@ import {
 import { type Route } from 'next';
 import Link from 'next/link';
 
+import { BotonRecorrido } from '@/components/ayuda/recorrido-guiado';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import {
   ContenedorHero,
@@ -17,6 +18,7 @@ import {
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
 import { Indicadores } from '@/components/comun/indicadores';
+import { ID_RECORRIDO_REVISION } from '@/components/retroalimentacion/recorrido-revision';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { intervencionesDe } from '@/lib/conversacion/intentos';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
@@ -107,6 +109,7 @@ export function EncabezadoSesion({
   const estado = estadoVisibleSesion(
     {
       ...sesion,
+      intervenciones,
       retroalimentacion: sesion.retroalimentacion
         ? {
             publicada: sesion.retroalimentacion.publicadaEn !== null,
@@ -132,7 +135,35 @@ export function EncabezadoSesion({
           </>
         }
         acciones={
-          posicion && posicion.total > 0 ? (
+          para === 'docente' && sesion.estado !== 'en_curso' ? (
+            <div className="flex flex-wrap items-center gap-2.5">
+              <BotonRecorrido
+                id={ID_RECORRIDO_REVISION}
+                size={posicion && posicion.total > 0 ? 'default' : 'lg'}
+              />
+              {posicion && posicion.total > 0 && (
+                <nav
+                  aria-label="Prácticas por revisar"
+                  data-tour="revision-cola"
+                  className="flex items-center gap-1.5"
+                >
+                  <span className="mr-1 text-sm text-sidebar-muted tabular-nums print:text-muted-foreground">
+                    {posicion.indice} de {posicion.total} por revisar
+                  </span>
+                  <EnlaceCola
+                    href={posicion.anterior}
+                    etiqueta="Práctica anterior por revisar"
+                    icono="anterior"
+                  />
+                  <EnlaceCola
+                    href={posicion.siguiente}
+                    etiqueta="Siguiente práctica por revisar"
+                    icono="siguiente"
+                  />
+                </nav>
+              )}
+            </div>
+          ) : posicion && posicion.total > 0 ? (
             <nav aria-label="Prácticas por revisar" className="flex items-center gap-1.5">
               <span className="mr-2 text-sm text-sidebar-muted tabular-nums print:text-muted-foreground">
                 {posicion.indice} de {posicion.total} por revisar
@@ -233,7 +264,7 @@ function EnlaceCola({
 }) {
   const Icono = icono === 'anterior' ? ChevronLeft : ChevronRight;
   const clases =
-    'flex size-9 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-laton-texto focus-visible:outline-hidden';
+    'flex size-10 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-laton-claro focus-visible:outline-solid sm:size-9';
   if (!href) {
     return (
       <span

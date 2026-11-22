@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { esperaDeCuota } from '@/lib/ia/cuota';
+
 import { esMotivoCierre, type MotivoCierre } from '@/lib/conversacion/cierre';
 import { type ProveedorIA } from '@/lib/env/orquestador';
 import { log } from '@/lib/log';
@@ -58,64 +60,52 @@ export async function leerSesionIa(sesionId: string): Promise<SesionIa | null> {
 }
 
 /** Estado del último turno del paciente de una práctica (`turno_ia`). */
-export interface TurnoIa {
-  /** Identificador que el navegador le dio a la intervención (`null`: un cliente anterior). */
-  turnoId: string | null;
-  estado: 'en_curso' | 'guardado' | 'sin_guardar';
-}
-
-/** La base todavía no tiene la tabla o la función del turno (migración `20261116020000`). */
-const SIN_MIGRAR = new Set(['42P01', '42883', 'PGRST202', 'PGRST205']);
-
-/**
- * Último turno de una práctica ya autorizada (`null` si aún no tuvo ninguno). Si no se puede leer
- * también devuelve `null`: la marca evita duplicados y desajustes, no es una condición para
- * conversar, y sin ella la ruta se comporta como antes de que existiera.
- */
-export async function leerTurno(sesionId: string): Promise<TurnoIa | null> {
-  const { data, error } = await createAdminClient()
-    .from('turno_ia')
-    .select('turno_id, estado')
-    .eq('sesion_id', sesionId)
-    .maybeSingle();
-  if (error) {
-    if (!SIN_MIGRAR.has(error.code)) {
-      log.error('npc_chat.turno_no_leido', { codigo: error.code, sesion_id: sesionId });
-    }
-    return null;
-  }
-  if (!data) return null;
-  const estado =
-    data.estado === 'guardado' || data.estado === 'sin_guardar' ? data.estado : 'en_curso';
-  return { turnoId: data.turno_id, estado };
-}
-
 export type TurnoTomado =
-  /** Otra petición está respondiendo un turno de esta práctica. */
-  | { resultado: 'ocupado' }
-  /**
-   * `libre`: el turno anterior quedó guardado. `pendiente`: terminó sin guardarse (o su petición
-   * murió): el proveedor pudo quedarse con él y hay que conciliar antes de enviarle otro mensaje.
-   * `marca` es `null` si no se pudo tomar (la práctica sigue, sin esta protección).
-   */
-  | { resultado: 'libre' | 'pendiente'; marca: string | null };
+  | { resultado: 'ocupado' | 'no_disponible' | 'terminada' | 'guardado_anterior' }
+  | { resultado: 'libre' | 'pendiente'; marca: string }
+  | {
+      resultado: 'guardado';
+      ids: { estudiante: string; npc: string };
+      cierre: MotivoCierre | null;
+    };
 
 /**
- * Toma el turno de la práctica de forma atómica (`tomar_turno_ia`). No lanza: si la función falla
- * o todavía no existe, la práctica sigue como si el turno estuviera libre y queda en el registro.
+ * Recupera un turno guardado o toma su reserva de forma atómica.
  */
 export async function tomarTurno(sesionId: string, turnoId: string | null): Promise<TurnoTomado> {
   const { data, error } = await createAdminClient()
-    .rpc('tomar_turno_ia', { p_sesion_id: sesionId, ...(turnoId && { p_turno_id: turnoId }) })
+    .rpc('tomar_turno_chat', { p_sesion_id: sesionId, ...(turnoId && { p_turno_id: turnoId }) })
     .maybeSingle();
   if (error || !data) {
-    if (!error || !SIN_MIGRAR.has(error.code)) {
-      log.error('npc_chat.turno_no_tomado', { codigo: error?.code, sesion_id: sesionId });
-    }
-    return { resultado: 'libre', marca: null };
+    log.error('npc_chat.turno_no_tomado', { codigo: error?.code, sesion_id: sesionId });
+    return { resultado: 'no_disponible' };
   }
-  if (data.resultado === 'ocupado') return { resultado: 'ocupado' };
-  return { resultado: data.resultado === 'pendiente' ? 'pendiente' : 'libre', marca: data.marca };
+  const { resultado, marca, id_estudiante, id_npc, cierre } = data;
+  if (resultado === 'ocupado' || resultado === 'terminada' || resultado === 'guardado_anterior') {
+    return { resultado };
+  }
+  if (resultado === 'guardado' && id_estudiante && id_npc) {
+    return {
+      resultado,
+      ids: { estudiante: id_estudiante, npc: id_npc },
+      cierre: esMotivoCierre(cierre) ? cierre : null,
+    };
+  }
+  if ((resultado === 'libre' || resultado === 'pendiente') && marca) return { resultado, marca };
+  return { resultado: 'no_disponible' };
+}
+
+/** Identificadores de una práctica cuya pertenencia ya verificó el servidor con RLS. */
+export async function leerTurnosGuardados(sesionId: string): Promise<string[]> {
+  const { data, error } = await createAdminClient()
+    .from('turno_ia_guardado')
+    .select('turno_id')
+    .eq('sesion_id', sesionId);
+  if (error) {
+    log.warn('npc_chat.turnos_guardados_no_leidos', { codigo: error.code, sesion_id: sesionId });
+    return [];
+  }
+  return data.map(turno => turno.turno_id);
 }
 
 /**
@@ -123,11 +113,17 @@ export async function tomarTurno(sesionId: string, turnoId: string | null): Prom
  * caduque, y queda como `sin_guardar` para que concilie con el proveedor. Solo suelta la petición
  * que lo tomó (`marca`). No lanza: si falla, el turno caduca solo.
  */
-export async function soltarTurno(sesionId: string, marca: string): Promise<void> {
+export async function soltarTurno(
+  sesionId: string,
+  marca: string,
+  motivo?: 'sin_enviar'
+): Promise<void> {
   try {
     const { error } = await createAdminClient()
       .from('turno_ia')
-      .update({ estado: 'sin_guardar' })
+      .update(
+        motivo === 'sin_enviar' ? { estado: 'guardado', turno_id: null } : { estado: 'sin_guardar' }
+      )
       .eq('sesion_id', sesionId)
       .eq('marca', marca)
       .eq('estado', 'en_curso');
@@ -225,19 +221,19 @@ export async function fijarGemini(sesionId: string, motivo: string): Promise<voi
 
 /**
  * Reserva un cupo de la cuenta en el último minuto. Devuelve 0 si quedó reservado o los
- * milisegundos que faltan para el siguiente. Si el conteo falla, devuelve 0: la práctica sigue y
- * el 429 del orquestador queda como red de seguridad.
+ * milisegundos que faltan para el siguiente. `null` indica que no se pudo confirmar el cupo.
  */
-export async function reservarTurno(cuenta: string): Promise<number> {
+export async function reservarTurno(cuenta: string): Promise<number | null> {
   const { data, error } = await createAdminClient().rpc('reservar_turno_orquestador', {
     p_cuenta: cuenta,
     p_cupo: CUPO_POR_MINUTO,
   });
-  if (error) {
-    log.error('orquestador.turno_no_reservado', { codigo: error.code });
-    return 0;
+  const esperaMs = esperaDeCuota(data);
+  if (error || esperaMs === null) {
+    log.error('orquestador.turno_no_reservado', { codigo: error?.code });
+    return null;
   }
-  return Math.max(0, data);
+  return esperaMs;
 }
 
 /** La sesión del orquestador ya quedó cerrada (o ya no existe): no hay que volver a intentarlo. */

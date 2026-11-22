@@ -16,7 +16,9 @@ import {
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { fijarAmbienteEmocional, useAmbienteEmocional } from '@/hooks/use-ambiente-emocional';
+import { recordarIntervencionPendiente } from '@/lib/conversacion/pendiente-local';
 import { plazoAlSalir } from '@/lib/fechas';
+import { useAppStoreApi } from '@/store/app-store-provider';
 
 /** Tecla (con Ctrl) que esconde o muestra los controles: H de «hud». La nombran el tooltip y la ayuda. */
 export const TECLA_OCULTAR_HUD = 'KeyH';
@@ -154,6 +156,7 @@ export function BotonControles() {
  * seguía en curso sin decir que se cerraría sola).
  */
 export function BotonSalir({ compacto = false }: { compacto?: boolean }) {
+  const store = useAppStoreApi();
   const [plazo, setPlazo] = useState<string | null>(null);
 
   return (
@@ -192,7 +195,15 @@ export function BotonSalir({ compacto = false }: { compacto?: boolean }) {
           </ul>
           <DialogFooter>
             <Button variant="outline" asChild>
-              <Link href="/practicas">Salir a Mis prácticas</Link>
+              <Link
+                href="/practicas"
+                onClick={() => {
+                  const { activa, cuentaId } = store.getState().sesion;
+                  if (activa) recordarIntervencionPendiente(cuentaId, activa.id, null);
+                }}
+              >
+                Salir a Mis prácticas
+              </Link>
             </Button>
             <Button variant="accion" onClick={() => setPlazo(null)} autoFocus>
               Seguir practicando

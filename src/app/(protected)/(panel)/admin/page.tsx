@@ -9,9 +9,11 @@ import {
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { Indicadores } from '@/components/comun/indicadores';
-import { requerirSuperadmin } from '@/lib/auth/dal';
+import { RefrescoAutomatico } from '@/components/sesiones/refresco-automatico';
 import { obtenerDocentes } from '@/lib/admin/queries';
+import { requerirSuperadmin } from '@/lib/auth/dal';
 
 export const metadata: Metadata = {
   title: 'Docentes',
@@ -24,15 +26,29 @@ export const metadata: Metadata = {
 export default async function AdminPage() {
   const perfil = await requerirSuperadmin();
   const docentes = await obtenerDocentes();
+  const ahora = new Date();
 
   const totales = docentes.reduce(
-    (suma, { activo, metricas }) => ({
+    (suma, { activo, contrasenaTemporal, metricas }) => ({
       activos: suma.activos + (activo ? 1 : 0),
+      desactivadas: suma.desactivadas + (activo ? 0 : 1),
+      temporales: suma.temporales + (activo && contrasenaTemporal ? 1 : 0),
       estudiantes: suma.estudiantes + metricas.estudiantes,
       sesiones: suma.sesiones + metricas.sesiones,
+      enCurso: suma.enCurso + metricas.enCurso,
       pendientes: suma.pendientes + metricas.pendientesRetroalimentacion,
+      casosPropios: suma.casosPropios + metricas.casosPropios,
     }),
-    { activos: 0, estudiantes: 0, sesiones: 0, pendientes: 0 }
+    {
+      activos: 0,
+      desactivadas: 0,
+      temporales: 0,
+      estudiantes: 0,
+      sesiones: 0,
+      enCurso: 0,
+      pendientes: 0,
+      casosPropios: 0,
+    }
   );
 
   const subbarra = (
@@ -59,15 +75,18 @@ export default async function AdminPage() {
       <span className="text-xs text-sidebar-muted tabular-nums">
         {totales.activos} de {docentes.length}{' '}
         {docentes.length === 1 ? 'cuenta activa' : 'cuentas activas'}
+        {totales.temporales > 0 &&
+          ` · ${totales.temporales} ${totales.temporales === 1 ? 'con clave temporal' : 'con clave temporal'}`}
       </span>
     </div>
   );
 
   return (
     <div className="flex flex-1 flex-col">
+      <RefrescoAutomatico activo={totales.enCurso > 0} segundos={30} />
       <EncabezadoPagina
         titulo="Docentes"
-        descripcion="Crea las cuentas de los docentes, decide cómo entran y sigue su actividad. Como administrador, también trabajas como docente."
+        descripcion="Crea las cuentas del equipo docente, elige cómo ingresan y supervisa su actividad. Como administrador, también trabajas como docente."
         acciones={<BotonNuevoDocente />}
         subbarra={subbarra}
       />
@@ -76,19 +95,56 @@ export default async function AdminPage() {
         <Indicadores
           className={SOMBRA_SOBRE_NOGAL}
           indicadores={[
-            { icono: UserCheck, etiqueta: 'Cuentas activas', valor: totales.activos },
-            { icono: UsersRound, etiqueta: 'Estudiantes', valor: totales.estudiantes },
-            { icono: MonitorPlay, etiqueta: 'Prácticas', valor: totales.sesiones },
+            {
+              icono: UserCheck,
+              etiqueta: 'Cuentas activas',
+              valor: totales.activos,
+              detalle:
+                totales.desactivadas > 0
+                  ? `de ${docentes.length} · ${totales.desactivadas} ${totales.desactivadas === 1 ? 'desactivada' : 'desactivadas'}`
+                  : `de ${docentes.length} registradas`,
+              ayuda:
+                'Docentes con acceso habilitado para registrar estudiantes, crear casos y asignar prácticas.',
+            },
+            {
+              icono: IndicadorEnVivo,
+              etiqueta: 'Practicando ahora',
+              valor: totales.enCurso,
+              detalle: totales.enCurso === 0 ? 'Nadie en el consultorio' : 'En toda la plataforma',
+              tono: totales.enCurso > 0 ? 'activo' : undefined,
+              ayuda:
+                'Estudiantes en entrevista en vivo en este momento. La vista se actualiza sola cada 30 segundos.',
+            },
             {
               icono: ClipboardCheck,
               etiqueta: 'Por revisar',
               valor: totales.pendientes,
+              detalle:
+                totales.pendientes === 0 ? 'Todo el equipo al día' : 'Entre todos los docentes',
               tono: totales.pendientes > 0 ? 'atencion' : undefined,
+              ayuda:
+                'Prácticas terminadas pendientes de retroalimentación sumadas entre todo el equipo docente.',
+            },
+            {
+              icono: UsersRound,
+              etiqueta: 'Estudiantes',
+              valor: totales.estudiantes,
+              enlace: '/estudiantes',
+              detalle:
+                totales.casosPropios > 0
+                  ? `${totales.casosPropios} ${totales.casosPropios === 1 ? 'caso propio' : 'casos propios'}`
+                  : 'En todos los grupos',
+            },
+            {
+              icono: MonitorPlay,
+              etiqueta: 'Prácticas',
+              valor: totales.sesiones,
+              detalle: 'Acumuladas en la plataforma',
             },
           ]}
         />
 
-        <ListaDocentes docentes={docentes} idPropio={perfil.id} />
+        <ListaDocentes docentes={docentes} idPropio={perfil.id} ahora={ahora} />
       </ContenedorHero>
     </div>
   );

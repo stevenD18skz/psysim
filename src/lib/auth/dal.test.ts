@@ -32,6 +32,7 @@ const PERFIL = {
   rol: 'docente',
   activo: true,
   contrasena_temporal: false,
+  avatar_id: 'brote',
 };
 
 let db: SupabaseFalso;
@@ -43,8 +44,9 @@ beforeEach(() => {
   vi.mocked(createAdminClient).mockReturnValue(db.cliente as never);
 });
 
-function conUsuario() {
+function conUsuario(segundosRestantes: number | null = 1800) {
   db.auth.getUser.mockResolvedValueOnce({ data: { user: USUARIO }, error: null });
+  db.responder('rpc:segundos_sesion_cuenta', { data: segundosRestantes });
 }
 
 describe('obtenerSesionUsuario (DAL)', () => {
@@ -59,15 +61,43 @@ describe('obtenerSesionUsuario (DAL)', () => {
 
     expect(await obtenerSesionUsuario()).toEqual({
       estado: 'autorizado',
+      segundosRestantes: 1800,
       perfil: {
         id: USUARIO.id,
         nombre: 'Ana Gómez',
         correo: 'ana@correounivalle.edu.co',
         codigoInstitucional: 'DOC-1',
         rol: 'docente',
+        avatarId: 'brote',
         contrasenaTemporal: false,
       },
     });
+  });
+
+  it.each([0, null])(
+    'un token todavía válido con plazo %s exige volver al acceso',
+    async segundos => {
+      conUsuario(segundos);
+      await expect(requerirUsuario()).rejects.toThrow('NEXT_REDIRECT:/login');
+      expect(db.de('usuario')).toHaveLength(0);
+    }
+  );
+
+  it('usa las iniciales en una cuenta que todavía no tiene avatar', async () => {
+    conUsuario();
+    db.responder('usuario', { data: { ...PERFIL, avatar_id: null } });
+    expect(await obtenerSesionUsuario()).toMatchObject({ perfil: { avatarId: null } });
+  });
+
+  it('carga el perfil si queda pendiente aplicar la migración del avatar', async () => {
+    conUsuario();
+    const { avatar_id: _avatarId, ...perfilAnterior } = PERFIL;
+    db.responder('usuario', { error: { code: '42703' } }, { data: perfilAnterior });
+    expect(await obtenerSesionUsuario()).toMatchObject({
+      estado: 'autorizado',
+      perfil: { avatarId: null },
+    });
+    expect(db.de('usuario')[1]?.columnas).not.toContain('avatar_id');
   });
 
   it('informa si la cuenta usa una contraseña temporal', async () => {

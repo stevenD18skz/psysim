@@ -224,6 +224,7 @@ describe('probarPaciente', () => {
   const PRUEBA = { prompt: PROMPT, nombre: 'Camila', mensaje: 'Hola', historial: [] };
 
   it('responde con el prompt en redacción sin guardar nada', async () => {
+    db.responder('rpc:reservar_peticion_ia', { data: 0 });
     vi.mocked(responderDeUnaVez).mockResolvedValueOnce({
       texto: 'Hola… no sé por dónde empezar.',
       emocion: 'ansioso',
@@ -260,6 +261,7 @@ describe('probarPaciente', () => {
     ['tiempo_agotado', /tardó demasiado/],
     ['limite', /saturado/],
   ] as const)('traduce el error %s de la IA a un mensaje para el docente', async (tipo, texto) => {
+    db.responder('rpc:reservar_peticion_ia', { data: 0 });
     vi.mocked(responderDeUnaVez).mockRejectedValueOnce(new ErrorIA(tipo));
     const resultado = await probarPaciente(PRUEBA);
     expect(resultado.ok).toBe(false);
@@ -267,6 +269,7 @@ describe('probarPaciente', () => {
   });
 
   it('un error desconocido se trata como fallo del proveedor', async () => {
+    db.responder('rpc:reservar_peticion_ia', { data: 0 });
     vi.mocked(responderDeUnaVez).mockRejectedValueOnce(new Error('boom'));
     expect(await probarPaciente(PRUEBA)).toEqual({
       ok: false,
@@ -281,6 +284,15 @@ describe('probarPaciente', () => {
       error: 'Estás enviando mensajes muy seguido. Espera 12 s antes de volver a escribir.',
     });
     expect(db.rpc).toHaveBeenCalledWith('reservar_peticion_ia');
+    expect(responderDeUnaVez).not.toHaveBeenCalled();
+  });
+
+  it('pide reintentar si no pudo confirmar el cupo y no llama a Gemini', async () => {
+    db.responder('rpc:reservar_peticion_ia', { error: { code: 'XX000' } });
+    expect(await probarPaciente(PRUEBA)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('Inténtalo en 5 s.'),
+    });
     expect(responderDeUnaVez).not.toHaveBeenCalled();
   });
 

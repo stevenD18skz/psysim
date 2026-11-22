@@ -3,16 +3,21 @@
 import { redirect } from 'next/navigation';
 
 import { CODIGO_PG, type ResultadoAccion } from '@/lib/acciones';
-import { calcularVencimiento, generarCodigoAcceso } from '@/lib/asignaciones/codigo';
+import {
+  calcularVencimiento,
+  generarCodigoAcceso,
+  MENSAJE_CANJE_SIN_CONFIRMAR,
+} from '@/lib/asignaciones/codigo';
 import { requerirDocente, requerirEstudiante } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { canjearCodigoSchema, idAsignacionSchema } from '@/schemas/asignacion.schema';
-import { generarAsignacionSchema } from '@/schemas/configuracion.schema';
+import { solicitudAsignacionSchema } from '@/schemas/configuracion.schema';
 
 const MENSAJE_DATOS_INVALIDOS = 'Revisa los datos del formulario.';
 const MAX_INTENTOS_CODIGO = 5;
+const COLUMNAS_CODIGO = 'id, codigo, expira_en';
 
 /**
  * El docente asigna la simulación configurada (caso + comportamiento del paciente) a uno de sus
@@ -27,11 +32,12 @@ export async function generarAsignacion(
   const perfil = await requerirDocente();
   const esAdmin = perfil.rol === 'superadmin';
 
-  const datos = generarAsignacionSchema.safeParse(valores);
+  const datos = solicitudAsignacionSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: MENSAJE_DATOS_INVALIDOS };
   }
-  const { escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos } = datos.data;
+  const { escenarioId, promptSistema, estudianteId, vigenciaDias, duracionMinutos, solicitudId } =
+    datos.data;
 
   const supabase = esAdmin ? createAdminClient() : await createClient();
   const { data: estudiante, error: errorEstudiante } = await supabase
@@ -56,6 +62,7 @@ export async function generarAsignacion(
     const { data, error } = await supabase
       .from('asignacion')
       .insert({
+        id: solicitudId,
         ...(esAdmin && { docente_id: estudiante.docente_id }),
         estudiante_id: estudianteId,
         escenario_id: escenarioId,
@@ -64,13 +71,12 @@ export async function generarAsignacion(
         expira_en: expiraEn,
         duracion_minutos: duracionMinutos,
       })
-      .select('id, codigo, expira_en')
+      .select(COLUMNAS_CODIGO)
       .single();
 
     if (!error) {
       return { ok: true, datos: { id: data.id, codigo: data.codigo, expiraEn: data.expira_en } };
     }
-    // Un código repetido (muy improbable) se reintenta con otro.
     if (error.code !== CODIGO_PG.UNIQUE_VIOLATION) {
       log.error('asignacion.no_creada', { codigo: error.code });
       if (error.code === CODIGO_PG.FOREIGN_KEY_VIOLATION) {
@@ -78,6 +84,31 @@ export async function generarAsignacion(
       }
       return { ok: false, error: 'No pudimos generar el código. Inténtalo de nuevo.' };
     }
+
+    // Si ya se confirmó esta solicitud, devuelve el código original. Si solo chocó el código
+    // aleatorio con el de otra asignación, se vuelve a generar.
+    const { data: anterior, error: errorLectura } = await supabase
+      .from('asignacion')
+      .select('id, codigo, expira_en, prompt_sistema, duracion_minutos')
+      .eq('id', solicitudId)
+      .eq('docente_id', estudiante.docente_id)
+      .eq('estudiante_id', estudianteId)
+      .eq('escenario_id', escenarioId)
+      .maybeSingle();
+    if (
+      anterior?.prompt_sistema === promptSistema &&
+      anterior.duracion_minutos === duracionMinutos
+    ) {
+      return {
+        ok: true,
+        datos: { id: anterior.id, codigo: anterior.codigo, expiraEn: anterior.expira_en },
+      };
+    }
+    if (errorLectura) {
+      log.error('asignacion.codigo_no_recuperado', { codigo: errorLectura.code });
+      break;
+    }
+    if (anterior) break;
   }
   return { ok: false, error: 'No pudimos generar el código. Inténtalo de nuevo.' };
 }
@@ -142,10 +173,7 @@ export async function canjearCodigo(valores: unknown): Promise<{ error: string }
 
   if (error || !fila) {
     if (error) log.error('asignacion.canje_fallido', { codigo: error.code });
-    return {
-      error:
-        'No pudimos comprobar el código. No se ha usado: revisa tu conexión e inténtalo de nuevo.',
-    };
+    return { error: MENSAJE_CANJE_SIN_CONFIRMAR };
   }
   if (fila.resultado !== 'ok' || !fila.sesion_id) {
     return { error: MENSAJES_CANJE[fila.resultado] ?? MENSAJE_CODIGO_INVALIDO };

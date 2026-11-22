@@ -5,6 +5,9 @@ const LETRAS = 'abcdefghijklmnopqrstuvwxyz';
 /** Formato del código de acceso, al estilo de Meet: tres, cuatro y tres letras. */
 export const PATRON_CODIGO_ACCESO = /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
 
+export const MENSAJE_CANJE_SIN_CONFIRMAR =
+  'No pudimos confirmar el canje. Revisa tu conexión e inténtalo de nuevo para entrar o retomar la práctica.';
+
 /** Ruta pública del enlace que el docente puede enviar en lugar del código. */
 export function rutaUnirse(codigo: string) {
   return `/unirse/${codigo}` as const;

@@ -2,7 +2,6 @@
 
 import { PerformanceMonitor } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import Link from 'next/link';
 import { Component, type ReactNode, useReducer } from 'react';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 
@@ -12,55 +11,47 @@ import { ajustarCalidad, CALIDAD_INICIAL, DPR_REDUCIDO } from '@/lib/escena/cali
 
 interface SceneCanvasProps {
   children: ReactNode;
+  onFallo?: () => void;
   /** Se llama cuando WebGL está listo y se ha renderizado el primer fotograma. */
   onListo?: () => void;
 }
 
-/**
- * HU-08 · T01 — Canvas de React Three Fiber configurado para la simulación.
- *
- * Se importa con `next/dynamic` y `ssr: false` (Three.js necesita el DOM). El contenedor
- * padre DEBE tener un alto definido (p. ej. `h-dvh`): si mide 0 px antes
- * de la hidratación, el canvas no puede calcular su relación de aspecto.
- */
-const MENSAJE_SIN_WEBGL =
-  'Tu navegador no puede mostrar gráficos 3D (WebGL). Prueba con una versión reciente de Chrome, Edge o Firefox con la aceleración por hardware activada.';
+const AVISO_SIN_WEBGL = 'Tu navegador no puede mostrar gráficos 3D (WebGL).';
 
 /**
  * Si el navegador tiene canvas pero no logra crear el contexto WebGL (aceleración desactivada, GPU
  * en la lista negra), R3F lanza el error hacia afuera y el `fallback` del Canvas nunca se ve: sin
- * este límite, el estudiante veía «No pudimos cargar esta página» y un Reintentar que no sirve.
- * Va por encima de la pantalla de carga, que nunca terminaría.
+ * este límite, la práctica queda inaccesible cuando el navegador no puede abrir el consultorio.
  */
-class LimiteErrorWebGL extends Component<{ children: ReactNode }, { fallo: boolean }> {
+class LimiteErrorWebGL extends Component<
+  { children: ReactNode; onFallo?: () => void },
+  { fallo: boolean }
+> {
   state = { fallo: false };
 
   static getDerivedStateFromError() {
     return { fallo: true };
   }
 
+  componentDidCatch() {
+    this.props.onFallo?.();
+  }
+
   render() {
     if (!this.state.fallo) return this.props.children;
+    if (this.props.onFallo) return null;
     return (
-      <div
-        role="alert"
-        className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"
-      >
-        <p className="max-w-md text-muted-foreground">{MENSAJE_SIN_WEBGL}</p>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Tu práctica sigue abierta: puedes retomarla desde otro computador.
-        </p>
-        <Link href="/practicas" className="font-semibold underline underline-offset-4">
-          Ir a Mis prácticas
-        </Link>
-      </div>
+      <p role="alert" className="absolute inset-0 grid place-items-center bg-background p-6">
+        {AVISO_SIN_WEBGL}
+      </p>
     );
   }
 }
 
+/** El contenedor padre debe tener un alto definido para que R3F calcule el aspecto del lienzo. */
 export function SceneCanvas(props: SceneCanvasProps) {
   return (
-    <LimiteErrorWebGL>
+    <LimiteErrorWebGL onFallo={props.onFallo}>
       <LienzoEscena {...props} />
     </LimiteErrorWebGL>
   );
@@ -86,14 +77,11 @@ function LienzoEscena({ children, onListo }: SceneCanvasProps) {
       onCreated={({ gl }) => {
         // Espera a que se pinte el primer fotograma antes de retirar la pantalla de carga.
         requestAnimationFrame(() => requestAnimationFrame(() => onListo?.()));
+        gl.domElement.tabIndex = -1;
         gl.domElement.setAttribute('aria-label', 'Escena 3D de la simulación');
         gl.domElement.setAttribute('role', 'img');
       }}
-      fallback={
-        <div className="flex h-full items-center justify-center p-6 text-center text-muted-foreground">
-          {MENSAJE_SIN_WEBGL}
-        </div>
-      }
+      fallback={AVISO_SIN_WEBGL}
     >
       <PerformanceMonitor onDecline={() => avisar('baja')} onIncline={() => avisar('sube')}>
         <MonitorRendimiento />

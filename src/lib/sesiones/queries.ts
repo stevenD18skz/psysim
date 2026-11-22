@@ -35,7 +35,8 @@ import {
 const COLUMNAS_HISTORIAL = `
   id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
   usuario ( nombre ),
-  retroalimentacion ( publicada_en, nota )
+  retroalimentacion ( publicada_en, nota ),
+  intervenciones:mensaje ( count )
 ` as const;
 
 interface FilaHistorial {
@@ -46,6 +47,7 @@ interface FilaHistorial {
   fin: string | null;
   escenario_id: string;
   ultima_actividad: string;
+  intervenciones: { count: number }[];
   usuario: { nombre: string } | null;
   retroalimentacion: { publicada_en: string | null; nota: number | null } | null;
 }
@@ -56,6 +58,7 @@ async function aHistorial(filas: FilaHistorial[]): Promise<SesionHistorial[]> {
     id: fila.id,
     estado: fila.estado,
     comenzada: fila.comenzada,
+    intervenciones: fila.intervenciones?.[0]?.count ?? 0,
     inicio: fila.inicio,
     fin: fila.fin,
     ultimaActividad: fila.ultima_actividad,
@@ -76,6 +79,8 @@ export const obtenerPracticas = cache(async (): Promise<SesionHistorial[]> => {
   const { data, error } = await supabase
     .from('sesion')
     .select(COLUMNAS_HISTORIAL)
+    .eq('intervenciones.remitente', 'estudiante')
+    .is('intervenciones.descartado_en', null)
     .order('inicio', { ascending: false });
 
   if (error) {
@@ -97,7 +102,6 @@ export interface PracticaEstudiante extends SesionHistorial {
     comentarioGeneral: string | null;
     publicadaEn: string | null;
   } | null;
-  totalIntervenciones: number;
   totalAnotaciones: number;
   tieneReflexion: boolean;
 }
@@ -126,8 +130,8 @@ export const obtenerPanelEstudiante = cache(async (): Promise<ResumenPanelEstudi
          reflexion ( actualizado_en ),
          intervenciones:mensaje ( count )`
       )
-      .eq('mensaje.remitente', 'estudiante')
-      .is('mensaje.descartado_en', null)
+      .eq('intervenciones.remitente', 'estudiante')
+      .is('intervenciones.descartado_en', null)
       .order('inicio', { ascending: false }),
     supabase
       .from('estudiante')
@@ -194,7 +198,7 @@ export const obtenerPanelEstudiante = cache(async (): Promise<ResumenPanelEstudi
             publicadaEn: retro.publicada_en,
           }
         : null,
-      totalIntervenciones: fila.intervenciones?.[0]?.count ?? 0,
+      intervenciones: fila.intervenciones?.[0]?.count ?? 0,
       totalAnotaciones,
       tieneReflexion,
     };
@@ -215,6 +219,8 @@ export const obtenerSesionesDeEstudiante = cache(
       .from('sesion')
       .select(COLUMNAS_HISTORIAL)
       .eq('estudiante_id', estudianteId)
+      .eq('intervenciones.remitente', 'estudiante')
+      .is('intervenciones.descartado_en', null)
       .order('inicio', { ascending: false });
 
     if (error) {
@@ -236,9 +242,12 @@ export const obtenerInformeDeEstudiante = cache(
       .select(
         `id, estado, comenzada, inicio, fin, escenario_id, ultima_actividad,
          usuario ( nombre ),
-         retroalimentacion ( publicada_en, nota, comentario_general )`
+         retroalimentacion ( publicada_en, nota, comentario_general ),
+         intervenciones:mensaje ( count )`
       )
       .eq('estudiante_id', estudianteId)
+      .eq('intervenciones.remitente', 'estudiante')
+      .is('intervenciones.descartado_en', null)
       .order('inicio', { ascending: true });
 
     if (error) {
@@ -266,12 +275,9 @@ export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]
   // El conteo de intervenciones va embebido (una sola consulta) y solo cuenta las vigentes.
   const { data, error } = await supabase
     .from('sesion')
-    .select(
-      `${COLUMNAS_HISTORIAL}, estudiante_id, nombre_estudiante, codigo_estudiante,
-       intervenciones:mensaje ( count )`
-    )
-    .eq('mensaje.remitente', 'estudiante')
-    .is('mensaje.descartado_en', null)
+    .select(`${COLUMNAS_HISTORIAL}, estudiante_id, nombre_estudiante, codigo_estudiante`)
+    .eq('intervenciones.remitente', 'estudiante')
+    .is('intervenciones.descartado_en', null)
     .order('inicio', { ascending: false });
 
   if (error) {
@@ -288,7 +294,6 @@ export const obtenerSesionesDelDocente = cache(async (): Promise<SesionDocente[]
         nombre: fila?.nombre_estudiante ?? '',
         codigo: fila?.codigo_estudiante ?? '',
       },
-      intervenciones: fila?.intervenciones[0]?.count ?? 0,
     };
   });
 });

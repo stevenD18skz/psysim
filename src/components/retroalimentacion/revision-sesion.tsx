@@ -1,9 +1,21 @@
 'use client';
 
-import { Highlighter, Loader2, MessageSquarePlus, Pencil, Quote, Trash2 } from 'lucide-react';
+import {
+  Compass,
+  Highlighter,
+  Loader2,
+  MessageSquareOff,
+  MessageSquarePlus,
+  Pencil,
+  Quote,
+  Trash2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
+
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
 
 import {
   ABRE_ANOTACION,
@@ -14,6 +26,11 @@ import {
   irAMarca,
 } from '@/components/retroalimentacion/ancla';
 import { FormularioRetroalimentacion } from '@/components/retroalimentacion/formulario-retroalimentacion';
+import {
+  ID_RECORRIDO_REVISION,
+  RecorridoRevisionPractica,
+} from '@/components/retroalimentacion/recorrido-revision';
+import { SelectorFragmento } from '@/components/retroalimentacion/selector-fragmento';
 import { IntentoReformulado } from '@/components/sesiones/intento-reformulado';
 import {
   numerarAnotaciones,
@@ -23,6 +40,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { useRespaldoRevision } from '@/hooks/use-respaldo-revision';
+import { dispararRecorrido } from '@/lib/ayuda/recorridos';
 import {
   actualizarAnotacion,
   crearAnotacion,
@@ -41,7 +60,11 @@ import {
 } from '@/lib/conversacion/cierre';
 import { intercalarIntentos } from '@/lib/conversacion/intentos';
 import { cn } from '@/lib/utils';
-import { LIMITES_RETROALIMENTACION } from '@/schemas/retroalimentacion.schema';
+import {
+  borradoresAnotacionSchema,
+  LIMITES_RETROALIMENTACION,
+  type BorradorAnotacion,
+} from '@/schemas/retroalimentacion.schema';
 import { type Anotacion, type DetalleSesion, type MensajeConversacion } from '@/types';
 import { MENSAJE_SIN_CONEXION, sinPerderElPanel } from '@/components/comun/sin-perder-el-panel';
 
@@ -53,13 +76,20 @@ interface Seleccion {
   /** Se cruza con un comentario existente: no se puede comentar. */
   solapada: boolean;
   /** Copia del rango seleccionado: resalta la frase mientras se escribe el comentario. */
-  rango: Range;
+  rango: Range | null;
   ancla: Ancla;
 }
 
 /** Globo flotante abierto sobre la conversación. */
 type Burbuja =
-  | { tipo: 'nueva'; seleccion: Seleccion; ancla: Ancla }
+  | {
+      tipo: 'nueva';
+      borrador: BorradorAnotacion;
+      fragmento: string;
+      rango: Range | null;
+      ancla: Ancla;
+      focoRetorno?: HTMLButtonElement;
+    }
   | { tipo: 'existente'; anotacionId: string; editando: boolean; ancla: Ancla };
 
 /** Nombre del resaltado (CSS Custom Highlight API) de la frase que se está comentando. */
@@ -141,10 +171,12 @@ function leerSeleccion(
  */
 export function RevisionSesion({
   sesion,
+  cuentaId,
   ia = null,
   siguiente = null,
 }: {
   sesion: DetalleSesion;
+  cuentaId: string;
   /** Severidad del paciente en cada respuesta y cierre automático, si el motor los registró. */
   ia?: IaDeSesion | null;
   /** Próxima práctica por revisar (para «Publicar y abrir la siguiente»), o `null` si es la última. */
@@ -157,10 +189,36 @@ export function RevisionSesion({
     sesion.retroalimentacion?.anotaciones ?? []
   );
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
+  const [eligiendoFrase, setEligiendoFrase] = useState<string | null>(null);
   /** Botón del ratón presionado sobre el chat: la barra espera a que termine de seleccionar. */
   const [arrastrando, setArrastrando] = useState(false);
   const [burbuja, setBurbuja] = useState<Burbuja | null>(null);
   const [quitando, setQuitando] = useState<string | null>(null);
+  const respaldo = useRespaldoRevision(
+    `psysim:borrador-retro:${cuentaId}:${sesion.id}:anotaciones`,
+    borradoresAnotacionSchema
+  );
+  const borradores = respaldo.borrador ?? [];
+  const idAbierto = burbuja?.tipo === 'nueva' ? burbuja.borrador.id : burbuja?.anotacionId;
+  const pendientes = borradores.filter(borrador => {
+    if (borrador.id === idAbierto || !borrador.comentario.trim()) return false;
+    const registrada = anotaciones.find(a => a.id === borrador.id);
+    return registrada?.comentario !== borrador.comentario.trim();
+  });
+
+  function respaldarAnotacion(borrador: BorradorAnotacion) {
+    respaldo.actualizar(actuales => [
+      ...(actuales ?? []).filter(actual => actual.id !== borrador.id),
+      borrador,
+    ]);
+  }
+
+  function descartarAnotacion(id: string) {
+    respaldo.actualizar(actuales => {
+      const restantes = actuales?.filter(actual => actual.id !== id);
+      return restantes?.length ? restantes : null;
+    });
+  }
 
   const numeros = numerarAnotaciones(sesion.mensajes, anotaciones);
   const ordenadas = [...anotaciones].sort(
@@ -171,7 +229,7 @@ export function RevisionSesion({
     burbuja?.tipo === 'existente'
       ? (anotaciones.find(a => a.id === burbuja.anotacionId) ?? null)
       : null;
-  const mostrarBarra = seleccion !== null && !arrastrando && burbuja === null;
+  const mostrarBarra = seleccion !== null && !arrastrando && burbuja === null && !eligiendoFrase;
 
   // La selección del texto (con ratón o teclado) se sigue en vivo; al pulsar "Comentar" se fija.
   useEffect(() => {
@@ -203,7 +261,7 @@ export function RevisionSesion({
   }, []);
 
   // Mientras se escribe el comentario, la frase sigue resaltada aunque ya no esté seleccionada.
-  const rangoBorrador = burbuja?.tipo === 'nueva' ? burbuja.seleccion.rango : null;
+  const rangoBorrador = burbuja?.tipo === 'nueva' ? burbuja.rango : null;
   useEffect(() => {
     if (!rangoBorrador || typeof CSS === 'undefined' || !('highlights' in CSS)) return;
     CSS.highlights.set(RESALTADO_BORRADOR, new Highlight(rangoBorrador));
@@ -212,9 +270,21 @@ export function RevisionSesion({
     };
   }, [rangoBorrador]);
 
-  const empezarComentario = () => {
+  const empezarComentario = (seleccion: Seleccion | null, focoRetorno?: HTMLButtonElement) => {
     if (!seleccion || seleccion.solapada) return;
-    setBurbuja({ tipo: 'nueva', seleccion, ancla: seleccion.ancla });
+    const { mensajeId, inicio, fin, fragmento, rango, ancla } = seleccion;
+    const anterior = borradores.find(
+      b => b.tipo === 'nueva' && b.mensajeId === mensajeId && b.inicio === inicio && b.fin === fin
+    );
+    const borrador = anterior ?? {
+      tipo: 'nueva',
+      id: crypto.randomUUID(),
+      mensajeId,
+      inicio,
+      fin,
+      comentario: '',
+    };
+    setBurbuja({ tipo: 'nueva', borrador, fragmento, rango, ancla, focoRetorno });
     window.getSelection()?.removeAllRanges();
   };
 
@@ -228,9 +298,49 @@ export function RevisionSesion({
     });
   };
 
-  const alCrear = (anotacion: Anotacion) => {
-    setAnotaciones(actuales => [...actuales, anotacion]);
-    setBurbuja(null);
+  function recuperarAnotacion(borrador: BorradorAnotacion) {
+    if (anotaciones.some(a => a.id === borrador.id)) {
+      abrir(borrador.id, true);
+      return;
+    }
+    const mensaje = sesion.mensajes.find(m => m.id === borrador.mensajeId);
+    const elemento = raiz.current?.querySelector<HTMLElement>(
+      `[data-texto-mensaje="${borrador.mensajeId}"]`
+    );
+    if (!mensaje || !elemento) return;
+    elemento.scrollIntoView({ block: 'nearest' });
+    setBurbuja({
+      tipo: 'nueva',
+      borrador,
+      fragmento: fragmentoEntre(mensaje.contenido, borrador.inicio, borrador.fin),
+      rango: null,
+      ancla: {
+        getBoundingClientRect: () => elemento.getBoundingClientRect(),
+        contextElement: elemento,
+      },
+    });
+  }
+
+  const alCrear = (anotacion: Anotacion, borrador: BorradorAnotacion) => {
+    setAnotaciones(actuales => [...actuales.filter(a => a.id !== anotacion.id), anotacion]);
+    const cambiarBurbuja = (siguiente: Burbuja | null) =>
+      setBurbuja(actual =>
+        actual?.tipo === 'nueva' && actual.borrador.id === borrador.id ? siguiente : actual
+      );
+    if (anotacion.comentario === borrador.comentario.trim()) {
+      descartarAnotacion(borrador.id);
+      cambiarBurbuja(null);
+      toast.success('Comentario agregado.');
+    } else {
+      respaldarAnotacion({ ...borrador, tipo: 'edicion' });
+      cambiarBurbuja({
+        tipo: 'existente',
+        anotacionId: anotacion.id,
+        editando: true,
+        ancla: anclaDeMarca(anotacion.id, raiz.current),
+      });
+      toast.info('Recuperaste el comentario guardado. Confirma si quieres actualizarlo.');
+    }
     router.refresh();
   };
 
@@ -239,6 +349,7 @@ export function RevisionSesion({
   const restaurar = async (anotacion: Anotacion) => {
     try {
       const resultado = await crearAnotacion({
+        id: crypto.randomUUID(),
         sesionId: sesion.id,
         mensajeId: anotacion.mensajeId,
         inicio: anotacion.inicio,
@@ -271,6 +382,7 @@ export function RevisionSesion({
           : undefined,
       });
       setAnotaciones(actuales => actuales.filter(a => a.id !== id));
+      descartarAnotacion(id);
       setBurbuja(actual =>
         actual?.tipo === 'existente' && actual.anotacionId === id ? null : actual
       );
@@ -283,222 +395,380 @@ export function RevisionSesion({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
-      <style href={RESALTADO_BORRADOR} precedence="default">
-        {ESTILO_RESALTADO}
-      </style>
-      <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
-            Conversación
-          </h2>
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Highlighter className="size-4 shrink-0 text-ambar" aria-hidden />
-            Selecciona una frase de {nombreEstudiante} para comentarla. Pulsa un subrayado para
-            verlo o editarlo.
-          </p>
-          {ia && Object.keys(ia.severidades).length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Junto a cada respuesta de {sesion.npc.nombre.split(' ')[0]} aparece su severidad: qué
-              tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el
-              motor del paciente, no califica a {nombreEstudiante}.
-            </p>
-          )}
-        </div>
-
-        {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-input/50 p-6 text-center text-sm text-muted-foreground">
-            {nombreEstudiante} no alcanzó a conversar con el paciente.
-          </p>
-        ) : (
-          <ol
-            ref={raiz}
-            aria-label="Conversación de la práctica"
-            className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
-          >
-            {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
-              if (elemento.tipo === 'intento') {
-                return (
-                  <IntentoReformulado
-                    key={`intento-${elemento.intento.posicion}`}
-                    intento={elemento.intento}
-                    estudiante={nombreEstudiante ?? sesion.estudiante.nombre}
-                    paciente={sesion.npc.nombre}
-                  />
-                );
-              }
-              const { mensaje } = elemento;
-              const esEstudiante = mensaje.remitente === 'estudiante';
-              const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
-              return (
-                <li
-                  key={mensaje.id}
-                  data-remitente={mensaje.remitente}
-                  className={cn(
-                    'flex max-w-[88%] flex-col gap-1',
-                    esEstudiante ? 'items-end self-end' : 'self-start'
-                  )}
+    <div className="flex flex-col gap-6">
+      <RecorridoRevisionPractica tieneMensajes={sesion.mensajes.length > 0} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+        <style href={RESALTADO_BORRADOR} precedence="default">
+          {ESTILO_RESALTADO}
+        </style>
+        <section aria-labelledby={idTitulo} className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 id={idTitulo} className="text-xl font-bold tracking-[-0.015em]">
+                Conversación
+              </h2>
+              {sesion.mensajes.length > 0 && (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                  {sesion.mensajes.length}
+                </span>
+              )}
+              {ia && Object.keys(ia.severidades).length > 0 && (
+                <span
+                  data-tour="revision-severidad"
+                  className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
                 >
-                  <span className="px-1 text-xs font-medium text-muted-foreground">
-                    {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre} ·{' '}
-                    <time dateTime={mensaje.timestamp}>
-                      {formatoHora.format(new Date(mensaje.timestamp))}
-                    </time>
-                    {ia?.severidades[mensaje.id] !== undefined && (
-                      <> · severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}</>
-                    )}
-                  </span>
-                  <p
-                    data-texto-mensaje={mensaje.id}
+                  Severidad 0–5
+                  <AyudaContextual
+                    etiqueta="Qué indica la severidad del paciente"
+                    texto={`Junto a cada respuesta de ${sesion.npc.nombre.split(' ')[0]} aparece qué tan alterado estaba en ese momento, de 0 (en calma) a 5 (desbordado). La calcula el motor del paciente y no califica a ${nombreEstudiante}.`}
+                  />
+                </span>
+              )}
+            </div>
+
+            {sesion.mensajes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => dispararRecorrido(ID_RECORRIDO_REVISION, 0)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+              >
+                <Compass className="size-3.5 shrink-0" aria-hidden />
+                ¿Cómo anotar frases?
+              </button>
+            )}
+          </div>
+
+          {sesion.mensajes.length === 0 && sesion.intentos.length === 0 ? (
+            <EstadoVacio
+              icono={MessageSquareOff}
+              titulo={`${nombreEstudiante} no alcanzó a conversar con el paciente`}
+              descripcion="La práctica se cerró antes de enviar mensajes, por eso no hay transcripción disponible para anotar."
+            />
+          ) : (
+            <ol
+              ref={raiz}
+              data-tour="revision-conversacion"
+              aria-label="Conversación de la práctica"
+              className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:p-5"
+            >
+              {intercalarIntentos(sesion.mensajes, sesion.intentos).map(elemento => {
+                if (elemento.tipo === 'intento') {
+                  return (
+                    <IntentoReformulado
+                      key={`intento-${elemento.intento.posicion}`}
+                      intento={elemento.intento}
+                      estudiante={nombreEstudiante ?? sesion.estudiante.nombre}
+                      paciente={sesion.npc.nombre}
+                    />
+                  );
+                }
+                const { mensaje } = elemento;
+                const esEstudiante = mensaje.remitente === 'estudiante';
+                const propias = anotaciones.filter(a => a.mensajeId === mensaje.id);
+                return (
+                  <li
+                    key={mensaje.id}
+                    data-remitente={mensaje.remitente}
                     className={cn(
-                      'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
-                      esEstudiante
-                        ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
-                        : 'rounded-bl-md border bg-background text-foreground select-none'
+                      'flex max-w-[88%] flex-col gap-1',
+                      esEstudiante ? 'items-end self-end' : 'self-start'
                     )}
                   >
-                    <TextoAnotado
-                      contenido={mensaje.contenido}
-                      anotaciones={propias}
-                      numeros={numeros}
-                      activa={existente?.id ?? null}
-                      onAbrir={id => abrir(id)}
-                    />
-                  </p>
+                    <span className="flex flex-wrap items-center gap-x-1.5 px-1 text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          esEstudiante ? 'text-salvia-oscuro' : 'text-terracota'
+                        )}
+                      >
+                        {esEstudiante ? sesion.estudiante.nombre : sesion.npc.nombre}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <time dateTime={mensaje.timestamp} className="tabular-nums">
+                        {formatoHora.format(new Date(mensaje.timestamp))}
+                      </time>
+                      {esEstudiante && propias.length > 0 && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="font-medium text-ambar tabular-nums">
+                            {propias.length === 1
+                              ? '1 comentario'
+                              : `${propias.length} comentarios`}
+                          </span>
+                        </>
+                      )}
+                      {ia?.severidades[mensaje.id] !== undefined && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="tabular-nums">
+                            severidad {formatoSeveridad.format(ia.severidades[mensaje.id]!)}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <p
+                      data-texto-mensaje={mensaje.id}
+                      className={cn(
+                        'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
+                        esEstudiante
+                          ? 'rounded-br-md bg-salvia-suave selection:bg-ambar/30'
+                          : 'rounded-bl-md border bg-background text-foreground select-none'
+                      )}
+                    >
+                      <TextoAnotado
+                        contenido={mensaje.contenido}
+                        anotaciones={propias}
+                        numeros={numeros}
+                        activa={existente?.id ?? null}
+                        onAbrir={id => abrir(id)}
+                      />
+                    </p>
+                    {esEstudiante && (
+                      <SelectorFragmento
+                        texto={mensaje.contenido}
+                        anotaciones={propias}
+                        abierto={eligiendoFrase === mensaje.id}
+                        onAbrir={() => {
+                          setBurbuja(null);
+                          setEligiendoFrase(mensaje.id);
+                        }}
+                        onCerrar={() => setEligiendoFrase(null)}
+                        onElegir={(inicio, fin, origen) => {
+                          setEligiendoFrase(null);
+                          empezarComentario(
+                            {
+                              mensajeId: mensaje.id,
+                              inicio,
+                              fin,
+                              fragmento: fragmentoEntre(mensaje.contenido, inicio, fin),
+                              rango: null,
+                              solapada: false,
+                              ancla: {
+                                getBoundingClientRect: () => origen.getBoundingClientRect(),
+                                contextElement: origen,
+                              },
+                            },
+                            origen
+                          );
+                        }}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+              {ia?.cierre && (
+                <li
+                  data-testid="cierre-automatico"
+                  className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+                >
+                  <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
+                  <span className="text-muted-foreground">
+                    La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
+                  </span>
                 </li>
-              );
-            })}
-            {ia?.cierre && (
-              <li
-                data-testid="cierre-automatico"
-                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
-              >
-                <span className="font-semibold">{ETIQUETA_CIERRE[ia.cierre]}.</span>{' '}
-                <span className="text-muted-foreground">
-                  La conversación terminó aquí y {nombreEstudiante} no pudo escribir más.
-                </span>
-              </li>
-            )}
-            {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
-            {!ia?.cierre && ia?.finPorTiempo && (
-              <li
-                data-testid="fin-por-tiempo"
-                className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
-              >
-                <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
-                <span className="text-muted-foreground">
-                  Pasado el margen para cerrar la entrevista, la práctica terminó sola.
-                </span>
-              </li>
-            )}
-          </ol>
-        )}
-
-        {/* Barra flotante sobre la frase seleccionada (con ratón o con Mayús + flechas). Sin
-            portal: queda justo después del chat en el orden de tabulación. */}
-        <Popover open={mostrarBarra}>
-          {seleccion && <PopoverAnchor virtualRef={{ current: seleccion.ancla }} />}
-          <PopoverContent
-            portal={false}
-            side="top"
-            sideOffset={8}
-            hideWhenDetached
-            onOpenAutoFocus={evento => evento.preventDefault()}
-            onCloseAutoFocus={evento => evento.preventDefault()}
-            onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
-            aria-label="Acciones sobre la selección"
-            className="w-auto rounded-full p-1"
-          >
-            {seleccion?.solapada ? (
-              <p className="px-3 py-1 text-xs font-medium text-destructive">
-                Se cruza con otro comentario. Selecciona otra parte de la frase.
-              </p>
-            ) : (
-              <Button
-                size="sm"
-                className="rounded-full"
-                // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
-                onMouseDown={evento => evento.preventDefault()}
-                onClick={empezarComentario}
-              >
-                <MessageSquarePlus aria-hidden />
-                Comentar selección
-              </Button>
-            )}
-          </PopoverContent>
-        </Popover>
-
-        {/* Globo del comentario: uno nuevo, o el de un subrayado (verlo, editarlo o quitarlo). */}
-        <Popover open={burbuja !== null} onOpenChange={abierto => !abierto && setBurbuja(null)}>
-          {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
-          {burbuja?.tipo === 'nueva' && (
-            <NuevaAnotacion
-              sesionId={sesion.id}
-              seleccion={burbuja.seleccion}
-              onCreada={alCrear}
-              onCancelar={() => setBurbuja(null)}
-            />
-          )}
-          {burbuja?.tipo === 'existente' && existente && (
-            <DetalleAnotacion
-              key={existente.id}
-              anotacion={existente}
-              numero={numeros.get(existente.id) ?? 0}
-              editando={burbuja.editando}
-              quitando={quitando === existente.id}
-              onEditar={editando => setBurbuja({ ...burbuja, editando })}
-              onActualizada={comentario =>
-                setAnotaciones(actuales =>
-                  actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
-                )
-              }
-              onQuitar={() => quitar(existente.id)}
-            />
-          )}
-        </Popover>
-      </section>
-
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-        <FormularioRetroalimentacion
-          sesionId={sesion.id}
-          inicial={sesion.retroalimentacion}
-          nombreEstudiante={sesion.estudiante.nombre}
-          comentarios={anotaciones.length}
-          siguiente={siguiente}
-        />
-        <section
-          aria-labelledby="comentarios-titulo"
-          className="flex flex-col gap-3 rounded-xl border bg-card p-5"
-        >
-          <h2 id="comentarios-titulo" className="text-lg font-bold tracking-[-0.01em]">
-            Comentarios en la conversación
-            <span className="ml-2 text-sm font-semibold text-muted-foreground tabular-nums">
-              {anotaciones.length}
-            </span>
-          </h2>
-          {ordenadas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aún no has comentado ninguna frase. Selecciona texto en las intervenciones de{' '}
-              {nombreEstudiante}.
-            </p>
-          ) : (
-            <ol className="flex flex-col gap-2">
-              {ordenadas.map(anotacion => (
-                <ComentarioEnLista
-                  key={anotacion.id}
-                  anotacion={anotacion}
-                  numero={numeros.get(anotacion.id) ?? 0}
-                  activa={existente?.id === anotacion.id}
-                  quitando={quitando === anotacion.id}
-                  onIr={() => abrir(anotacion.id)}
-                  onEditar={() => abrir(anotacion.id, true)}
-                  onQuitar={() => quitar(anotacion.id)}
-                />
-              ))}
+              )}
+              {/* El fin previsto de la consulta: un dato neutro, no un error ni una falta. */}
+              {!ia?.cierre && ia?.finPorTiempo && (
+                <li
+                  data-testid="fin-por-tiempo"
+                  className="mt-1 rounded-xl border border-dashed border-input/60 bg-muted/40 px-4 py-3 text-sm"
+                >
+                  <span className="font-semibold">{ETIQUETA_FIN_POR_TIEMPO}.</span>{' '}
+                  <span className="text-muted-foreground">
+                    Pasado el margen para cerrar la entrevista, la práctica terminó sola.
+                  </span>
+                </li>
+              )}
             </ol>
           )}
+
+          {/* Barra flotante sobre la frase seleccionada (con ratón o con Mayús + flechas). Sin
+            portal: queda justo después del chat en el orden de tabulación. */}
+          <Popover open={mostrarBarra}>
+            {seleccion && <PopoverAnchor virtualRef={{ current: seleccion.ancla }} />}
+            <PopoverContent
+              portal={false}
+              side="top"
+              sideOffset={8}
+              hideWhenDetached
+              onOpenAutoFocus={evento => evento.preventDefault()}
+              onCloseAutoFocus={evento => evento.preventDefault()}
+              onEscapeKeyDown={() => window.getSelection()?.removeAllRanges()}
+              aria-label="Acciones sobre la selección"
+              className="w-auto rounded-full p-1"
+            >
+              {seleccion?.solapada ? (
+                <p className="px-3 py-1 text-xs font-medium text-destructive">
+                  Se cruza con otro comentario. Selecciona otra parte de la frase.
+                </p>
+              ) : (
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  // `mousedown` sin acción por defecto: el clic no borra la selección antes de leerla.
+                  onMouseDown={evento => evento.preventDefault()}
+                  onClick={() => empezarComentario(seleccion)}
+                >
+                  <MessageSquarePlus aria-hidden />
+                  Comentar selección
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Globo del comentario: uno nuevo, o el de un subrayado (verlo, editarlo o quitarlo). */}
+          <Popover open={burbuja !== null} onOpenChange={abierto => !abierto && setBurbuja(null)}>
+            {burbuja && <PopoverAnchor virtualRef={{ current: burbuja.ancla }} />}
+            {burbuja?.tipo === 'nueva' && (
+              <NuevaAnotacion
+                key={burbuja.borrador.id}
+                sesionId={sesion.id}
+                inicial={burbuja.borrador}
+                fragmento={burbuja.fragmento}
+                focoRetorno={burbuja.focoRetorno}
+                onCreada={alCrear}
+                onEditar={respaldarAnotacion}
+                onCancelar={() => {
+                  descartarAnotacion(burbuja.borrador.id);
+                  setBurbuja(null);
+                }}
+              />
+            )}
+            {burbuja?.tipo === 'existente' && existente && (
+              <DetalleAnotacion
+                key={existente.id}
+                anotacion={existente}
+                borrador={borradores.find(b => b.id === existente.id)?.comentario}
+                numero={numeros.get(existente.id) ?? 0}
+                editando={burbuja.editando}
+                quitando={quitando === existente.id}
+                onEditar={editando => setBurbuja({ ...burbuja, editando })}
+                onRespaldar={comentario =>
+                  respaldarAnotacion({
+                    id: existente.id,
+                    tipo: 'edicion',
+                    mensajeId: existente.mensajeId,
+                    inicio: existente.inicio,
+                    fin: existente.fin,
+                    comentario,
+                  })
+                }
+                onDescartar={() => descartarAnotacion(existente.id)}
+                onActualizada={comentario => {
+                  descartarAnotacion(existente.id);
+                  setAnotaciones(actuales =>
+                    actuales.map(a => (a.id === existente.id ? { ...a, comentario } : a))
+                  );
+                  router.refresh();
+                }}
+                onQuitar={() => quitar(existente.id)}
+              />
+            )}
+          </Popover>
         </section>
-      </aside>
+
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+          <FormularioRetroalimentacion
+            sesionId={sesion.id}
+            cuentaId={cuentaId}
+            inicial={sesion.retroalimentacion}
+            nombreEstudiante={sesion.estudiante.nombre}
+            comentarios={anotaciones.length}
+            siguiente={siguiente}
+          />
+          <section
+            data-tour="revision-comentarios"
+            aria-labelledby="comentarios-titulo"
+            className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+          >
+            <h2 id="comentarios-titulo" className="text-lg font-bold tracking-[-0.01em]">
+              Comentarios en la conversación
+              <span className="ml-2 text-sm font-semibold text-muted-foreground tabular-nums">
+                {anotaciones.length}
+              </span>
+            </h2>
+            {pendientes.length > 0 && (
+              <ul aria-label="Comentarios sin guardar" className="flex flex-col gap-2">
+                {pendientes.map(borrador => {
+                  const mensaje = sesion.mensajes.find(m => m.id === borrador.mensajeId);
+                  return (
+                    <li
+                      key={borrador.id}
+                      className="flex flex-col gap-2 rounded-lg bg-muted p-3 text-sm"
+                    >
+                      <p className="font-medium">Comentario pendiente</p>
+                      {mensaje && (
+                        <p className="line-clamp-2 text-muted-foreground">
+                          {fragmentoEntre(mensaje.contenido, borrador.inicio, borrador.fin)}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!mensaje}
+                          onClick={() => recuperarAnotacion(borrador)}
+                        >
+                          Recuperar comentario
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => descartarAnotacion(borrador.id)}
+                        >
+                          Descartar
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {ordenadas.length === 0 ? (
+              <div className="overflow-hidden rounded-xl border border-dashed border-border/80">
+                <EstadoVacio
+                  variante="compacto"
+                  sinBordeSuperior
+                  icono={Highlighter}
+                  tono="ambar"
+                  titulo="Sin frases comentadas aún"
+                  descripcion={`Selecciona texto en las intervenciones de ${nombreEstudiante} para subrayar y dejar un comentario puntual.`}
+                  accion={
+                    sesion.mensajes.length > 0 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => dispararRecorrido(ID_RECORRIDO_REVISION, 0)}
+                      >
+                        <Compass aria-hidden />
+                        Ver cómo anotar frases
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </div>
+            ) : (
+              <ol className="flex flex-col gap-2 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
+                {ordenadas.map(anotacion => (
+                  <ComentarioEnLista
+                    key={anotacion.id}
+                    anotacion={anotacion}
+                    numero={numeros.get(anotacion.id) ?? 0}
+                    activa={existente?.id === anotacion.id}
+                    quitando={quitando === anotacion.id}
+                    onIr={() => abrir(anotacion.id)}
+                    onEditar={() => abrir(anotacion.id, true)}
+                    onQuitar={() => quitar(anotacion.id)}
+                  />
+                ))}
+              </ol>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -506,37 +776,39 @@ export function RevisionSesion({
 /** Globo para escribir el comentario de la frase recién seleccionada. */
 function NuevaAnotacion({
   sesionId,
-  seleccion,
+  inicial,
+  fragmento,
+  focoRetorno,
   onCreada,
+  onEditar,
   onCancelar,
 }: {
   sesionId: string;
-  seleccion: Seleccion;
-  onCreada: (anotacion: Anotacion) => void;
+  inicial: BorradorAnotacion;
+  fragmento: string;
+  focoRetorno?: HTMLButtonElement;
+  onCreada: (anotacion: Anotacion, borrador: BorradorAnotacion) => void;
+  onEditar: (borrador: BorradorAnotacion) => void;
   onCancelar: () => void;
 }) {
   const id = useId();
-  const [comentario, setComentario] = useState('');
+  const [comentario, setComentario] = useState(inicial.comentario);
   const [error, setError] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
 
   const guardar = () => {
-    if (!comentario.trim()) return;
+    if (guardando || !comentario.trim()) return;
+    setError(null);
+    const borrador = { ...inicial, comentario };
+    onEditar(borrador);
     startTransition(
       sinPerderElPanel(async () => {
-        const resultado = await crearAnotacion({
-          sesionId,
-          mensajeId: seleccion.mensajeId,
-          inicio: seleccion.inicio,
-          fin: seleccion.fin,
-          comentario,
-        });
+        const resultado = await crearAnotacion({ ...borrador, sesionId });
         if (!resultado.ok) {
           setError(resultado.error);
           return;
         }
-        toast.success('Comentario agregado.');
-        onCreada(resultado.datos);
+        onCreada(resultado.datos, borrador);
       })
     );
   };
@@ -548,6 +820,12 @@ function NuevaAnotacion({
       align="end"
       hideWhenDetached
       aria-label="Nuevo comentario"
+      onCloseAutoFocus={evento => {
+        if (focoRetorno && document.activeElement === document.body) {
+          evento.preventDefault();
+          focoRetorno.focus();
+        }
+      }}
       // Un clic fuera no descarta lo que ya se escribió.
       onInteractOutside={evento => {
         if (comentario.trim() || abreOtraAnotacion(evento.target)) evento.preventDefault();
@@ -556,7 +834,7 @@ function NuevaAnotacion({
     >
       <p className="flex items-start gap-2 rounded-lg bg-ambar-suave/60 px-2.5 py-2 text-xs leading-snug text-foreground">
         <Quote className="mt-0.5 size-3.5 shrink-0 text-ambar" aria-hidden />
-        <span className="line-clamp-2">{seleccion.fragmento}</span>
+        <span className="line-clamp-2">{fragmento}</span>
       </p>
       <label htmlFor={id} className="sr-only">
         Comentario sobre la frase seleccionada
@@ -565,7 +843,11 @@ function NuevaAnotacion({
         id={id}
         autoFocus
         value={comentario}
-        onChange={evento => setComentario(evento.target.value)}
+        onChange={evento => {
+          const texto = evento.target.value;
+          setComentario(texto);
+          onEditar({ ...inicial, comentario: texto });
+        }}
         onKeyDown={evento => {
           if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
         }}
@@ -599,28 +881,34 @@ function NuevaAnotacion({
 /** Globo de un subrayado ya comentado: muestra el comentario y permite editarlo o quitarlo. */
 function DetalleAnotacion({
   anotacion,
+  borrador,
   numero,
   editando,
   quitando,
   onEditar,
+  onRespaldar,
+  onDescartar,
   onActualizada,
   onQuitar,
 }: {
   anotacion: Anotacion;
+  borrador?: string;
   numero: number;
   editando: boolean;
   quitando: boolean;
   onEditar: (editando: boolean) => void;
+  onRespaldar: (comentario: string) => void;
+  onDescartar: () => void;
   onActualizada: (comentario: string) => void;
   onQuitar: () => void;
 }) {
   const id = useId();
-  const [texto, setTexto] = useState(anotacion.comentario);
+  const [texto, setTexto] = useState(borrador ?? anotacion.comentario);
   const [guardando, startTransition] = useTransition();
   const cambiado = editando && texto.trim() !== anotacion.comentario;
 
   const guardar = () => {
-    if (!texto.trim()) return;
+    if (guardando || !texto.trim()) return;
     startTransition(
       sinPerderElPanel(async () => {
         const resultado = await actualizarAnotacion({ id: anotacion.id, comentario: texto });
@@ -637,6 +925,7 @@ function DetalleAnotacion({
 
   const cancelar = () => {
     setTexto(anotacion.comentario);
+    onDescartar();
     onEditar(false);
   };
 
@@ -667,7 +956,11 @@ function DetalleAnotacion({
             id={id}
             autoFocus
             value={texto}
-            onChange={evento => setTexto(evento.target.value)}
+            onChange={evento => {
+              const valor = evento.target.value;
+              setTexto(valor);
+              onRespaldar(valor);
+            }}
             onKeyDown={evento => {
               if (evento.key === 'Enter' && (evento.ctrlKey || evento.metaKey)) guardar();
             }}

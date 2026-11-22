@@ -1,11 +1,18 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { createRef } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { guardarAvatar } from '@/lib/avatares/actions';
+import { AppStoreProvider, useAppStore } from '@/store/app-store-provider';
 import { type PerfilUsuario } from '@/types';
 
 import { MenuCuenta } from './menu-cuenta';
+
+vi.mock('@/lib/avatares/actions', () => ({ guardarAvatar: vi.fn() }));
+
+beforeEach(() => vi.mocked(guardarAvatar).mockReset());
 
 function perfilBase(sobre: Partial<PerfilUsuario> = {}): PerfilUsuario {
   return {
@@ -14,6 +21,7 @@ function perfilBase(sobre: Partial<PerfilUsuario> = {}): PerfilUsuario {
     correo: 'camila.torres@correounivalle.edu.co',
     codigoInstitucional: '209990012',
     rol: 'docente',
+    avatarId: null,
     contrasenaTemporal: false,
     ...sobre,
   };
@@ -24,17 +32,31 @@ function renderizarMenu(
 ) {
   const perfil = props.perfil ?? perfilBase();
   const onSalir = props.onSalir ?? vi.fn();
+  const botonCuenta = createRef<HTMLButtonElement>();
+
+  function Cuenta() {
+    const perfilActual = useAppStore(state => state.auth.perfil)!;
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger ref={botonCuenta} type="button">
+          Cuenta de {perfilActual.nombre}
+        </DropdownMenuTrigger>
+        <MenuCuenta
+          perfil={perfilActual}
+          botonCuenta={botonCuenta}
+          cerrando={props.cerrando ?? false}
+          onSalir={onSalir}
+          onCambiarContrasena={props.onCambiarContrasena}
+          onNavegar={props.onNavegar}
+        />
+      </DropdownMenu>
+    );
+  }
+
   render(
-    <DropdownMenu>
-      <DropdownMenuTrigger type="button">Cuenta de {perfil.nombre}</DropdownMenuTrigger>
-      <MenuCuenta
-        perfil={perfil}
-        cerrando={props.cerrando ?? false}
-        onSalir={onSalir}
-        onCambiarContrasena={props.onCambiarContrasena}
-        onNavegar={props.onNavegar}
-      />
-    </DropdownMenu>
+    <AppStoreProvider estadoInicial={{ auth: { perfil } }}>
+      <Cuenta />
+    </AppStoreProvider>
   );
   return { perfil, onSalir };
 }
@@ -118,5 +140,59 @@ describe('MenuCuenta', () => {
 
     const salir = screen.getByRole('menuitem', { name: 'Cerrar sesión' });
     expect(salir).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('permite explorar al azar y descartar la selección devolviendo el foco a Cuenta', async () => {
+    const user = userEvent.setup();
+    const { perfil } = renderizarMenu({ perfil: perfilBase({ rol: 'estudiante' }) });
+    const cuenta = screen.getByRole('button', { name: `Cuenta de ${perfil.nombre}` });
+
+    await user.click(cuenta);
+    await user.click(screen.getByRole('menuitem', { name: 'Cambiar avatar' }));
+    const dialogo = within(await screen.findByRole('dialog', { name: 'Cambiar avatar' }));
+    const iniciales = dialogo.getByRole('radio', { name: 'Usar mis iniciales' });
+    expect(iniciales).toHaveFocus();
+    expect(dialogo.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+
+    await user.click(dialogo.getByRole('button', { name: 'Al azar' }));
+    expect(iniciales).not.toBeChecked();
+    expect(dialogo.getByRole('radio', { checked: true })).toBeChecked();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(cuenta).toHaveFocus());
+    expect(guardarAvatar).not.toHaveBeenCalled();
+
+    await user.click(cuenta);
+    await user.click(screen.getByRole('menuitem', { name: 'Cambiar avatar' }));
+    expect(await screen.findByRole('radio', { name: 'Usar mis iniciales' })).toBeChecked();
+  });
+
+  it('mantiene la selección al fallar y muestra el nuevo avatar al guardar de nuevo', async () => {
+    const user = userEvent.setup();
+    const { perfil } = renderizarMenu();
+    const cuenta = screen.getByRole('button', { name: `Cuenta de ${perfil.nombre}` });
+    vi.mocked(guardarAvatar)
+      .mockResolvedValueOnce({ ok: false, error: 'Inténtalo de nuevo.' })
+      .mockResolvedValueOnce({ ok: true, datos: 'brote' })
+      .mockResolvedValueOnce({ ok: true, datos: null });
+
+    await user.click(cuenta);
+    await user.click(screen.getByRole('menuitem', { name: 'Cambiar avatar' }));
+    const brote = await screen.findByRole('radio', { name: 'Brote' });
+    await user.click(brote);
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Inténtalo de nuevo.');
+    expect(brote).toBeChecked();
+    expect(guardarAvatar).toHaveBeenLastCalledWith('brote', perfil.id);
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(cuenta).toHaveFocus());
+    await user.click(cuenta);
+    await user.click(screen.getByRole('menuitem', { name: 'Cambiar avatar' }));
+    expect(await screen.findByRole('radio', { name: 'Brote' })).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: 'Usar mis iniciales' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(cuenta).toHaveFocus());
+    expect(guardarAvatar).toHaveBeenLastCalledWith(null, perfil.id);
   });
 });

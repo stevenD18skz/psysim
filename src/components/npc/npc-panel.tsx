@@ -5,6 +5,7 @@ import { type ReactNode, useId } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Selector } from '@/components/ui/selector';
 import {
   type EjeRotacion,
   type InterruptorNpc,
@@ -189,18 +190,17 @@ export function NpcPanel({ npc, modelo }: { npc: NpcControlador; modelo: ModeloN
       <Seccion titulo="Pose manual" ayuda={estado.modoPose ? 'activa' : 'inactiva'}>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={idHueso}>Hueso</Label>
-          <select
+          <Selector
             id={idHueso}
-            value={estado.huesoPose}
-            onChange={e => controlador.seleccionarHueso(e.target.value)}
-            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-hidden"
-          >
-            {controlador.nombresHuesos.map(nombre => (
-              <option key={nombre} value={nombre}>
-                {nombre}
-              </option>
-            ))}
-          </select>
+            tamano="sm"
+            ariaLabel="Hueso"
+            valor={estado.huesoPose}
+            opciones={controlador.nombresHuesos.map(nombre => ({
+              valor: nombre,
+              etiqueta: nombre,
+            }))}
+            onChange={controlador.seleccionarHueso}
+          />
         </div>
         {(['x', 'y', 'z'] as const satisfies readonly EjeRotacion[]).map(eje => (
           <Deslizador

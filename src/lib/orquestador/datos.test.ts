@@ -10,7 +10,6 @@ import {
   guardarCasoSincronizado,
   leerCasoSincronizado,
   leerSesionIa,
-  leerTurno,
   marcarCerradaEnOrquestador,
   registrarEvento,
   reservarTurno,
@@ -137,9 +136,9 @@ describe('reservarTurno', () => {
     expect(await reservarTurno(CUENTA)).toBe(12_400);
   });
 
-  it('si el conteo falla deja pasar: el 429 del orquestador es la red de seguridad', async () => {
+  it('distingue un contador indisponible de una reserva concedida', async () => {
     db.responder('rpc:reservar_turno_orquestador', { error: { code: 'XX000' } });
-    expect(await reservarTurno(CUENTA)).toBe(0);
+    expect(await reservarTurno(CUENTA)).toBeNull();
     expect(log.error).toHaveBeenCalledWith('orquestador.turno_no_reservado', { codigo: 'XX000' });
   });
 });
@@ -148,67 +147,55 @@ describe('turno de la práctica (turno_ia)', () => {
   const TURNO = '0d8f2f6e-3c1b-4a7e-9b1a-2f6c1d3e4a5b';
   const MARCA = '6f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f';
 
-  it('lee el identificador y el estado del último turno', async () => {
-    db.responder('turno_ia', { data: { turno_id: TURNO, estado: 'guardado' } });
-    expect(await leerTurno(SESION)).toEqual({ turnoId: TURNO, estado: 'guardado' });
-    expect(db.de('turno_ia')[0]!.filtros).toContainEqual(['eq', 'sesion_id', SESION]);
-  });
-
-  it('una práctica sin turnos devuelve null', async () => {
-    db.responder('turno_ia', { data: null });
-    expect(await leerTurno(SESION)).toBeNull();
-  });
-
-  it.each(['42P01', 'PGRST205'])(
-    'si la tabla aún no existe (%s) devuelve null sin alarmar',
-    async code => {
-      db.responder('turno_ia', { error: { code } });
-      expect(await leerTurno(SESION)).toBeNull();
-      expect(log.error).not.toHaveBeenCalled();
-    }
-  );
-
-  it('otro fallo de lectura también deja seguir, pero queda en el registro', async () => {
-    db.responder('turno_ia', { error: { code: 'XX000' } });
-    expect(await leerTurno(SESION)).toBeNull();
-    expect(log.error).toHaveBeenCalledWith('npc_chat.turno_no_leido', {
-      codigo: 'XX000',
-      sesion_id: SESION,
+  it('recupera los identificadores originales cuando el turno ya está guardado', async () => {
+    db.responder('rpc:tomar_turno_chat', {
+      data: {
+        resultado: 'guardado',
+        marca: null,
+        id_estudiante: 'estudiante',
+        id_npc: 'npc',
+        cierre: 'crisis',
+      },
+    });
+    expect(await tomarTurno(SESION, TURNO)).toEqual({
+      resultado: 'guardado',
+      ids: { estudiante: 'estudiante', npc: 'npc' },
+      cierre: 'crisis',
     });
   });
 
   it.each(['libre', 'pendiente'] as const)('toma el turno (%s) y devuelve la marca', async r => {
-    db.responder('rpc:tomar_turno_ia', { data: { resultado: r, marca: MARCA } });
+    db.responder('rpc:tomar_turno_chat', { data: { resultado: r, marca: MARCA } });
     expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: r, marca: MARCA });
-    expect(db.rpc).toHaveBeenCalledWith('tomar_turno_ia', {
+    expect(db.rpc).toHaveBeenCalledWith('tomar_turno_chat', {
       p_sesion_id: SESION,
       p_turno_id: TURNO,
     });
   });
 
   it('sin identificador del navegador no envía el parámetro', async () => {
-    db.responder('rpc:tomar_turno_ia', { data: { resultado: 'libre', marca: MARCA } });
+    db.responder('rpc:tomar_turno_chat', { data: { resultado: 'libre', marca: MARCA } });
     await tomarTurno(SESION, null);
-    expect(db.rpc).toHaveBeenCalledWith('tomar_turno_ia', { p_sesion_id: SESION });
+    expect(db.rpc).toHaveBeenCalledWith('tomar_turno_chat', { p_sesion_id: SESION });
   });
 
   it('si otra petición lo tiene, dice que está ocupado', async () => {
-    db.responder('rpc:tomar_turno_ia', { data: { resultado: 'ocupado', marca: null } });
+    db.responder('rpc:tomar_turno_chat', { data: { resultado: 'ocupado', marca: null } });
     expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: 'ocupado' });
   });
 
   it.each(['PGRST202', '42883'])(
-    'si la función aún no existe (%s), la práctica sigue sin marca',
+    'si la función aún no existe (%s), no se toma la reserva',
     async code => {
-      db.responder('rpc:tomar_turno_ia', { error: { code } });
-      expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: 'libre', marca: null });
-      expect(log.error).not.toHaveBeenCalled();
+      db.responder('rpc:tomar_turno_chat', { error: { code } });
+      expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: 'no_disponible' });
+      expect(log.error).toHaveBeenCalled();
     }
   );
 
-  it('si la función falla, la práctica sigue sin marca y queda en el registro', async () => {
-    db.responder('rpc:tomar_turno_ia', { error: { code: 'XX000' } });
-    expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: 'libre', marca: null });
+  it('si la función falla, no se toma el turno y queda en el registro', async () => {
+    db.responder('rpc:tomar_turno_chat', { error: { code: 'XX000' } });
+    expect(await tomarTurno(SESION, TURNO)).toEqual({ resultado: 'no_disponible' });
     expect(log.error).toHaveBeenCalledWith('npc_chat.turno_no_tomado', {
       codigo: 'XX000',
       sesion_id: SESION,

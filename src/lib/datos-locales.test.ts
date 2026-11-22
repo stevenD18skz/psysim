@@ -14,6 +14,8 @@ describe('olvidarDatosDeLaCuenta', () => {
     localStorage.setItem('psysim:borrador-caso:nuevo', '{"secretos":[]}');
     localStorage.setItem('psysim:privacidad-aceptada', '2026-11-07');
     localStorage.setItem('psysim:dictado-aceptado', '1');
+    localStorage.setItem('psysim:ayuda:recorrido:asignar-practica', '1');
+    localStorage.setItem('psysim:ayuda:pista:revisiones-vistas', '1');
 
     olvidarDatosDeLaCuenta();
 
@@ -22,6 +24,8 @@ describe('olvidarDatosDeLaCuenta', () => {
     expect(localStorage.getItem('psysim:borrador-caso:nuevo')).toBeNull();
     expect(localStorage.getItem('psysim:privacidad-aceptada')).toBeNull();
     expect(localStorage.getItem('psysim:dictado-aceptado')).toBeNull();
+    expect(localStorage.getItem('psysim:ayuda:recorrido:asignar-practica')).toBeNull();
+    expect(localStorage.getItem('psysim:ayuda:pista:revisiones-vistas')).toBeNull();
   });
 
   it('conserva las preferencias del equipo', () => {

@@ -56,8 +56,8 @@ export function useInactividad({
 }: {
   sesionId: string;
   activo: boolean;
-  /** Cierra la sesión; devuelve `false` si no pudo (se reintenta). */
-  alVencer: () => Promise<boolean>;
+  /** Verifica el cierre o devuelve el tiempo vigente desde la última actividad en la base. */
+  alVencer: () => Promise<boolean | { restantesS: number }>;
 }): number | null {
   const store = useAppStoreApi();
   const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
@@ -68,6 +68,7 @@ export function useInactividad({
 
     let cancelado = false;
     let ultimaInteraccion = Date.now();
+    let ultimaActividadConfirmada = 0;
     let ultimoLatido = 0;
     let latiendo = false;
     let proximoCierre = 0;
@@ -101,7 +102,17 @@ export function useInactividad({
     const cerrar = () => {
       if (Date.now() < proximoCierre) return;
       proximoCierre = Date.now() + REINTENTO_CIERRE_MS;
-      void vencer();
+      const consultadoEn = Date.now();
+      void vencer().then(resultado => {
+        if (cancelado || typeof resultado === 'boolean') return;
+        ultimaActividadConfirmada =
+          consultadoEn - (LIMITE_INACTIVIDAD_MS - resultado.restantesS * 1000);
+        const restantes = segundosParaCierre(
+          Date.now() - Math.max(ultimaInteraccion, ultimaActividadConfirmada)
+        );
+        avisando = restantes !== null;
+        setSegundosRestantes(restantes);
+      });
     };
 
     const latir = async () => {
@@ -127,7 +138,9 @@ export function useInactividad({
         ultimaInteraccion = ahora;
       }
 
-      const restantes = segundosParaCierre(ahora - ultimaInteraccion);
+      const restantes = segundosParaCierre(
+        ahora - Math.max(ultimaInteraccion, ultimaActividadConfirmada)
+      );
       avisando = restantes !== null;
       setSegundosRestantes(restantes);
       if (restantes === 0) {

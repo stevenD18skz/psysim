@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ESPERA_ATASCADA_MS, LoadingScreen } from './loading-screen';
@@ -33,5 +33,16 @@ describe('LoadingScreen', () => {
     rerender(<LoadingScreen visible titulo="Duelo" competencia="Empatía" />);
     act(() => vi.advanceTimersByTime(2000));
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('ofrece continuar en texto cuando se atasca la carga del consultorio', () => {
+    const continuar = vi.fn();
+    render(
+      <LoadingScreen visible titulo="Duelo" competencia="Empatía" onContinuarEnTexto={continuar} />
+    );
+    expect(screen.queryByRole('button', { name: 'Continuar en modo texto' })).toBeNull();
+    act(() => vi.advanceTimersByTime(ESPERA_ATASCADA_MS));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar en modo texto' }));
+    expect(continuar).toHaveBeenCalledOnce();
   });
 });

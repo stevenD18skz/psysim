@@ -2,12 +2,14 @@ import { ArrowRight, Library } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { BotonRecorrido } from '@/components/ayuda/recorrido-guiado';
 import {
   ContenedorHero,
   EncabezadoPagina,
   SOMBRA_SOBRE_NOGAL,
 } from '@/components/comun/encabezado-pagina';
 import { ConfiguradorSesion } from '@/components/configuracion/configurador-sesion';
+import { ID_RECORRIDO_ASIGNAR } from '@/components/configuracion/recorrido-asignar';
 import { Button } from '@/components/ui/button';
 import { obtenerTodosLosEstudiantes } from '@/lib/admin/queries';
 import { requerirDocente } from '@/lib/auth/dal';
@@ -39,12 +41,15 @@ export default async function ConfiguracionPage({ searchParams }: PageProps<'/co
         titulo="Asignar práctica"
         descripcion="Elige el caso y a quién se lo asignas. Te damos un código de un solo uso para que practique desde su computador."
         acciones={
-          <Button asChild variant="outline" size="lg">
-            <Link href="/configuracion/casos">
-              <Library aria-hidden />
-              Biblioteca de casos
-            </Link>
-          </Button>
+          <>
+            {escenarios.length > 0 && <BotonRecorrido id={ID_RECORRIDO_ASIGNAR} />}
+            <Button asChild variant="outline" size="lg">
+              <Link href="/configuracion/casos">
+                <Library aria-hidden />
+                Biblioteca de casos
+              </Link>
+            </Button>
+          </>
         }
         subbarra={
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-sm text-sidebar-muted">

@@ -41,7 +41,7 @@ import { formatearFechaHora } from '@/lib/estudiantes/estudiantes';
 import { MINUTOS_CIERRE_INACTIVIDAD, plazoAlSalir } from '@/lib/fechas';
 import { AVISO_FINAL_S, enMinutos, GRACIA_CONSULTA_S } from '@/lib/sesiones/tiempo-consulta';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
-import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
+import { TEXTO_AUTORIZACION_PRACTICA } from '@/lib/privacidad';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store-provider';
 import { type SesionActiva } from '@/types';
@@ -112,11 +112,17 @@ const CONTROLES = [
  */
 export function InstruccionesCaso({
   sesion,
+  modoTexto = false,
   segundosParaCierre,
+  aceptadaAntes,
+  onAceptarPrivacidad,
 }: {
   sesion: SesionActiva;
+  modoTexto?: boolean;
   /** Cuenta atrás del cierre por inactividad (o `null` si aún no hace falta avisar). */
   segundosParaCierre: number | null;
+  aceptadaAntes: string | null;
+  onAceptarPrivacidad: () => void;
 }) {
   const router = useRouter();
   const comenzarEnStore = useAppStore(state => state.sesion.comenzar);
@@ -125,12 +131,11 @@ export function InstruccionesCaso({
   const idControles = useId();
   const idPrivacidad = useId();
   const [controlesAbiertos, setControlesAbiertos] = useState(() => !guiaYaVista());
-  const [aceptadaAntes] = useState(leerPrivacidadAceptada);
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(aceptadaAntes !== null);
   const [ahoraNo, setAhoraNo] = useState<string | null>(null);
 
   const { escenario, npc, estudiante } = sesion;
-  const consultorio = CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
+  const consultorio = !modoTexto && CONSULTORIOS.find(c => c.ruta === escenario.configuracion3d);
   const aviso = avisoDeContenido(escenario.codigo);
   // La regla del tiempo va justo antes de la de «Terminar práctica», que la completa.
   const reglas = sesion.consulta
@@ -139,6 +144,10 @@ export function InstruccionesCaso({
 
   const comenzar = () =>
     startTransition(async () => {
+      if (sesion.comenzada) {
+        onAceptarPrivacidad();
+        return;
+      }
       let resultado;
       try {
         resultado = await comenzarSesion({ sesionId: sesion.id });
@@ -152,7 +161,7 @@ export function InstruccionesCaso({
         toast.error(resultado.error);
         return;
       }
-      if (aceptadaAntes === null) recordarPrivacidadAceptada();
+      if (aceptadaAntes === null) onAceptarPrivacidad();
       recordarGuiaVista();
       comenzarEnStore(resultado.datos.inicio);
     });
@@ -356,9 +365,9 @@ export function InstruccionesCaso({
                 onClick={() => setControlesAbiertos(abiertos => !abiertos)}
                 className="-mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-semibold outline-hidden transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Controles y herramientas
+                {modoTexto ? 'Herramientas de la práctica' : 'Controles y herramientas'}
                 <span className="ml-auto flex items-center gap-1 font-normal text-muted-foreground">
-                  {controlesAbiertos ? 'Ocultar' : 'Ver controles'}
+                  {controlesAbiertos ? 'Ocultar' : 'Ver'}
                   <ChevronDown
                     className={cn(
                       'size-4 transition-transform duration-300 ease-salida',
@@ -370,18 +379,22 @@ export function InstruccionesCaso({
               </button>
               <Desplegable id={idControles} abierto={controlesAbiertos}>
                 <div className="flex flex-col gap-3 pt-2">
-                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                    {CONTROLES.map(([tecla, accion]) => (
-                      <div key={tecla} className="flex items-baseline gap-2">
-                        <dt className="font-mono text-xs font-medium">{tecla}</dt>
-                        <dd className="text-muted-foreground">{accion}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="text-sm text-muted-foreground">
-                    ¿Prefieres no recorrer el consultorio? Usa{' '}
-                    <ControlCitado>Ir directo a la conversación</ControlCitado>.
-                  </p>
+                  {!modoTexto && (
+                    <>
+                      <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                        {CONTROLES.map(([tecla, accion]) => (
+                          <div key={tecla} className="flex items-baseline gap-2">
+                            <dt className="font-mono text-xs font-medium">{tecla}</dt>
+                            <dd className="text-muted-foreground">{accion}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <p className="text-sm text-muted-foreground">
+                        ¿Prefieres no recorrer el consultorio? Usa{' '}
+                        <ControlCitado>Ir directo a la conversación</ControlCitado>.
+                      </p>
+                    </>
+                  )}
                   <dl className="flex flex-col gap-2 border-t pt-3 text-sm">
                     {HERRAMIENTAS_PRACTICA.map(herramienta => (
                       <div key={herramienta.nombre} className="flex flex-col gap-0.5">
@@ -424,8 +437,7 @@ export function InstruccionesCaso({
                     onChange={evento => setAceptaPrivacidad(evento.target.checked)}
                     className="mt-0.5 size-5 shrink-0 accent-nogal"
                   />
-                  Leí el aviso de privacidad y acepto que mi conversación se procese con Google
-                  Gemini y que la lea mi docente.
+                  {TEXTO_AUTORIZACION_PRACTICA}
                 </label>
                 <a
                   href="/privacidad"
@@ -451,7 +463,11 @@ export function InstruccionesCaso({
                 }
               >
                 {comenzando && <Loader2 className="animate-spin" aria-hidden />}
-                {comenzando ? 'Abriendo el consultorio…' : 'Empezar la práctica'}
+                {comenzando
+                  ? 'Empezando la práctica…'
+                  : sesion.comenzada
+                    ? 'Continuar la práctica'
+                    : 'Empezar la práctica'}
               </Button>
             </div>
           </DialogFooter>

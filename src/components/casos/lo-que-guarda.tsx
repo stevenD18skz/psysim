@@ -8,6 +8,7 @@ import {
   useFieldArray,
 } from 'react-hook-form';
 
+import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { Button } from '@/components/ui/button';
 import { Desplegable } from '@/components/comun/desplegable';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,10 @@ export function LoQueGuarda({ control, register, errores, deshabilitado }: LoQue
         <span className="flex items-center gap-2 text-sm font-medium">
           <Lock className="size-4 text-muted-foreground" aria-hidden />
           Lo que guarda (opcional)
+          <AyudaContextual
+            etiqueta="Para qué sirve Lo que guarda"
+            texto="Evita que el paciente cuente toda su historia en la primera respuesta. Cada dato queda oculto hasta que el estudiante cumple la condición que definas (por ejemplo, validar su emoción o preguntar con calma)."
+          />
         </span>
         <span className="text-sm text-muted-foreground">
           Datos que no cuenta de entrada. Solo los revela si el estudiante se los gana.

@@ -10,6 +10,7 @@ interface LoadingScreenProps {
   visible: boolean;
   titulo: string;
   competencia: string;
+  onContinuarEnTexto?: () => void;
 }
 
 /** Sin avance de la carga durante este tiempo, se ofrece recargar o salir. */
@@ -29,7 +30,12 @@ const CONSEJOS = [
  * `useProgress` se conecta al `DefaultLoadingManager` de Three.js y expone el porcentaje de
  * los assets cargados, sin atar estados de React a callbacks manuales de cada modelo.
  */
-export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenProps) {
+export function LoadingScreen({
+  visible,
+  titulo,
+  competencia,
+  onContinuarEnTexto,
+}: LoadingScreenProps) {
   const { progress, active } = useProgress();
   // Sin modelos que descargar (escena procedural) el progreso se queda en 0: se muestra una
   // barra indeterminada en lugar de un 0 % engañoso.
@@ -49,6 +55,7 @@ export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenPro
 
   return (
     <div
+      inert={!visible}
       aria-hidden={!visible}
       data-testid="pantalla-carga"
       data-visible={visible}
@@ -108,11 +115,17 @@ export function LoadingScreen({ visible, titulo, competencia }: LoadingScreenPro
 
       {visible && atascada && (
         <div role="alert" className="flex max-w-md flex-col items-center gap-3 text-sm">
-          <p>
-            El consultorio está tardando más de lo normal. Tu práctica sigue abierta: puedes
-            recargar la página o volver más tarde.
-          </p>
+          <p>El consultorio está tardando más de lo normal. Tu práctica sigue abierta.</p>
           <div className="flex flex-wrap justify-center gap-4">
+            {onContinuarEnTexto && (
+              <button
+                type="button"
+                onClick={onContinuarEnTexto}
+                className="rounded-md font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid"
+              >
+                Continuar en modo texto
+              </button>
+            )}
             <button
               type="button"
               onClick={() => window.location.reload()}

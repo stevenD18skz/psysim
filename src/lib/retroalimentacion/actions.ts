@@ -5,15 +5,13 @@ import { requerirDocente } from '@/lib/auth/dal';
 import { log } from '@/lib/log';
 import { cerrarDespues } from '@/lib/orquestador/diferido';
 import { createClient } from '@/lib/supabase/server';
-import { type Anotacion } from '@/types';
-import { type TablesUpdate } from '@/types/database.types';
+import { type Anotacion, type Retroalimentacion } from '@/types';
 import {
   actualizarAnotacionSchema,
   crearAnotacionSchema,
   guardarRetroalimentacionSchema,
   idAnotacionSchema,
   idSesionSchema,
-  publicarRetroalimentacionSchema,
 } from '@/schemas/retroalimentacion.schema';
 
 /*
@@ -27,96 +25,49 @@ const MENSAJE_GENERICO = 'No pudimos guardar la retroalimentación. Inténtalo d
 const MENSAJE_EN_CURSO =
   'La práctica sigue en curso: podrás revisarla cuando el estudiante termine.';
 
-type Cliente = Awaited<ReturnType<typeof createClient>>;
-type CambiosRetroalimentacion = Omit<TablesUpdate<'retroalimentacion'>, 'sesion_id' | 'docente_id'>;
-
-/**
- * Crea la retroalimentación de la sesión o actualiza la existente. No se usa `upsert`: PostgREST
- * reescribiría también `sesion_id`, que el docente no puede actualizar.
- */
-async function guardarFila(supabase: Cliente, sesionId: string, cambios: CambiosRetroalimentacion) {
-  const { data: existente, error: errorLectura } = await supabase
-    .from('retroalimentacion')
-    .select('sesion_id')
-    .eq('sesion_id', sesionId)
-    .maybeSingle();
-  if (errorLectura) return { data: null, error: errorLectura };
-
-  const columnas = 'publicada_en, actualizado_en';
-  if (!existente) {
-    return supabase
-      .from('retroalimentacion')
-      .insert({ sesion_id: sesionId, ...cambios })
-      .select(columnas)
-      .single();
-  }
-  // Sin cambios (p. ej. antes de una anotación) basta con saber que existe.
-  if (Object.keys(cambios).length === 0) {
-    return supabase.from('retroalimentacion').select(columnas).eq('sesion_id', sesionId).single();
-  }
-  return supabase
-    .from('retroalimentacion')
-    .update(cambios)
-    .eq('sesion_id', sesionId)
-    .select(columnas)
-    .single();
-}
-
 function errorDeGuardado(codigo: string | undefined): string {
   if (codigo === CODIGO_PG.INSUFFICIENT_PRIVILEGE) return MENSAJE_EN_CURSO;
   log.error('retroalimentacion.no_guardada', { codigo });
   return MENSAJE_GENERICO;
 }
 
-/** Guarda el borrador (el estudiante aún no lo ve; si ya estaba publicada, lo ve actualizado). */
+/** Guarda según la intención y la versión que tenía abierta el docente. */
 export async function guardarRetroalimentacion(
   valores: unknown
-): Promise<ResultadoAccion<{ publicadaEn: string | null; actualizadoEn: string }>> {
+): Promise<
+  ResultadoAccion<{ conflicto: boolean; revision: Omit<Retroalimentacion, 'anotaciones'> }>
+> {
   await requerirDocente();
 
   const datos = guardarRetroalimentacionSchema.safeParse(valores);
   if (!datos.success) {
     return { ok: false, error: datos.error.issues[0]?.message ?? MENSAJE_DATOS_INVALIDOS };
   }
-  const { sesionId, comentarioGeneral, nota } = datos.data;
+  const { sesionId, modo, version, comentarioGeneral, nota } = datos.data;
 
   const supabase = await createClient();
-  const { data, error } = await guardarFila(supabase, sesionId, {
-    comentario_general: comentarioGeneral,
-    nota,
-  });
+  const { data, error } = await supabase
+    .rpc('guardar_revision', {
+      p_sesion_id: sesionId,
+      p_modo: modo,
+      p_version: version,
+      p_comentario: comentarioGeneral,
+      p_nota: nota,
+    })
+    .single();
   if (error || !data) return { ok: false, error: errorDeGuardado(error?.code) };
 
   return {
     ok: true,
-    datos: { publicadaEn: data.publicada_en, actualizadoEn: data.actualizado_en },
-  };
-}
-
-/** Publica la retroalimentación: desde ese momento el estudiante la ve en su panel. */
-export async function publicarRetroalimentacion(
-  valores: unknown
-): Promise<ResultadoAccion<{ publicadaEn: string; actualizadoEn: string }>> {
-  await requerirDocente();
-
-  const datos = publicarRetroalimentacionSchema.safeParse(valores);
-  if (!datos.success) {
-    return { ok: false, error: datos.error.issues[0]?.message ?? MENSAJE_DATOS_INVALIDOS };
-  }
-  const { sesionId, comentarioGeneral, nota } = datos.data;
-
-  // La hora real la fija el trigger `retroalimentacion_preparar`.
-  const supabase = await createClient();
-  const { data, error } = await guardarFila(supabase, sesionId, {
-    comentario_general: comentarioGeneral,
-    nota,
-    publicada_en: new Date().toISOString(),
-  });
-  if (error || !data?.publicada_en) return { ok: false, error: errorDeGuardado(error?.code) };
-
-  return {
-    ok: true,
-    datos: { publicadaEn: data.publicada_en, actualizadoEn: data.actualizado_en },
+    datos: {
+      conflicto: data.resultado === 'conflicto',
+      revision: {
+        comentarioGeneral: data.comentario_general,
+        nota: data.nota,
+        publicadaEn: data.publicada_en,
+        actualizadoEn: data.actualizado_en,
+      },
+    },
   };
 }
 
@@ -128,28 +79,31 @@ export async function crearAnotacion(valores: unknown): Promise<ResultadoAccion<
   if (!datos.success) {
     return { ok: false, error: datos.error.issues[0]?.message ?? MENSAJE_DATOS_INVALIDOS };
   }
-  const { sesionId, mensajeId, inicio, fin, comentario } = datos.data;
+  const { id, sesionId, mensajeId, inicio, fin, comentario } = datos.data;
 
   const supabase = await createClient();
-  // Las anotaciones cuelgan de la retroalimentación: se crea vacía si aún no existe.
-  const { error: errorRetro } = await guardarFila(supabase, sesionId, {});
-  if (errorRetro) return { ok: false, error: errorDeGuardado(errorRetro.code) };
-
   const { data, error } = await supabase
-    .from('anotacion')
-    // `fragmento` no se envía: lo calcula el trigger `anotacion_validar` a partir del mensaje.
-    .insert({ sesion_id: sesionId, mensaje_id: mensajeId, inicio, fin, comentario })
-    .select('id, mensaje_id, inicio, fin, fragmento, comentario')
+    .rpc('crear_anotacion_revision', {
+      p_id: id,
+      p_sesion_id: sesionId,
+      p_mensaje_id: mensajeId,
+      p_inicio: inicio,
+      p_fin: fin,
+      p_comentario: comentario,
+    })
     .single();
 
-  if (error) {
-    if (error.code === CODIGO_PG.EXCLUSION_VIOLATION) {
+  if (error || !data) {
+    if (error?.code === CODIGO_PG.EXCLUSION_VIOLATION) {
       return { ok: false, error: 'Ese fragmento se cruza con otro comentario. Elige otro.' };
     }
-    if (error.code === CODIGO_PG.CHECK_VIOLATION) {
+    if (error?.code === CODIGO_PG.CHECK_VIOLATION) {
       return { ok: false, error: 'Solo puedes subrayar las intervenciones del estudiante.' };
     }
-    log.error('anotacion.no_creada', { codigo: error.code });
+    if (error?.code === CODIGO_PG.INSUFFICIENT_PRIVILEGE) {
+      return { ok: false, error: MENSAJE_EN_CURSO };
+    }
+    log.error('anotacion.no_creada', { codigo: error?.code });
     return { ok: false, error: 'No pudimos guardar el comentario. Inténtalo de nuevo.' };
   }
 

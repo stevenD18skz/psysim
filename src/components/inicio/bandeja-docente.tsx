@@ -1,4 +1,4 @@
-import { ArrowRight, Check, CheckCircle2, Clock3, Users } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Clock3, KeyRound, Users } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 
@@ -6,18 +6,30 @@ import { BarraCodigoPendiente } from '@/components/asignaciones/anular-codigo';
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { ControlCitado } from '@/components/comun/control-citado';
-import { formatearTiempoPractica } from '@/lib/estudiantes/estudiantes';
-import { cierrePorInactividad, formatearHora, tiempoRelativo } from '@/lib/fechas';
+import { EstadoVacio } from '@/components/comun/estado-vacio';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
+import { ListaPaginada } from '@/components/inicio/lista-paginada';
+import { Button } from '@/components/ui/button';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
+import { formatearDia, formatearTiempoPractica } from '@/lib/estudiantes/estudiantes';
+import {
+  cierrePorInactividad,
+  formatearHora,
+  formatearVencimientoCodigo,
+  tiempoRelativo,
+} from '@/lib/fechas';
 import { duracionSesion } from '@/lib/sesiones/estados';
 import { agruparPorCaso, type ResumenGrupo } from '@/lib/sesiones/revisiones';
 import { cn } from '@/lib/utils';
 import { type CodigoPendiente, type EstudianteRegistrado, type SesionDocente } from '@/types';
 
-/** Filas visibles por bloque; el resto se ve en su página. */
-const MAXIMO_POR_REVISAR = 8;
-const MAXIMO_PRACTICANDO = 6;
-const MAXIMO_PRACTICANDO_RIEL = 4;
-const MAXIMO_CODIGOS = 6;
+/** Filas visibles por página en cada bloque; con más elementos se pagina en el sitio. */
+const POR_PAGINA_POR_REVISAR_RIEL = 4;
+const POR_PAGINA_POR_REVISAR_COLUMNAS = 6;
+const POR_PAGINA_PRACTICANDO_RIEL = 3;
+const POR_PAGINA_PRACTICANDO_COLUMNAS = 5;
+const POR_PAGINA_CODIGOS_RIEL = 3;
+const POR_PAGINA_CODIGOS_COLUMNAS = 5;
 const MAXIMO_ESTUDIANTES = 6;
 const MAXIMO_REVISADAS = 4;
 const MAXIMO_CASOS = 4;
@@ -50,6 +62,10 @@ interface BandejaDocenteProps {
   disposicion: 'columnas' | 'riel';
 }
 
+function IconoEnVivoReposo({ className }: { className?: string }) {
+  return <IndicadorEnVivo animado={false} className={className} />;
+}
+
 /**
  * Lo que espera la acción del docente: prácticas por revisar, quién practica ahora y los códigos
  * que nadie ha usado. En la vista de docente (`columnas`) muestra además su grupo de estudiantes,
@@ -65,7 +81,13 @@ export function BandejaDocente({
   disposicion,
 }: BandejaDocenteProps) {
   const enRiel = disposicion === 'riel';
-  const nivel = enRiel ? 'h3' : 'h2';
+  const nivel = 'h2' as const;
+
+  const porPaginaRevisar = enRiel ? POR_PAGINA_POR_REVISAR_RIEL : POR_PAGINA_POR_REVISAR_COLUMNAS;
+  const porPaginaPracticando = enRiel
+    ? POR_PAGINA_PRACTICANDO_RIEL
+    : POR_PAGINA_PRACTICANDO_COLUMNAS;
+  const porPaginaCodigos = enRiel ? POR_PAGINA_CODIGOS_RIEL : POR_PAGINA_CODIGOS_COLUMNAS;
 
   const bloquePorRevisar = (
     <Bloque
@@ -74,6 +96,7 @@ export function BandejaDocente({
       nivel={nivel}
       cantidad={porRevisar.length}
       tono="pendiente"
+      compacto={enRiel}
       ayuda="Prácticas terminadas (o interrumpidas con al menos 3 intervenciones) donde el estudiante espera tus comentarios y tu nota. Van de la que más espera a la más reciente."
       enlace={
         porRevisar.length > 0
@@ -83,28 +106,31 @@ export function BandejaDocente({
             : undefined
       }
       vacio={
-        <span className="flex items-start gap-2">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-salvia" aria-hidden />
-          <span>
-            {enRiel
-              ? 'Al día. Las prácticas terminadas de tus estudiantes aparecerán aquí.'
-              : 'Al día. Cuando un estudiante termine una práctica, aparecerá aquí para que dejes tu retroalimentación.'}
-          </span>
-        </span>
+        <EstadoVacio
+          variante="compacto"
+          icono={CheckCircle2}
+          tono="salvia"
+          titulo="Todo al día"
+          descripcion={
+            enRiel
+              ? 'Las prácticas terminadas de tus estudiantes aparecerán aquí listas para revisar.'
+              : 'Cuando un estudiante termine una práctica, aparecerá aquí para que dejes tu retroalimentación.'
+          }
+        />
       }
     >
-      {porRevisar.slice(0, MAXIMO_POR_REVISAR).map(sesion => (
-        <FilaPorRevisar key={sesion.id} sesion={sesion} ahora={ahora} compacto={enRiel} />
-      ))}
-      {porRevisar.length > MAXIMO_POR_REVISAR && (
-        <FilaMas href="/sesiones">
-          {mas(porRevisar.length - MAXIMO_POR_REVISAR, 'práctica', 'prácticas')} en Revisiones
-        </FilaMas>
-      )}
+      <ListaPaginada
+        porPagina={porPaginaRevisar}
+        sustantivo={['práctica', 'prácticas']}
+        nombreBloque="Por revisar"
+        claseLista="flex flex-col divide-y border-t"
+      >
+        {porRevisar.map(sesion => (
+          <FilaPorRevisar key={sesion.id} sesion={sesion} ahora={ahora} compacto={enRiel} />
+        ))}
+      </ListaPaginada>
     </Bloque>
   );
-
-  const maximoPracticando = enRiel ? MAXIMO_PRACTICANDO_RIEL : MAXIMO_PRACTICANDO;
 
   const bloquePracticando = (
     <Bloque
@@ -113,23 +139,36 @@ export function BandejaDocente({
       nivel={nivel}
       cantidad={practicando.length}
       tono="vivo"
+      compacto={enRiel}
       ayuda="Estudiantes con un consultorio abierto en este momento. La página se actualiza sola cada 30 segundos mientras haya alguno."
       enlace={
-        practicando.length > maximoPracticando
+        practicando.length > 0
           ? { href: '/sesiones?vista=en-curso', texto: 'Ver en curso' }
           : undefined
       }
-      vacio="Nadie está practicando en este momento."
+      vacio={
+        <EstadoVacio
+          variante="compacto"
+          icono={IconoEnVivoReposo}
+          titulo="Consultorio en pausa"
+          descripcion={
+            enRiel
+              ? 'Ninguno de tus estudiantes está conversando ahora. Se actualiza cada 30 s.'
+              : 'Nadie está practicando en este momento. Verás las entrevistas en vivo apenas entren.'
+          }
+        />
+      }
     >
-      {practicando.slice(0, maximoPracticando).map(sesion => (
-        <FilaPracticando key={sesion.id} sesion={sesion} ahora={ahora} />
-      ))}
-      {practicando.length > maximoPracticando && (
-        <FilaMas href="/sesiones?vista=en-curso">
-          {mas(practicando.length - maximoPracticando, 'práctica', 'prácticas')} en curso en
-          Revisiones
-        </FilaMas>
-      )}
+      <ListaPaginada
+        porPagina={porPaginaPracticando}
+        sustantivo={['práctica', 'prácticas']}
+        nombreBloque="Practicando ahora"
+        claseLista="flex flex-col divide-y border-t"
+      >
+        {practicando.map(sesion => (
+          <FilaPracticando key={sesion.id} sesion={sesion} ahora={ahora} compacto={enRiel} />
+        ))}
+      </ListaPaginada>
     </Bloque>
   );
 
@@ -140,57 +179,67 @@ export function BandejaDocente({
       nivel={nivel}
       cantidad={codigos.length}
       tono="neutro"
+      compacto={enRiel}
       ayuda="Códigos que generaste, aún vigentes, que el estudiante no ha usado. Desde aquí puedes reenviarlos."
       enlace={
-        codigos.length === 0
-          ? { href: '/configuracion', texto: 'Asignar' }
-          : codigos.length > MAXIMO_CODIGOS
-            ? { href: '/estudiantes', texto: 'Ver todos' }
-            : undefined
+        codigos.length > porPaginaCodigos ? { href: '/estudiantes', texto: 'Ver todos' } : undefined
       }
       vacio={
-        enRiel ? (
-          'Ninguno vigente por usar.'
-        ) : (
-          <>
-            Ninguno vigente por usar. Los que generes en{' '}
-            <ControlCitado>Asignar práctica</ControlCitado> aparecerán aquí hasta que entren.
-          </>
-        )
+        <EstadoVacio
+          variante="compacto"
+          icono={KeyRound}
+          titulo="Sin códigos pendientes"
+          descripcion={
+            enRiel ? (
+              'Los códigos vigentes que generes para tu grupo aparecerán aquí hasta que entren.'
+            ) : (
+              <>
+                Los códigos que generes en <ControlCitado>Asignar práctica</ControlCitado>{' '}
+                aparecerán aquí hasta que tus estudiantes entren.
+              </>
+            )
+          }
+          accion={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/configuracion">
+                Asignar práctica
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          }
+        />
       }
     >
-      {codigos.slice(0, MAXIMO_CODIGOS).map(codigo => (
-        <FilaCodigo key={codigo.id} codigo={codigo} ahora={ahora} />
-      ))}
-      {codigos.length > MAXIMO_CODIGOS && (
-        <FilaMas href="/estudiantes">
-          {mas(codigos.length - MAXIMO_CODIGOS, 'código', 'códigos')} en la ficha de cada estudiante
-        </FilaMas>
-      )}
+      <ListaPaginada
+        porPagina={porPaginaCodigos}
+        sustantivo={['código', 'códigos']}
+        nombreBloque="Códigos sin usar"
+        claseLista="flex flex-col divide-y border-t"
+      >
+        {codigos.map(codigo => (
+          <FilaCodigo key={codigo.id} codigo={codigo} ahora={ahora} />
+        ))}
+      </ListaPaginada>
     </Bloque>
   );
 
   if (enRiel) {
     return (
-      <aside aria-labelledby="bandeja-titulo" className="min-w-0">
-        <div className="overflow-hidden rounded-2xl border bg-card @5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]">
-          <div className="flex flex-col gap-0.5 px-5 pt-4.5 pb-4">
-            <h2 id="bandeja-titulo" className="text-xl font-bold tracking-[-0.015em]">
-              Tu bandeja
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Tus estudiantes asignados: en vivo, por revisar y códigos.
-            </p>
-          </div>
-
-          <div className="border-t">{bloquePracticando}</div>
-
-          <div className="grid divide-y border-t @2xl/inicio:grid-cols-2 @2xl/inicio:divide-x @2xl/inicio:divide-y-0 @5xl/inicio:grid-cols-1 @5xl/inicio:divide-x-0 @5xl/inicio:divide-y">
-            <div>{bloquePorRevisar}</div>
-            <div>{bloqueCodigos}</div>
-          </div>
+      <section aria-label="Tu bandeja de docente" className="flex min-w-0 flex-col gap-4">
+        <div
+          className={cn(
+            'overflow-hidden rounded-2xl border bg-card @5xl/inicio:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.45)]',
+            practicando.length > 0 && 'border-salvia/50'
+          )}
+        >
+          {bloquePracticando}
         </div>
-      </aside>
+
+        <div className="grid min-w-0 items-start gap-4 @2xl/inicio:grid-cols-2 @5xl/inicio:grid-cols-1">
+          <div className="overflow-hidden rounded-2xl border bg-card">{bloquePorRevisar}</div>
+          <div className="overflow-hidden rounded-2xl border bg-card">{bloqueCodigos}</div>
+        </div>
+      </section>
     );
   }
 
@@ -257,10 +306,6 @@ export function BandejaDocente({
   );
 }
 
-function mas(n: number, uno: string, varios: string) {
-  return `Y ${n} ${n === 1 ? `${uno} más` : `${varios} más`}`;
-}
-
 const TONO_CANTIDAD: Record<Tono, string> = {
   pendiente: 'bg-ambar-suave text-ambar',
   vivo: 'bg-salvia-suave text-salvia-oscuro',
@@ -274,6 +319,7 @@ function Bloque({
   nivel: Titulo,
   cantidad,
   tono,
+  compacto = false,
   ayuda,
   enlace,
   vacio,
@@ -284,6 +330,7 @@ function Bloque({
   nivel: 'h2' | 'h3';
   cantidad: number;
   tono: Tono;
+  compacto?: boolean;
   ayuda: string;
   enlace?: { href: Route; texto: string };
   vacio: React.ReactNode;
@@ -291,10 +338,18 @@ function Bloque({
 }) {
   return (
     <section aria-labelledby={id} className="flex flex-col">
-      <div className="flex items-center gap-2 px-5 pt-4 pb-3">
+      <div
+        className={cn(
+          'flex items-center gap-2 px-5 pt-3.5 pb-2.5',
+          tono === 'vivo' && cantidad > 0 && 'bg-salvia-suave/35'
+        )}
+      >
         <Titulo
           id={id}
-          className={cn('font-bold tracking-[-0.015em]', Titulo === 'h2' ? 'text-xl' : 'text-base')}
+          className={cn(
+            'font-bold tracking-[-0.015em]',
+            compacto ? 'text-base' : Titulo === 'h2' ? 'text-xl' : 'text-base'
+          )}
         >
           {titulo}
         </Titulo>
@@ -304,7 +359,9 @@ function Bloque({
             cantidad > 0 ? TONO_CANTIDAD[tono] : TONO_CANTIDAD.neutro
           )}
         >
-          {tono === 'vivo' && cantidad > 0 && <PuntoVivo />}
+          {tono === 'vivo' && cantidad > 0 && (
+            <IndicadorEnVivo className="size-3.5 shrink-0 text-salvia-oscuro" />
+          )}
           {cantidad}
         </span>
         <AyudaContextual etiqueta={`Qué es ${titulo}`} texto={ayuda} />
@@ -317,48 +374,14 @@ function Bloque({
           </Link>
         )}
       </div>
-      {cantidad === 0 ? (
-        <p className="max-w-prose px-5 pb-5 text-sm leading-relaxed text-pretty text-muted-foreground">
-          {vacio}
-        </p>
-      ) : (
-        <ul className="flex flex-col divide-y border-t">{children}</ul>
-      )}
+      {cantidad === 0 ? vacio : children}
     </section>
   );
 }
 
-/** Punto que late mientras alguien practica (solo si se permite el movimiento). */
-function PuntoVivo() {
-  return (
-    <span aria-hidden className="relative flex size-2">
-      <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-60 motion-safe:animate-ping" />
-      <span className="relative inline-flex size-2 rounded-full bg-salvia" />
-    </span>
-  );
-}
-
-/** Última fila de un bloque cuando hay más de las que caben. */
-function FilaMas({ href, children }: { href: Route; children: React.ReactNode }) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="group flex items-center gap-1.5 px-5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-      >
-        {children}
-        <ArrowRight
-          className="size-4 transition-transform duration-200 ease-salida group-hover:translate-x-0.5"
-          aria-hidden
-        />
-      </Link>
-    </li>
-  );
-}
-
 /**
- * Práctica por revisar: quién, hace cuánto terminó (lo que ordena la lista), qué caso y cómo
- * terminó. Toda la fila lleva a la revisión.
+ * Práctica por revisar: quién y cuánto espera arriba; caso, duración y acceso directo en la línea
+ * inferior. Toda la fila lleva a la revisión.
  */
 function FilaPorRevisar({
   sesion,
@@ -373,64 +396,78 @@ function FilaPorRevisar({
   const duracion = duracionSesion(sesion);
   const borrador = sesion.retroalimentacion !== null;
 
-  const accion = (
-    <span className="flex shrink-0 items-center gap-2">
-      {borrador && (
-        <span className="rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar">
-          Borrador
-        </span>
-      )}
-      <Link
-        href={`/sesiones/${sesion.id}`}
-        className="inline-flex items-center gap-1 rounded-md text-sm font-semibold text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-      >
-        {borrador ? 'Continuar' : 'Revisar'}
-        <span className="sr-only">
-          {' '}
-          la práctica de {sesion.estudiante.nombre}, {sesion.escenario.titulo}
-        </span>
-        <ArrowRight
-          className="size-4 transition-transform duration-200 ease-salida group-hover:translate-x-0.5"
-          aria-hidden
-        />
-      </Link>
-    </span>
-  );
-
   return (
-    <li className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors hover:bg-muted/50">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate font-semibold">{sesion.estudiante.nombre}</p>
-        <span className="shrink-0 text-sm text-muted-foreground ancho-condensado first-letter:uppercase">
-          {tiempoRelativo(terminada, ahora)}
-        </span>
+    <li className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60">
+      <div className="flex items-baseline justify-between gap-2.5">
+        <Link
+          href={`/sesiones/${sesion.id}`}
+          className="min-w-0 flex-1 truncate rounded-sm font-semibold underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+        >
+          {sesion.estudiante.nombre}
+          <span className="sr-only">
+            , {sesion.escenario.titulo}, {borrador ? 'continuar revisión' : 'revisar práctica'}
+          </span>
+        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {borrador && (
+            <span className="rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar">
+              Borrador
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground tabular-nums first-letter:uppercase">
+            {tiempoRelativo(terminada, ahora)}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="flex min-w-0 items-center gap-x-2 text-sm text-muted-foreground">
+
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
           <CodigoCaso
             codigo={sesion.escenario.codigo}
-            className="shrink-0 font-mono text-xs text-foreground"
+            className="shrink-0 font-mono text-xs text-foreground/85"
           />
           <span className="truncate">{sesion.escenario.titulo}</span>
-          {sesion.estado === 'interrumpida' && <span className="shrink-0">· Interrumpida</span>}
-          {duracion !== null && (
-            <span className="shrink-0 tabular-nums">· {formatearTiempoPractica(duracion)}</span>
+          {sesion.estado === 'interrumpida' && (
+            <span className="hidden shrink-0 text-xs sm:inline">· Interrumpida</span>
+          )}
+          {!compacto && duracion !== null && (
+            <span className="hidden shrink-0 text-xs tabular-nums sm:inline">
+              · {formatearTiempoPractica(duracion)}
+            </span>
           )}
           {!compacto && sesion.intervenciones > 0 && (
-            <span className="hidden shrink-0 tabular-nums sm:inline">
+            <span className="hidden shrink-0 text-xs tabular-nums md:inline">
               · {plural(sesion.intervenciones, 'intervención', 'intervenciones')}
             </span>
           )}
         </p>
-        {!compacto && accion}
+        <span
+          aria-hidden
+          className="flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap tabular-nums"
+        >
+          {compacto && duracion !== null && (
+            <span className="text-muted-foreground">{formatearTiempoPractica(duracion)} ·</span>
+          )}
+          <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+            {borrador ? 'Continuar' : 'Revisar'}
+            <ArrowRight className="size-3.5 transition-transform duration-200 ease-salida group-hover:translate-x-0.5" />
+          </span>
+        </span>
       </div>
-      {compacto && <div className="flex items-center justify-end pt-0.5">{accion}</div>}
     </li>
   );
 }
 
-/** Quién practica ahora, en qué caso, fase de la consulta y hora estimada de cierre por pausa. */
-function FilaPracticando({ sesion, ahora }: { sesion: SesionDocente; ahora: Date }) {
+/** Quién practica ahora, en qué caso y estado de la consulta en vivo. */
+function FilaPracticando({
+  sesion,
+  ahora,
+  compacto = false,
+}: {
+  sesion: SesionDocente;
+  ahora: Date;
+  compacto?: boolean;
+}) {
   const cierre = cierrePorInactividad(sesion.ultimaActividad);
   const etapa = sesion.comenzada
     ? sesion.intervenciones > 0
@@ -439,15 +476,16 @@ function FilaPracticando({ sesion, ahora }: { sesion: SesionDocente; ahora: Date
     : 'Leyendo caso';
 
   return (
-    <li className="group relative flex flex-col gap-2 px-5 py-4 transition-colors hover:bg-muted/45">
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+    <li className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60">
+      <div className="flex items-center justify-between gap-2.5">
         <p className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
-          <PuntoVivo />
+          <IndicadorEnVivo className="size-3.5 shrink-0 text-salvia-oscuro" />
           <Link
             href={`/sesiones/${sesion.id}`}
             className="truncate rounded-sm underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
           >
             {sesion.estudiante.nombre}
+            <span className="sr-only">, {sesion.escenario.titulo}, ver estado en curso</span>
           </Link>
         </p>
         <span
@@ -462,70 +500,86 @@ function FilaPracticando({ sesion, ahora }: { sesion: SesionDocente; ahora: Date
         </span>
       </div>
 
-      <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-        <CodigoCaso
-          codigo={sesion.escenario.codigo}
-          className="shrink-0 font-mono text-xs text-muted-foreground"
-        />
-        <span className="truncate font-medium text-foreground/85">{sesion.escenario.titulo}</span>
-      </p>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
-        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <span className="inline-flex items-center gap-1">
-            <Clock3 className="size-3.5 shrink-0" aria-hidden />
-            Inició {tiempoRelativo(sesion.inicio, ahora)}
-          </span>
-          {cierre > ahora && <span>· Pausa hasta {formatearHora(cierre)}</span>}
-        </span>
-        <span aria-hidden className="inline-flex items-center gap-1 font-semibold text-foreground">
-          Ver estado
-          <ArrowRight className="size-3.5 transition-transform duration-200 ease-salida group-hover:translate-x-0.5" />
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
+          <CodigoCaso
+            codigo={sesion.escenario.codigo}
+            className="shrink-0 font-mono text-xs text-foreground/85"
+          />
+          <span className="truncate">{sesion.escenario.titulo}</span>
+        </p>
+        <span
+          aria-hidden
+          title={
+            cierre > ahora ? `Pausa por inactividad a las ${formatearHora(cierre)}` : undefined
+          }
+          className="inline-flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+        >
+          <span className="first-letter:uppercase">{tiempoRelativo(sesion.inicio, ahora)}</span>
+          {!compacto && cierre > ahora && (
+            <span className="hidden sm:inline">· Pausa {formatearHora(cierre)}</span>
+          )}
+          <ArrowRight className="size-3.5 text-foreground transition-transform duration-200 ease-salida group-hover:translate-x-0.5" />
         </span>
       </div>
     </li>
   );
 }
 
-/** Código sin usar: quién lo tiene, cuándo vence, qué caso abre y acciones directas sobre el código. */
+/** Código sin usar: estudiante y su código a la izquierda; vencimiento y caso a la derecha. */
 function FilaCodigo({ codigo, ahora }: { codigo: CodigoPendiente; ahora: Date }) {
   const horasRestantes = (new Date(codigo.expiraEn).getTime() - ahora.getTime()) / 3_600_000;
   const urgente = horasRestantes < 24;
-  return (
-    <li className="flex flex-col gap-2.5 px-5 py-4 transition-colors hover:bg-muted/35">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="min-w-0 truncate font-semibold text-foreground">
-          {codigo.estudiante ? (
-            <Link
-              href={`/estudiantes/${codigo.estudiante.id}`}
-              className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-            >
-              {codigo.estudiante.nombre}
-            </Link>
-          ) : (
-            'Estudiante'
-          )}
-        </p>
-        <span
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1 text-xs tabular-nums',
-            urgente
-              ? 'rounded-full bg-ambar-suave px-2 py-0.5 font-semibold text-ambar'
-              : 'text-muted-foreground'
-          )}
-        >
-          <Clock3 className="size-3.5 shrink-0" aria-hidden />
-          Vence {tiempoRelativo(codigo.expiraEn, ahora)}
-        </span>
-      </div>
+  const textoVencimiento = formatearVencimientoCodigo(codigo.expiraEn, ahora);
+  const horaVencimiento = `${formatearDia(codigo.expiraEn)}, ${formatearHora(codigo.expiraEn)}`;
 
-      <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-        <CodigoCaso
-          codigo={codigo.escenario.codigo}
-          className="shrink-0 font-mono text-xs text-muted-foreground"
-        />
-        <span className="truncate">{codigo.escenario.titulo}</span>
-      </p>
+  return (
+    <li className="flex flex-col gap-2.5 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/55">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <p className="truncate font-semibold text-foreground">
+            {codigo.estudiante ? (
+              <Link
+                href={`/estudiantes/${codigo.estudiante.id}`}
+                className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+              >
+                {codigo.estudiante.nombre}
+              </Link>
+            ) : (
+              'Estudiante'
+            )}
+          </p>
+          {codigo.estudiante?.codigo && (
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {codigo.estudiante.codigo}
+            </span>
+          )}
+        </div>
+        <div className="flex max-w-[54%] min-w-0 flex-col items-end gap-0.5 text-right">
+          <span
+            title={`Vence el ${horaVencimiento}`}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap tabular-nums',
+              urgente
+                ? 'rounded-full bg-ambar-suave px-2 py-0.5 font-semibold text-ambar'
+                : 'pt-0.5 text-muted-foreground'
+            )}
+          >
+            <Clock3 className="size-3.5 shrink-0" aria-hidden />
+            {textoVencimiento}
+          </span>
+          <p
+            title={`${codigo.escenario.codigo ? `${codigo.escenario.codigo} · ` : ''}${codigo.escenario.titulo}`}
+            className="flex max-w-full min-w-0 items-center justify-end gap-1.5 text-xs text-muted-foreground"
+          >
+            <CodigoCaso
+              codigo={codigo.escenario.codigo}
+              className="shrink-0 font-mono text-xs text-foreground/85"
+            />
+            <span className="truncate">{codigo.escenario.titulo}</span>
+          </p>
+        </div>
+      </div>
 
       <BarraCodigoPendiente
         id={codigo.id}
@@ -572,28 +626,27 @@ function BloqueEstudiantesDocente({
         </Link>
       </div>
       {visibles.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 border-t px-5 py-5 sm:flex-row sm:items-center">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-salvia-suave text-salvia-oscuro">
-            <Users className="size-5" aria-hidden />
-          </span>
-          <p className="flex-1 text-sm text-muted-foreground">
-            Registra a tus estudiantes con su código y correo @correounivalle.edu.co para empezar a
-            asignarles prácticas.
-          </p>
-          <Link
-            href="/estudiantes"
-            className="inline-flex shrink-0 items-center gap-1 rounded-md text-sm font-semibold text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-          >
-            Registrar estudiantes
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        </div>
+        <EstadoVacio
+          variante="compacto"
+          icono={Users}
+          tono="salvia"
+          titulo="Aún no tienes estudiantes registrados"
+          descripcion="Regístralos con su código y correo @correounivalle.edu.co para empezar a asignarles prácticas."
+          accion={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/estudiantes">
+                Registrar estudiantes
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          }
+        />
       ) : (
         <ul className="divide-y border-t text-sm">
           {visibles.map(e => (
             <li
               key={e.id}
-              className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              className="group relative flex flex-col gap-1.5 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <span
@@ -607,6 +660,7 @@ function BloqueEstudiantesDocente({
                         : 'bg-border'
                   )}
                 />
+                <AvatarCuenta avatarId={e.avatarId} nombre={e.nombre} className="size-8 text-xs" />
                 <div className="flex min-w-0 flex-col">
                   <div className="flex min-w-0 items-baseline gap-2">
                     <Link
@@ -635,7 +689,7 @@ function BloqueEstudiantesDocente({
                   </span>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 pl-4.5 text-muted-foreground tabular-nums sm:pl-0">
+              <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 pl-15 text-muted-foreground tabular-nums sm:pl-0">
                 <span>
                   {plural(e.metricas.sesiones, 'práctica', 'prácticas')}
                   {e.metricas.segundosPractica > 0
@@ -644,7 +698,7 @@ function BloqueEstudiantesDocente({
                 </span>
                 {e.metricas.enCurso > 0 ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-salvia-suave px-2 py-0.5 text-xs font-medium text-salvia-oscuro">
-                    <span className="size-1.5 rounded-full bg-salvia" aria-hidden />
+                    <IndicadorEnVivo className="size-3.5 shrink-0" />
                     En curso
                   </span>
                 ) : e.metricas.pendientesRetroalimentacion > 0 ? (
@@ -698,7 +752,7 @@ function BloqueRevisadas({ sesiones, ahora }: { sesiones: SesionDocente[]; ahora
           return (
             <li
               key={s.id}
-              className="group relative flex flex-col gap-1 px-5 py-3.5 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              className="group relative flex flex-col gap-1 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <div className="flex min-w-0 flex-col gap-0.5">
                 <Link
@@ -759,7 +813,7 @@ function BloqueCasosPracticados({ grupos }: { grupos: ResumenGrupo[] }) {
         {grupos.map(grupo => (
           <li
             key={grupo.clave}
-            className="group relative flex flex-col gap-1 px-5 py-3.5 transition-colors hover:bg-muted/50"
+            className="group relative flex flex-col gap-1 px-5 py-3.5 transition-colors even:bg-muted/30 hover:bg-muted/60"
           >
             <div className="flex items-center justify-between gap-2">
               <Link

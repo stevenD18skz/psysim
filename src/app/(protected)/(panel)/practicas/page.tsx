@@ -8,7 +8,6 @@ import {
   Laptop,
   MessageSquareQuote,
   MessageSquareText,
-  MonitorPlay,
   NotebookPen,
   Quote,
   UserCheck,
@@ -18,6 +17,7 @@ import Link from 'next/link';
 
 import { CodigoCaso } from '@/components/casos/codigo-caso';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
+import { IndicadorEnVivo } from '@/components/comun/indicador-en-vivo';
 import { Indicadores } from '@/components/comun/indicadores';
 import { MarcoHeroInicio } from '@/components/inicio/marco-hero';
 import { AccionAbierta } from '@/components/practicas/accion-abierta';
@@ -33,7 +33,7 @@ import { requerirEstudiante } from '@/lib/auth/dal';
 import { formatearDuracion } from '@/lib/conversacion/resumen';
 import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
 import { cierrePorInactividad, formatearHora } from '@/lib/fechas';
-import { duracionSesion } from '@/lib/sesiones/estados';
+import { duracionSesion, esInterrupcionSinConversacion } from '@/lib/sesiones/estados';
 import { obtenerPanelEstudiante, type PracticaEstudiante } from '@/lib/sesiones/queries';
 import { cn } from '@/lib/utils';
 
@@ -54,10 +54,10 @@ export default async function PracticasPage() {
 
   const abierta = practicas.find(p => p.estado === 'en_curso') ?? null;
   const terminadas = practicas.filter(p => p.estado !== 'en_curso');
-  const conConversacion = terminadas.filter(p => p.comenzada);
+  const conConversacion = terminadas.filter(p => p.comenzada && !esInterrupcionSinConversacion(p));
   const conRetro = terminadas.filter(p => p.retroalimentacion?.publicada);
   const sinConversacion = terminadas.filter(
-    p => !p.retroalimentacion?.publicada && p.estado === 'interrumpida' && !p.comenzada
+    p => !p.retroalimentacion?.publicada && esInterrupcionSinConversacion(p)
   );
   const esperando = terminadas.filter(p => !conRetro.includes(p) && !sinConversacion.includes(p));
 
@@ -69,7 +69,7 @@ export default async function PracticasPage() {
   const promedio = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
 
   const segundosTotales = conConversacion.reduce((acc, s) => acc + (duracionSesion(s) ?? 0), 0);
-  const intervencionesTotales = conConversacion.reduce((acc, s) => acc + s.totalIntervenciones, 0);
+  const intervencionesTotales = conConversacion.reduce((acc, s) => acc + s.intervenciones, 0);
   const conNotasEnFrases = conRetro.filter(s => s.totalAnotaciones > 0).length;
 
   const ultimaConRetro = conRetro[0] ?? null;
@@ -435,13 +435,9 @@ function BloqueAbierta({ sesion, ahora }: { sesion: PracticaEstudiante; ahora: D
         <div className="flex flex-col gap-2">
           <h2
             id="abierta-titulo"
-            className="inline-flex w-fit items-center gap-2 rounded-full bg-salvia-suave px-2.5 py-0.5 text-xs font-semibold text-salvia-oscuro"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-salvia-suave px-2.5 py-0.5 text-xs font-semibold text-salvia-oscuro"
           >
-            <span aria-hidden className="relative flex size-2">
-              <span className="absolute inline-flex size-full rounded-full bg-salvia opacity-65 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-salvia" />
-            </span>
-            <MonitorPlay className="size-3.5" aria-hidden />
+            <IndicadorEnVivo animado={sesion.comenzada} className="size-3.5 text-salvia-oscuro" />
             Abierta ahora
           </h2>
           <p className="text-2xl leading-tight font-bold tracking-[-0.015em] text-foreground">

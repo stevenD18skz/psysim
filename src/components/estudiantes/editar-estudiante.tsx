@@ -11,10 +11,14 @@ export function EditarEstudiante({
   estudiante,
   etiqueta,
   icono,
+  size = 'lg',
+  className,
 }: {
   estudiante: Pick<EstudianteRegistrado, 'id' | 'codigo' | 'nombre' | 'correo'>;
   etiqueta: string;
   icono?: React.ReactNode;
+  size?: 'default' | 'lg';
+  className?: string;
 }) {
   const router = useRouter();
   return (
@@ -27,7 +31,7 @@ export function EditarEstudiante({
       }}
       onGuardado={() => router.refresh()}
       disparador={
-        <Button size="lg" variant="outline">
+        <Button size={size} variant="outline" className={className}>
           {icono}
           {etiqueta}
         </Button>

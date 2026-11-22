@@ -165,3 +165,19 @@ export async function obtenerIdUltimaSesionEnCurso(): Promise<string | null> {
   }
   return data?.id ?? null;
 }
+
+/** Primera práctica iniciada que pertenece a la cuenta del estudiante, según RLS. */
+export async function obtenerIdPrimeraPractica(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('sesion')
+    .select('id')
+    .eq('comenzada', true)
+    .order('inicio')
+    .order('id')
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error('No pudimos identificar la primera práctica.', { cause: error });
+  return data?.id ?? null;
+}

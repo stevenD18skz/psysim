@@ -3,6 +3,7 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { CODIGO_PG } from '@/lib/acciones';
 import { entradasDeAcceso, esCuentaDePrueba } from '@/lib/auth/metodo-acceso';
 import {
   esRol,
@@ -12,6 +13,7 @@ import {
   RUTA_INICIO,
   RUTA_LOGIN,
 } from '@/lib/auth/routes';
+import { esAvatarId } from '@/lib/avatares/catalogo';
 import { googleDuranteLaEntrega, leerVentanaDeEntrega } from '@/lib/equipo-compartido/ventana';
 import { log } from '@/lib/log';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -21,7 +23,10 @@ import { type PerfilUsuario, type RolUsuario } from '@/types';
 export type SesionUsuario =
   | { estado: 'sin-sesion' }
   | { estado: 'sin-permiso' }
-  | { estado: 'autorizado'; perfil: PerfilUsuario };
+  | { estado: 'autorizado'; perfil: PerfilUsuario; segundosRestantes: number };
+
+const COLUMNAS_PERFIL =
+  'id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal';
 
 /**
  * Data Access Layer: verificación autoritativa de la sesión y del rol.
@@ -52,11 +57,24 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
     return { estado: 'sin-sesion' };
   }
 
-  const { data: perfil, error: errorPerfil } = await createAdminClient()
+  const { data: segundosRestantes, error: errorVigencia } =
+    await supabase.rpc('segundos_sesion_cuenta');
+  if (errorVigencia) {
+    throw new Error('No pudimos comprobar la vigencia de la sesión.', { cause: errorVigencia });
+  }
+  if (!segundosRestantes || segundosRestantes < 0) return { estado: 'sin-sesion' };
+
+  const admin = createAdminClient();
+  const consultaPerfil = await admin
     .from('usuario')
-    .select('id, nombre, correo, codigo_institucional, rol, activo, contrasena_temporal')
+    .select(`${COLUMNAS_PERFIL}, avatar_id`)
     .eq('id', user.id)
     .maybeSingle();
+  // Un entorno con la migración del avatar pendiente todavía puede iniciar sesión.
+  const { data: perfil, error: errorPerfil } =
+    consultaPerfil.error?.code === CODIGO_PG.UNDEFINED_COLUMN
+      ? await admin.from('usuario').select(COLUMNAS_PERFIL).eq('id', user.id).maybeSingle()
+      : consultaPerfil;
 
   if (errorPerfil) {
     // Un fallo de la base de datos no debe interpretarse como "sin permiso".
@@ -92,12 +110,14 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
 
   return {
     estado: 'autorizado',
+    segundosRestantes,
     perfil: {
       id: perfil.id,
       nombre: perfil.nombre,
       correo: perfil.correo,
       codigoInstitucional: perfil.codigo_institucional,
       rol: perfil.rol,
+      avatarId: 'avatar_id' in perfil && esAvatarId(perfil.avatar_id) ? perfil.avatar_id : null,
       contrasenaTemporal: perfil.contrasena_temporal,
     },
   };
@@ -107,6 +127,12 @@ export const obtenerSesionUsuario = cache(async (): Promise<SesionUsuario> => {
  * Exige una sesión válida con cualquier rol. Redirige a /login o a /acceso-denegado si no la hay.
  */
 export async function requerirUsuario(): Promise<PerfilUsuario> {
+  return (await requerirSesionUsuario()).perfil;
+}
+
+export async function requerirSesionUsuario(): Promise<
+  Extract<SesionUsuario, { estado: 'autorizado' }>
+> {
   const sesion = await obtenerSesionUsuario();
 
   if (sesion.estado === 'sin-sesion') {
@@ -116,7 +142,7 @@ export async function requerirUsuario(): Promise<PerfilUsuario> {
     redirect(RUTA_ACCESO_DENEGADO);
   }
 
-  return sesion.perfil;
+  return sesion;
 }
 
 /**

@@ -159,46 +159,57 @@ pnpm orquestador:sincronizar             # crea o actualiza sus perfiles y escen
 ```
 src/
 ├── app/
-│   ├── (auth)/login/          ← Login del docente (formulario + Server Action)
-│   ├── (protected)/           ← Rutas que exigen sesión de docente
-│   │   ├── layout.tsx         ← Verificación autoritativa (DAL) + carga del perfil en Zustand
-│   │   ├── configuracion/     ← Escenario o caso propio, paciente virtual y datos del estudiante; /casos crea y edita casos
-│   │   ├── resultados/        ← Resultados de una práctica terminada: indicadores e historial (HU-21)
-│   │   └── simulacion/        ← Simulación 3D de la sesión en curso (HU-08/09/10)
-│   ├── api/npc/chat/          ← Route Handler del paciente virtual (HU-12)
-│   ├── api/metrics/save/      ← Route Handler que guarda las métricas y cierra la sesión (HU-19)
-│   ├── acceso-denegado/       ← Página para cuentas sin rol docente
-│   ├── dev/                   ← Herramientas solo de desarrollo (galería de modelos, escenas)
-│   └── page.tsx               ← Página pública de presentación
+│   ├── (auth)/login/          ← Ingreso: Google para estudiantes, correo y contraseña para docentes
+│   ├── (auth)/entrega/        ← Modo presencial: el docente entrega su computador a un estudiante
+│   ├── (protected)/(panel)/   ← Panel con menú por rol (DAL en cada layout y página)
+│   │   ├── inicio/            ← Bandeja del docente; resumen de la plataforma para el Administrador
+│   │   ├── configuracion/     ← Asignar práctica (caso, estudiante, tiempo de consulta, código); /casos
+│   │   ├── estudiantes/       ← Registro de estudiantes y ficha de cada uno (y su informe de notas)
+│   │   ├── sesiones/          ← Revisiones: lista, revisión de una práctica y retroalimentación
+│   │   ├── practicas/         ← Mis prácticas del estudiante y relectura de la retroalimentación
+│   │   ├── unirse/[codigo]/   ← Enlace del código de acceso que comparte el docente
+│   │   ├── laboratorio/       ← Conversar con los pacientes sin práctica (docente)
+│   │   ├── resultados/        ← Indicadores e historial de una práctica terminada
+│   │   └── admin/             ← Administrador: docentes, tope de prácticas y paciente con IA
+│   ├── (protected)/simulacion/← Práctica 3D en curso (instrucciones, consultorio, cierre)
+│   ├── api/npc/chat/          ← Paciente con IA (orquestador o Gemini), guarda el intercambio
+│   ├── api/metrics/save/      ← Cierre de la práctica con métricas
+│   ├── api/telemetria/, api/salud/ ← Telemetría del navegador y salud para el monitor externo
+│   ├── manual/, privacidad/   ← Guía de uso y aviso de privacidad públicos
+│   ├── dev/                   ← Herramientas solo de desarrollo (modelos, escenas, pasos)
+│   └── page.tsx               ← Portada pública
 ├── components/
-│   ├── 3d/                    ← React Three Fiber: SceneCanvas, SceneLoader, sala, muebles, NPC
-│   ├── casos/                 ← Constructor guiado de casos, vista previa del prompt y prueba del paciente
-│   ├── configuracion/         ← Configurador de la sesión y "Mis casos"
-│   ├── simulacion/            ← Simulación: HUD, panel de conversación, errores y cierre
-│   ├── layout/                ← Navegación principal, botón de logout
+│   ├── 3d/, npc/, pacientes/  ← React Three Fiber: escena, sala, rig, gestos y rostro del paciente
+│   ├── simulacion/            ← HUD, conversación, herramientas de consulta, avisos y cierre
+│   ├── casos/, configuracion/ ← Constructor de casos y configurador de prácticas (con recorridos)
+│   ├── sesiones/, retroalimentacion/ ← Revisiones y revisión frase por frase
+│   ├── estudiantes/, practicas/, asignaciones/ ← Fichas, prácticas del estudiante y códigos
+│   ├── admin/, inicio/        ← Administrador e inicio por rol
+│   ├── ayuda/                 ← Recorridos guiados y pistas contextuales
+│   ├── landing/, layout/, comun/ ← Portada, navegación y piezas compartidas
 │   └── ui/                    ← Componentes de shadcn/ui
 ├── lib/
-│   ├── auth/                  ← Rutas, DAL (verificación de sesión/rol), Server Actions
-│   ├── conversacion/          ← Máquina de estados del NPC, envío de mensajes y guardado de métricas (HU-13/14/16/20)
-│   ├── metrics.ts             ← Indicadores agregados de la sesión (HU-18)
-│   ├── contraste.ts           ← Razón de contraste WCAG para validar el tema (HU-25)
-│   ├── escena/                ← Colisiones, encuadre, animaciones, ajuste de modelos, Storage
-│   ├── ia/                    ← Llamada al modelo de lenguaje con respaldo y clasificación de errores
-│   ├── escenarios/            ← Consultas y Server Actions de escenarios y sesiones
-│   ├── casos/                 ← Casos propios del docente: composición del prompt, opciones y Server Actions
-│   ├── env/                   ← Validación de variables de entorno
-│   └── supabase/              ← Clientes: browser, server, admin (clave secreta), proxy
+│   ├── auth/                  ← Rutas, DAL (verificación de sesión y rol), Server Actions
+│   ├── ia/, conversacion/     ← Prompt, historial, filtro de fuga y máquina de estados del paciente
+│   ├── orquestador/           ← Cliente del orquestador de NPC (solo servidor)
+│   ├── sesiones/              ← Estados, tiempo de consulta, consultas y resultados
+│   ├── casos/, escenarios/    ← Casos propios y escenarios oficiales
+│   ├── asignaciones/, estudiantes/, retroalimentacion/, reflexion/ ← Dominio del panel
+│   ├── admin/, avatares/, ayuda/ ← Administrador, avatares de cuenta y recorridos
+│   ├── escena/, npc/, audio/, ambiente/ ← Escena 3D, animaciones, voz, clima emocional y ventana
+│   ├── seguridad/, observabilidad/, env/ ← CSP, registros y validación del entorno
+│   └── supabase/              ← Clientes: navegador, servidor, administración (clave secreta), proxy
 ├── schemas/                   ← Esquemas Zod compartidos cliente/servidor
 ├── store/                     ← Store de Zustand (slices)
 ├── types/                     ← Tipos globales y tipos generados de la BD
 └── proxy.ts                   ← Proxy de Next.js (antes middleware)
 public/models/                 ← Modelos 3D fuente (se publican optimizados en Supabase Storage)
-public/scenes/                 ← JSON de la escena 3D de cada escenario (docs/modelos-3d.md)
+public/scenes/                 ← JSON de la escena 3D de cada caso oficial (docs/modelos-3d.md)
 public/draco/                  ← Decodificadores Draco autoalojados
-supabase/                      ← config.toml y migraciones SQL
-scripts/                       ← Scripts de verificación y seed
+supabase/migrations/           ← Esquema versionado (fuente de verdad de los permisos)
+scripts/                       ← Seeds, sincronización del orquestador, modelos y verificaciones
 e2e/                           ← Tests de Playwright
-docs/                          ← Documentación y registros de pruebas
+docs/                          ← Documentación, auditorías y registros de pruebas
 ```
 
 ### Autenticación y autorización (defensa en profundidad)

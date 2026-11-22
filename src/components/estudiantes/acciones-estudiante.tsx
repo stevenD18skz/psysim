@@ -60,6 +60,7 @@ export function AccionesEstudiante({
             <Button
               variant="outline"
               size="icon-lg"
+              title="Más acciones"
               aria-label={`Más acciones para ${estudiante.nombre}`}
             >
               <MoreHorizontal aria-hidden />

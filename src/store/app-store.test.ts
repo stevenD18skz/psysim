@@ -10,6 +10,7 @@ const perfil: PerfilUsuario = {
   correo: 'docente@psysim.test',
   codigoInstitucional: 'DOC-0001',
   rol: 'docente',
+  avatarId: null,
   contrasenaTemporal: false,
 };
 

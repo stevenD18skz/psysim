@@ -82,14 +82,25 @@ const CUENTAS: CuentaSemilla[] = [
     codigoInstitucional: '209990005',
     rol: 'estudiante',
   },
+  {
+    correo: 'estudiante7@psysim.test',
+    nombre: 'Estudiante de Prueba Siete',
+    codigoInstitucional: '209990007',
+    rol: 'estudiante',
+  },
   { correo: 'sin-rol@psysim.test', nombre: 'Usuario sin Rol' },
 ];
 
 /**
- * Asignación inicial de los 5 estudiantes de prueba entre los docentes de prueba (1 o 2 por
- * docente). El trigger `estudiante_vincular_cuenta` enlaza `usuario_id` por el correo.
+ * Asignación inicial de los estudiantes de prueba entre los docentes de prueba y el
+ * Administrador (que también actúa como docente). El trigger `estudiante_vincular_cuenta` enlaza
+ * `usuario_id` por el correo.
  */
 const ASIGNACIONES_ESTUDIANTES: { docente: string; estudiantes: string[] }[] = [
+  {
+    docente: 'admin@psysim.test',
+    estudiantes: ['estudiante7@psysim.test'],
+  },
   {
     docente: 'docente1@psysim.test',
     estudiantes: ['estudiante1@psysim.test', 'estudiante2@psysim.test'],

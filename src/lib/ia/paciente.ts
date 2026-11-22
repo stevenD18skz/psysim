@@ -39,6 +39,7 @@ export type TipoErrorIA =
   | 'tiempo_agotado'
   | 'autenticacion'
   | 'limite'
+  | 'cuota_indisponible'
   | 'respuesta_invalida'
   /** La respuesta copiaba las instrucciones del paciente (LLM07). */
   | 'fuga_de_instrucciones'
@@ -229,7 +230,9 @@ async function* transmitirCon(
     throw new ErrorIA(clasificarError(error), { cause: error });
   }
   if (fallo) throw new ErrorIA(clasificarError(fallo), { cause: fallo });
-  if (!texto.trim()) throw new ErrorIA('respuesta_invalida');
+  if (!texto.trim() || (await resultado.finishReason) === 'length') {
+    throw new ErrorIA('respuesta_invalida');
+  }
 
   // El consumo llega al cerrar el flujo; si el proveedor no lo informa, queda sin dato.
   const uso = await Promise.resolve(resultado.usage).catch(() => null);

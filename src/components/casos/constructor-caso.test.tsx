@@ -46,7 +46,7 @@ describe('ConstructorCaso', () => {
 
   it('arma la vista previa del comportamiento mientras se completan los campos', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.type(screen.getByLabelText('Nombre', { exact: true }), 'Camila Rojas');
     await usuario.type(screen.getByLabelText('Edad'), '29');
@@ -66,7 +66,7 @@ describe('ConstructorCaso', () => {
 
   it('las sugerencias añaden una frase al campo y luego desaparecen', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.click(screen.getByRole('button', { name: '+ me interrumpen' }));
 
@@ -76,7 +76,7 @@ describe('ConstructorCaso', () => {
 
   it('muestra errores inline si se intenta guardar un caso vacío', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
 
@@ -92,7 +92,7 @@ describe('ConstructorCaso', () => {
       datos: { id: '66666666-6666-4666-8666-666666666666' },
     });
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await completarCaso(usuario);
     await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
@@ -114,7 +114,7 @@ describe('ConstructorCaso', () => {
   it('muestra el error del servidor sin salir de la página', async () => {
     mockCrear.mockResolvedValue({ ok: false, error: 'No pudimos guardar el caso.' });
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await completarCaso(usuario);
     await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
@@ -125,7 +125,7 @@ describe('ConstructorCaso', () => {
 
   it('muestra al paciente en lenguaje cotidiano y lo que falta para guardar', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     expect(screen.getByText(/Para guardar te faltan 6 datos/)).toBeVisible();
     await usuario.type(screen.getByLabelText('Nombre', { exact: true }), 'Camila Rojas');
@@ -143,7 +143,7 @@ describe('ConstructorCaso', () => {
 
   it('un ejemplo llena el caso completo y queda listo para guardar', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.click(screen.getByRole('button', { name: /Duelo reciente/ }));
     expect(screen.getByLabelText('Nombre', { exact: true })).toHaveValue('Rocío Andrea');
@@ -154,7 +154,7 @@ describe('ConstructorCaso', () => {
 
   it('las sugerencias de competencia llenan el campo con un clic', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.click(screen.getByRole('button', { name: 'Escucha activa' }));
     expect(screen.getByLabelText('Competencia que se entrena')).toHaveValue('Escucha activa');
@@ -162,7 +162,7 @@ describe('ConstructorCaso', () => {
 
   it('pasa a modo texto con el prompt generado y pide confirmar antes de descartar cambios', async () => {
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     await usuario.type(screen.getByLabelText('Nombre', { exact: true }), 'Camila Rojas');
     await usuario.click(screen.getByText('Ver el texto que recibe la IA'));
@@ -195,6 +195,7 @@ describe('ConstructorCaso', () => {
     const usuario = userEvent.setup();
     render(
       <ConstructorCaso
+        cuentaId="docente-prueba"
         casoId="77777777-7777-4777-8777-777777777777"
         valoresIniciales={{
           titulo: 'Caso previo',
@@ -238,7 +239,7 @@ describe('ConstructorCaso', () => {
   it('prueba al paciente con el prompt actual', async () => {
     mockProbar.mockResolvedValue({ ok: true, datos: { respuesta: 'Buenas… no sé qué decir.' } });
     const usuario = userEvent.setup();
-    render(<ConstructorCaso />);
+    render(<ConstructorCaso cuentaId="docente-prueba" />);
 
     // Sin un prompt válido la prueba está bloqueada.
     expect(screen.getByLabelText('Mensaje de prueba')).toBeDisabled();
@@ -264,9 +265,9 @@ describe('ConstructorCaso', () => {
     });
 
     it('ofrece recuperar el borrador y lo carga en el formulario', async () => {
-      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      localStorage.setItem('psysim:borrador-caso:docente-prueba:nuevo', BORRADOR);
       const usuario = userEvent.setup();
-      render(<ConstructorCaso />);
+      render(<ConstructorCaso cuentaId="docente-prueba" />);
 
       expect(await screen.findByText('Tienes un borrador sin guardar')).toBeInTheDocument();
       await usuario.click(screen.getByRole('button', { name: 'Recuperar borrador' }));
@@ -277,31 +278,45 @@ describe('ConstructorCaso', () => {
     });
 
     it('descartar lo borra sin tocar el formulario', async () => {
-      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      localStorage.setItem('psysim:borrador-caso:docente-prueba:nuevo', BORRADOR);
       const usuario = userEvent.setup();
-      render(<ConstructorCaso />);
+      render(<ConstructorCaso cuentaId="docente-prueba" />);
 
       await usuario.click(await screen.findByRole('button', { name: 'Descartar' }));
 
       expect(screen.getByLabelText('Título del caso')).toHaveValue('');
-      expect(localStorage.getItem('psysim:borrador-caso:nuevo')).toBeNull();
+      expect(localStorage.getItem('psysim:borrador-caso:docente-prueba:nuevo')).toBeNull();
+    });
+
+    it('otra cuenta que abre la misma pantalla no recibe el borrador', async () => {
+      localStorage.setItem('psysim:borrador-caso:docente-prueba:nuevo', BORRADOR);
+      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
+      const otra = render(<ConstructorCaso cuentaId="otra-cuenta" />);
+      expect(screen.queryByRole('button', { name: 'Recuperar borrador' })).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Título del caso')).toHaveValue('');
+      otra.unmount();
+
+      render(<ConstructorCaso cuentaId="docente-prueba" />);
+      expect(await screen.findByRole('button', { name: 'Recuperar borrador' })).toBeInTheDocument();
     });
 
     it('el borrador de un caso es independiente del de un caso nuevo', async () => {
-      localStorage.setItem('psysim:borrador-caso:nuevo', BORRADOR);
-      render(<ConstructorCaso casoId="3f1f1c4e-3c1e-4a1e-8f1e-1a2b3c4d5e6f" />);
+      localStorage.setItem('psysim:borrador-caso:docente-prueba:nuevo', BORRADOR);
+      render(
+        <ConstructorCaso cuentaId="docente-prueba" casoId="3f1f1c4e-3c1e-4a1e-8f1e-1a2b3c4d5e6f" />
+      );
       expect(screen.queryByText('Tienes un borrador sin guardar')).not.toBeInTheDocument();
     });
 
     it('al guardar con éxito borra el borrador', async () => {
       const usuario = userEvent.setup();
       mockCrear.mockResolvedValue({ ok: true, datos: { id: 'nuevo-id' } } as never);
-      render(<ConstructorCaso />);
+      render(<ConstructorCaso cuentaId="docente-prueba" />);
       await completarCaso(usuario);
       await usuario.click(screen.getByRole('button', { name: 'Guardar caso' }));
 
       await vi.waitFor(() => expect(push).toHaveBeenCalled());
-      expect(localStorage.getItem('psysim:borrador-caso:nuevo')).toBeNull();
+      expect(localStorage.getItem('psysim:borrador-caso:docente-prueba:nuevo')).toBeNull();
     });
   });
 });

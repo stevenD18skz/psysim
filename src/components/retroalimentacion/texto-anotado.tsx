@@ -11,7 +11,7 @@ interface TextoAnotadoProps {
   /** Anotación resaltada (p. ej. la que se está editando). */
   activa?: string | null;
   /** Si se indica, cada subrayado se puede pulsar (clic, Enter o espacio) para ver su comentario. */
-  onAbrir?: (id: string) => void;
+  onAbrir?: (id: string, origen: HTMLElement) => void;
 }
 
 /**
@@ -68,21 +68,21 @@ export function NumeroAnotacion({ numero }: { numero: number | undefined }) {
 }
 
 /** Props de un subrayado que abre su comentario. */
-function interaccion(id: string, onAbrir: (id: string) => void) {
+function interaccion(id: string, onAbrir: NonNullable<TextoAnotadoProps['onAbrir']>) {
   return {
     ...ABRE_ANOTACION,
     role: 'button',
     tabIndex: 0,
     'aria-haspopup': 'dialog' as const,
-    onClick: () => {
+    onClick: (evento: React.MouseEvent<HTMLElement>) => {
       // Al arrastrar para seleccionar texto también llega un clic: ese no abre nada.
       if (window.getSelection()?.isCollapsed === false) return;
-      onAbrir(id);
+      onAbrir(id, evento.currentTarget);
     },
-    onKeyDown: (evento: React.KeyboardEvent) => {
+    onKeyDown: (evento: React.KeyboardEvent<HTMLElement>) => {
       if (evento.key !== 'Enter' && evento.key !== ' ') return;
       evento.preventDefault();
-      onAbrir(id);
+      onAbrir(id, evento.currentTarget);
     },
   };
 }

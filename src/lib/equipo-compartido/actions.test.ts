@@ -60,9 +60,9 @@ function cookie(nombre: string) {
 }
 
 describe('entregarEquipo (modo presencial)', () => {
-  it('guarda para quién es el equipo, cierra la sesión del docente y va a la entrega', async () => {
+  it('guarda para quién es el equipo y confirma la entrega después de cerrar la sesión', async () => {
     asignacion();
-    await expect(entregarEquipo({ id: ID })).rejects.toThrow('NEXT_REDIRECT:/entrega');
+    expect(await entregarEquipo({ id: ID })).toEqual({ ok: true, datos: null });
 
     expect(requerirDocente).toHaveBeenCalled();
     expect(leerEntrega(cookie(COOKIE_ENTREGA)?.[1])).toEqual({
@@ -105,13 +105,21 @@ describe('entregarEquipo (modo presencial)', () => {
     expect(db.auth.signOut).not.toHaveBeenCalled();
   });
 
+  it('no confirma la entrega ni habilita sus cookies si falla el cierre de sesión', async () => {
+    asignacion();
+    db.auth.signOut.mockResolvedValueOnce({ error: { code: 'unexpected_failure' } });
+
+    expect(await entregarEquipo({ id: ID })).toMatchObject({ ok: false });
+    expect(almacen.set).not.toHaveBeenCalled();
+  });
+
   it('avisa si el docente tiene Google vinculado', async () => {
     asignacion();
     db.auth.getUser.mockResolvedValueOnce({
       data: { user: { app_metadata: { provider: 'email', providers: ['email', 'google'] } } },
       error: null,
     });
-    await expect(entregarEquipo({ id: ID })).rejects.toThrow('NEXT_REDIRECT');
+    expect(await entregarEquipo({ id: ID })).toEqual({ ok: true, datos: null });
     expect(leerEntrega(cookie(COOKIE_ENTREGA)?.[1])?.docenteConGoogle).toBe(true);
   });
 

@@ -18,7 +18,7 @@ const NIVELES = ['', 'basico', 'intermedio', 'avanzado'] as const;
 export default async function NuevoCasoPage({
   searchParams,
 }: PageProps<'/configuracion/casos/nuevo'>) {
-  await requerirDocente();
+  const perfil = await requerirDocente();
   const [parametros, catalogo] = await Promise.all([searchParams, obtenerCatalogoEscenarios()]);
 
   const desdeId =
@@ -50,7 +50,8 @@ export default async function NuevoCasoPage({
           className={`rounded-2xl border border-border/80 bg-background p-5 sm:p-7 ${SOMBRA_SOBRE_NOGAL}`}
         >
           <ConstructorCaso
-            key={`${casoOrigen?.id ?? 'nuevo'}:${nivelParam}`}
+            key={`${perfil.id}:${casoOrigen?.id ?? 'nuevo'}:${nivelParam}`}
+            cuentaId={perfil.id}
             catalogo={catalogo}
             casoOrigenInicial={casoOrigen}
             valoresIniciales={valoresIniciales}

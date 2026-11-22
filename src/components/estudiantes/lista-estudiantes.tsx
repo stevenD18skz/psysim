@@ -1,6 +1,6 @@
 'use client';
 
-import { ClipboardPlus, KeyRound, MailPlus } from 'lucide-react';
+import { CheckCircle2, ClipboardPlus, KeyRound, MailPlus } from 'lucide-react';
 import { type Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,10 +8,15 @@ import { useId } from 'react';
 
 import { AccionesEstudiante } from '@/components/estudiantes/acciones-estudiante';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
 import { InsigniaEstado } from '@/components/sesiones/insignia-estado';
 import { Button } from '@/components/ui/button';
-import { formatearDia, formatearNota } from '@/lib/estudiantes/estudiantes';
-import { iniciales } from '@/lib/nombres';
+import {
+  formatearDia,
+  formatearNota,
+  formatearTiempoPractica,
+} from '@/lib/estudiantes/estudiantes';
+import { tiempoRelativo } from '@/lib/fechas';
 import { type EstudianteRegistrado } from '@/types';
 
 /**
@@ -20,10 +25,16 @@ import { type EstudianteRegistrado } from '@/types';
  */
 export function ListaEstudiantes({
   estudiantes,
+  totalFiltrados,
+  totalEstudiantes,
+  ahora,
   vacio,
   controles,
 }: {
   estudiantes: EstudianteRegistrado[];
+  totalFiltrados?: number;
+  totalEstudiantes?: number;
+  ahora?: Date;
   /** Mensaje cuando ningún estudiante coincide con los filtros. */
   vacio: React.ReactNode;
   /** Búsqueda, filtros y orden, junto al título. */
@@ -32,6 +43,8 @@ export function ListaEstudiantes({
   const id = useId();
   const router = useRouter();
   const visibles = estudiantes;
+  const mostrandoTotal = totalFiltrados ?? visibles.length;
+  const filtrado = totalEstudiantes !== undefined && mostrandoTotal !== totalEstudiantes;
 
   /**
    * Abre la ficha al pulsar en cualquier parte de la fila, salvo en sus botones y enlaces, en lo
@@ -52,13 +65,18 @@ export function ListaEstudiantes({
   return (
     <section aria-labelledby={`${id}-titulo`} className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-        <h2 id={`${id}-titulo`} className="text-xl font-semibold tracking-tight">
-          Registro
-        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 id={`${id}-titulo`} className="text-xl font-bold tracking-[-0.015em]">
+            Registro
+          </h2>
+          <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+            {filtrado ? `${mostrandoTotal} de ${totalEstudiantes}` : mostrandoTotal}
+          </span>
+        </div>
         {controles}
       </div>
 
-      <div className="relative overflow-x-auto rounded-xl border bg-card">
+      <div className="relative overflow-x-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Estudiantes registrados con sus prácticas y retroalimentación
@@ -91,6 +109,7 @@ export function ListaEstudiantes({
                 id: estudianteId,
                 codigo,
                 nombre,
+                avatarId,
                 correo,
                 cuentaVinculada,
                 metricas,
@@ -102,29 +121,34 @@ export function ListaEstudiantes({
                   key={estudianteId}
                   data-testid={`fila-${codigo}`}
                   onClick={evento => abrirFicha(evento, ficha)}
-                  className="group/fila cursor-pointer align-middle transition-colors hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50"
+                  className="group/fila cursor-pointer align-middle transition-colors even:bg-muted/30 hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60"
                 >
                   <th scope="row" className="px-5 py-4 text-left font-normal">
                     <div className="flex items-center gap-3.5">
-                      {/* Iniciales, no foto: la cuenta de Google solo existe tras el primer ingreso. */}
-                      <span
-                        aria-hidden
-                        className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-salvia-suave text-sm font-semibold text-salvia-oscuro sm:flex"
-                      >
-                        {iniciales(nombre)}
-                      </span>
+                      <AvatarCuenta
+                        avatarId={avatarId}
+                        nombre={nombre}
+                        className="size-8 text-xs sm:size-10 sm:text-sm"
+                      />
                       <div className="flex min-w-0 flex-col gap-0.5">
                         {/* El enlace sigue ahí para el teclado y los lectores de pantalla; el clic en cualquier punto de la fila hace lo mismo. */}
-                        <Link
-                          href={ficha}
-                          className="block min-h-6 rounded-sm font-semibold outline-hidden group-hover/fila:text-primary focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          {nombre}
-                        </Link>
-                        <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Link
+                            href={ficha}
+                            className="block min-h-6 rounded-sm font-semibold underline-offset-4 outline-hidden group-hover/fila:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+                          >
+                            {nombre}
+                          </Link>
+                          {!cuentaVinculada && (
+                            <span className="rounded-full bg-ambar-suave px-2 py-0.5 text-xs font-medium text-ambar">
+                              {correo ? 'Sin entrar' : 'Sin correo'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="flex flex-wrap items-center gap-x-2.5 text-xs text-muted-foreground">
                           <span className="font-mono">{codigo}</span>
                           <span className="max-w-[16rem] truncate">
-                            {correo ?? 'Sin correo: no puede recibir códigos'}
+                            {correo ?? 'Agrega su correo institucional para asignarle prácticas'}
                           </span>
                         </span>
                         {docente && (
@@ -137,7 +161,14 @@ export function ListaEstudiantes({
                     </div>
                   </th>
                   <td className="px-5 py-4 tabular-nums">
-                    {metricas.sesiones === 1 ? '1 práctica' : `${metricas.sesiones} prácticas`}
+                    <span className="block font-medium text-foreground">
+                      {metricas.sesiones === 1 ? '1 práctica' : `${metricas.sesiones} prácticas`}
+                    </span>
+                    {metricas.segundosPractica > 0 && (
+                      <span className="block text-xs text-muted-foreground">
+                        {formatearTiempoPractica(metricas.segundosPractica)} acumulados
+                      </span>
+                    )}
                     {metricas.enCurso > 0 && (
                       <InsigniaEstado
                         className="mt-1"
@@ -171,17 +202,45 @@ export function ListaEstudiantes({
                           tono: 'pendiente',
                         }}
                       />
-                    ) : (
-                      <span className="text-muted-foreground">
-                        {metricas.sesiones > metricas.enCurso ? 'Al día' : '—'}
+                    ) : metricas.sesiones > metricas.enCurso ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-salvia-suave px-2.5 py-0.5 text-xs font-medium text-salvia-oscuro">
+                        <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+                        Al día
                       </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Sin prácticas aún</span>
                     )}
                   </td>
-                  <td className="hidden px-5 py-4 font-medium tabular-nums lg:table-cell">
-                    {formatearNota(metricas.notaPromedio)}
+                  <td className="hidden px-5 py-4 tabular-nums lg:table-cell">
+                    {metricas.notaPromedio !== null ? (
+                      <span className="text-base font-semibold text-foreground ancho-semiexpandido">
+                        {formatearNota(metricas.notaPromedio)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="hidden px-5 py-4 sm:table-cell">
-                    {metricas.ultimaSesion ? formatearDia(metricas.ultimaSesion) : '—'}
+                    {metricas.ultimaSesion ? (
+                      <div className="flex flex-col gap-0.5 tabular-nums">
+                        {ahora && (
+                          <span className="text-sm font-medium text-foreground/85 first-letter:uppercase">
+                            {tiempoRelativo(metricas.ultimaSesion, ahora)}
+                          </span>
+                        )}
+                        <span
+                          className={
+                            ahora
+                              ? 'text-xs text-muted-foreground'
+                              : 'text-sm text-muted-foreground'
+                          }
+                        >
+                          {formatearDia(metricas.ultimaSesion)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">

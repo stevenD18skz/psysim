@@ -7,6 +7,7 @@ import { LogoGoogle } from '@/components/comun/logo-google';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { SaltarContenido } from '@/components/layout/saltar-contenido';
 import { PiePagina } from '@/components/layout/pie-pagina';
+import { TEXTO_AUTORIZACION_PRACTICA } from '@/lib/privacidad';
 
 export const metadata: Metadata = {
   title: 'Aviso de privacidad',
@@ -121,8 +122,8 @@ export default function PrivacidadPage() {
                 Tu docente lee tus conversaciones cuando terminas. Nadie más del curso las ve.
               </li>
               <li>
-                Cada mensaje que escribes se envía a Google (Gemini) para generar la respuesta del
-                paciente.
+                Para responderte, PsySim comparte el texto de la conversación con el orquestador de
+                pacientes simulados y su proveedor de IA, o con Google Gemini.
               </li>
               <li>No vendemos tus datos ni los usamos para publicidad.</li>
               <li>
@@ -229,8 +230,21 @@ export default function PrivacidadPage() {
             <h2 id="proveedores">5. Con quién compartimos datos para que el servicio funcione</h2>
             <ul>
               <li>
-                <strong>Google (Gemini):</strong> recibe cada mensaje de la conversación y las
-                instrucciones del caso para generar la respuesta del paciente.{' '}
+                <strong>Orquestador de pacientes simulados:</strong> es un servicio externo que
+                recibe los mensajes que envías, el contexto del caso y el perfil del paciente
+                ficticio. Guarda la conversación en su propia base de datos y la reenvía a su
+                proveedor de IA para generar las respuestas. PsySim usa una cuenta de servicio y
+                omite tu nombre, correo y código institucional al enviar la solicitud. Si los
+                escribes en el chat, sí pueden viajar en el texto.{' '}
+                <PorConfirmar>
+                  identidad del proveedor de IA del orquestador, plazo de conservación y
+                  procedimiento para pedirle la eliminación de una conversación
+                </PorConfirmar>
+              </li>
+              <li>
+                <strong>Google (Gemini):</strong> recibe las instrucciones del caso, el historial
+                pertinente y tu mensaje cuando PsySim lo usa directamente o como respaldo si el
+                orquestador falla.{' '}
                 <PorConfirmar>
                   el plan de la API y si Google puede usar estos datos para mejorar sus productos
                 </PorConfirmar>
@@ -271,9 +285,10 @@ export default function PrivacidadPage() {
           <section>
             <h2 id="conservacion">7. Cuánto tiempo los conservamos</h2>
             <p>
-              Tus datos y tus prácticas se conservan mientras tu docente te tenga registrado. Si tu
-              docente te elimina, se borran tus prácticas, conversaciones y retroalimentación, y tu
-              cuenta si ningún otro docente te tiene registrado.{' '}
+              PsySim conserva tus datos y tus prácticas mientras tu docente te tenga registrado. Si
+              tu docente te elimina, PsySim borra de su base tus prácticas, conversaciones y
+              retroalimentación, y tu cuenta si ningún otro docente te tiene registrado. El
+              orquestador gestiona su propia copia de la conversación.{' '}
               <PorConfirmar>
                 plazo máximo de conservación al terminar el periodo académico
               </PorConfirmar>
@@ -303,17 +318,18 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 id="autorizacion">9. Tu autorización</h2>
-            <p>Antes de tu primera práctica te pedimos aceptar este consentimiento en pantalla:</p>
+            <p>
+              Te pedimos aceptar el aviso en pantalla antes de practicar. Si sus condiciones
+              cambian, te pedimos que lo leas y aceptes de nuevo.
+            </p>
             <p className="flex items-start gap-2.5 rounded-xl border bg-card px-4 py-3 text-sm text-foreground">
               <CheckSquare className="mt-0.5 size-4 shrink-0 text-salvia-oscuro" aria-hidden />
-              <span>
-                Leí el aviso de privacidad y acepto que mi conversación se procese con Google Gemini
-                y que la lea mi docente.
-              </span>
+              <span>{TEXTO_AUTORIZACION_PRACTICA}</span>
             </p>
             <p>
-              Esa aceptación se guarda en tu navegador. Si no quieres aceptarla, no empieces la
-              práctica y habla con tu docente.{' '}
+              Esa aceptación se guarda en tu navegador para tu cuenta y la versión del aviso que
+              leíste. Si prefieres no aceptarla, puedes salir de la práctica y hablar con tu
+              docente.{' '}
               <PorConfirmar>
                 si la universidad exige una autorización registrada o firmada
               </PorConfirmar>

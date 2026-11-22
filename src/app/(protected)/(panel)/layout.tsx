@@ -37,7 +37,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
         <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col outline-hidden">
           {children}
         </main>
-        <PiePagina />
+        <PiePagina manualEnDialogo />
       </div>
     );
   }
@@ -79,7 +79,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
           <div id="contenido" tabIndex={-1} className="flex flex-1 flex-col outline-hidden">
             {children}
           </div>
-          <PiePagina />
+          <PiePagina manualEnDialogo />
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

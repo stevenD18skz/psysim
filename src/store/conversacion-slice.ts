@@ -57,6 +57,7 @@ export interface ConversacionSlice {
     actualizarConsulta: (tiempo: TiempoConsulta | null, ahora?: number) => void;
     /** El servidor guardó el intercambio: los mensajes locales reciben el id de la base de datos. */
     confirmarGuardado: (ids: Readonly<Record<string, string | null>>) => void;
+    sincronizarHistorial: (mensajes: MensajeConversacion[]) => void;
     /**
      * Ensayar otra respuesta: quita del historial la intervención indicada y todo lo que vino
      * después (el servidor ya los marcó como descartados).
@@ -168,6 +169,14 @@ export const crearConversacionSlice =
             }),
           },
         })),
+      sincronizarHistorial: mensajes =>
+        set(state => {
+          const { totalMensajes, latencias } = metricasDesdeHistorial(mensajes);
+          return {
+            conversacion: { ...state.conversacion, mensajes },
+            metricas: { ...state.metricas, totalMensajes, latencias },
+          };
+        }),
       volverA: mensajeId =>
         set(state => {
           const indice = state.conversacion.mensajes.findIndex(m => m.id === mensajeId);

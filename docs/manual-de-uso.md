@@ -8,6 +8,9 @@ del docente.
 
 Dirección: <https://psysim.vercel.app>
 
+Con sesión iniciada, abre «Manual de uso» desde tu panel o desde el consultorio. Puedes cerrarlo
+con «Atrás» o Esc y seguir donde estabas.
+
 ## 1. Requisitos
 
 - **Para practicar:** un computador con teclado y ratón, y Chrome, Edge o Firefox actualizados. La
@@ -51,14 +54,19 @@ el consultorio.
 
 ### 2.3 Moverte y conversar
 
-| Acción                    | Cómo                                                                     |
-| ------------------------- | ------------------------------------------------------------------------ |
-| Caminar                   | W, A, S, D (también las flechas arriba y abajo)                          |
-| Mirar alrededor           | Ratón, o las flechas izquierda y derecha                                 |
-| Empezar a conversar       | Acércate al paciente y pulsa E, haz clic sobre él o usa «Conversar con…» |
-| Llegar sin caminar        | «Ir directo a la conversación»                                           |
-| Enviar tu intervención    | Enter (Shift + Enter inserta una línea)                                  |
-| Volver a recorrer la sala | «Volver a explorar»                                                      |
+En la primera práctica aparecen pistas junto a los botones, una a la vez y durante 10 segundos.
+Puedes volver a consultar los atajos desde «Controles».
+
+| Acción                          | Cómo                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| Caminar                         | W, A, S, D (también las flechas arriba y abajo)                          |
+| Mirar alrededor                 | Ratón, o las flechas izquierda y derecha                                 |
+| Liberar el ratón                | Esc                                                                      |
+| Ocultar o mostrar los controles | Botón del ojo o Ctrl + H                                                 |
+| Empezar a conversar             | Acércate al paciente y pulsa E, haz clic sobre él o usa «Conversar con…» |
+| Llegar sin caminar              | «Ir directo a la conversación»                                           |
+| Enviar tu intervención          | Enter (Shift + Enter inserta una línea)                                  |
+| Volver a recorrer la sala       | «Volver a explorar»                                                      |
 
 Mientras conversas:
 
@@ -79,6 +87,9 @@ Mientras conversas:
 Si el paciente no responde, verás un aviso con «Reintentar»: tu conversación no se pierde. Si
 cierras la pestaña o se cae la conexión, puedes volver a entrar desde «Mis prácticas» mientras la
 práctica siga abierta.
+
+Si el consultorio 3D falla o tarda en cargar, pulsa «Continuar en modo texto». Puedes leer las
+indicaciones, conversar con el paciente y terminar la misma práctica desde esa vista.
 
 ### 2.4 Terminar
 
@@ -119,11 +130,12 @@ ves a los estudiantes que registras.
    se le notan las emociones o qué datos guarda.
 3. Elige al estudiante, cuánto dura la consulta (10, 15, 20 o 30 minutos; 15 por defecto) y la
    vigencia del código, y pulsa «Generar código».
+4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
 
 El estudiante conoce la duración desde las instrucciones del caso. El tiempo corre desde su
 primera intervención; a los 3 minutos del final recibe un aviso y, al cumplirse, una invitación a
 cerrar la entrevista. Tiene 5 minutos más para cerrarla; después, la práctica termina sola y en la
-transcripción verás «Terminó al cumplirse el tiempo de la consulta». 4. Copia el mensaje o el enlace y envíaselo al estudiante por el medio que uses normalmente.
+transcripción verás «Terminó al cumplirse el tiempo de la consulta».
 
 Un código sin usar se puede anular con «Anular». Si el estudiante va a practicar en tu computador,
 usa «Practicar en este equipo»: la plataforma cierra primero tu sesión para que el estudiante
@@ -146,9 +158,12 @@ autolesión, no dan diagnósticos y no recomiendan medicamentos.
    los intentos reformulados, la reflexión del estudiante y los datos de la práctica (duración e
    intervenciones).
 3. Selecciona con el ratón una frase de una intervención del estudiante, pulsa «Comentar
-   selección», escribe tu comentario y pulsa «Guardar comentario».
+   selección», escribe tu comentario y pulsa «Guardar comentario». Con el teclado, abre «Elegir
+   frase para comentar» debajo de la intervención, selecciona el fragmento con Mayús + flechas y
+   pulsa «Comentar frase».
 4. Escribe el «Comentario general» y la «Nota (0,0 a 5,0)». Lo que escribas queda como borrador
-   hasta que pulses «Publicar».
+   («Guardar borrador») hasta que pulses «Publicar», o «Publicar y abrir la siguiente» si te quedan
+   prácticas por revisar.
 
 El estudiante solo ve la retroalimentación después de publicada.
 
@@ -156,6 +171,18 @@ El estudiante solo ve la retroalimentación después de publicada.
 
 En «Revisiones», «Exportar CSV» descarga las prácticas en una hoja de cálculo. En la ficha de cada
 estudiante está su hoja de notas, lista para imprimir o guardar como PDF.
+
+### 3.7 Recorridos guiados y pistas
+
+Crear un caso, asignar una práctica y revisar una conversación tienen un recorrido guiado: la
+primera vez la plataforma te lo ofrece («Iniciar recorrido» o «Ahora no») y después puedes
+repetirlo con «Recorrido guiado» en el encabezado. El recorrido resalta cada control de la
+pantalla real; avanza con las flechas del teclado y sal con Esc. Junto a algunas funciones poco
+evidentes verás además una pista con un punto dorado: púlsala para leer la explicación y
+descártala con «Entendido».
+
+En el menú de tu cuenta puedes elegir un avatar o seguir con tus iniciales. Esto también vale para
+los estudiantes.
 
 ## 4. Guía del Administrador
 
@@ -165,19 +192,20 @@ desactiva o las elimina. Una cuenta desactivada pierde el acceso de inmediato.
 
 ## 5. Problemas frecuentes
 
-| Problema                                 | Qué hacer                                                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| «Esta práctica no está disponible»       | El código venció, se anuló, ya se usó o es de otro estudiante. Pídele uno nuevo a tu docente.                       |
-| «Tu cuenta no está registrada en PsySim» | Entraste con un correo que tu docente no ha registrado. Verifica que sea el institucional.                          |
-| «No pudimos cargar el consultorio»       | El navegador no tiene WebGL o la conexión falló. Recarga, actualiza el navegador o prueba con otro.                 |
-| El paciente no responde                  | Pulsa «Reintentar». Si enviaste muchos mensajes seguidos, espera un minuto: hay un límite de diez por minuto.       |
-| La práctica se cerró por inactividad     | Pasaron 10 minutos sin actividad. Tu docente revisará lo conversado; para practicar de nuevo necesitas otro código. |
-| La práctica terminó sola por el tiempo   | Se cumplieron el tiempo de la consulta y los 5 minutos para cerrarla. Lo conversado quedó guardado para tu docente. |
-| No encuentro la retroalimentación        | Aparece en «Mis prácticas» solo cuando el docente la publica.                                                       |
+| Problema                                  | Qué hacer                                                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| «Esta práctica no está disponible»        | El código venció, se anuló, ya se usó o es de otro estudiante. Pídele uno nuevo a tu docente.                                             |
+| «Tu cuenta no está registrada en PsySim»  | Entraste con un correo que tu docente no ha registrado. Verifica que sea el institucional.                                                |
+| El consultorio 3D falla o tarda en cargar | Pulsa «Continuar en modo texto» para seguir la práctica. Si quieres abrir el consultorio, usa «Reintentar» o «Recargar» cuando aparezcan. |
+| El paciente no responde                   | Pulsa «Reintentar». Si enviaste muchos mensajes seguidos, espera un minuto: hay un límite de diez por minuto.                             |
+| La práctica se cerró por inactividad      | Pasaron 10 minutos sin actividad. Tu docente revisará lo conversado; para practicar de nuevo necesitas otro código.                       |
+| La práctica terminó sola por el tiempo    | Se cumplieron el tiempo de la consulta y los 5 minutos para cerrarla. Lo conversado quedó guardado para tu docente.                       |
+| No encuentro la retroalimentación         | Aparece en «Mis prácticas» solo cuando el docente la publica.                                                                             |
 
 ## 6. Privacidad
 
 El texto de la conversación se guarda en la plataforma y se envía al servicio de inteligencia
-artificial de Google para generar las respuestas del paciente. No escribas datos personales
+artificial que genera las respuestas del paciente: el orquestador de NPC o, si no responde, Google
+Gemini. No escribas datos personales
 reales, tuyos ni de otras personas. El aviso completo está en
 <https://psysim.vercel.app/privacidad>.

@@ -51,8 +51,8 @@ En este orden (staging y producción comparten la base de datos):
 
 5. **Poner `IA_PROVEEDOR=orquestador`** y volver a desplegar.
 
-Antes de activarlo con estudiantes hay que actualizar el aviso de privacidad y el consentimiento
-(sección 10).
+Antes de activarlo con estudiantes, completa los datos pendientes del proveedor en el aviso y
+actualiza el consentimiento informado del estudio (sección 10).
 
 ## 2. Cuentas del orquestador
 
@@ -161,9 +161,11 @@ Si esta tabla cambia, se sube `VERSION_MAPEO` y todos los casos se vuelven a sin
 
 ## 4. Un turno de conversación
 
-`POST /api/npc/chat` hace lo de siempre (sesión del estudiante, Zod, práctica propia y en curso
-con RLS, tope de intervenciones, límite por estudiante `reservar_peticion_ia`, reintento
-idempotente) y después pide el turno al proveedor de la práctica (`src/lib/ia/turno.ts`).
+`POST /api/npc/chat` comprueba la cuenta y la pertenencia de la práctica con RLS. La base
+recupera el intercambio si ese identificador ya está guardado. Para un turno nuevo, el servidor
+reserva la práctica antes de leer el historial, aplica los límites y llama al proveedor
+(`src/lib/ia/turno.ts`). El guardado comprueba la marca de reserva y registra juntos el
+identificador del turno y los dos mensajes. Si la reserva falla, el navegador puede reintentar.
 
 ### Tiempos
 
@@ -386,9 +388,11 @@ sesión: no se lee, no se guarda y no se muestra. PsySim no evalúa al estudiant
   sigue sin llegar nunca al navegador de PsySim.
 - El orquestador reenvía la conversación a su propio proveedor de IA y la guarda en su base de
   datos, fuera del control de PsySim.
-- **Antes de activarlo con estudiantes:** el aviso de privacidad (`/privacidad`), las
-  instrucciones de la práctica y el consentimiento informado dicen hoy que la conversación la
-  procesa Google Gemini. Hay que actualizarlos para nombrar al orquestador y a su proveedor.
+- El aviso de privacidad (`/privacidad`) y las instrucciones indican que el orquestador y su
+  proveedor pueden procesar la conversación y que Gemini puede responder directamente o como
+  respaldo. Antes de usarlo con estudiantes, confirma la identidad del proveedor que usa el
+  orquestador, sus condiciones de conservación y eliminación, e incorpóralas al consentimiento
+  informado del estudio.
 
 ## 11. Tope de prácticas simultáneas
 

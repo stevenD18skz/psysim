@@ -5,6 +5,7 @@ import { useCallback, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { cerrarSesionPorInactividad, finalizarSesion } from '@/lib/escenarios/actions';
+import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
 import { guardarMetricas } from '@/lib/conversacion/guardar-metricas';
 import { type ResumenSesion, resumirSesion } from '@/lib/conversacion/resumen';
 import { useAppStoreApi } from '@/store/app-store-provider';
@@ -113,10 +114,11 @@ export function useFinalizarSesion() {
 
   /** Botón «Continuar» del aviso de cierre: a los resultados, terminando antes si hizo falta. */
   const verResultados = () => {
-    const { sesion, npc } = store.getState();
+    const { sesion, npc, conversacion } = store.getState();
     if (!sesion.activa) return;
-    if (npc.estado === 'sesion_finalizada') router.push(`/resultados?sesion=${sesion.activa.id}`);
-    else finalizar();
+    if (npc.estado === 'sesion_finalizada' || conversacion.cierre === 'cerrada') {
+      router.push(`/resultados?sesion=${sesion.activa.id}`);
+    } else finalizar();
   };
 
   /** Devuelve `false` si no se pudo cerrar (el aviso de inactividad lo reintenta). */
@@ -131,8 +133,13 @@ export function useFinalizarSesion() {
       return false;
     }
     if (!resultado.ok) return false;
-    const { inicio, fin, estado } = resultado.datos;
-    mostrarCierre(inicio, fin, estado === 'interrumpida' ? 'inactividad' : 'finalizada');
+    if ('restantesS' in resultado.datos) return resultado.datos;
+    const { inicio, terminoEn, fin, estado } = resultado.datos;
+    if (fin === FIN_POR_TIEMPO) {
+      store.getState().conversacion.establecerCierre(fin);
+    } else {
+      mostrarCierre(inicio, terminoEn, estado === 'interrumpida' ? 'inactividad' : 'finalizada');
+    }
     return true;
   }, [store, mostrarCierre]);
 

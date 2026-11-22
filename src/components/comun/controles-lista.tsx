@@ -1,11 +1,12 @@
 'use client';
 
-import { ChevronDown, Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { type Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 
 import { Input } from '@/components/ui/input';
+import { Selector } from '@/components/ui/selector';
 import { conParametros } from '@/lib/listas';
 import { cn } from '@/lib/utils';
 
@@ -121,46 +122,40 @@ interface SelectorListaProps {
   parametro: string;
   opciones: readonly { valor: string; etiqueta: string }[];
   defecto: string;
+  /** Pista contextual opcional (p. ej. Coach Mark) alineada junto a la etiqueta del selector. */
+  ayuda?: React.ReactNode;
   className?: string;
 }
 
-/** Selector nativo con su etiqueta visible (accesible y familiar en cualquier dispositivo). */
+/** Selector personalizado con su etiqueta visible, flecha animada y sincronización en la URL. */
 export function SelectorLista({
   etiqueta,
   parametro,
   opciones,
   defecto,
+  ayuda,
   className,
 }: SelectorListaProps) {
   const id = useId();
   const { navegar, parametros } = useNavegarConParametros();
   const valor = parametros.get(parametro) ?? defecto;
+  const valorSeguro = opciones.some(o => o.valor === valor) ? valor : defecto;
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
-        {etiqueta}
-      </label>
-      <div className="relative">
-        <select
-          id={id}
-          value={opciones.some(o => o.valor === valor) ? valor : defecto}
-          onChange={evento =>
-            navegar({ [parametro]: evento.target.value }, { [parametro]: defecto })
-          }
-          className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-input bg-card pr-9 pl-3.5 text-sm font-medium shadow-[0_1px_2px_rgb(58_36_24/0.06)] outline-hidden transition-[border-color,box-shadow,background-color] hover:border-nogal/45 focus-visible:border-ring focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
-        >
-          {opciones.map(opcion => (
-            <option key={opcion.valor} value={opcion.valor}>
-              {opcion.etiqueta}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+          {etiqueta}
+        </label>
+        {ayuda}
       </div>
+      <Selector
+        id={id}
+        valor={valorSeguro}
+        ariaLabel={etiqueta}
+        opciones={opciones}
+        onChange={nuevo => navegar({ [parametro]: nuevo }, { [parametro]: defecto })}
+      />
     </div>
   );
 }

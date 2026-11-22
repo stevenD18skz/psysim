@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
 
-import { limpiarCodigos, prepararSesion, registrarEstudiantePrueba } from './flujos';
+import {
+  abrirCasosPredefinidos,
+  aceptarAvisoAlRetomar,
+  crearSesionEstudiante,
+  limpiarCodigos,
+  prepararSesion,
+  registrarEstudiantePrueba,
+} from './flujos';
 import {
   hayCredenciales,
   hayCredencialesEstudiante,
@@ -67,7 +74,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
   test('HU-06 · T02: muestra los doce escenarios y expande el perfil del NPC', async ({ page }) => {
     // Los doce escenarios oficiales (el docente puede tener además casos propios en "Mis casos").
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await expect(page.locator('[data-testid^="escenario-E-"]')).toHaveCount(12);
     for (const codigo of CODIGOS_OFICIALES) {
       await expect(page.getByTestId(`escenario-${codigo}`)).toBeVisible();
@@ -109,7 +116,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
   }) => {
     test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
 
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-01').click();
     // Ajuste guiado, sin escribir instrucciones: viaja con el código.
     await page.getByRole('button', { name: 'Ajustar para esta práctica' }).click();
@@ -156,7 +163,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
 
     const comportamiento = page.getByRole('textbox', { name: 'Comportamiento del paciente' });
     const ajustar = page.getByRole('button', { name: 'Ajustar para esta práctica' });
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-01').click();
     await ajustar.click();
     // El texto completo es la opción avanzada, plegada bajo los ajustes guiados.
@@ -174,7 +181,7 @@ test.describe('configuración del escenario (Sprint 2)', () => {
     await expect(propio).toBeVisible();
 
     // Al elegirlo se carga el prompt guardado, sin las reglas fijas del servidor.
-    await page.getByRole('button', { name: /^Casos predefinidos/ }).click();
+    await abrirCasosPredefinidos(page);
     await page.getByTestId('escenario-E-03').click();
     await page.getByRole('button', { name: /^Mis casos/ }).click();
     await propio.check({ force: true });
@@ -352,13 +359,15 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     // SwiftShader renderiza por software: un viewport pequeño mantiene un FPS útil para la prueba.
     await page.setViewportSize({ width: 640, height: 400 });
 
-    // Retoma la sesión creada en el test anterior, con el indicador de depuración activo.
-    await page.goto('/simulacion');
-    await expect(page).toHaveURL(/sesion=/);
-    await page.goto(`${page.url()}&debug=1`);
+    const sesionId = await crearSesionEstudiante(PREFIJO_CODIGOS);
+    await page.goto(`/simulacion?sesion=${sesionId}&debug=1`);
     await expect(page.getByTestId('pantalla-carga')).toHaveAttribute('data-visible', 'false', {
       timeout: 60_000,
     });
+    await aceptarAvisoAlRetomar(page);
+    const explorar = page.getByRole('button', { name: 'Comenzar a explorar' });
+    await expect(explorar).toBeVisible();
+    await explorar.focus();
 
     const indicador = page.getByTestId('indicador-fps');
     const posicion = async () =>
@@ -376,6 +385,14 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
 
     // Posición inicial definida en scenes/e-01.json: [0, 1.6, 2.7].
     await expect.poll(async () => (await posicion())[2], { timeout: 10_000 }).toBeCloseTo(2.7, 1);
+
+    // Las flechas permiten caminar aunque el ratón todavía esté libre.
+    await mantener('ArrowDown', 800);
+    expect((await posicion())[2]).toBeGreaterThan(2.8);
+
+    await explorar.click();
+    await expect(explorar).toBeHidden();
+    await expect(page.getByRole('img', { name: 'Escena 3D de la simulación' })).toBeFocused();
 
     // W: avanza hacia el paciente (-Z) manteniendo la altura de los ojos.
     await mantener('KeyW', 1500);
@@ -399,6 +416,10 @@ test.describe('simulación del estudiante (Sprint 2)', () => {
     // S: retrocede hasta el límite trasero de la sala (z ≤ 3.2).
     await mantener('KeyS', 5000);
     expect((await posicion())[2]).toBeLessThanOrEqual(3.2);
+
+    // Al liberar el ratón, el botón vuelve a recibir el foco.
+    await page.evaluate(() => document.exitPointerLock());
+    await expect(explorar).toBeFocused();
   });
 
   test('una sesión inexistente muestra un estado vacío', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { obtenerSesionUsuario } from '@/lib/auth/dal';
+import { ESPERA_CONTADOR_IA_S, esperaDeCuota, MENSAJE_CONTADOR_IA } from '@/lib/ia/cuota';
 import { type EmocionNpc, esEmocionNpc } from '@/lib/conversacion/emociones';
 import {
   contarIntervenciones,
@@ -13,17 +14,11 @@ import {
 } from '@/lib/ia/intercambio';
 import { log } from '@/lib/log';
 import { idPeticion } from '@/lib/observabilidad/peticion';
-import {
-  leerSesionIa,
-  leerTurno,
-  type SesionIa,
-  tomarTurno,
-  type TurnoIa,
-} from '@/lib/orquestador/datos';
+import { leerSesionIa, soltarTurno, type SesionIa, tomarTurno } from '@/lib/orquestador/datos';
 import { barrerDespues, cerrarDespues } from '@/lib/orquestador/diferido';
 import { crearPlazo } from '@/lib/orquestador/turno';
 import { leerEscenarioDeSesion, leerPromptDeSesion } from '@/lib/sesiones/datos-privados';
-import { leerTiempoDeConsulta, terminarPorTiempo } from '@/lib/sesiones/consulta';
+import { leerTiempoDeConsulta, resolverVencimiento } from '@/lib/sesiones/consulta';
 import { debeNotarElTiempo, faseDeConsulta, TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
 import { NOTA_TIEMPO_CUMPLIDO } from '@/lib/ia/reglas';
 import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
@@ -181,11 +176,11 @@ export async function POST(request: Request): Promise<Response> {
     responderError(
       409,
       sesion.fin_motivo === FIN_POR_TIEMPO ? TEXTO_TIEMPO.vencida : MENSAJE_PRACTICA_TERMINADA,
-      sesion.fin_motivo === FIN_POR_TIEMPO ? { fin: FIN_POR_TIEMPO } : {}
+      { fin: sesion.fin_motivo === FIN_POR_TIEMPO ? FIN_POR_TIEMPO : 'cerrada' }
     );
   // Un reintento sigue adelante aunque haya terminado: si lo que se perdió fue la respuesta del
   // intercambio que la cerró (el servidor la termina al guardarlo), se devuelve lo guardado.
-  if (terminada && !reintento) {
+  if (terminada && !reintento && !turno_id) {
     return responderTerminada();
   }
   // HU-23: no se conversa hasta que el estudiante confirma las instrucciones del caso.
@@ -195,23 +190,14 @@ export async function POST(request: Request): Promise<Response> {
 
   let npc: { id: string; nombre: string } | undefined;
   let promptSistema: string | null;
-  let sesionIa: SesionIa | null;
-  let turnoAnterior: TurnoIa | null;
-  // El tiempo de consulta lo mide la base de datos (`null` si no se pudo leer: la práctica sigue).
-  const tiempoLeido = leerTiempoDeConsulta(supabase, sesion_id);
   try {
-    // RLS ya verificó que la práctica es del estudiante: el caso, el prompt, el proveedor de IA
-    // y el último turno se leen con la clave secreta.
-    const [escenario, prompt, proveedor, turno] = await Promise.all([
+    // RLS ya verificó que la práctica es del estudiante: el caso y el prompt son privados.
+    const [escenario, prompt] = await Promise.all([
       leerEscenarioDeSesion(sesion.escenario_id),
       leerPromptDeSesion(sesion_id),
-      leerSesionIa(sesion_id),
-      leerTurno(sesion_id),
     ]);
     npc = escenario?.npc;
     promptSistema = prompt;
-    sesionIa = proveedor;
-    turnoAnterior = turno;
   } catch {
     log.error('npc_chat.caso_no_leido', { peticion, sesion_id });
     return responderError(500, 'No pudimos cargar la sesión.');
@@ -220,100 +206,13 @@ export async function POST(request: Request): Promise<Response> {
     return responderError(404, 'El paciente no pertenece a esta práctica.');
   }
 
-  // LLM01: el contexto sale de lo que el servidor guardó, no del historial que mande el navegador
-  // (podría traer turnos del paciente fabricados). LLM10: tope de intervenciones por práctica.
-  const { data: filas, error: errorHistorial } = await supabase
-    .from('mensaje')
-    .select(
-      'id, remitente, contenido, descartado_en, emocion, creado_en, tokens_entrada, tokens_salida'
-    )
-    .eq('sesion_id', sesion_id)
-    .order('creado_en')
-    .order('remitente');
-  if (errorHistorial) {
-    log.error('npc_chat.historial_no_leido', { peticion, codigo: errorHistorial.code, sesion_id });
-    return responderError(500, 'No pudimos cargar la sesión.');
-  }
-  const mensajesGuardados = filas;
-  const tiempo = await tiempoLeido;
-  const tiempoLeidoEn = performance.now();
-
-  // Reintento de un intercambio que sí se guardó (la respuesta se perdió en la red): se devuelve
-  // lo guardado, sin otra llamada a la IA ni un intercambio duplicado en la transcripción.
-  // Se reconoce por el identificador de la intervención: con el mismo texto no basta, porque el
-  // estudiante puede repetir a propósito lo que acaba de decir («sí»). Sin identificador (un
-  // cliente anterior, o la base aún sin `turno_ia`) se compara el texto de un envío marcado
-  // como reintento, como antes.
-  const esElTurnoGuardado =
-    turno_id && turnoAnterior?.turnoId
-      ? turnoAnterior.turnoId === turno_id && turnoAnterior.estado === 'guardado'
-      : reintento === true;
-  const repetido = esElTurnoGuardado
-    ? respuestaYaGuardada(mensajesGuardados, mensaje_usuario)
-    : null;
-  if (repetido) {
-    log.info('npc_chat.reintento_ya_guardado', { peticion, sesion_id });
-    const { estudiante, npc: respuestaGuardada } = repetido;
-    const cuerpoRepetido: NpcChatResponse = {
-      respuesta_npc: respuestaGuardada.contenido,
-      emocion_npc:
-        respuestaGuardada.emocion && esEmocionNpc(respuestaGuardada.emocion)
-          ? respuestaGuardada.emocion
-          : null,
-      intensidad_npc: null,
-      timestamp_respuesta: new Date(respuestaGuardada.creado_en).toISOString(),
-      tokens_entrada: respuestaGuardada.tokens_entrada,
-      tokens_salida: respuestaGuardada.tokens_salida,
-      id_mensaje_estudiante: estudiante.id,
-      id_mensaje_npc: respuestaGuardada.id,
-      // Tras un cierre automático no se guardan más intercambios: el último es el del cierre.
-      cierre: sesionIa?.cierreMotivo ?? null,
-      consulta: tiempo && {
-        duracion_s: tiempo.duracionS,
-        transcurrido_s: tiempo.transcurridoS ?? 0,
-      },
-    };
-    return Response.json(cuerpoRepetido, { status: 200, headers: SIN_CACHE });
-  }
-  if (terminada) {
-    return responderTerminada();
-  }
-  // El paciente dio por terminada la consulta (crisis o trato inapropiado): no hay más turnos.
-  if (sesionIa?.cierreMotivo) {
-    return responderError(409, MENSAJE_PRACTICA_TERMINADA);
-  }
-  // Pasado el tiempo de la consulta y su margen de cierre no se conversa más. La práctica termina
-  // aquí, con el motivo neutro (no es una falta del estudiante): si dependiera del navegador y el
-  // estudiante cerrara la pestaña, quedaría interrumpida y sin ese motivo.
-  if (tiempo && faseDeConsulta(tiempo) === 'vencida') {
-    log.info('npc_chat.tiempo_cumplido', { peticion, sesion_id });
-    if (await terminarPorTiempo(sesion_id)) cerrarDespues(sesion_id);
-    return responderError(409, TEXTO_TIEMPO.vencida, { fin: FIN_POR_TIEMPO });
-  }
-  if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
-    log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
-    return responderError(429, mensajeTope());
-  }
-
-  // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
-  // minuto de este estudiante. Si el conteo falla, la práctica sigue (queda en el log). El cupo
-  // por cuenta del orquestador es otro límite y se reserva aparte, al pedir el turno.
-  const { data: esperaS, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
-  if (errorLimite) {
-    log.error('npc_chat.limite_no_verificado', { peticion, codigo: errorLimite.code, sesion_id });
-  } else if (esperaS > 0) {
-    log.info('npc_chat.limite_alcanzado', { peticion, sesion_id, espera_s: esperaS });
-    return responderError(
-      429,
-      `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
-      { esperaS }
-    );
-  }
-
   // Un turno a la vez por práctica. Dos pestañas enviando a la vez dejaban los intercambios en un
   // orden en PsySim y en otro en el orquestador; y si el turno anterior no llegó a guardarse, el
   // orquestador puede tener un intercambio que la transcripción no tiene.
   const turnoTomado = await tomarTurno(sesion_id, turno_id ?? null);
+  if (turnoTomado.resultado === 'no_disponible') {
+    return responderError(503, 'No pudimos preparar tu turno. Inténtalo de nuevo.');
+  }
   if (turnoTomado.resultado === 'ocupado') {
     log.info('npc_chat.turno_ocupado', { peticion, sesion_id });
     return responderError(
@@ -326,52 +225,191 @@ export async function POST(request: Request): Promise<Response> {
     log.info('npc_chat.turno_pendiente', { peticion, sesion_id });
   }
 
-  const vigentes = mensajesGuardados.filter(fila => fila.descartado_en === null);
-  const intercambios = vigentes.filter(fila => fila.remitente === 'estudiante').length;
-  const ultimaEmocion = vigentes.findLast(fila => fila.remitente === 'npc')?.emocion;
-  const emocionAnterior: EmocionNpc | null =
-    ultimaEmocion && esEmocionNpc(ultimaEmocion) ? ultimaEmocion : null;
-  // Opción B: el primer turno con el tiempo ya cumplido, el paciente puede notarlo (solo Gemini).
-  const ultimaRespuesta = vigentes.findLast(fila => fila.remitente === 'npc');
-  const desdeLaUltimaRespuestaS = ultimaRespuesta
-    ? Math.max(0, (Date.now() - Date.parse(ultimaRespuesta.creado_en)) / 1000)
-    : null;
-  const notaDeEscena =
-    tiempo && debeNotarElTiempo(tiempo, desdeLaUltimaRespuestaS) ? NOTA_TIEMPO_CUMPLIDO : null;
-
-  // Al empezar una práctica se aprovecha para cerrar en el orquestador las que quedaron abiertas.
-  if (intercambios === 0) barrerDespues();
-
-  const eventos = responderIntercambio({
-    peticion,
-    sesionId: sesion_id,
-    escenarioId: sesion.escenario_id,
-    promptSistema,
-    nombrePaciente: npc.nombre,
-    historial: historialDesdeFilas(mensajesGuardados),
-    mensaje: mensaje_usuario,
-    // Con el turno anterior sin guardar, el orquestador revisa su historial igual que en un
-    // reintento: si lo tiene con este mismo texto lo aprovecha; si tiene otro, pasa a Gemini.
-    reintento: reintento === true || turnoTomado.resultado === 'pendiente',
-    marcaDeTurno: turnoTomado.marca,
-    intercambios,
-    hayDescartados: vigentes.length !== mensajesGuardados.length,
-    emocionAnterior,
-    sesionIa,
-    plazo,
-    notaDeEscena,
-    consulta: tiempo && { tiempo, leidoEn: tiempoLeidoEn },
-  });
-
-  if (por_partes) return responderPorPartes(eventos);
-
-  for await (const evento of eventos) {
-    if (evento.tipo === 'fin') {
-      return Response.json(evento.respuesta, { status: 200, headers: SIN_CACHE });
+  const marca = 'marca' in turnoTomado ? turnoTomado.marca : null;
+  let respondera = false;
+  try {
+    let sesionIa: SesionIa | null;
+    try {
+      sesionIa = await leerSesionIa(sesion_id);
+    } catch {
+      log.error('npc_chat.ia_no_leida', { peticion, sesion_id });
+      return responderError(503, 'No pudimos preparar tu turno. Inténtalo de nuevo.');
     }
-    if (evento.tipo === 'error') {
-      return responderError(evento.status, evento.error, { esperaS: evento.espera_s });
+    // LLM01: el contexto sale de lo que el servidor guardó, no del historial que mande el navegador
+    // (podría traer turnos del paciente fabricados). LLM10: tope de intervenciones por práctica.
+    const { data: filas, error: errorHistorial } = await supabase
+      .from('mensaje')
+      .select(
+        'id, remitente, contenido, descartado_en, emocion, creado_en, tokens_entrada, tokens_salida, latencia_ms'
+      )
+      .eq('sesion_id', sesion_id)
+      .order('creado_en')
+      .order('remitente');
+    if (errorHistorial) {
+      log.error('npc_chat.historial_no_leido', {
+        peticion,
+        codigo: errorHistorial.code,
+        sesion_id,
+      });
+      return responderError(500, 'No pudimos cargar la sesión.');
     }
+    const mensajesGuardados = filas;
+    const tiempo = await leerTiempoDeConsulta(supabase, sesion_id);
+    const tiempoLeidoEn = performance.now();
+
+    const recuperacion = turnoTomado.resultado === 'guardado' ? turnoTomado : null;
+    const estudianteGuardado =
+      recuperacion && mensajesGuardados.find(fila => fila.id === recuperacion.ids.estudiante);
+    const npcGuardado =
+      recuperacion && mensajesGuardados.find(fila => fila.id === recuperacion.ids.npc);
+    const repetido = recuperacion
+      ? estudianteGuardado && npcGuardado && { estudiante: estudianteGuardado, npc: npcGuardado }
+      : turnoTomado.resultado === 'guardado_anterior' || (!turno_id && reintento)
+        ? respuestaYaGuardada(mensajesGuardados, mensaje_usuario)
+        : null;
+    if ((recuperacion || turnoTomado.resultado === 'guardado_anterior') && !repetido) {
+      return responderError(503, 'No pudimos recuperar tu turno guardado. Inténtalo de nuevo.');
+    }
+    if (repetido) {
+      log.info('npc_chat.reintento_ya_guardado', { peticion, sesion_id });
+      const { estudiante, npc: respuestaGuardada } = repetido;
+      const cuerpoRepetido: NpcChatResponse = {
+        respuesta_npc: respuestaGuardada.contenido,
+        emocion_npc:
+          respuestaGuardada.emocion && esEmocionNpc(respuestaGuardada.emocion)
+            ? respuestaGuardada.emocion
+            : null,
+        intensidad_npc: null,
+        timestamp_respuesta: new Date(respuestaGuardada.creado_en).toISOString(),
+        tokens_entrada: respuestaGuardada.tokens_entrada,
+        tokens_salida: respuestaGuardada.tokens_salida,
+        id_mensaje_estudiante: estudiante.id,
+        id_mensaje_npc: respuestaGuardada.id,
+        cierre: recuperacion ? recuperacion.cierre : (sesionIa?.cierreMotivo ?? null),
+        historial_recuperado: mensajesGuardados
+          .filter(fila => fila.descartado_en === null)
+          .map(fila => ({
+            id: fila.id,
+            remitente: fila.remitente,
+            contenido: fila.contenido,
+            timestamp: new Date(fila.creado_en).toISOString(),
+            ...(typeof fila.latencia_ms === 'number' && { latencia_ms: fila.latencia_ms }),
+            ...(fila.emocion && esEmocionNpc(fila.emocion) && { emocion: fila.emocion }),
+          })),
+        consulta: tiempo && {
+          duracion_s: tiempo.duracionS,
+          transcurrido_s: tiempo.transcurridoS ?? 0,
+        },
+      };
+      return Response.json(cuerpoRepetido, { status: 200, headers: SIN_CACHE });
+    }
+    if (terminada || !marca) {
+      return responderTerminada();
+    }
+    // El paciente dio por terminada la consulta (crisis o trato inapropiado): no hay más turnos.
+    if (sesionIa?.cierreMotivo) {
+      return responderError(409, MENSAJE_PRACTICA_TERMINADA, { fin: sesionIa.cierreMotivo });
+    }
+    // Pasado el tiempo de la consulta y su margen de cierre no se conversa más. La práctica termina
+    // aquí, con el motivo neutro (no es una falta del estudiante): si dependiera del navegador y el
+    // estudiante cerrara la pestaña, quedaría interrumpida y sin ese motivo.
+    if (tiempo && faseDeConsulta(tiempo) === 'vencida') {
+      log.info('npc_chat.tiempo_cumplido', { peticion, sesion_id });
+      const cierre = await resolverVencimiento(supabase, sesion_id);
+      if (!cierre || !('fin' in cierre)) {
+        return responderError(503, 'No pudimos comprobar el cierre. Inténtalo de nuevo.');
+      }
+      cerrarDespues(sesion_id);
+      return responderError(
+        409,
+        cierre.fin === FIN_POR_TIEMPO ? TEXTO_TIEMPO.vencida : MENSAJE_PRACTICA_TERMINADA,
+        { fin: cierre.fin }
+      );
+    }
+    if (contarIntervenciones(mensajesGuardados) >= MAX_INTERVENCIONES_POR_SESION) {
+      log.info('npc_chat.tope_de_sesion', { peticion, sesion_id });
+      return responderError(429, mensajeTope());
+    }
+
+    // RNF-03.7: cada intervención es una llamada a la IA; la base de datos cuenta las del último
+    // minuto de este estudiante. El cupo por cuenta del orquestador se reserva aparte.
+    const { data: reserva, error: errorLimite } = await supabase.rpc('reservar_peticion_ia');
+    const esperaS = esperaDeCuota(reserva);
+    if (errorLimite || esperaS === null) {
+      log.error('npc_chat.limite_no_verificado', {
+        peticion,
+        codigo: errorLimite?.code,
+        sesion_id,
+      });
+      return responderError(503, MENSAJE_CONTADOR_IA, { esperaS: ESPERA_CONTADOR_IA_S });
+    }
+    if (esperaS > 0) {
+      log.info('npc_chat.limite_alcanzado', { peticion, sesion_id, espera_s: esperaS });
+      return responderError(
+        429,
+        `Estás enviando mensajes muy seguido. Espera ${esperaS} s antes de volver a escribir.`,
+        { esperaS }
+      );
+    }
+
+    const vigentes = mensajesGuardados.filter(fila => fila.descartado_en === null);
+    const intercambios = vigentes.filter(fila => fila.remitente === 'estudiante').length;
+    const ultimaEmocion = vigentes.findLast(fila => fila.remitente === 'npc')?.emocion;
+    const emocionAnterior: EmocionNpc | null =
+      ultimaEmocion && esEmocionNpc(ultimaEmocion) ? ultimaEmocion : null;
+    // Opción B: el primer turno con el tiempo ya cumplido, el paciente puede notarlo (solo Gemini).
+    const ultimaRespuesta = vigentes.findLast(fila => fila.remitente === 'npc');
+    const desdeLaUltimaRespuestaS = ultimaRespuesta
+      ? Math.max(0, (Date.now() - Date.parse(ultimaRespuesta.creado_en)) / 1000)
+      : null;
+    const notaDeEscena =
+      tiempo && debeNotarElTiempo(tiempo, desdeLaUltimaRespuestaS) ? NOTA_TIEMPO_CUMPLIDO : null;
+
+    // Al empezar una práctica se aprovecha para cerrar en el orquestador las que quedaron abiertas.
+    if (intercambios === 0) barrerDespues();
+
+    const eventos = responderIntercambio({
+      peticion,
+      sesionId: sesion_id,
+      escenarioId: sesion.escenario_id,
+      promptSistema,
+      nombrePaciente: npc.nombre,
+      historial: historialDesdeFilas(mensajesGuardados),
+      mensaje: mensaje_usuario,
+      // Con el turno anterior sin guardar, el orquestador revisa su historial igual que en un
+      // reintento: si lo tiene con este mismo texto lo aprovecha; si tiene otro, pasa a Gemini.
+      reintento: reintento === true || turnoTomado.resultado === 'pendiente',
+      marcaDeTurno: marca,
+      intercambios,
+      hayDescartados: vigentes.length !== mensajesGuardados.length,
+      emocionAnterior,
+      sesionIa,
+      plazo,
+      notaDeEscena,
+      consulta: tiempo && { tiempo, leidoEn: tiempoLeidoEn },
+    });
+
+    respondera = true;
+    if (por_partes) return responderPorPartes(eventos);
+
+    for await (const evento of eventos) {
+      if (evento.tipo === 'fin') {
+        return Response.json(evento.respuesta, { status: 200, headers: SIN_CACHE });
+      }
+      if (evento.tipo === 'error') {
+        return responderError(evento.status, evento.error, {
+          esperaS: evento.espera_s,
+          fin: evento.fin,
+        });
+      }
+    }
+    return responderError(502, 'El servicio de IA no está disponible.');
+  } finally {
+    if (marca && !respondera)
+      await soltarTurno(
+        sesion_id,
+        marca,
+        turnoTomado.resultado === 'libre' ? 'sin_enviar' : undefined
+      );
   }
-  return responderError(502, 'El servicio de IA no está disponible.');
 }

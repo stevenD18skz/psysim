@@ -6,6 +6,7 @@ import { URL_SITIO } from '@/lib/sitio';
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${URL_SITIO}/`, changeFrequency: 'monthly', priority: 1 },
+    { url: `${URL_SITIO}/manual`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${URL_SITIO}/privacidad`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 }

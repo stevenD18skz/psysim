@@ -97,7 +97,7 @@ describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
   const entrada = { promptSistema: 'Eres Marta Lucía.', historial: [], mensaje: 'Hola' };
 
   /** Modelo que entrega el texto en trozos; con `error`, falla después de entregarlos. */
-  function modeloPorPartes(trozos: string[], error?: unknown) {
+  function modeloPorPartes(trozos: string[], error?: unknown, fin: 'stop' | 'length' = 'stop') {
     return new MockLanguageModelV4({
       doStream: async () => ({
         stream: simulateReadableStream({
@@ -109,7 +109,7 @@ describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
                   { type: 'text-end' as const, id: 't' },
                   {
                     type: 'finish' as const,
-                    finishReason: { unified: 'stop' as const, raw: undefined },
+                    finishReason: { unified: fin, raw: undefined },
                     logprobs: undefined,
                     usage: {
                       inputTokens: {
@@ -183,6 +183,19 @@ describe('transmitirRespuestaPaciente (respuesta por partes)', () => {
         principal: { id: 'p', modelo: modeloPorPartes(['  ']) },
       })
     );
+    expect(error).toMatchObject({ tipo: 'respuesta_invalida' });
+  });
+
+  it('el límite de salida invalida el texto parcial antes del evento de fin', async () => {
+    const { partes, error } = await recoger(
+      transmitirRespuestaPaciente(entrada, {
+        principal: {
+          id: 'p',
+          modelo: modeloPorPartes(['Estaba pensando que'], undefined, 'length'),
+        },
+      })
+    );
+    expect(partes).toEqual([{ tipo: 'fragmento', texto: 'Estaba pensando que' }]);
     expect(error).toMatchObject({ tipo: 'respuesta_invalida' });
   });
 

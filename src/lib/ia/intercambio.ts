@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { type EventoChat, type NpcChatResponse } from '@/schemas/npc-chat.schema';
 
 import { MAX_INTERVENCIONES_POR_SESION } from './historial';
+import { ESPERA_CONTADOR_IA_S, MENSAJE_CONTADOR_IA } from './cuota';
 import { ErrorIA, type TipoErrorIA } from './paciente';
 import { type RespuestaProcesada } from './procesar';
 import { transmitirTurno, type TurnoPaciente } from './turno';
@@ -31,7 +32,7 @@ const fallo = (status: number, error: string, espera_s?: number): ErrorDeChat =>
 
 /** HU-16 · T01 — Código HTTP y mensaje para cada tipo de fallo de la IA (sin detalles internos). */
 const ERRORES_IA: Record<
-  Exclude<TipoErrorIA, 'espera_del_paciente' | 'consultorio_ocupado'>,
+  Exclude<TipoErrorIA, 'espera_del_paciente' | 'consultorio_ocupado' | 'cuota_indisponible'>,
   { status: number; mensaje: string }
 > = {
   tiempo_agotado: { status: 504, mensaje: 'El paciente tardó demasiado en responder.' },
@@ -60,6 +61,8 @@ export function errorDeIa(error: unknown): ErrorDeChat {
   if (error.tipo === 'consultorio_ocupado') {
     return fallo(429, mensajeConsultorioOcupado(error.enCurso ?? 0), ESPERA_CONSULTORIO_S);
   }
+  if (error.tipo === 'cuota_indisponible')
+    return fallo(503, MENSAJE_CONTADOR_IA, ESPERA_CONTADOR_IA_S);
   const { status, mensaje } = ERRORES_IA[error.tipo];
   return fallo(status, mensaje);
 }
@@ -97,7 +100,7 @@ export function consultaAlResponder(
  * aquí como `sin_guardar`, para que el siguiente concilie con el proveedor.
  */
 export async function* responderIntercambio(
-  turno: TurnoPaciente
+  turno: TurnoPaciente & { marcaDeTurno: string }
 ): AsyncGenerator<EventoChat, void, void> {
   const resultado = { guardado: false };
   try {
@@ -110,7 +113,7 @@ export async function* responderIntercambio(
 }
 
 async function* responderTurno(
-  turno: TurnoPaciente,
+  turno: TurnoPaciente & { marcaDeTurno: string },
   final: { guardado: boolean }
 ): AsyncGenerator<EventoChat, void, void> {
   const { peticion, sesionId } = turno;
@@ -144,8 +147,9 @@ async function* responderTurno(
   const timestampRespuesta = new Date().toISOString();
 
   const { data: guardado, error: errorGuardado } = await createAdminClient()
-    .rpc('guardar_intercambio_ia', {
+    .rpc('guardar_turno_chat', {
       p_sesion_id: sesionId,
+      p_marca: turno.marcaDeTurno,
       p_mensaje: turno.mensaje,
       p_respuesta: completa.texto,
       p_emocion: completa.emocion,
@@ -160,14 +164,15 @@ async function* responderTurno(
       p_cierre: resultado.cierre,
     })
     .maybeSingle();
-  if (errorGuardado) {
+  if (errorGuardado || !guardado) {
     log.error('npc_chat.mensajes_no_guardados', {
       peticion,
-      codigo: errorGuardado.code,
+      codigo: errorGuardado?.code,
       sesion_id: sesionId,
     });
-    if (errorGuardado.code === '55000') yield fallo(409, MENSAJE_PRACTICA_TERMINADA);
-    else if (errorGuardado.code === '54000') yield fallo(429, mensajeTope());
+    if (errorGuardado?.code === '55000') {
+      yield { ...fallo(409, MENSAJE_PRACTICA_TERMINADA), fin: 'cerrada' };
+    } else if (errorGuardado?.code === '54000') yield fallo(429, mensajeTope());
     // Sin guardar, el docente no vería el intercambio en la transcripción y el paciente lo
     // olvidaría en el siguiente turno: mejor que el estudiante lo reintente.
     else yield fallo(503, 'No pudimos guardar tu mensaje. Inténtalo de nuevo.');
@@ -202,8 +207,8 @@ async function* responderTurno(
     timestamp_respuesta: timestampRespuesta,
     tokens_entrada: resultado.tokensEntrada,
     tokens_salida: resultado.tokensSalida,
-    id_mensaje_estudiante: guardado?.id_estudiante ?? null,
-    id_mensaje_npc: guardado?.id_npc ?? null,
+    id_mensaje_estudiante: guardado.id_estudiante,
+    id_mensaje_npc: guardado.id_npc,
     cierre: resultado.cierre,
     consulta: consultaAlResponder(turno.consulta),
   };

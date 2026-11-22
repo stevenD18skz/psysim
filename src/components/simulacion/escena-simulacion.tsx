@@ -8,6 +8,7 @@ interface EscenaSimulacionProps {
   escena: Escena;
   onListo: () => void;
   onBloqueoCambia: (bloqueado: boolean) => void;
+  onFallo?: () => void;
 }
 
 /**
@@ -19,9 +20,10 @@ export default function EscenaSimulacion({
   escena,
   onListo,
   onBloqueoCambia,
+  onFallo,
 }: EscenaSimulacionProps) {
   return (
-    <SceneCanvas onListo={onListo}>
+    <SceneCanvas onListo={onListo} onFallo={onFallo}>
       <SceneLoader escena={escena} onBloqueoCambia={onBloqueoCambia} />
     </SceneCanvas>
   );

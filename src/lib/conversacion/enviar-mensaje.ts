@@ -1,5 +1,6 @@
-import { FIN_POR_TIEMPO } from '@/lib/conversacion/cierre';
+import { FIN_POR_TIEMPO, type FinDePractica } from '@/lib/conversacion/cierre';
 import { type IntensidadEmocion } from '@/lib/conversacion/emociones';
+import { recordarIntervencionPendiente } from '@/lib/conversacion/pendiente-local';
 import { TEXTO_TIEMPO } from '@/lib/sesiones/tiempo-consulta';
 import { crearLectorSse } from '@/lib/sse';
 import {
@@ -39,8 +40,10 @@ interface OpcionesEnvio {
  * La sesión vencida (401), la práctica ya terminada (409) y los límites (429) tienen un aviso
  * propio: con el genérico, el estudiante reintentaría algo que no puede funcionar.
  */
-const mensajeDeError = (status: number, detalle: string | null) =>
-  [401, 409, 429].includes(status) && detalle ? detalle : MENSAJE_NO_DISPONIBLE;
+const mensajeDeError = (status: number, detalle: string | null, tieneEspera = false) =>
+  ([401, 409, 429].includes(status) || (status === 503 && tieneEspera)) && detalle
+    ? detalle
+    : MENSAJE_NO_DISPONIBLE;
 
 /** Lee la respuesta por partes del servidor (Server-Sent Events) y entrega sus eventos válidos. */
 async function* leerEventos(
@@ -134,6 +137,9 @@ export async function enviarMensaje(
 
   const { conversacion } = store.getState();
   conversacion.establecerPendiente(mensaje);
+  const guardarPendiente = (pendiente: MensajeConversacion | null) =>
+    recordarIntervencionPendiente(estado.sesion.cuentaId, sesion.id, pendiente);
+  guardarPendiente(mensaje);
   conversacion.establecerError(null);
   conversacion.establecerEspera(null);
   const enviadoEn = Date.now();
@@ -176,31 +182,36 @@ export async function enviarMensaje(
   const completar = (datos: NpcChatResponse): ResultadoEnvio => {
     if (!sigueAbierta()) return DESCARTADA;
     const final = store.getState();
-    const campos = {
-      contenido: datos.respuesta_npc,
-      timestamp: datos.timestamp_respuesta,
-      latencia_ms: Math.max(0, Math.round(ahora() - inicio)),
-      ...(datos.emocion_npc && { emocion: datos.emocion_npc }),
-      ...(datos.intensidad_npc && { intensidad: datos.intensidad_npc as IntensidadEmocion }),
-    };
-    if (idRespuesta) {
-      final.conversacion.actualizarMensaje(idRespuesta, { ...campos, enCurso: false });
+    if (datos.historial_recuperado) {
+      final.conversacion.sincronizarHistorial(datos.historial_recuperado);
     } else {
-      idRespuesta = crypto.randomUUID();
-      final.conversacion.agregarMensaje({
-        id: idRespuesta,
-        remitente: 'npc',
-        sinGuardar: true,
-        ...campos,
+      const campos = {
+        contenido: datos.respuesta_npc,
+        timestamp: datos.timestamp_respuesta,
+        latencia_ms: Math.max(0, Math.round(ahora() - inicio)),
+        ...(datos.emocion_npc && { emocion: datos.emocion_npc }),
+        ...(datos.intensidad_npc && { intensidad: datos.intensidad_npc as IntensidadEmocion }),
+      };
+      if (idRespuesta) {
+        final.conversacion.actualizarMensaje(idRespuesta, { ...campos, enCurso: false });
+      } else {
+        idRespuesta = crypto.randomUUID();
+        final.conversacion.agregarMensaje({
+          id: idRespuesta,
+          remitente: 'npc',
+          sinGuardar: true,
+          ...campos,
+        });
+      }
+      // Con los ids de la base de datos se puede volver a este momento para ensayar otra respuesta.
+      final.conversacion.confirmarGuardado({
+        [mensaje.id]: datos.id_mensaje_estudiante,
+        [idRespuesta]: datos.id_mensaje_npc,
       });
+      final.metricas.registrarTokens(datos.tokens_entrada, datos.tokens_salida);
     }
-    // Con los ids de la base de datos se puede volver a este momento para ensayar otra respuesta.
-    final.conversacion.confirmarGuardado({
-      [mensaje.id]: datos.id_mensaje_estudiante,
-      [idRespuesta]: datos.id_mensaje_npc,
-    });
-    final.metricas.registrarTokens(datos.tokens_entrada, datos.tokens_salida);
     final.conversacion.establecerPendiente(null);
+    guardarPendiente(null);
     final.conversacion.establecerEspera(null);
     if (datos.consulta) {
       final.conversacion.actualizarConsulta({
@@ -209,24 +220,27 @@ export async function enviarMensaje(
       });
     }
     if (datos.cierre) final.conversacion.establecerCierre(datos.cierre);
-    final.npc.actualizarEstadoNPC('respondiendo');
+    final.npc.actualizarEstadoNPC(datos.historial_recuperado ? 'esperando_input' : 'respondiendo');
     return { ok: true };
   };
 
   /**
-   * El servidor ya no acepta intervenciones: se cumplieron el tiempo de la consulta y su margen.
-   * No es un error: la intervención se retira (no se guardó) y la práctica termina con el aviso.
+   * El servidor confirmó el cierre. Se retira la intervención pendiente y se muestran los resultados.
    */
-  const terminarPorTiempo = (): ResultadoEnvio => {
+  const terminar = (fin: FinDePractica): ResultadoEnvio => {
     if (!sigueAbierta()) return DESCARTADA;
     const actual = store.getState();
     if (idRespuesta) actual.conversacion.quitarMensaje(idRespuesta);
     actual.conversacion.quitarMensaje(mensaje.id);
     actual.conversacion.establecerPendiente(null);
+    guardarPendiente(null);
     actual.conversacion.establecerEspera(null);
-    actual.conversacion.establecerCierre(FIN_POR_TIEMPO);
+    actual.conversacion.establecerCierre(fin);
     actual.npc.actualizarEstadoNPC('esperando_input');
-    return { ok: false, motivo: TEXTO_TIEMPO.vencida };
+    return {
+      ok: false,
+      motivo: fin === FIN_POR_TIEMPO ? TEXTO_TIEMPO.vencida : 'La práctica ya terminó.',
+    };
   };
 
   let respuesta: Response;
@@ -249,8 +263,14 @@ export async function enviarMensaje(
     const json: unknown = await respuesta.json().catch(() => null);
     if (!respuesta.ok) {
       const error = npcChatErrorSchema.safeParse(json);
-      if (error.success && error.data.fin) return terminarPorTiempo();
-      return fallar(mensajeDeError(respuesta.status, error.success ? error.data.error : null));
+      if (error.success && error.data.fin) return terminar(error.data.fin);
+      return fallar(
+        mensajeDeError(
+          respuesta.status,
+          error.success ? error.data.error : null,
+          respuesta.headers.has('Retry-After')
+        )
+      );
     }
     const datos = npcChatResponseSchema.safeParse(json);
     return datos.success ? completar(datos.data) : fallar(MENSAJE_NO_DISPONIBLE);
@@ -302,9 +322,9 @@ export async function enviarMensaje(
       } else if (evento.tipo === 'fin') {
         return completar(evento.respuesta);
       } else if (evento.fin) {
-        return terminarPorTiempo();
+        return terminar(evento.fin);
       } else {
-        return fallar(mensajeDeError(evento.status, evento.error));
+        return fallar(mensajeDeError(evento.status, evento.error, evento.espera_s !== undefined));
       }
     }
   } catch {

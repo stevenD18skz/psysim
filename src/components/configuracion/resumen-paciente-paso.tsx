@@ -1,6 +1,6 @@
 'use client';
 
-import { CopyPlus, MessagesSquare, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { CopyPlus, MessagesSquare, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
 import { IndicadorNivel } from '@/components/casos/insignias-caso';
@@ -99,8 +99,7 @@ export function ResumenPacientePaso({
 
         <div className="flex flex-col gap-3 rounded-xl border border-dashed border-input/70 bg-lino/45 p-4">
           <div className="flex flex-col gap-0.5">
-            <p className="flex items-center gap-1.5 text-sm font-semibold">
-              <Sparkles className="size-4 text-salvia" aria-hidden />
+            <p className="text-sm font-semibold text-foreground">
               ¿Quieres adaptar a {primerNombre} para esta práctica?
             </p>
             <p className="text-xs text-muted-foreground">
@@ -113,6 +112,7 @@ export function ResumenPacientePaso({
             <Button
               type="button"
               variant="default"
+              className="min-h-11 sm:min-h-9"
               onClick={onAbrirAjustes}
               disabled={deshabilitado}
             >
@@ -122,7 +122,7 @@ export function ResumenPacientePaso({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="min-h-11 sm:min-h-9"
               disabled={deshabilitado}
               onClick={() =>
                 onAplicarAtajo({
@@ -137,7 +137,7 @@ export function ResumenPacientePaso({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="min-h-11 sm:min-h-9"
               disabled={deshabilitado}
               onClick={() =>
                 onAplicarAtajo({

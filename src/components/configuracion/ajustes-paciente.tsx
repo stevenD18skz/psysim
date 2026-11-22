@@ -1,24 +1,36 @@
 'use client';
 
 import {
-  ChevronDown,
+  CheckCircle2,
   ChevronUp,
   CopyPlus,
+  FileCode2,
   Lock,
   Plus,
   RotateCcw,
-  Sparkles,
+  SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useId } from 'react';
 
+import { BotonCopiar } from '@/components/asignaciones/boton-copiar';
 import { ControlCitado } from '@/components/comun/control-citado';
 import { GrupoChips, SelectorOpciones, Sugerencias } from '@/components/casos/selectores';
 import { AyudaContextual } from '@/components/comun/ayuda-contextual';
 import { Desplegable } from '@/components/comun/desplegable';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   type AjustesPractica,
@@ -31,6 +43,7 @@ import {
 } from '@/lib/casos/ajustes';
 import { ACTITUDES, EJEMPLOS_SECRETOS, type IdActitud } from '@/lib/casos/opciones';
 import { cn } from '@/lib/utils';
+import { LIMITES } from '@/schemas/configuracion.schema';
 
 interface AjustesPacienteProps {
   escenarioId?: string;
@@ -42,15 +55,18 @@ interface AjustesPacienteProps {
   onRestablecer: () => void;
   onCerrar?: () => void;
   deshabilitado: boolean;
-  /** El texto completo (avanzado), para quien prefiera escribirlo. */
-  editorTexto: React.ReactNode;
+  /** Texto completo actual que recibirá el paciente (se inspecciona y edita en modal). */
+  promptActual: string;
+  /** Mensaje de validación si el texto completo incumple el largo permitido. */
+  promptError?: string;
+  onEditarPrompt: (valor: string) => void;
 }
 
 /**
  * Ajustar al paciente para una práctica sin escribir instrucciones: botones para lo más común
  * (que se abra más o menos, cuánto se le notan las emociones, una actitud distinta), datos que
  * guarde y una indicación con las propias palabras. Debajo, el resumen de lo que cambiará. El
- * texto completo queda plegado como opción avanzada.
+ * texto completo se abre en un diálogo dedicado para revisarlo o editarlo sin distracciones.
  */
 export function AjustesPaciente({
   escenarioId,
@@ -61,7 +77,9 @@ export function AjustesPaciente({
   onRestablecer,
   onCerrar,
   deshabilitado,
-  editorTexto,
+  promptActual,
+  promptError,
+  onEditarPrompt,
 }: AjustesPacienteProps) {
   const idIndicacion = useId();
   const nombreCorto = nombre.split(' ')[0];
@@ -69,6 +87,13 @@ export function AjustesPaciente({
   const bloqueado = deshabilitado || textoManual;
   const cambiar = (cambios: Partial<AjustesPractica>) => onCambio({ ...ajustes, ...cambios });
   const sinCambios = !textoManual && resumen.length === 0;
+  const palabras = promptActual.trim() ? promptActual.trim().split(/\s+/).length : 0;
+  const superaLimite = promptActual.length > LIMITES.prompt.max;
+  const estadoTexto = textoManual
+    ? 'Editado a mano'
+    : resumen.length > 0
+      ? `Con ${resumen.length} ${resumen.length === 1 ? 'ajuste rápido' : 'ajustes rápidos'}`
+      : 'Texto original del caso';
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
@@ -275,7 +300,11 @@ export function AjustesPaciente({
           )}
         >
           <p className="flex items-center gap-2 font-semibold text-foreground">
-            <Sparkles className="size-4 text-salvia" aria-hidden />
+            {resumen.length > 0 && textoManual === false ? (
+              <CheckCircle2 className="size-4 text-salvia-oscuro" aria-hidden />
+            ) : (
+              <SlidersHorizontal className="size-4 text-salvia" aria-hidden />
+            )}
             {textoManual
               ? 'Usará el texto que editaste.'
               : resumen.length === 0
@@ -293,22 +322,166 @@ export function AjustesPaciente({
           </Desplegable>
         </div>
 
-        <details className="group/avanzado rounded-xl border bg-muted/15">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium outline-hidden hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-            Ver o editar el texto completo (avanzado)
-            <ChevronDown
-              className="ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-salida group-open/avanzado:rotate-180"
-              aria-hidden
-            />
-          </summary>
-          <div className="flex flex-col gap-2 border-t p-4">
-            <p className="text-xs text-muted-foreground">
-              Es lo que recibe la IA: el caso y, al final, tus ajustes. Si lo editas a mano, los
-              ajustes rápidos quedan en pausa.
-            </p>
-            {editorTexto}
+        <div
+          className={cn(
+            'flex flex-col gap-2.5 rounded-xl border bg-muted/20 p-4',
+            promptError && 'border-destructive/60 bg-destructive/5'
+          )}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">
+                  Texto completo que recibe la IA
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold',
+                    textoManual
+                      ? 'bg-ambar-suave text-ambar'
+                      : resumen.length > 0
+                        ? 'bg-salvia-suave text-salvia-oscuro'
+                        : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {estadoTexto}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {palabras.toLocaleString('es-CO')} {palabras === 1 ? 'palabra' : 'palabras'} ·{' '}
+                <span className={cn(superaLimite && 'font-semibold text-destructive')}>
+                  {promptActual.length.toLocaleString('es-CO')}/
+                  {LIMITES.prompt.max.toLocaleString('es-CO')} caracteres
+                </span>
+              </p>
+            </div>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm" disabled={deshabilitado}>
+                  <FileCode2 className="text-salvia" aria-hidden />
+                  Ver o editar el texto completo (avanzado)
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+                <DialogHeader className="gap-1.5 border-b bg-muted/35 px-5 py-4 pr-12 text-left sm:px-6 sm:py-5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <DialogTitle className="flex items-center gap-2 text-lg font-bold tracking-[-0.015em]">
+                      <FileCode2 className="size-5 shrink-0 text-salvia-oscuro" aria-hidden />
+                      Texto completo de {nombreCorto}
+                    </DialogTitle>
+                    <span
+                      className={cn(
+                        'rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold',
+                        textoManual
+                          ? 'bg-ambar-suave text-ambar'
+                          : resumen.length > 0
+                            ? 'bg-salvia-suave text-salvia-oscuro'
+                            : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      {estadoTexto}
+                    </span>
+                  </div>
+                  <DialogDescription>
+                    Es el texto que recibe la IA: la historia del caso y, al final, tus ajustes. Si
+                    lo editas a mano, los ajustes rápidos quedan en pausa hasta que vuelvas al
+                    original.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-5 sm:px-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                      <Label htmlFor="promptSistema" className="text-sm font-semibold">
+                        Comportamiento del paciente
+                      </Label>
+                      <span
+                        className={cn(
+                          'text-xs text-muted-foreground tabular-nums',
+                          superaLimite && 'font-semibold text-destructive'
+                        )}
+                      >
+                        {palabras.toLocaleString('es-CO')} {palabras === 1 ? 'palabra' : 'palabras'}{' '}
+                        · {promptActual.length.toLocaleString('es-CO')}/
+                        {LIMITES.prompt.max.toLocaleString('es-CO')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <BotonCopiar
+                        texto={promptActual}
+                        etiqueta="Copiar texto"
+                        size="sm"
+                        variant="outline"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={onRestablecer}
+                        disabled={deshabilitado || sinCambios}
+                      >
+                        <RotateCcw aria-hidden />
+                        Volver al original
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Desplegable abierto={textoManual}>
+                    <p className="rounded-lg bg-ambar-suave px-3.5 py-2 text-xs text-ambar">
+                      Edición manual activa: los ajustes rápidos del panel están en pausa. Usa{' '}
+                      <ControlCitado icono={<RotateCcw aria-hidden />}>
+                        Volver al original
+                      </ControlCitado>{' '}
+                      si quieres reactivarlos.
+                    </p>
+                  </Desplegable>
+
+                  <Textarea
+                    id="promptSistema"
+                    rows={15}
+                    value={promptActual}
+                    onChange={evento => onEditarPrompt(evento.target.value)}
+                    disabled={deshabilitado}
+                    aria-invalid={promptError ? true : undefined}
+                    aria-describedby={promptError ? 'promptSistema-error' : 'promptSistema-nota'}
+                    className="min-h-72 flex-1 bg-card font-mono text-[13px] leading-relaxed"
+                  />
+
+                  {promptError && (
+                    <p id="promptSistema-error" role="alert" className="text-sm text-destructive">
+                      {promptError}
+                    </p>
+                  )}
+
+                  <p id="promptSistema-nota" className="text-xs text-muted-foreground">
+                    Las 15 reglas fijas de PsySim se añaden aparte en el servidor; no hace falta
+                    repetirlas aquí.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/25 px-5 py-3.5 sm:px-6">
+                  <p className="text-xs text-muted-foreground">
+                    Los cambios quedan aplicados solo para esta práctica.
+                  </p>
+                  <DialogClose asChild>
+                    <Button type="button" size="sm">
+                      Listo
+                    </Button>
+                  </DialogClose>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-        </details>
+
+          {promptError && (
+            <p role="alert" className="text-sm text-destructive">
+              {promptError}
+            </p>
+          )}
+        </div>
       </div>
 
       {escenarioId && (

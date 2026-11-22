@@ -10,6 +10,7 @@ import { ReflexionEstudiante } from '@/components/resultados/reflexion';
 import { EncabezadoSesion } from '@/components/sesiones/encabezado-sesion';
 import { requerirEstudiante } from '@/lib/auth/dal';
 import { formatearFechaHora, formatearNota } from '@/lib/estudiantes/estudiantes';
+import { esInterrupcionSinConversacion } from '@/lib/sesiones/estados';
 import { obtenerDetalleSesion, obtenerReflexion } from '@/lib/sesiones/queries';
 
 export const metadata: Metadata = {
@@ -33,10 +34,12 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
 
   // RLS solo entrega la retroalimentación publicada.
   const retro = sesion.retroalimentacion?.publicadaEn ? sesion.retroalimentacion : null;
+  const sinConversacion = esInterrupcionSinConversacion({
+    estado: sesion.estado,
+    intervenciones: sesion.mensajes.filter(m => m.remitente === 'estudiante').length,
+  });
   const totalComentarios = retro?.anotaciones.length ?? 0;
-  const actualizada =
-    retro?.publicadaEn &&
-    new Date(retro.actualizadoEn).getTime() - new Date(retro.publicadaEn).getTime() > 1000;
+  const actualizada = retro !== null && retro.actualizadoEn !== retro.publicadaEn;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -99,6 +102,11 @@ export default async function PracticaPage({ params }: PageProps<'/practicas/[id
               <span className="text-xs text-muted-foreground">de 5,0</span>
             </div>
           </section>
+        ) : sinConversacion ? (
+          <p className="rounded-xl border bg-card p-5 text-sm">
+            La práctica se cerró antes de que conversaras. Si aún debes hacerla, pídele un código
+            nuevo a tu docente.
+          </p>
         ) : (
           <div className="flex items-start gap-3 rounded-xl bg-ambar-suave p-5 text-sm">
             <Hourglass className="mt-0.5 size-5 shrink-0 text-ambar" aria-hidden />

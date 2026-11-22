@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { comenzarSesion } from '@/lib/escenarios/actions';
+import { leerPrivacidadAceptada, recordarPrivacidadAceptada } from '@/lib/privacidad';
 import { AppStoreProvider, useAppStoreApi } from '@/store/app-store-provider';
 
 import { SESION_ACTIVA } from '../../../test/fixtures';
@@ -20,11 +21,17 @@ vi.mock('@/lib/escenarios/actions', () => ({ comenzarSesion: vi.fn() }));
 
 const SESION = { ...SESION_ACTIVA, comenzada: false };
 const INICIO = '2026-10-20T15:00:00.000Z';
+const CUENTA = 'estudiante-de-prueba';
 
 function montar(segundosParaCierre: number | null = null, sesion = SESION) {
   const envoltorio = ({ children }: { children: React.ReactNode }) => (
     <AppStoreProvider estadoInicial={{ sesion: { activa: sesion } }}>
-      <InstruccionesCaso sesion={sesion} segundosParaCierre={segundosParaCierre} />
+      <InstruccionesCaso
+        sesion={sesion}
+        segundosParaCierre={segundosParaCierre}
+        aceptadaAntes={leerPrivacidadAceptada(CUENTA)}
+        onAceptarPrivacidad={() => recordarPrivacidadAceptada(CUENTA)}
+      />
       {children}
     </AppStoreProvider>
   );
@@ -163,15 +170,30 @@ describe('InstruccionesCaso (HU-23)', () => {
       montar();
       await userEvent.click(screen.getByRole('checkbox', { name: /Leí el aviso de privacidad/ }));
       await userEvent.click(screen.getByRole('button', { name: 'Empezar la práctica' }));
-      expect(localStorage.getItem('psysim:privacidad-aceptada')).not.toBeNull();
+      expect(leerPrivacidadAceptada(CUENTA)).not.toBeNull();
+      expect(leerPrivacidadAceptada('otra-cuenta')).toBeNull();
     });
 
     it('con la privacidad ya aceptada se puede empezar directamente', () => {
-      localStorage.setItem('psysim:privacidad-aceptada', '2026-10-01T10:00:00.000Z');
+      recordarPrivacidadAceptada(CUENTA);
       montar();
       expect(screen.queryByRole('checkbox', { name: /Leí el aviso/ })).toBeNull();
       expect(screen.getByText(/Aceptaste el aviso de privacidad/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Empezar la práctica' })).toBeEnabled();
+    });
+
+    it('pide aceptar el aviso vigente para retomar, sin volver a empezar', async () => {
+      localStorage.setItem('psysim:privacidad-aceptada', '2026-10-01T10:00:00.000Z');
+      montar(null, { ...SESION, comenzada: true });
+
+      const continuar = screen.getByRole('button', { name: 'Continuar la práctica' });
+      const aviso = screen.getByRole('checkbox', { name: /orquestador.*Google Gemini/i });
+      expect(continuar).toBeDisabled();
+      await userEvent.click(aviso);
+      await userEvent.click(continuar);
+
+      expect(leerPrivacidadAceptada(CUENTA)).not.toBeNull();
+      expect(comenzarSesion).not.toHaveBeenCalled();
     });
 
     it('si no se puede comenzar avisa y la práctica no empieza', async () => {

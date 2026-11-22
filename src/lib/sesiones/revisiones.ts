@@ -1,5 +1,10 @@
 import { coincideBusqueda, dentroDelPeriodo, diasDesde, type Periodo } from '@/lib/listas';
-import { duracionSesion, estadoCortoSesion, estaPorRevisar } from '@/lib/sesiones/estados';
+import {
+  duracionSesion,
+  esInterrupcionSinConversacion,
+  estadoCortoSesion,
+  estaPorRevisar,
+} from '@/lib/sesiones/estados';
 import { type SesionDocente } from '@/types';
 
 /*
@@ -292,7 +297,13 @@ export function revisionesCsv(sesiones: readonly SesionDocente[]): string {
       formatoFechaCsv.format(new Date(s.inicio)),
       duracion === null ? null : Math.round(duracion / 60),
       s.intervenciones,
-      publicada ? 'Publicada' : s.retroalimentacion ? 'Borrador' : 'Pendiente',
+      publicada
+        ? 'Publicada'
+        : esInterrupcionSinConversacion(s)
+          ? 'Sin conversación'
+          : s.retroalimentacion
+            ? 'Borrador'
+            : 'Pendiente',
       publicada && s.retroalimentacion?.nota !== null && s.retroalimentacion?.nota !== undefined
         ? s.retroalimentacion.nota.toFixed(1)
         : null,

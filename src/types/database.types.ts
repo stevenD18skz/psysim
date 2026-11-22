@@ -800,9 +800,56 @@ export type Database = {
           },
         ];
       };
+      turno_ia_guardado: {
+        Row: {
+          sesion_id: string;
+          turno_id: string;
+          id_estudiante: string;
+          id_npc: string;
+          cierre: string | null;
+        };
+        Insert: {
+          sesion_id: string;
+          turno_id: string;
+          id_estudiante: string;
+          id_npc: string;
+          cierre?: string | null;
+        };
+        Update: {
+          sesion_id?: string;
+          turno_id?: string;
+          id_estudiante?: string;
+          id_npc?: string;
+          cierre?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'turno_ia_guardado_sesion_id_fkey';
+            columns: ['sesion_id'];
+            isOneToOne: false;
+            referencedRelation: 'sesion';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'turno_ia_guardado_id_estudiante_fkey';
+            columns: ['id_estudiante'];
+            isOneToOne: false;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'turno_ia_guardado_id_npc_fkey';
+            columns: ['id_npc'];
+            isOneToOne: false;
+            referencedRelation: 'mensaje';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       usuario: {
         Row: {
           activo: boolean;
+          avatar_id: string | null;
           codigo_institucional: string;
           contrasena_temporal: boolean;
           correo: string;
@@ -814,6 +861,7 @@ export type Database = {
         };
         Insert: {
           activo?: boolean;
+          avatar_id?: string | null;
           codigo_institucional: string;
           contrasena_temporal?: boolean;
           correo: string;
@@ -825,6 +873,7 @@ export type Database = {
         };
         Update: {
           activo?: boolean;
+          avatar_id?: string | null;
           codigo_institucional?: string;
           contrasena_temporal?: boolean;
           correo?: string;
@@ -900,6 +949,17 @@ export type Database = {
         }[];
       };
       cerrar_sesiones_inactivas: { Args: never; Returns: number };
+      crear_anotacion_revision: {
+        Args: {
+          p_id: string;
+          p_sesion_id: string;
+          p_mensaje_id: string;
+          p_inicio: number;
+          p_fin: number;
+          p_comentario: string;
+        };
+        Returns: Database['public']['Tables']['anotacion']['Row'][];
+      };
       custom_access_token_hook: { Args: { event: Json }; Returns: Json };
       eliminar_estudiante: {
         Args: { p_estudiante_id: string };
@@ -951,6 +1011,28 @@ export type Database = {
         Args: { p_contenido: string; p_sesion_id: string };
         Returns: undefined;
       };
+      guardar_revision: {
+        Args: {
+          p_sesion_id: string;
+          p_modo: string;
+          p_version: string | null;
+          p_comentario: string;
+          p_nota: number | null;
+        };
+        Returns: {
+          resultado: 'guardado' | 'conflicto';
+          comentario_general: string;
+          nota: number | null;
+          publicada_en: string | null;
+          actualizado_en: string;
+        }[];
+      };
+      guardar_turno_chat: {
+        Args: Database['public']['Functions']['guardar_intercambio_ia']['Args'] & {
+          p_marca: string;
+        };
+        Returns: { id_estudiante: string; id_npc: string }[];
+      };
       guardar_metricas_cierre: {
         Args: {
           p_indicadores?: Json;
@@ -967,11 +1049,13 @@ export type Database = {
         Args: { p_sesion_id: string };
         Returns: boolean;
       };
+      registrar_actividad_cuenta: { Args: never; Returns: number | null };
       reservar_peticion_ia: { Args: never; Returns: number };
       reservar_turno_orquestador: {
         Args: { p_cuenta: string; p_cupo?: number };
         Returns: number;
       };
+      segundos_sesion_cuenta: { Args: never; Returns: number | null };
       sesion_limite_inactividad: { Args: never; Returns: string };
       tiempo_de_consulta: {
         Args: { p_sesion_id: string };
@@ -980,6 +1064,20 @@ export type Database = {
       tomar_turno_ia: {
         Args: { p_sesion_id: string; p_turno_id?: string; p_vigencia_s?: number };
         Returns: { resultado: string; marca: string | null }[];
+      };
+      tomar_turno_chat: {
+        Args: { p_sesion_id: string; p_turno_id?: string };
+        Returns: {
+          resultado: string;
+          marca: string | null;
+          id_estudiante: string | null;
+          id_npc: string | null;
+          cierre: string | null;
+        }[];
+      };
+      verificar_vencimiento_sesion: {
+        Args: { p_sesion_id: string };
+        Returns: number | null;
       };
     };
     Enums: {

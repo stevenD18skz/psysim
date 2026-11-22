@@ -21,7 +21,10 @@ function envoltorio({ children }: { children: ReactNode }) {
   return <AppStoreProvider>{children}</AppStoreProvider>;
 }
 
-function montar(alVencer = vi.fn(async () => true), activo = true) {
+function montar(
+  alVencer = vi.fn<() => Promise<boolean | { restantesS: number }>>(async () => true),
+  activo = true
+) {
   const hook = renderHook(
     ({ activo }) => useInactividad({ sesionId: SESION_ID, activo, alVencer }),
     { wrapper: envoltorio, initialProps: { activo } }
@@ -94,6 +97,21 @@ describe('useInactividad', () => {
     expect(registrarActividad).toHaveBeenCalledTimes(2);
     await avanzar(AVISO_INACTIVIDAD_MS - 5000);
     expect(alVencer).not.toHaveBeenCalled();
+  });
+
+  it('rearma el aviso si otra ventana registró actividad sin generar un latido local', async () => {
+    const alVencer = vi
+      .fn<() => Promise<boolean | { restantesS: number }>>()
+      .mockResolvedValueOnce({ restantesS: 100 })
+      .mockResolvedValueOnce(true);
+    const { result } = montar(alVencer);
+    await avanzar(LIMITE_INACTIVIDAD_MS);
+    expect(result.current).toBeNull();
+    await avanzar(40_000);
+    expect(result.current).toBe(60);
+    await avanzar(60_000);
+    expect(alVencer).toHaveBeenCalledTimes(2);
+    expect(registrarActividad).toHaveBeenCalledOnce();
   });
 
   it('agrupa la interacción continua en un latido cada 30 s', async () => {

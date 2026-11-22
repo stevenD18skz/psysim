@@ -122,6 +122,19 @@ describe('agrupaciones', () => {
 });
 
 describe('revisionesCsv', () => {
+  it('distingue una práctica cerrada sin conversación de otra que sí requiere revisión', () => {
+    const sinMensajes = sesion({ id: 'sin', estado: 'interrumpida', intervenciones: 0 });
+    const conMensajes = sesion({ id: 'con', estado: 'interrumpida', intervenciones: 1 });
+    const filtradas = filtrarRevisiones([sinMensajes, conMensajes], {
+      vista: 'pendientes',
+      consulta: '',
+      caso: '',
+      periodo: 'todo',
+    });
+    expect(filtradas).toEqual([conMensajes]);
+    expect(revisionesCsv([sinMensajes]).trimEnd()).toMatch(/Sin conversación,$/);
+  });
+
   it('lleva BOM, encabezado y la nota publicada con un decimal', () => {
     const csv = revisionesCsv([ana2, bruno]);
     expect(csv.startsWith('﻿Estudiante,')).toBe(true);

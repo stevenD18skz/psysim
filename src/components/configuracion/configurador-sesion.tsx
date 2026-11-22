@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useId, useState, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { EstadoVacioMisCasos } from '@/components/casos/estado-vacio-mis-casos';
@@ -35,20 +35,19 @@ import { AjustesPaciente } from '@/components/configuracion/ajustes-paciente';
 import { CodigoGenerado, type CodigoParaEnviar } from '@/components/asignaciones/codigo-generado';
 import { BuscadorEstudiante } from '@/components/configuracion/buscador-estudiante';
 import { GuardarComoCaso } from '@/components/configuracion/guardar-como-caso';
+import { RecorridoAsignarPractica } from '@/components/configuracion/recorrido-asignar';
 import { ResumenPacientePaso } from '@/components/configuracion/resumen-paciente-paso';
 import { DialogoEstudiante } from '@/components/estudiantes/dialogo-estudiante';
 import { TarjetaEscenario } from '@/components/configuracion/tarjeta-escenario';
+import { AvatarCuenta } from '@/components/layout/avatar-cuenta';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { generarAsignacion } from '@/lib/asignaciones/actions';
 import { textoDias } from '@/lib/asignaciones/codigo';
 import { AJUSTES_VACIOS, type AjustesPractica, promptConAjustes } from '@/lib/casos/ajustes';
 import { coincideBusqueda, paginar } from '@/lib/listas';
 import { formatearDia } from '@/lib/estudiantes/estudiantes';
-import { iniciales } from '@/lib/nombres';
 import { avatarDeEscena } from '@/lib/pacientes/avatar';
 import {
   DURACION_CONSULTA_POR_DEFECTO,
@@ -59,7 +58,6 @@ import {
   type GenerarAsignacionData,
   type GenerarAsignacionInput,
   generarAsignacionSchema,
-  LIMITES,
   promptSchema,
   VIGENCIA_POR_DEFECTO,
   VIGENCIAS_DIAS,
@@ -134,6 +132,8 @@ export function ConfiguradorSesion({
 
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<CodigoParaEnviar | null>(null);
+  const botonGenerar = useRef<HTMLButtonElement>(null);
+  const devolverFocoGenerar = useRef(false);
   /** El comportamiento del paciente va plegado hasta que el docente decide ajustarlo. */
   const [ajustando, setAjustando] = useState(ajustarInicial && casoInicial !== null);
   /** Ajustes guiados del paciente para esta práctica (sin escribir instrucciones). */
@@ -143,9 +143,21 @@ export function ConfiguradorSesion({
   /** Momento de referencia para mostrar cuándo vencerá el código (se fija al abrir la página). */
   const [ahora] = useState(() => Date.now());
   const [generando, startTransition] = useTransition();
+  const solicitud = useRef<{ id: string; configuracion: string } | null>(null);
+
+  useEffect(() => {
+    // El diálogo puede cerrarse antes de que termine el refresh que habilita el botón.
+    if (!devolverFocoGenerar.current || codigoGenerado || generando) return;
+    devolverFocoGenerar.current = false;
+    botonGenerar.current?.focus({ preventScroll: true });
+  }, [codigoGenerado, generando]);
+
+  const cerrarCodigo = () => {
+    devolverFocoGenerar.current = true;
+    setCodigoGenerado(null);
+  };
 
   const {
-    register,
     handleSubmit,
     setValue,
     control,
@@ -226,7 +238,10 @@ export function ConfiguradorSesion({
   const opcionesEstudiante = { shouldDirty: true, shouldValidate: true } as const;
   const elegirEstudiante = (elegido: EstudianteRegistrado) =>
     setValue('estudianteId', elegido.id, opcionesEstudiante);
-  const quitarEstudiante = () => setValue('estudianteId', '', { shouldDirty: true });
+  const quitarEstudiante = () => {
+    solicitud.current = null;
+    setValue('estudianteId', '', { shouldDirty: true });
+  };
 
   // Un estudiante recién registrado aparece al recargar los datos del servidor; queda elegido.
   const onEstudianteRegistrado = (id: string) => {
@@ -245,13 +260,13 @@ export function ConfiguradorSesion({
   };
 
   // Editar el texto completo a mano deja en pausa los ajustes guiados.
-  const campoPrompt = register('promptSistema');
-  const editarTexto = (evento: React.ChangeEvent<HTMLTextAreaElement>) => {
-    void campoPrompt.onChange(evento);
+  const editarTexto = (valor: string) => {
+    setValue('promptSistema', valor, {
+      shouldDirty: true,
+      shouldValidate: isSubmitted || Boolean(errors.promptSistema),
+    });
     if (escenario) {
-      setTextoManual(
-        evento.target.value !== promptConAjustes(escenario.npc.promptSistema, ajustes)
-      );
+      setTextoManual(valor !== promptConAjustes(escenario.npc.promptSistema, ajustes));
     }
   };
 
@@ -260,10 +275,15 @@ export function ConfiguradorSesion({
     const destinatario = conCuenta.find(e => e.id === datos.estudianteId);
     if (!seleccionado || !destinatario) return;
 
+    const configuracion = JSON.stringify(datos);
+    if (solicitud.current?.configuracion !== configuracion) {
+      solicitud.current = { id: crypto.randomUUID(), configuracion };
+    }
+    const solicitudId = solicitud.current.id;
     setErrorServidor(null);
     startTransition(
       sinPerderElPanel(async () => {
-        const resultado = await generarAsignacion(datos);
+        const resultado = await generarAsignacion({ ...datos, solicitudId });
         if (!resultado.ok) {
           setErrorServidor(resultado.error);
           return;
@@ -287,10 +307,11 @@ export function ConfiguradorSesion({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <RecorridoAsignarPractica />
       <form
         noValidate
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={evento => void handleSubmit(onSubmit)(evento)}
         className="flex flex-col"
         aria-label="Configuración de la práctica"
       >
@@ -298,6 +319,7 @@ export function ConfiguradorSesion({
         <Paso
           numero={1}
           id="paso-escenario-titulo"
+          tourId="config-caso"
           titulo="Caso"
           estado={estadoPaso1}
           ayuda="Alterna entre los casos que diseñaste y los predefinidos de PsySim. Solo se elige un caso por código; púlsalo de nuevo si quieres deseleccionarlo."
@@ -341,9 +363,18 @@ export function ConfiguradorSesion({
 
             <div className="flex flex-wrap items-center gap-2.5">
               {escenario && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-salvia/40 bg-salvia-suave/55 px-3 py-1 text-xs font-medium text-salvia-oscuro">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-salvia/40 bg-salvia-suave/55 py-1 pr-1.5 pl-3 text-xs font-medium text-salvia-oscuro">
                   <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
                   <span className="max-w-52 truncate">Elegido: {escenario.titulo}</span>
+                  <button
+                    type="button"
+                    onClick={onDeseleccionar}
+                    disabled={generando}
+                    aria-label="Quitar caso seleccionado"
+                    className="flex size-5 items-center justify-center rounded-full text-salvia-oscuro/80 transition-colors hover:bg-salvia-oscuro/15 hover:text-salvia-oscuro focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
                 </span>
               )}
               {escenarios.length > 6 && (
@@ -388,10 +419,38 @@ export function ConfiguradorSesion({
           >
             {seccionCasos === 'predefinidos' ? (
               oficiales.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                  Ningún caso predefinido coincide con{' '}
-                  <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+                  <p>
+                    Ningún caso predefinido coincide con{' '}
+                    <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {propios.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSeccionCasos('propios');
+                          setPaginaCasos(1);
+                        }}
+                      >
+                        Ver {propios.length} en Mis casos
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setBusquedaCaso('');
+                        setPaginaCasos(1);
+                      }}
+                    >
+                      Limpiar búsqueda
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -418,10 +477,38 @@ export function ConfiguradorSesion({
             ) : totalPropios === 0 ? (
               <EstadoVacioMisCasos />
             ) : propios.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
-                Ninguno de tus casos coincide con{' '}
-                <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-input/50 px-5 py-4 text-sm text-muted-foreground">
+                <p>
+                  Ninguno de tus casos coincide con{' '}
+                  <span className="font-medium text-foreground">{busquedaCaso.trim()}</span>.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {oficiales.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSeccionCasos('predefinidos');
+                        setPaginaCasos(1);
+                      }}
+                    >
+                      Ver {oficiales.length} en Casos predefinidos
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBusquedaCaso('');
+                      setPaginaCasos(1);
+                    }}
+                  >
+                    Limpiar búsqueda
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -461,6 +548,7 @@ export function ConfiguradorSesion({
           numero={2}
           id="paso-paciente-titulo"
           seccionId="paso-paciente"
+          tourId="config-paciente"
           titulo="Comportamiento del paciente (opcional)"
           estado={estadoPaso2}
           ayuda="El caso ya viene listo para usar. Si quieres adaptarlo para este estudiante o crear un caso propio con otra dificultad a partir de él, usa el bloque de la derecha."
@@ -549,43 +637,9 @@ export function ConfiguradorSesion({
                     onRestablecer={restablecerPrompt}
                     onCerrar={() => setAjustando(false)}
                     deshabilitado={generando}
-                    editorTexto={
-                      <>
-                        <Label htmlFor="promptSistema" className="sr-only">
-                          Comportamiento del paciente
-                        </Label>
-                        <Textarea
-                          id="promptSistema"
-                          rows={14}
-                          className="max-h-[28rem] min-h-56 font-mono text-[13px] leading-relaxed"
-                          aria-invalid={errors.promptSistema ? true : undefined}
-                          aria-describedby={
-                            errors.promptSistema ? 'promptSistema-error' : undefined
-                          }
-                          disabled={generando}
-                          {...campoPrompt}
-                          onChange={editarTexto}
-                        />
-                        <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
-                          {errors.promptSistema ? (
-                            <p id="promptSistema-error" className="text-sm text-destructive">
-                              {errors.promptSistema.message}
-                            </p>
-                          ) : (
-                            <span />
-                          )}
-                          <span
-                            className={cn(
-                              'shrink-0 tabular-nums',
-                              promptSistema.length > LIMITES.prompt.max && 'text-destructive'
-                            )}
-                          >
-                            {promptSistema.length.toLocaleString('es-CO')}/
-                            {LIMITES.prompt.max.toLocaleString('es-CO')}
-                          </span>
-                        </div>
-                      </>
-                    }
+                    promptActual={promptSistema}
+                    promptError={errors.promptSistema?.message}
+                    onEditarPrompt={editarTexto}
                   />
                 )}
               </div>
@@ -597,6 +651,7 @@ export function ConfiguradorSesion({
         <Paso
           numero={3}
           id="paso-estudiante-titulo"
+          tourId="config-estudiante"
           titulo="Estudiante y plazo"
           estado={estadoPaso3}
           ultimo
@@ -612,12 +667,11 @@ export function ConfiguradorSesion({
 
             {estudiante ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl border border-salvia/40 bg-salvia-suave/45 px-4 py-3 motion-safe:animate-in motion-safe:duration-300 motion-safe:ease-salida motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
-                <span
-                  aria-hidden
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-salvia-oscuro text-sm font-semibold text-lino"
-                >
-                  {iniciales(estudiante.nombre)}
-                </span>
+                <AvatarCuenta
+                  avatarId={estudiante.avatarId}
+                  nombre={estudiante.nombre}
+                  className="size-10 bg-salvia-oscuro text-sm text-lino"
+                />
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="truncate font-semibold" data-testid="estudiante-elegido">
                     {estudiante.nombre}
@@ -703,29 +757,31 @@ export function ConfiguradorSesion({
               </div>
             )}
 
-            <OpcionesEnPildora
-              id="duracion-titulo"
-              titulo="La consulta dura"
-              nombre="duracionMinutos"
-              opciones={DURACIONES_CONSULTA_MIN}
-              valor={duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO}
-              etiqueta={minutos => `${minutos} min`}
-              onCambiar={minutos => setValue('duracionMinutos', minutos, { shouldDirty: true })}
-              deshabilitado={generando}
-              ayuda="Corre desde la primera intervención. El estudiante lo sabe desde las instrucciones, recibe un aviso 3 minutos antes y tiene 5 minutos más para cerrar la entrevista."
-            />
+            <div className="grid gap-5 border-t pt-5 md:grid-cols-2 md:gap-6">
+              <OpcionesEnPildora
+                id="duracion-titulo"
+                titulo="La consulta dura"
+                nombre="duracionMinutos"
+                opciones={DURACIONES_CONSULTA_MIN}
+                valor={duracionMinutos ?? DURACION_CONSULTA_POR_DEFECTO}
+                etiqueta={minutos => `${minutos} min`}
+                onCambiar={minutos => setValue('duracionMinutos', minutos, { shouldDirty: true })}
+                deshabilitado={generando}
+                ayuda="Corre desde la primera intervención. El estudiante lo sabe desde las instrucciones, recibe un aviso 3 minutos antes y tiene 5 minutos más para cerrar la entrevista."
+              />
 
-            <OpcionesEnPildora
-              id="vigencia-titulo"
-              titulo="El código sirve durante"
-              nombre="vigenciaDias"
-              opciones={VIGENCIAS_DIAS}
-              valor={vigenciaDias}
-              etiqueta={textoDias}
-              onCambiar={dias => setValue('vigenciaDias', dias, { shouldDirty: true })}
-              deshabilitado={generando}
-              ayuda="Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha."
-            />
+              <OpcionesEnPildora
+                id="vigencia-titulo"
+                titulo="El código sirve durante"
+                nombre="vigenciaDias"
+                opciones={VIGENCIAS_DIAS}
+                valor={vigenciaDias}
+                etiqueta={textoDias}
+                onCambiar={dias => setValue('vigenciaDias', dias, { shouldDirty: true })}
+                deshabilitado={generando}
+                ayuda="Si el estudiante no lo usa a tiempo, vence. Puedes anularlo antes desde su ficha."
+              />
+            </div>
           </div>
         </Paso>
 
@@ -741,7 +797,10 @@ export function ConfiguradorSesion({
         )}
 
         {/* Acciones */}
-        <div className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:p-4">
+        <div
+          data-tour="config-generar"
+          className="sticky bottom-4 z-10 mt-8 flex flex-col gap-3 rounded-xl border bg-card/95 p-3 shadow-[0_12px_32px_-12px_rgb(58_36_24/0.35)] backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4"
+        >
           <GuardarComoCaso
             escenarioId={escenario?.id ?? null}
             tituloSugerido={escenario?.titulo ?? ''}
@@ -751,7 +810,7 @@ export function ConfiguradorSesion({
           />
           <p
             aria-live="polite"
-            className="flex items-center gap-2 text-sm text-muted-foreground sm:ml-auto"
+            className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground sm:justify-end"
           >
             {!escenario ? (
               'Elige un caso para empezar.'
@@ -770,10 +829,11 @@ export function ConfiguradorSesion({
             )}
           </p>
           <Button
+            ref={botonGenerar}
             type="submit"
             variant="accion"
             size="lg"
-            className="sm:ml-auto"
+            className="shrink-0"
             disabled={generando}
             aria-busy={generando}
           >
@@ -786,7 +846,7 @@ export function ConfiguradorSesion({
           </Button>
         </div>
       </form>
-      <CodigoGenerado datos={codigoGenerado} onCerrar={() => setCodigoGenerado(null)} />
+      <CodigoGenerado datos={codigoGenerado} onCerrar={cerrarCodigo} />
     </div>
   );
 }
@@ -824,6 +884,8 @@ interface PasoProps {
   ultimo?: boolean;
   /** `id` de la sección, para poder desplazarse hasta ella. */
   seccionId?: string;
+  /** Identificador de foco para el recorrido guiado (`data-tour`). */
+  tourId?: string;
   children: React.ReactNode;
 }
 
@@ -841,11 +903,13 @@ function Paso({
   ayuda,
   ultimo = false,
   seccionId,
+  tourId,
   children,
 }: PasoProps) {
   return (
     <section
       id={seccionId}
+      data-tour={tourId}
       aria-labelledby={id}
       data-estado={estado}
       className="grid scroll-mt-20 grid-cols-[2rem_minmax(0,1fr)] gap-x-4 sm:gap-x-5"
@@ -923,7 +987,7 @@ function OpcionesEnPildora<T extends number>({
   ayuda: string;
 }) {
   return (
-    <div role="radiogroup" aria-labelledby={id} className="flex flex-col gap-2 border-t pt-4">
+    <div role="radiogroup" aria-labelledby={id} className="flex flex-col gap-2">
       <p id={id} className="text-sm font-semibold">
         {titulo}
       </p>
@@ -932,7 +996,7 @@ function OpcionesEnPildora<T extends number>({
           <label
             key={opcion}
             className={cn(
-              'flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2',
+              'flex min-h-11 cursor-pointer items-center rounded-full border px-4 text-sm transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-focus-visible:outline-solid sm:min-h-9',
               valor === opcion
                 ? 'border-nogal bg-nogal font-semibold text-lino'
                 : 'bg-background hover:bg-muted'

@@ -11,7 +11,6 @@ import {
   COOKIE_ENTREGA,
   COOKIE_EQUIPO_COMPARTIDO,
   DURACION_ENTREGA_S,
-  RUTA_ENTREGA,
   RUTA_FIN_ENTREGA,
   serializarEntrega,
   tieneContrasena,
@@ -41,8 +40,8 @@ export async function olvidarEntrega(): Promise<void> {
  *
  * Comprueba que el código sea del docente (RLS) y siga vigente, guarda para quién es el equipo,
  * anota la entrega en la cuenta del docente (desde ahí no entra con Google hasta que vuelva con
- * su contraseña), cierra su sesión en este navegador y lleva a la pantalla de entrega. Si todo va
- * bien redirige y no devuelve nada.
+ * su contraseña) y cierra su sesión en este navegador. El cliente limpia sus datos locales
+ * al recibir la confirmación y abre la pantalla de entrega.
  */
 export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<null>> {
   const docente = await requerirDocente();
@@ -95,6 +94,12 @@ export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<
     return { ok: false, error: 'No pudimos preparar el equipo. Inténtalo de nuevo.' };
   }
 
+  const { error: errorSalida } = await supabase.auth.signOut({ scope: 'local' });
+  if (errorSalida) {
+    log.error('entrega.sesion_docente_no_revocada', { codigo: errorSalida.code });
+    return { ok: false, error: 'No pudimos confirmar el cierre de tu sesión. Inténtalo de nuevo.' };
+  }
+
   const almacen = await cookies();
   almacen.set(
     COOKIE_ENTREGA,
@@ -109,13 +114,7 @@ export async function entregarEquipo(valores: unknown): Promise<ResultadoAccion<
   // Legible en el navegador: la práctica la usa para terminar cerrando la sesión.
   almacen.set(COOKIE_EQUIPO_COMPARTIDO, '1', { ...OPCIONES_COOKIE, httpOnly: false });
 
-  const { error: errorSalida } = await supabase.auth.signOut({ scope: 'local' });
-  if (errorSalida) {
-    // signOut elimina las cookies locales aunque falle la revocación remota.
-    log.error('entrega.sesion_docente_no_revocada', { codigo: errorSalida.code });
-  }
-
-  redirect(RUTA_ENTREGA);
+  return { ok: true, datos: null };
 }
 
 /** El docente se arrepiente antes de que el estudiante entre: vuelve al acceso. */

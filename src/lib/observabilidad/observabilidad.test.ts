@@ -5,7 +5,7 @@ import { ENCABEZADO_PETICION, idPeticion, resolverIdPeticion } from './peticion'
 import {
   limpiarMensaje,
   MAX_BYTES_TELEMETRIA,
-  rutaSinParametros,
+  patronDePantalla,
   telemetriaSchema,
 } from './telemetria';
 
@@ -37,10 +37,14 @@ describe('telemetría: esquema', () => {
 });
 
 describe('telemetría: sin datos personales', () => {
-  it('la ruta pierde parámetros y fragmento (pueden llevar códigos de acceso)', () => {
-    expect(rutaSinParametros('/unirse/abc-defg-hij?x=1#y')).toBe('/unirse/abc-defg-hij');
-    expect(rutaSinParametros('/resultados?sesion=123')).toBe('/resultados');
-    expect(rutaSinParametros('javascript:alert(1)')).toBe('/');
+  it('conserva el patrón de pantalla sin identificadores, parámetros ni fragmento', () => {
+    expect(patronDePantalla('/unirse/abc-defg-hij?x=1#y')).toBe('/unirse/[codigo]');
+    expect(patronDePantalla('/practicas/identificador')).toBe('/practicas/[id]');
+    expect(patronDePantalla('/sesiones/identificador')).toBe('/sesiones/[id]');
+    expect(patronDePantalla('/estudiantes/identificador/notas')).toBe('/estudiantes/[id]/notas');
+    expect(patronDePantalla('/resultados?sesion=123')).toBe('/resultados');
+    expect(patronDePantalla('/ruta-desconocida/dato')).toBe('/otra');
+    expect(patronDePantalla('javascript:alert(1)')).toBe('/otra');
   });
 
   it('el mensaje pierde direcciones, correos y códigos de acceso', () => {
