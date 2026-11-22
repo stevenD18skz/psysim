@@ -48,7 +48,14 @@ export function useTeclado(habilitado: boolean): RefObject<Set<string>> {
 
     const alPulsar = (evento: KeyboardEvent) => {
       if (!TECLAS_MOVIMIENTO.has(evento.code)) return;
-      if (esCampoEditable(evento.target) || evento.ctrlKey || evento.metaKey || evento.altKey) {
+      if (
+        esCampoEditable(evento.target) ||
+        evento.ctrlKey ||
+        evento.metaKey ||
+        evento.altKey ||
+        (evento.target instanceof Element &&
+          evento.target.closest('[role="dialog"], [role="alertdialog"]'))
+      ) {
         return;
       }
       evento.preventDefault();

@@ -77,6 +77,7 @@ function LienzoEscena({ children, onListo }: SceneCanvasProps) {
       onCreated={({ gl }) => {
         // Espera a que se pinte el primer fotograma antes de retirar la pantalla de carga.
         requestAnimationFrame(() => requestAnimationFrame(() => onListo?.()));
+        gl.domElement.tabIndex = -1;
         gl.domElement.setAttribute('aria-label', 'Escena 3D de la simulación');
         gl.domElement.setAttribute('role', 'img');
       }}
