@@ -8,6 +8,9 @@ del docente.
 
 Dirección: <https://psysim.vercel.app>
 
+Con sesión iniciada, abre «Manual de uso» desde tu panel o desde el consultorio. Puedes cerrarlo
+con «Atrás» o Esc y seguir donde estabas.
+
 ## 1. Requisitos
 
 - **Para practicar:** un computador con teclado y ratón, y Chrome, Edge o Firefox actualizados. La
@@ -51,14 +54,19 @@ el consultorio.
 
 ### 2.3 Moverte y conversar
 
-| Acción                    | Cómo                                                                     |
-| ------------------------- | ------------------------------------------------------------------------ |
-| Caminar                   | W, A, S, D (también las flechas arriba y abajo)                          |
-| Mirar alrededor           | Ratón, o las flechas izquierda y derecha                                 |
-| Empezar a conversar       | Acércate al paciente y pulsa E, haz clic sobre él o usa «Conversar con…» |
-| Llegar sin caminar        | «Ir directo a la conversación»                                           |
-| Enviar tu intervención    | Enter (Shift + Enter inserta una línea)                                  |
-| Volver a recorrer la sala | «Volver a explorar»                                                      |
+En la primera práctica aparecen pistas junto a los botones, una a la vez y durante 10 segundos.
+Puedes volver a consultar los atajos desde «Controles».
+
+| Acción                          | Cómo                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| Caminar                         | W, A, S, D (también las flechas arriba y abajo)                          |
+| Mirar alrededor                 | Ratón, o las flechas izquierda y derecha                                 |
+| Liberar el ratón                | Esc                                                                      |
+| Ocultar o mostrar los controles | Botón del ojo o Ctrl + H                                                 |
+| Empezar a conversar             | Acércate al paciente y pulsa E, haz clic sobre él o usa «Conversar con…» |
+| Llegar sin caminar              | «Ir directo a la conversación»                                           |
+| Enviar tu intervención          | Enter (Shift + Enter inserta una línea)                                  |
+| Volver a recorrer la sala       | «Volver a explorar»                                                      |
 
 Mientras conversas:
 
