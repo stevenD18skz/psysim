@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { requerirEstudiante } from '@/lib/auth/dal';
 import {
   obtenerIdUltimaSesionEnCurso,
+  obtenerIdPrimeraPractica,
   obtenerMensajesSesion,
   obtenerSesionEnCurso,
 } from '@/lib/escenarios/queries';
@@ -51,15 +52,21 @@ export default async function SimulacionPage({ searchParams }: PageProps<'/simul
 
   // La conversación guardada permite retomar la sesión tras recargar la página (sin los intentos
   // que el estudiante reformuló: el paciente ya no los recuerda).
-  const turnosGuardados = await leerTurnosGuardados(sesion.id);
-  const historial = (await obtenerMensajesSesion(sesion.id)).filter(m => !m.descartadoEn);
+  const [turnosGuardados, mensajes, primeraPractica] = await Promise.all([
+    leerTurnosGuardados(sesion.id),
+    obtenerMensajesSesion(sesion.id),
+    obtenerIdPrimeraPractica()
+      .then(primera => primera === null || primera === sesion.id)
+      .catch(() => false),
+  ]);
 
   return (
     <SimulacionCliente
       cuentaId={perfil.id}
       sesion={sesion}
-      historial={historial}
+      historial={mensajes.filter(m => !m.descartadoEn)}
       turnosGuardados={turnosGuardados}
+      primeraPractica={primeraPractica}
     />
   );
 }

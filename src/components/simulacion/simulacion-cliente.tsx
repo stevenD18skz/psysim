@@ -3,6 +3,7 @@
 import { useProgress } from '@react-three/drei';
 import {
   AlertTriangle,
+  BookOpen,
   Check,
   Compass,
   Copy,
@@ -15,7 +16,7 @@ import {
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ID_BOTON_EXPLORAR } from '@/components/3d/controles-primera-persona';
 import {
@@ -28,6 +29,12 @@ import { IndicadorFps } from '@/components/3d/monitor-rendimiento';
 import { audioEspacialStore } from '@/components/3d/oyente-audio';
 import { useEscena } from '@/components/3d/use-escena';
 import { esCampoEditable } from '@/components/3d/use-teclado';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
+import {
+  AnuncioPistaPractica,
+  PistaPrimeraPractica,
+  useAyudaPrimeraPractica,
+} from '@/components/simulacion/ayuda-primera-practica';
 import { AvisoPantallaCompleta } from '@/components/simulacion/aviso-pantalla-completa';
 import { AvisoInactividad } from '@/components/simulacion/aviso-inactividad';
 import { BotonFinalizar } from '@/components/simulacion/boton-finalizar';
@@ -63,6 +70,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { confirmarComputador, useEsComputador } from '@/hooks/use-es-computador';
 import { VOZ_POR_DEFECTO } from '@/lib/audio/voz';
 import { estaConversando } from '@/lib/conversacion/estados-npc';
@@ -85,6 +93,7 @@ interface SimulacionClienteProps {
   /** Conversación ya guardada de la sesión (al recargar la página se retoma). */
   historial: MensajeConversacion[];
   turnosGuardados: string[];
+  primeraPractica: boolean;
 }
 
 /**
@@ -97,6 +106,7 @@ export function SimulacionCliente({
   sesion,
   historial,
   turnosGuardados,
+  primeraPractica,
 }: SimulacionClienteProps) {
   const activa = useAppStore(state => state.sesion.activa);
   const iniciarSesion = useAppStore(state => state.sesion.iniciar);
@@ -116,7 +126,12 @@ export function SimulacionCliente({
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-background">
       {activa?.id === sesion.id ? (
-        <Escenario key={cuentaId} cuentaId={cuentaId} sesion={activa} />
+        <Escenario
+          key={`${cuentaId}:${sesion.id}`}
+          cuentaId={cuentaId}
+          sesion={activa}
+          primeraPractica={primeraPractica}
+        />
       ) : (
         <LoadingScreen
           visible
@@ -138,7 +153,14 @@ function useAtajosConversacion(activo: boolean) {
   useEffect(() => {
     if (!activo) return;
     const alPulsar = (evento: KeyboardEvent) => {
-      if (evento.code !== 'KeyE' || evento.repeat || esCampoEditable(evento.target)) return;
+      if (
+        evento.code !== 'KeyE' ||
+        evento.repeat ||
+        esCampoEditable(evento.target) ||
+        (evento.target instanceof Element &&
+          evento.target.closest('[role="dialog"], [role="alertdialog"]'))
+      )
+        return;
       if (iniciarConversacion(store)) evento.preventDefault();
     };
     const alHacerClic = () => {
@@ -155,7 +177,15 @@ function useAtajosConversacion(activo: boolean) {
   }, [activo, store]);
 }
 
-function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiva }) {
+function Escenario({
+  cuentaId,
+  sesion,
+  primeraPractica,
+}: {
+  cuentaId: string;
+  sesion: SesionActiva;
+  primeraPractica: boolean;
+}) {
   const store = useAppStoreApi();
   const [modoTexto, setModoTexto] = useState(false);
   const { estado, reintentar } = useEscena(sesion.escenario.configuracion3d, !modoTexto);
@@ -253,6 +283,13 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
     setHerramientas(actual => ({ ...actual, [herramienta]: !actual[herramienta] }));
   const enConsulta = lista && !necesitaInstrucciones && !resumen && !cierre;
   const enEscena = escenaLista && enConsulta;
+  const [manualAbierto, setManualAbierto] = useState(false);
+  const ayuda = useAyudaPrimeraPractica({
+    cuentaId,
+    modoTexto,
+    activa:
+      primeraPractica && enConsulta && !hudOculto && !manualAbierto && (modoTexto || !conversando),
+  });
   useAtajosConversacion(enEscena);
   useFinPorTiempo({ sesionId: sesion.id, activo: enConsulta });
   // HU-18 · T03: la distancia al paciente se mide en silencio mientras la práctica está abierta.
@@ -288,43 +325,75 @@ function Escenario({ cuentaId, sesion }: { cuentaId: string; sesion: SesionActiv
               compacto={conversando}
             />
           )}
-          <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
-            {depuracion && <IndicadorFps />}
-            {!hudOculto && enConsulta && (
-              <>
-                <BotonHerramienta
-                  herramienta="remision"
-                  abierta={herramientas.remision}
-                  onAlternar={() => alternarHerramienta('remision')}
-                />
-                <BotonHerramienta
-                  herramienta="notas"
-                  abierta={herramientas.notas}
-                  onAlternar={() => alternarHerramienta('notas')}
-                />
-              </>
-            )}
-            {!hudOculto && <BotonSonido motor={motorAudio} />}
-            {!hudOculto && !modoTexto && <BotonAjustes />}
-            {!hudOculto && !modoTexto && !conversando && <BotonControles />}
-            {!hudOculto && enConsulta && (
-              <BotonFinalizar
-                onFinalizar={finalizar}
-                finalizando={finalizando}
-                // Nunca con una respuesta de la IA en camino (evita cierres a medias).
-                deshabilitado={enCamino}
-              />
-            )}
-            {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
+          <TooltipProvider>
+            <div className="ml-auto flex flex-wrap items-start justify-end gap-2">
+              <AnuncioPistaPractica actual={ayuda.actual} />
+              {depuracion && <IndicadorFps />}
+              {!hudOculto && enConsulta && (
+                <>
+                  <PistaPrimeraPractica control="remision" ayuda={ayuda}>
+                    <BotonHerramienta
+                      herramienta="remision"
+                      abierta={herramientas.remision}
+                      onAlternar={() => alternarHerramienta('remision')}
+                    />
+                  </PistaPrimeraPractica>
+                  <PistaPrimeraPractica control="notas" ayuda={ayuda}>
+                    <BotonHerramienta
+                      herramienta="notas"
+                      abierta={herramientas.notas}
+                      onAlternar={() => alternarHerramienta('notas')}
+                    />
+                  </PistaPrimeraPractica>
+                </>
+              )}
+              {!hudOculto && <BotonSonido motor={motorAudio} />}
+              {!hudOculto && !modoTexto && <BotonAjustes />}
+              {!hudOculto && !modoTexto && !conversando && (
+                <PistaPrimeraPractica control="controles" ayuda={ayuda}>
+                  <BotonControles />
+                </PistaPrimeraPractica>
+              )}
+              {!hudOculto && enConsulta && (
+                <>
+                  <DialogoManual
+                    alCambiar={abierto => {
+                      setManualAbierto(abierto);
+                      if (abierto && document.pointerLockElement) document.exitPointerLock();
+                    }}
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="pointer-events-auto bg-card/90 backdrop-blur"
+                      aria-label="Manual de uso"
+                      title="Manual de uso"
+                    >
+                      <BookOpen aria-hidden />
+                    </Button>
+                  </DialogoManual>
+                  <BotonFinalizar
+                    onFinalizar={finalizar}
+                    finalizando={finalizando}
+                    // Nunca con una respuesta de la IA en camino (evita cierres a medias).
+                    deshabilitado={enCamino}
+                  />
+                </>
+              )}
+              {/* «Salir» no termina la práctica: queda abierta hasta el plazo de inactividad, y la
                 confirmación dice la hora. */}
-            {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
-            {puedeOcultarHud && (
-              <BotonOcultarHud
-                oculto={hudOculto}
-                onAlternar={() => setHudOculto(valor => !valor)}
-              />
-            )}
-          </div>
+              {!hudOculto && !resumen && !cierre && <BotonSalir compacto={conversando} />}
+              {puedeOcultarHud && (
+                <PistaPrimeraPractica control="ocultar" ayuda={ayuda}>
+                  <BotonOcultarHud
+                    oculto={hudOculto}
+                    onAlternar={() => setHudOculto(valor => !valor)}
+                  />
+                </PistaPrimeraPractica>
+              )}
+            </div>
+          </TooltipProvider>
         </div>
 
         {enConsulta && modoTexto && explorando && (
@@ -472,6 +541,14 @@ function AvisoEscenaNoDisponible({
 function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string; cerca: boolean }) {
   const store = useAppStoreApi();
   const nombreCorto = nombrePaciente.split(' ')[0];
+  const botonExplorar = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // Al salir con Escape, devuelve el foco desde el lienzo sin quitárselo a un control del HUD.
+    if (document.activeElement instanceof HTMLCanvasElement) {
+      botonExplorar.current?.focus({ preventScroll: true });
+    }
+  }, []);
 
   return (
     <div className="mt-auto flex justify-center pb-6">
@@ -509,7 +586,12 @@ function InvitacionExplorar({ nombrePaciente, cerca }: { nombrePaciente: string;
           </li>
         </ul>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button id={ID_BOTON_EXPLORAR} size="lg" variant={cerca ? 'outline' : 'accion'}>
+          <Button
+            ref={botonExplorar}
+            id={ID_BOTON_EXPLORAR}
+            size="lg"
+            variant={cerca ? 'outline' : 'accion'}
+          >
             Comenzar a explorar
           </Button>
           {cerca && (

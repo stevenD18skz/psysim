@@ -94,6 +94,13 @@ test.describe('conversación con el paciente virtual (Sprint 3)', () => {
     const conversar = await acercarseAlPaciente(page, sesionId);
     await expect(page.getByText(/Estás frente a Marta/)).toBeVisible();
 
+    const abrirManual = page.getByRole('button', { name: 'Manual de uso', exact: true });
+    await abrirManual.click();
+    const manual = page.getByRole('dialog', { name: 'Manual de uso de PsySim' });
+    await expect(manual).toBeVisible();
+    await manual.getByRole('button', { name: 'Atrás' }).click();
+    await expect(abrirManual).toBeFocused();
+
     await conversar.click();
     const panel = page.getByRole('region', { name: 'Conversación con Marta Lucía' });
     await expect(panel).toBeVisible();
