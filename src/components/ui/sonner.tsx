@@ -1,11 +1,12 @@
 'use client';
 
 import {
-  CircleCheckIcon,
+  CheckIcon,
+  CircleXIcon,
   InfoIcon,
   Loader2Icon,
-  OctagonXIcon,
   TriangleAlertIcon,
+  XIcon,
 } from 'lucide-react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
@@ -14,27 +15,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
-      className="toaster group"
+      className="avisos-psysim"
+      containerAriaLabel="Avisos de PsySim"
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        success: <CheckIcon className="size-4.5" aria-hidden />,
+        info: <InfoIcon className="size-4.5" aria-hidden />,
+        warning: <TriangleAlertIcon className="size-4.5" aria-hidden />,
+        error: <CircleXIcon className="size-4.5" aria-hidden />,
+        loading: <Loader2Icon className="size-4.5 motion-safe:animate-spin" aria-hidden />,
+        close: <XIcon className="size-4" aria-hidden />,
       }}
-      style={
-        {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
-          '--success-bg': 'var(--salvia-suave)',
-          '--success-text': 'var(--salvia-oscuro)',
-          '--border-radius': 'var(--radius)',
-        } as React.CSSProperties
-      }
       toastOptions={{
+        closeButtonAriaLabel: 'Cerrar aviso',
         classNames: {
-          toast: 'cn-toast',
+          toast: 'aviso-psysim',
         },
       }}
       {...props}

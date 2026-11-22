@@ -70,7 +70,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col">
         <TelemetriaCliente />
         {children}
-        <Toaster position="bottom-right" richColors closeButton />
+        <Toaster position="bottom-right" closeButton />
       </body>
     </html>
   );
