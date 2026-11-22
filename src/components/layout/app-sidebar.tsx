@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BookOpen,
   ChevronsUpDown,
   ClipboardList,
   House,
@@ -23,6 +24,7 @@ import { DialogoCambiarContrasena } from '@/components/layout/dialogo-cambiar-co
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
@@ -184,6 +186,14 @@ export function AppSidebar({ porRevisar }: { porRevisar: number }) {
       {perfil && (
         <SidebarFooter className="border-t border-sidebar-border p-2">
           <SidebarMenu>
+            <SidebarMenuItem>
+              <DialogoManual>
+                <SidebarMenuButton tooltip="Manual de uso">
+                  <BookOpen aria-hidden />
+                  <span className="group-data-[collapsible=icon]:sr-only">Manual de uso</span>
+                </SidebarMenuButton>
+              </DialogoManual>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

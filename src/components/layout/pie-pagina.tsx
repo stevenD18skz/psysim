@@ -2,13 +2,23 @@ import Link from 'next/link';
 
 import { LogoUnivalle } from '@/components/layout/logo-univalle';
 import { MarcaPsySim } from '@/components/layout/marca-psysim';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
 import { cn } from '@/lib/utils';
+
+const CLASE_ENLACE =
+  'inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden';
 
 /**
  * Pie de página común: PsySim como marca y la Universidad del Valle como respaldo institucional
  * (su sello conserva sus colores, el único lugar donde aparece el rojo de la universidad).
  */
-export function PiePagina({ className }: { className?: string }) {
+export function PiePagina({
+  className,
+  manualEnDialogo = false,
+}: {
+  className?: string;
+  manualEnDialogo?: boolean;
+}) {
   return (
     <footer className={cn('border-t bg-card print:hidden', className)}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -29,16 +39,18 @@ export function PiePagina({ className }: { className?: string }) {
             aria-label="Información de PsySim"
             className="flex flex-wrap items-center gap-x-5 gap-y-1"
           >
-            <Link
-              href="/manual"
-              className="inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-            >
-              Manual de uso
-            </Link>
-            <Link
-              href="/privacidad"
-              className="inline-flex min-h-8 items-center font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-            >
+            {manualEnDialogo ? (
+              <DialogoManual>
+                <button type="button" className={CLASE_ENLACE}>
+                  Manual de uso
+                </button>
+              </DialogoManual>
+            ) : (
+              <Link href="/manual" className={CLASE_ENLACE}>
+                Manual de uso
+              </Link>
+            )}
+            <Link href="/privacidad" className={CLASE_ENLACE}>
               Privacidad y tratamiento de datos
             </Link>
           </nav>

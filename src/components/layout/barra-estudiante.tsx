@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Loader2, LogOut } from 'lucide-react';
+import { BookOpen, ChevronDown, Loader2, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRef } from 'react';
@@ -11,6 +11,7 @@ import { MarcaPsySim } from '@/components/layout/marca-psysim';
 import { MenuCuenta } from '@/components/layout/menu-cuenta';
 import { useCerrarSesion } from '@/components/layout/use-cerrar-sesion';
 import { useCerrarSesionCompartida } from '@/components/layout/use-cerrar-sesion-compartida';
+import { DialogoManual } from '@/components/manual/dialogo-manual';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useEquipoCompartido } from '@/hooks/use-equipo-compartido';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,15 @@ export function BarraEstudiante({ sesionEnCurso }: { sesionEnCurso: string | nul
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <DialogoManual>
+            <button
+              type="button"
+              className="flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-lg text-sm font-medium text-sidebar-foreground outline-hidden hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-laton md:px-3"
+            >
+              <BookOpen className="size-4" aria-hidden />
+              <span className="sr-only md:not-sr-only">Manual de uso</span>
+            </button>
+          </DialogoManual>
           {compartido && (
             <button
               type="button"

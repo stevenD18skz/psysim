@@ -45,7 +45,7 @@ async function sinDesplazamientoHorizontal(page: Page) {
 }
 
 test.describe('pantallas públicas (HU-25)', () => {
-  for (const ruta of ['/', '/login', '/privacidad']) {
+  for (const ruta of ['/', '/login', '/privacidad', '/manual']) {
     test(`T03: ${ruta} cumple WCAG 2.1 AA según axe`, async ({ page }) => {
       await page.goto(ruta);
       await expect(page.locator('main, [role="main"]').first()).toBeVisible();
@@ -60,6 +60,15 @@ test.describe('pantallas públicas (HU-25)', () => {
       });
     }
   }
+
+  test('el índice público conserva el destino de Atrás', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Manual de uso', exact: true }).last().click();
+    await page.getByRole('link', { name: '3. Guía del docente' }).click();
+    await expect(page.getByRole('heading', { name: '3. Guía del docente' })).toBeFocused();
+    await page.getByRole('link', { name: 'Atrás', exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+  });
 
   test('T02: el formulario de acceso se recorre con el teclado', async ({ page }) => {
     await page.goto('/login?docente=1');
@@ -94,8 +103,46 @@ test.describe('pantallas públicas (HU-25)', () => {
   });
 });
 
+test('el estudiante consulta el manual sin perder su vista ni el foco', async ({ page }) => {
+  test.skip(!hayCredencialesEstudiante, MOTIVO_SIN_ESTUDIANTE);
+  await page.setViewportSize({ width: 375, height: 667 });
+  await iniciarSesionComoEstudiante(page);
+  const abrir = page.getByRole('banner').getByRole('button', { name: 'Manual de uso' });
+  await abrir.focus();
+  await page.keyboard.press('Enter');
+  const manual = page.getByRole('dialog', { name: 'Manual de uso de PsySim' });
+  await expect(manual.getByRole('button', { name: '2. Guía del estudiante' })).toBeVisible();
+  await manual.getByRole('button', { name: '2. Guía del estudiante' }).click();
+  await expect(manual.getByRole('heading', { name: '2. Guía del estudiante' })).toBeFocused();
+  await expect(page).toHaveURL(/\/practicas$/);
+  await sinDesplazamientoHorizontal(page);
+  await auditar(page);
+
+  await page.keyboard.press('Escape');
+  await expect(manual).toBeHidden();
+  await expect(abrir).toBeFocused();
+  await abrir.press('Enter');
+  await manual.getByRole('button', { name: 'Atrás' }).click();
+  await expect(abrir).toBeFocused();
+  await expect(page).toHaveURL(/\/practicas$/);
+});
+
 test.describe('panel del docente (HU-25)', () => {
   test.skip(!hayCredenciales, 'Define E2E_DOCENTE_CORREO y E2E_DOCENTE_CONTRASENA');
+
+  test('el docente abre el manual desde el menú lateral y vuelve a la vista actual', async ({
+    page,
+  }) => {
+    await iniciarSesionComoDocente(page);
+    await page.goto('/estudiantes');
+    const abrir = page.getByRole('button', { name: 'Manual de uso', exact: true }).first();
+    await abrir.click();
+    const manual = page.getByRole('dialog', { name: 'Manual de uso de PsySim' });
+    await expect(manual.getByRole('button', { name: '3. Guía del docente' })).toBeVisible();
+    await manual.getByRole('button', { name: 'Atrás' }).click();
+    await expect(abrir).toBeFocused();
+    await expect(page).toHaveURL(/\/estudiantes$/);
+  });
 
   const PANTALLAS = [
     '/inicio',
